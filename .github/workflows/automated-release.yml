@@ -83,6 +83,7 @@ jobs:
       contents: write
       pull-requests: write
       issues: write
+      packages: write
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -145,11 +146,11 @@ jobs:
           echo "@wiiiimm:registry=https://npm.pkg.github.com" >> .npmrc
           echo "//npm.pkg.github.com/:_authToken=${NODE_AUTH_TOKEN}" >> .npmrc
           
-          # Temporarily update package.json for scoped publishing
-          sed -i 's/"name": "gh-manager-cli"/"name": "@wiiiimm\/gh-manager-cli"/' package.json
+          # Create a temporary package.json for GitHub Packages
+          jq '.name = "@wiiiimm/gh-manager-cli" | .publishConfig = {"registry": "https://npm.pkg.github.com"}' package.json > package-gh.json
           
-          # Publish to GitHub Packages
-          npm publish --registry=https://npm.pkg.github.com
+          # Publish to GitHub Packages using the temporary file
+          npm publish package-gh.json --registry=https://npm.pkg.github.com
           
-          # Restore original package.json
-          git checkout package.json
+          # Clean up temporary file
+          rm package-gh.json
