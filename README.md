@@ -98,17 +98,17 @@ Project layout:
 - Rate limited: wait for the reset shown in the banner or reduce navigation.
 - Network errors: check connectivity and press `r` to retry.
 
-## Roadmap
+## Todo & Roadmap
 
-- Repo actions (open in browser ✓, archive/unarchive, delete) with confirmations
-- Server-side search and quick filter enhancements
-- Sorting toggles ✓ and additional fields
+For the up-to-date task board, see [TODOs.md](./TODOs.md).
+
+Highlights on deck:
+- Density toggle for row spacing (compact/cozy/comfy)
+- Repo actions (archive/unarchive, delete) with confirmations
 - Organization support and switching
-- Footer status improvements (rate limit ✓)
-- Cache first page to speed startup
-- OS keychain integration for token storage
+- Server-side search; cached first page for faster startup
+- Optional OS keychain storage via `keytar`
 
 ## License
 
 MIT
-

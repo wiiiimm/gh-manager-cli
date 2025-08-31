@@ -28,17 +28,22 @@ export interface ReposPageResult {
 export async function fetchViewerReposPage(
   client: ReturnType<typeof makeClient>,
   first: number,
-  after?: string | null
+  after?: string | null,
+  orderBy?: { field: string; direction: string }
 ): Promise<ReposPageResult> {
+  // Default to UPDATED_AT DESC if not specified
+  const sortField = orderBy?.field || 'UPDATED_AT';
+  const sortDirection = orderBy?.direction || 'DESC';
+  
   const query = /* GraphQL */ `
-    query ViewerRepos($first: Int!, $after: String) {
+    query ViewerRepos($first: Int!, $after: String, $sortField: RepositoryOrderField!, $sortDirection: OrderDirection!) {
       rateLimit { limit remaining resetAt }
       viewer {
         repositories(
           ownerAffiliations: OWNER,
           first: $first,
           after: $after,
-          orderBy: { field: UPDATED_AT, direction: DESC }
+          orderBy: { field: $sortField, direction: $sortDirection }
         ) {
           totalCount
           pageInfo { endCursor hasNextPage }
@@ -82,7 +87,12 @@ export async function fetchViewerReposPage(
       }
     }
   `;
-  const res: any = await client(query, { first, after: after ?? null });
+  const res: any = await client(query, { 
+    first, 
+    after: after ?? null,
+    sortField,
+    sortDirection
+  });
   const data = res.viewer.repositories;
   return {
     nodes: data.nodes as RepoNode[],

@@ -67,12 +67,12 @@ gh-manager-cli/
 - Real-time totalCount refresh to reflect new repos
 
 ### Planned Enhancements
-- Repo actions (open in browser, archive/unarchive, delete)
-- Quick filter (`/`) and server-side search
-- Sorting toggles (updated, pushed, name, stars)
+See the living roadmap in [TODOs.md](./TODOs.md) for the canonical, up-to-date list. Key near-term items include:
+- Density toggle (row spacing) with persisted preference
+- Repo actions (archive/unarchive, delete) with confirmations
 - Organization switcher and org listing
-- Rate-limit banner + footer status
-- Simple page-cache to speed startup
+- Server-side search and first-page cache
+- Optional OS keychain support (via `keytar`)
 
 ## Configuration & Token Storage
 
@@ -238,6 +238,11 @@ const fullText = `${coloredName}\n${coloredDescription}\n${metadataLine}`;
 5. Commit with conventional message
 6. Create PR (title will be auto-formatted)
 
+### Task Tracking
+- The single source of truth for work items is [TODOs.md](./TODOs.md).
+- Update TODOs when starting or completing work (use checkboxes).
+- Keep README’s “Todo & Roadmap” section brief and point back to TODOs.md.
+
 ### Bug Fixes
 1. Identify issue and create test case
 2. Fix in relevant source file
@@ -284,4 +289,3 @@ When working on this project:
 **📋 For version history and release notes, see [CHANGELOG.md](./CHANGELOG.md)**
 
 *This file contains project architecture and development guidelines. Dynamic information like versions and changes are tracked automatically in CHANGELOG.md.*
-

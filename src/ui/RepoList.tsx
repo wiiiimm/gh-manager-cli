@@ -43,7 +43,7 @@ function formatDate(dateStr: string): string {
   return `${Math.floor(diffDays / 365)} years ago`;
 }
 
-function RepoRow({ repo, selected, index, maxWidth }: { repo: RepoNode; selected: boolean; index: number; maxWidth: number }) {
+function RepoRow({ repo, selected, index, maxWidth, spacingLines }: { repo: RepoNode; selected: boolean; index: number; maxWidth: number; spacingLines: number }) {
   const langName = repo.primaryLanguage?.name || '';
   const langColor = repo.primaryLanguage?.color || '#666666';
   
@@ -80,7 +80,11 @@ function RepoRow({ repo, selected, index, maxWidth }: { repo: RepoNode; selected
   return (
     <Box flexDirection="column">
       <Text>{fullText}</Text>
-      <Box minHeight={2}>{/* Empty spacer */}</Box>
+      {spacingLines > 0 && (
+        <Box height={spacingLines}>
+          <Text> </Text>
+        </Box>
+      )}
     </Box>
   );
 }
@@ -100,23 +104,43 @@ export default function RepoList({ token, maxVisibleRows }: { token: string; max
   const [hasNextPage, setHasNextPage] = useState(false);
   const [totalCount, setTotalCount] = useState<number>(0);
   const [loading, setLoading] = useState(true);
+  const [sortingLoading, setSortingLoading] = useState(false); // New state for sort refresh
+  const [refreshing, setRefreshing] = useState(false); // Track if this is a manual refresh
   const [error, setError] = useState<string | null>(null);
   const [rateLimit, setRateLimit] = useState<RateLimitInfo | undefined>(undefined);
+  // Display density: 0 = compact (0 lines), 1 = cozy (1 line), 2 = comfy (2 lines)
+  const [density, setDensity] = useState<0 | 1 | 2>(2);
 
   // Filter state
   const [filter, setFilter] = useState('');
   const [filterMode, setFilterMode] = useState(false);
 
-  // Sorting state
-  type SortKey = 'updated' | 'pushed' | 'name' | 'stars' | 'forks';
+  // Sorting state - only support GitHub API sortable fields
+  type SortKey = 'updated' | 'pushed' | 'name' | 'stars';
   const [sortKey, setSortKey] = useState<SortKey>('updated');
   const [sortDir, setSortDir] = useState<'asc' | 'desc'>('desc');
 
-  const fetchPage = async (after?: string | null) => {
-    setLoading(true);
+  // Map our sort keys to GitHub's GraphQL field names
+  const sortFieldMap: Record<SortKey, string> = {
+    'updated': 'UPDATED_AT',
+    'pushed': 'PUSHED_AT',
+    'name': 'NAME',
+    'stars': 'STARGAZERS'
+  };
+
+  const fetchPage = async (after?: string | null, reset = false, isSortChange = false) => {
+    if (isSortChange) {
+      setSortingLoading(true);
+    } else {
+      setLoading(true);
+    }
     try {
-      const page = await fetchViewerReposPage(client, PAGE_SIZE, after ?? null);
-      setItems(prev => (after ? [...prev, ...page.nodes] : page.nodes));
+      const orderBy = {
+        field: sortFieldMap[sortKey],
+        direction: sortDir.toUpperCase()
+      };
+      const page = await fetchViewerReposPage(client, PAGE_SIZE, after ?? null, orderBy);
+      setItems(prev => (reset || !after ? page.nodes : [...prev, ...page.nodes]));
       setEndCursor(page.endCursor);
       setHasNextPage(page.hasNextPage);
       setTotalCount(page.totalCount);
@@ -126,6 +150,8 @@ export default function RepoList({ token, maxVisibleRows }: { token: string; max
       setError('Failed to load repositories. Check network or token.');
     } finally {
       setLoading(false);
+      setSortingLoading(false);
+      setRefreshing(false);
     }
   };
 
@@ -133,6 +159,15 @@ export default function RepoList({ token, maxVisibleRows }: { token: string; max
     fetchPage();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [client]);
+
+  // Refresh from server when sorting changes
+  useEffect(() => {
+    // Skip initial mount
+    if (items.length > 0) {
+      fetchPage(null, true, true); // Reset and fetch with new sorting, mark as sort change
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [sortKey, sortDir]);
 
   useInput((input, key) => {
     // When in filter mode, only handle input for the TextInput
@@ -162,9 +197,11 @@ export default function RepoList({ token, maxVisibleRows }: { token: string; max
     if (input === 'g' && key.ctrl) setCursor(0);
     if (input === 'G') setCursor(items.length - 1);
     if (input === 'r') {
-      // Refresh
+      // Refresh - show loading screen
       setCursor(0);
-      fetchPage();
+      setRefreshing(true);
+      setSortingLoading(true); // Use same loading state for consistency
+      fetchPage(null, true, true); // Reset and show loading
     }
 
     // Start filter mode
@@ -173,15 +210,20 @@ export default function RepoList({ token, maxVisibleRows }: { token: string; max
       return;
     }
 
-    // Sorting toggles: cycle key and direction
+    // Sorting toggles: cycle key and direction - triggers server refresh
     if (input === 's') {
-      const order: SortKey[] = ['updated', 'pushed', 'name', 'stars', 'forks'];
+      const order: SortKey[] = ['updated', 'pushed', 'name', 'stars'];
       const idx = order.indexOf(sortKey);
-      setSortKey(order[(idx + 1) % order.length]);
+      const newSortKey = order[(idx + 1) % order.length];
+      setSortKey(newSortKey);
+      setCursor(0); // Reset cursor to top
+      // Will trigger refresh via useEffect
       return;
     }
     if (input === 'd') {
       setSortDir(prev => (prev === 'asc' ? 'desc' : 'asc'));
+      setCursor(0); // Reset cursor to top
+      // Will trigger refresh via useEffect
       return;
     }
 
@@ -189,6 +231,12 @@ export default function RepoList({ token, maxVisibleRows }: { token: string; max
     if (input === 'o') {
       const repo = filteredAndSorted[cursor];
       if (repo) openInBrowser(`https://github.com/${repo.nameWithOwner}`);
+      return;
+    }
+
+    // Toggle display density
+    if (input === 't') {
+      setDensity((d) => (((d + 1) % 3) as 0 | 1 | 2));
       return;
     }
   });
@@ -212,38 +260,29 @@ export default function RepoList({ token, maxVisibleRows }: { token: string; max
     );
   }, [items, filter]);
 
-  const filteredAndSorted = useMemo(() => {
-    const arr = [...filtered];
-    const dir = sortDir === 'asc' ? 1 : -1;
-    arr.sort((a, b) => {
-      switch (sortKey) {
-        case 'name':
-          return a.nameWithOwner.localeCompare(b.nameWithOwner) * dir;
-        case 'stars':
-          return (a.stargazerCount - b.stargazerCount) * dir;
-        case 'forks':
-          return (a.forkCount - b.forkCount) * dir;
-        case 'pushed':
-          return (new Date(a.pushedAt).getTime() - new Date(b.pushedAt).getTime()) * dir;
-        case 'updated':
-        default:
-          return (new Date(a.updatedAt).getTime() - new Date(b.updatedAt).getTime()) * dir;
-      }
-    });
-    return arr;
-  }, [filtered, sortKey, sortDir]);
+  // Items are already sorted server-side, just apply filter
+  const filteredAndSorted = filtered;
 
   // Keep cursor in range when filter or sort changes
   useEffect(() => {
     setCursor(c => Math.min(c, Math.max(0, filteredAndSorted.length - 1)));
   }, [filteredAndSorted.length]);
 
+  // Calculate fixed heights for layout sections and list area
+  const headerHeight = 2; // Header bar + margin
+  const footerHeight = 3; // Footer with border + margin
+  const containerPadding = 2; // Top and bottom padding inside container
+  const contentHeight = Math.max(1, availableHeight - headerHeight - footerHeight - containerPadding);
+  const listHeight = Math.max(1, contentHeight - (filterMode ? 2 : 0) - 2);
+
+  const spacingLines = density; // map density to spacer lines
+
   // Virtualize list: compute window around cursor if maxVisibleRows provided
   const windowed = useMemo(() => {
     const total = filteredAndSorted.length;
-    // Each repo takes about 5 lines (name, stats, optional description + 2 padding lines)
-    const LINES_PER_REPO = 5;
-    const visibleRepos = Math.max(1, Math.floor((maxVisibleRows ?? total * LINES_PER_REPO) / LINES_PER_REPO));
+    // Approximate lines: name + stats + optional description (assume 3) + spacing lines
+    const LINES_PER_REPO = 3 + spacingLines;
+    const visibleRepos = Math.max(1, Math.floor(listHeight / LINES_PER_REPO));
     
     if (visibleRepos >= total) return { start: 0, end: total };
     
@@ -254,7 +293,7 @@ export default function RepoList({ token, maxVisibleRows }: { token: string; max
     start = Math.min(start, Math.max(0, total - visibleRepos));
     const end = Math.min(total, start + visibleRepos + buffer);
     return { start, end };
-  }, [filteredAndSorted.length, cursor, maxVisibleRows]);
+  }, [filteredAndSorted.length, cursor, listHeight, spacingLines]);
 
   // Helper: open URL in default browser (cross-platform best-effort)
   function openInBrowser(url: string) {
@@ -264,12 +303,6 @@ export default function RepoList({ token, maxVisibleRows }: { token: string; max
   }
 
   const lowRate = rateLimit && rateLimit.remaining <= Math.ceil(rateLimit.limit * 0.1);
-
-  // Calculate fixed heights for layout sections - must be before any returns
-  const headerHeight = 2; // Header bar + margin
-  const footerHeight = 3; // Footer with border + margin
-  const containerPadding = 2; // Top and bottom padding inside container
-  const contentHeight = Math.max(1, availableHeight - headerHeight - footerHeight - containerPadding);
 
   // Memoize header to prevent re-renders - must be before any returns
   const headerBar = useMemo(() => (
@@ -303,8 +336,8 @@ export default function RepoList({ token, maxVisibleRows }: { token: string; max
     );
   }
 
-  // Show loading state during initial load
-  if (loading && items.length === 0) {
+  // Show loading state during initial load or sort changes
+  if ((loading && items.length === 0) || sortingLoading) {
     return (
       <Box flexDirection="column" height={availableHeight}>
         {/* Header bar */}
@@ -326,11 +359,18 @@ export default function RepoList({ token, maxVisibleRows }: { token: string; max
                       <SlowSpinner />
                     </Text>
                   </Box>
-                  <Text color="cyan">Loading repositories...</Text>
+                  <Text color="cyan">
+                    {refreshing ? 'Refreshing...' : sortingLoading ? 'Applying sort...' : 'Loading repositories...'}
+                  </Text>
                 </Box>
                 <Box height={1} marginTop={1}>
                   <Text color="gray">
-                    Fetching your GitHub repositories
+                    {refreshing 
+                      ? 'Fetching latest repository data'
+                      : sortingLoading 
+                      ? `Sorting by ${sortKey} (${sortDir === 'asc' ? 'ascending' : 'descending'})`
+                      : 'Fetching your GitHub repositories'
+                    }
                   </Text>
                 </Box>
               </Box>
@@ -381,7 +421,7 @@ export default function RepoList({ token, maxVisibleRows }: { token: string; max
         )}
 
         {/* Repository list */}
-        <Box flexDirection="column" height={contentHeight - (filterMode ? 2 : 0) - 2}>
+        <Box flexDirection="column" height={listHeight}>
           {filteredAndSorted.slice(windowed.start, windowed.end).map((repo, i) => {
             const idx = windowed.start + i;
             return (
@@ -391,6 +431,7 @@ export default function RepoList({ token, maxVisibleRows }: { token: string; max
                 selected={idx === cursor}
                 index={idx + 1}
                 maxWidth={terminalWidth - 6}
+                spacingLines={spacingLines}
               />
             );
           })}
@@ -408,7 +449,7 @@ export default function RepoList({ token, maxVisibleRows }: { token: string; max
       {/* Help footer */}
       <Box borderStyle="single" borderColor="yellow" paddingX={1} paddingY={0} marginTop={1} marginX={1} height={3}>
         <Text color="gray">
-          ↑↓ Navigate • / Filter • s Sort • d Direction • ⏎ Open • r Refresh • q Quit
+          ↑↓ Navigate • / Filter • s Sort • d Direction • t Density • ⏎ Open • r Refresh • q Quit
         </Text>
       </Box>
     </Box>
