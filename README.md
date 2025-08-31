@@ -189,6 +189,54 @@ Project layout:
 - `src/config.ts` — token read/write and file perms
 - `src/types.ts` — shared types
 
+## Apollo Cache (Performance)
+
+gh-manager-cli includes optional Apollo Client caching to reduce GitHub API calls and improve performance:
+
+### Enabling Apollo Cache
+
+```bash
+# Enable Apollo caching with debug output
+GH_MANAGER_APOLLO=1 GH_MANAGER_DEBUG=1 npx gh-manager
+```
+
+### Verifying Cache is Working
+
+1. **Debug Output**: Run with `GH_MANAGER_DEBUG=1` to see cache status:
+   ```bash
+   GH_MANAGER_APOLLO=1 GH_MANAGER_DEBUG=1 npx gh-manager
+   ```
+
+2. **Cache Inspection**: Press `i` (in debug mode) to inspect cache status:
+   - Shows cache file size and age
+   - Lists recent cache entries with timestamps
+   - Displays cache directory location
+
+3. **Performance Indicators**:
+   - **From cache: YES** = Data served from cache
+   - **Query time < 50ms** = Likely cache hit
+   - **API credits stable** = Fewer API calls being made
+
+### Why API Credits Might Still Decrease
+
+Even with caching enabled, API credits may decrease due to:
+
+- **First-time requests**: Initial data must be fetched and cached
+- **Cache expiration**: Default 30-minute TTL (customize with `APOLLO_TTL_MS`)
+- **Pagination**: New pages beyond the cache are fetched from API
+- **Cache-and-network policy**: Updates stale cache data in background
+- **Sorting changes**: Different sort orders create new cache entries
+
+### Cache Configuration
+
+```bash
+# Custom cache TTL (milliseconds)
+APOLLO_TTL_MS=1800000 npx gh-manager  # 30 minutes
+
+# Force network-only (disable cache)
+GH_MANAGER_APOLLO=0 npx gh-manager
+```
+
 ## Troubleshooting
 
 - Invalid token: enter a valid PAT (recommended scope: `repo`).
