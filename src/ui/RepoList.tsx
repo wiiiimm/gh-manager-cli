@@ -104,7 +104,13 @@ function RepoRow({ repo, selected, index, maxWidth, spacingLines, dim, forkTrack
   );
 }
 
-export default function RepoList({ token, maxVisibleRows, onLogout, viewerLogin }: { token: string; maxVisibleRows?: number; onLogout?: () => void; viewerLogin?: string }) {
+export default function RepoList({ token, maxVisibleRows, onLogout, viewerLogin, onOrgContextChange }: { 
+  token: string; 
+  maxVisibleRows?: number; 
+  onLogout?: () => void; 
+  viewerLogin?: string;
+  onOrgContextChange?: (context: OwnerContext) => void;
+}) {
   const { exit } = useApp();
   const { stdout } = useStdout();
   const client = useMemo(() => makeClient(token), [token]);
@@ -214,6 +220,11 @@ export default function RepoList({ token, maxVisibleRows, onLogout, viewerLogin 
     
     setOwnerAffiliations(newAffiliations);
     storeUIPrefs({ ownerAffiliations: newAffiliations });
+    
+    // Notify parent component of the change
+    if (onOrgContextChange) {
+      onOrgContextChange(newContext);
+    }
   }
 
   function cancelDeleteModal() {
@@ -421,6 +432,10 @@ export default function RepoList({ token, maxVisibleRows, onLogout, viewerLogin 
     // Load organization context
     if (ui.ownerContext) {
       setOwnerContext(ui.ownerContext);
+      // Notify parent of loaded context
+      if (onOrgContextChange) {
+        onOrgContextChange(ui.ownerContext);
+      }
     }
     
     // Load owner affiliations
@@ -429,7 +444,7 @@ export default function RepoList({ token, maxVisibleRows, onLogout, viewerLogin 
     }
     
     setPrefsLoaded(true);
-  }, []);
+  }, [onOrgContextChange]);
 
   useEffect(() => {
     if (!prefsLoaded) return;

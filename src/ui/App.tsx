@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { Box, Text, useApp, useStdout, useInput } from 'ink';
 import TextInput from 'ink-text-input';
-import { getStoredToken, storeToken, getTokenFromEnv, clearStoredToken } from '../config';
+import { getStoredToken, storeToken, getTokenFromEnv, clearStoredToken, OwnerContext } from '../config';
 import { makeClient, getViewerLogin } from '../github';
 import RepoList from './RepoList';
 
@@ -19,6 +19,7 @@ export default function App() {
   const [error, setError] = useState<string | null>(null);
   const [viewer, setViewer] = useState<string | null>(null);
   const [rateLimitReset, setRateLimitReset] = useState<string | null>(null);
+  const [orgContext, setOrgContext] = useState<OwnerContext>('personal');
   const [dims, setDims] = useState(() => {
     const cols = stdout?.columns ?? 100;
     const rows = stdout?.rows ?? 30;
@@ -198,9 +199,16 @@ export default function App() {
           <Text backgroundColor="blue" color="white"> debug mode </Text>
         )}
       </Box>
-      {viewer && <Text color="gray">@{viewer}  </Text>}
+      {viewer && (
+        <Text color="gray">
+          {orgContext !== 'personal' && orgContext.login ? 
+            `${orgContext.login}/@${viewer}  ` : 
+            `@${viewer}  `
+          }
+        </Text>
+      )}
     </Box>
-  ), [viewer]);
+  ), [viewer, orgContext]);
 
   if (mode === 'rate_limited') {
     const formatResetTime = (resetTime: string | null) => {
@@ -339,6 +347,7 @@ export default function App() {
         maxVisibleRows={dims.rows - (verticalPadding * 2) - 4}
         onLogout={handleLogout}
         viewerLogin={viewer ?? undefined}
+        onOrgContextChange={setOrgContext}
       />
     </Box>
   );
