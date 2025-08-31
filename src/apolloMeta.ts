@@ -37,9 +37,13 @@ export function makeApolloKey(opts: {
   sortDir: string;
   pageSize: number;
   forkTracking: boolean;
+  ownerContext?: string;
+  affiliations?: string;
 }) {
   const v = opts.viewer || 'unknown';
-  return `viewer:${v}|sort:${opts.sortKey}:${opts.sortDir}|ps:${opts.pageSize}|forks:${opts.forkTracking ? '1' : '0'}`;
+  const context = opts.ownerContext || 'personal';
+  const affiliations = opts.affiliations || 'OWNER';
+  return `viewer:${v}|context:${context}|affiliations:${affiliations}|sort:${opts.sortKey}:${opts.sortDir}|ps:${opts.pageSize}|forks:${opts.forkTracking ? '1' : '0'}`;
 }
 
 export function isFresh(key: string, ttlMs = Number(process.env.APOLLO_TTL_MS || 30 * 60 * 1000)) {
@@ -56,4 +60,3 @@ export function markFetched(key: string) {
   meta.fetched[key] = new Date().toISOString();
   writeMeta(meta);
 }
-

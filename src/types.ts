@@ -51,3 +51,10 @@ export interface RateLimitInfo {
   remaining: number;
   resetAt: string; // ISO
 }
+
+export interface OrganizationNode {
+  id: string;
+  login: string;
+  name: string | null;
+  avatarUrl: string;
+}

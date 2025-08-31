@@ -79,6 +79,34 @@ export async function getViewerLogin(
   return res.viewer.login as string;
 }
 
+export interface Organization {
+  id: string;
+  login: string;
+  name: string | null;
+  avatarUrl: string;
+}
+
+export async function fetchViewerOrganizations(
+  client: ReturnType<typeof makeClient>
+): Promise<Organization[]> {
+  const query = /* GraphQL */ `
+    query ViewerOrganizations {
+      viewer {
+        organizations(first: 100) {
+          nodes {
+            id
+            login
+            name
+            avatarUrl
+          }
+        }
+      }
+    }
+  `;
+  const res: any = await client(query);
+  return res.viewer.organizations.nodes as Organization[];
+}
+
 export interface ReposPageResult {
   nodes: RepoNode[];
   endCursor: string | null;
@@ -87,24 +115,129 @@ export interface ReposPageResult {
   rateLimit?: RateLimitInfo;
 }
 
+export type OwnerAffiliation = 'OWNER' | 'COLLABORATOR' | 'ORGANIZATION_MEMBER';
+
 export async function fetchViewerReposPage(
   client: ReturnType<typeof makeClient>,
   first: number,
   after?: string | null,
   orderBy?: { field: string; direction: string },
-  includeForkTracking: boolean = true
+  includeForkTracking: boolean = true,
+  ownerAffiliations: OwnerAffiliation[] = ['OWNER'],
+  organizationLogin?: string
 ): Promise<ReposPageResult> {
   // Default to UPDATED_AT DESC if not specified
   const sortField = orderBy?.field || 'UPDATED_AT';
   const sortDirection = orderBy?.direction || 'DESC';
 
-  // Build GraphQL query conditionally based on fork tracking preference
+  // Build GraphQL query conditionally based on fork tracking preference and context (personal vs org)
+  const isOrgContext = !!organizationLogin;
+  
+  // For organization context
+  if (isOrgContext) {
+    const query = /* GraphQL */ `
+      query OrgRepos(
+        $first: Int!
+        $after: String
+        $sortField: RepositoryOrderField!
+        $sortDirection: OrderDirection!
+        $orgLogin: String!
+      ) {
+        rateLimit {
+          limit
+          remaining
+          resetAt
+        }
+        organization(login: $orgLogin) {
+          repositories(
+            first: $first
+            after: $after
+            orderBy: { field: $sortField, direction: $sortDirection }
+          ) {
+            totalCount
+            pageInfo {
+              endCursor
+              hasNextPage
+            }
+            nodes {
+              id
+              name
+              nameWithOwner
+              description
+              visibility
+              isPrivate
+              isFork
+              isArchived
+              stargazerCount
+              forkCount
+              primaryLanguage {
+                name
+                color
+              }
+              updatedAt
+              pushedAt
+              diskUsage
+              ${includeForkTracking ? `
+              parent {
+                nameWithOwner
+                defaultBranchRef {
+                  name
+                  target {
+                    ... on Commit {
+                      history(first: 0) {
+                        totalCount
+                      }
+                    }
+                  }
+                }
+              }
+              defaultBranchRef {
+                name
+                target {
+                  ... on Commit {
+                    history(first: 0) {
+                      totalCount
+                    }
+                  }
+                }
+              }` : `
+              parent {
+                nameWithOwner
+              }
+              defaultBranchRef { name }
+              `}
+            }
+          }
+        }
+      }
+    `;
+    
+    const res: any = await client(query, {
+      first,
+      after: after ?? null,
+      sortField,
+      sortDirection,
+      orgLogin: organizationLogin,
+    });
+    
+    const data = res.organization.repositories;
+    return {
+      nodes: data.nodes as RepoNode[],
+      endCursor: data.pageInfo.endCursor,
+      hasNextPage: data.pageInfo.hasNextPage,
+      totalCount: data.totalCount,
+      rateLimit: res.rateLimit as RateLimitInfo,
+    };
+  }
+  
+  // For personal context (viewer's repositories)
   const query = /* GraphQL */ `
     query ViewerRepos(
       $first: Int!
       $after: String
       $sortField: RepositoryOrderField!
       $sortDirection: OrderDirection!
+      $affiliations: [RepositoryAffiliation!]!
     ) {
       rateLimit {
         limit
@@ -113,7 +246,7 @@ export async function fetchViewerReposPage(
       }
       viewer {
         repositories(
-          ownerAffiliations: OWNER
+          ownerAffiliations: $affiliations
           first: $first
           after: $after
           orderBy: { field: $sortField, direction: $sortDirection }
@@ -175,12 +308,15 @@ export async function fetchViewerReposPage(
       }
     }
   `;
+  
   const res: any = await client(query, {
     first,
     after: after ?? null,
     sortField,
     sortDirection,
+    affiliations: ownerAffiliations,
   });
+  
   const data = res.viewer.repositories;
   return {
     nodes: data.nodes as RepoNode[],
@@ -198,13 +334,16 @@ export async function fetchViewerReposPageUnified(
   after?: string | null,
   orderBy?: { field: string; direction: string },
   includeForkTracking: boolean = true,
-  fetchPolicy: 'cache-first' | 'cache-and-network' | 'network-only' = 'cache-first'
+  fetchPolicy: 'cache-first' | 'cache-and-network' | 'network-only' = 'cache-first',
+  ownerAffiliations: OwnerAffiliation[] = ['OWNER'],
+  organizationLogin?: string
 ): Promise<ReposPageResult> {
   const isApolloEnabled = true;
   const debug = process.env.GH_MANAGER_DEBUG === '1';
+  const isOrgContext = !!organizationLogin;
   
   if (debug) {
-    console.log(`🔍 Apollo enabled: ${isApolloEnabled}, Policy: ${fetchPolicy}, After: ${after || 'null'}`);
+    console.log(`🔍 Apollo enabled: ${isApolloEnabled}, Policy: ${fetchPolicy}, After: ${after || 'null'}, Context: ${isOrgContext ? 'Organization' : 'Personal'}`);
   }
   
   try {
@@ -213,42 +352,87 @@ export async function fetchViewerReposPageUnified(
       const ap = await makeApolloClient(token);
       const sortField = (orderBy?.field || 'UPDATED_AT');
       const sortDirection = (orderBy?.direction || 'DESC');
-      const q = (ap.gql as any)`
-        query ViewerRepos($first: Int!, $after: String, $sortField: RepositoryOrderField!, $sortDirection: OrderDirection!) {
-          rateLimit { limit remaining resetAt }
-          viewer {
-            repositories(ownerAffiliations: OWNER, first: $first, after: $after, orderBy: { field: $sortField, direction: $sortDirection }) {
-              totalCount
-              pageInfo { endCursor hasNextPage }
-              nodes {
-                id
-                name
-                nameWithOwner
-                description
-                visibility
-                isPrivate
-                isFork
-                isArchived
-                stargazerCount
-                forkCount
-                primaryLanguage { name color }
-                updatedAt
-                pushedAt
-                diskUsage
-                ${includeForkTracking ? `
-                parent { nameWithOwner defaultBranchRef { name target { ... on Commit { history(first: 0) { totalCount } } } } }
-                defaultBranchRef { name target { ... on Commit { history(first: 0) { totalCount } } } }` : `
-                parent { nameWithOwner }
-                defaultBranchRef { name }`}
+      
+      // Different query based on context (personal vs organization)
+      let q;
+      let variables: any = { first, after: after ?? null, sortField, sortDirection };
+      
+      if (isOrgContext) {
+        // Organization context
+        variables.orgLogin = organizationLogin;
+        q = (ap.gql as any)`
+          query OrgRepos($first: Int!, $after: String, $sortField: RepositoryOrderField!, $sortDirection: OrderDirection!, $orgLogin: String!) {
+            rateLimit { limit remaining resetAt }
+            organization(login: $orgLogin) {
+              repositories(first: $first, after: $after, orderBy: { field: $sortField, direction: $sortDirection }) {
+                totalCount
+                pageInfo { endCursor hasNextPage }
+                nodes {
+                  id
+                  name
+                  nameWithOwner
+                  description
+                  visibility
+                  isPrivate
+                  isFork
+                  isArchived
+                  stargazerCount
+                  forkCount
+                  primaryLanguage { name color }
+                  updatedAt
+                  pushedAt
+                  diskUsage
+                  ${includeForkTracking ? `
+                  parent { nameWithOwner defaultBranchRef { name target { ... on Commit { history(first: 0) { totalCount } } } } }
+                  defaultBranchRef { name target { ... on Commit { history(first: 0) { totalCount } } } }` : `
+                  parent { nameWithOwner }
+                  defaultBranchRef { name }`}
+                }
               }
             }
           }
-        }
-      `;
+        `;
+      } else {
+        // Personal context
+        variables.affiliations = ownerAffiliations;
+        q = (ap.gql as any)`
+          query ViewerRepos($first: Int!, $after: String, $sortField: RepositoryOrderField!, $sortDirection: OrderDirection!, $affiliations: [RepositoryAffiliation!]!) {
+            rateLimit { limit remaining resetAt }
+            viewer {
+              repositories(ownerAffiliations: $affiliations, first: $first, after: $after, orderBy: { field: $sortField, direction: $sortDirection }) {
+                totalCount
+                pageInfo { endCursor hasNextPage }
+                nodes {
+                  id
+                  name
+                  nameWithOwner
+                  description
+                  visibility
+                  isPrivate
+                  isFork
+                  isArchived
+                  stargazerCount
+                  forkCount
+                  primaryLanguage { name color }
+                  updatedAt
+                  pushedAt
+                  diskUsage
+                  ${includeForkTracking ? `
+                  parent { nameWithOwner defaultBranchRef { name target { ... on Commit { history(first: 0) { totalCount } } } } }
+                  defaultBranchRef { name target { ... on Commit { history(first: 0) { totalCount } } } }` : `
+                  parent { nameWithOwner }
+                  defaultBranchRef { name }`}
+                }
+              }
+            }
+          }
+        `;
+      }
+      
       const startTime = Date.now();
       const res = await ap.client.query({
         query: q,
-        variables: { first, after: after ?? null, sortField, sortDirection },
+        variables,
         fetchPolicy,
       });
       const duration = Date.now() - startTime;
@@ -259,7 +443,11 @@ export async function fetchViewerReposPageUnified(
         console.log(`🔄 Network status: ${res.networkStatus}`);
       }
       
-      const data = res.data.viewer.repositories;
+      // Extract data based on context
+      const data = isOrgContext 
+        ? res.data.organization.repositories 
+        : res.data.viewer.repositories;
+        
       return {
         nodes: data.nodes as RepoNode[],
         endCursor: data.pageInfo.endCursor,
@@ -275,7 +463,7 @@ export async function fetchViewerReposPageUnified(
   
   if (debug) console.log('📡 Using Octokit fallback...');
   const octo = makeClient(token);
-  return fetchViewerReposPage(octo, first, after, orderBy, includeForkTracking);
+  return fetchViewerReposPage(octo, first, after, orderBy, includeForkTracking, ownerAffiliations, organizationLogin);
 }
 
 // GitHub GraphQL does not support deleting repos. Use REST: DELETE /repos/{owner}/{repo}
