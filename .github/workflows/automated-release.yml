@@ -65,7 +65,7 @@ jobs:
         run: npm install -g pkg
 
       - name: Create binary
-        run: pkg dist/index.js --targets node20-${{ matrix.platform }}-${{ matrix.arch }} --output gh-manager-${{ matrix.platform }}-${{ matrix.arch }}${{ matrix.ext }}
+        run: pkg dist/index.js --targets node18-${{ matrix.platform }}-${{ matrix.arch }} --output gh-manager-${{ matrix.platform }}-${{ matrix.arch }}${{ matrix.ext }}
 
       - name: Upload build artifacts
         uses: actions/upload-artifact@v4
