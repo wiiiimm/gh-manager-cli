@@ -70,18 +70,20 @@ Note: Tokens are stored in plaintext on disk with restricted permissions. Future
 
 Launch the app, then use the keys below:
 
-- Navigation: Up/Down, PageUp/PageDown, `g` (top), `G` (bottom)
-- Refresh: `r`
+- Navigation: Up/Down, PageUp/PageDown, `Ctrl+G` (top), `G` (bottom)
+- Refresh: `R`
 - Filter: `/` to enter, type query, Enter to apply (Esc cancels)
-- Sorting: `s` to cycle field (updated → pushed → name → stars → forks), `d` to toggle direction
-- Display density: `t` to toggle compact/cozy/comfy
-- Open in browser: Enter or `o`
-- Delete repository: `Del` or Backspace (with confirmation modal)
+- Sorting: `S` to cycle field (updated → pushed → name → stars → forks), `D` to toggle direction
+- Display density: `T` to toggle compact/cozy/comfy
+- Open in browser: Enter or `O`
+- Delete repository: `Del` or `Ctrl+Backspace` (with confirmation modal)
   - Uses GitHub REST API (requires `delete_repo` scope and admin rights)
-  - Two-step confirm: type code → confirm (y/Enter)
-  - Confirm: press `y` or Enter
-  - Cancel: press `c` or Esc
-- Quit: `q` or Esc
+  - Two-step confirm: type code → confirm (Y/Enter)
+  - Confirm: press `Y` or Enter
+  - Cancel: press `C` or Esc
+- Archive/Unarchive: `Ctrl+A`
+- Toggle fork metrics: `F`
+- Quit: `Q` or Esc
 
 Status bar shows loaded count vs total. A rate-limit line displays `remaining/limit` and the reset time; it turns yellow when remaining ≤ 10% of the limit.
 
@@ -107,6 +109,9 @@ pnpm build   # build to dist/
 pnpm dev     # watch mode
 pnpm start   # node dist/index.js
 ```
+
+Notes:
+- In development mode (set `NODE_ENV=development` or `GH_MANAGER_DEV=1`), the app fetches 5 repos per page to speed iteration.
 
 Project layout:
 - `src/index.tsx` — CLI entry and error handling

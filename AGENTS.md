@@ -103,21 +103,23 @@ See the living roadmap in [TODOs.md](./TODOs.md) for the canonical, up-to-date l
 
 - Up/Down: move selection
 - PageUp/PageDown: jump ±10
-- `g` (Ctrl+g): jump to top
+- `Ctrl+G`: jump to top
 - `G`: jump to bottom
 - `/`: filter mode (Enter applies, Esc cancels)
-- `s` / `d`: sort field / direction
-- `t`: toggle display density (compact/cozy/comfy)
-- Enter or `o`: open selected repo in browser
-- `Del` or Backspace: delete selected repo (opens confirmation modal)
-- `r`: refresh list
-- `q` or Esc: quit (Esc cancels an open modal instead of quitting)
+- `S` / `D`: sort field / direction
+- `T`: toggle display density (compact/cozy/comfy)
+- `F`: toggle fork metrics
+- Enter or `O`: open selected repo in browser
+- `Del` or `Ctrl+Backspace`: delete selected repo (opens confirmation modal)
+- `Ctrl+A`: archive/unarchive selected repo
+- `R`: refresh list
+- `Q` or Esc: quit (Esc cancels an open modal instead of quitting)
 
 ### Modal UX Convention (preferred)
 - Left/Right: move focus between buttons (e.g., Delete, Cancel)
 - Enter: run the currently focused button’s action
-- `y`: confirm (applies to any confirmation action)
-- `c`: cancel (preferred); `Esc` also cancels
+- `Y`: confirm (applies to any confirmation action)
+- `C`: cancel (preferred); `Esc` also cancels
 
 ## Setup & Usage
 

@@ -2,12 +2,12 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { Box, Text, useApp, useInput, useStdout, Spacer, Newline } from 'ink';
 import TextInput from 'ink-text-input';
 import chalk from 'chalk';
-import { makeClient, fetchViewerReposPage, deleteRepositoryRest, archiveRepositoryById, unarchiveRepositoryById } from '../github';
+import { makeClient, fetchViewerReposPage, deleteRepositoryRest, archiveRepositoryById, unarchiveRepositoryById, syncForkWithUpstream } from '../github';
 import { getUIPrefs, storeUIPrefs } from '../config';
 import type { RepoNode, RateLimitInfo } from '../types';
 import { exec } from 'child_process';
 
-const PAGE_SIZE = process.env.NODE_ENV === 'development' ? 15 : 25;
+const PAGE_SIZE = (process.env.GH_MANAGER_DEV === '1' || process.env.NODE_ENV === 'development') ? 5 : 25;
 
 // Custom slow spinner that updates every 0.5 seconds
 function SlowSpinner() {
@@ -65,32 +65,33 @@ function RepoRow({ repo, selected, index, maxWidth, spacingLines, dim, forkTrack
   line1 += numColor(`${String(index).padStart(3, ' ')}.`);
   line1 += nameColor(` ${repo.nameWithOwner}`);
   if (repo.isPrivate) line1 += chalk.yellow(' Private');
-  if (repo.isArchived) line1 += chalk.gray.dim(' Archived');
+  if (repo.isArchived) line1 += ' ' + chalk.bgGray.whiteBright(' Archived ') + ' ';
   if (repo.isFork && repo.parent) {
     line1 += chalk.blue(` Fork of ${repo.parent.nameWithOwner}`);
     if (showCommitsBehind) {
       if (commitsBehind > 0) {
         line1 += chalk.yellow(` (${commitsBehind} behind)`);
       } else {
-        line1 += chalk.green(` (up to date)`);
+        line1 += chalk.green(` (0 behind)`);
       }
     }
   }
   
   // Build colored line 2
   let line2 = '     ';
-  if (langName) line2 += chalk.hex(langColor)('● ') + chalk.gray(`${langName}  `);
-  line2 += chalk.gray(`★ ${repo.stargazerCount}  ⑂ ${repo.forkCount}  Updated ${formatDate(repo.updatedAt)}`);
+  const metaColor = selected ? chalk.white : chalk.gray;
+  if (langName) line2 += chalk.hex(langColor)('● ') + metaColor(`${langName}  `);
+  line2 += metaColor(`★ ${repo.stargazerCount}  ⑂ ${repo.forkCount}  Updated ${formatDate(repo.updatedAt)}`);
   
   // Build line 3
   const line3 = repo.description ? `     ${truncate(repo.description, Math.max(30, maxWidth - 10))}` : null;
   
   // Combine all lines with newlines
   let fullText = line1 + '\n' + line2;
-  if (line3) fullText += '\n' + chalk.gray(line3);
+  if (line3) fullText += '\n' + metaColor(line3);
   
   return (
-    <Box flexDirection="column">
+    <Box flexDirection="column" backgroundColor={selected ? 'gray' : undefined}>
       <Text>{dim ? chalk.dim(fullText) : fullText}</Text>
       {spacingLines > 0 && (
         <Box height={spacingLines}>
@@ -118,6 +119,7 @@ export default function RepoList({ token, maxVisibleRows }: { token: string; max
   const [loading, setLoading] = useState(true);
   const [sortingLoading, setSortingLoading] = useState(false); // New state for sort refresh
   const [refreshing, setRefreshing] = useState(false); // Track if this is a manual refresh
+  const [loadingMore, setLoadingMore] = useState(false); // Track infinite scroll loading
   const [error, setError] = useState<string | null>(null);
   const [rateLimit, setRateLimit] = useState<RateLimitInfo | undefined>(undefined);
   const [prevRateLimit, setPrevRateLimit] = useState<number | undefined>(undefined);
@@ -141,12 +143,27 @@ export default function RepoList({ token, maxVisibleRows }: { token: string; max
   const [archiveError, setArchiveError] = useState<string | null>(null);
   const [archiveFocus, setArchiveFocus] = useState<'confirm' | 'cancel'>('confirm');
 
+  // Sync modal state
+  const [syncMode, setSyncMode] = useState(false);
+  const [syncTarget, setSyncTarget] = useState<RepoNode | null>(null);
+  const [syncing, setSyncing] = useState(false);
+  const [syncError, setSyncError] = useState<string | null>(null);
+  const [syncFocus, setSyncFocus] = useState<'confirm' | 'cancel'>('confirm');
+
   function closeArchiveModal() {
     setArchiveMode(false);
     setArchiveTarget(null);
     setArchiving(false);
     setArchiveError(null);
     setArchiveFocus('confirm');
+  }
+
+  function closeSyncModal() {
+    setSyncMode(false);
+    setSyncTarget(null);
+    setSyncing(false);
+    setSyncError(null);
+    setSyncFocus('confirm');
   }
 
   function cancelDeleteModal() {
@@ -206,6 +223,9 @@ export default function RepoList({ token, maxVisibleRows }: { token: string; max
   const fetchPage = async (after?: string | null, reset = false, isSortChange = false, overrideForkTracking?: boolean) => {
     if (isSortChange) {
       setSortingLoading(true);
+    } else if (after && !reset) {
+      // This is infinite scroll loading more pages
+      setLoadingMore(true);
     } else {
       setLoading(true);
     }
@@ -231,6 +251,7 @@ export default function RepoList({ token, maxVisibleRows }: { token: string; max
       setLoading(false);
       setSortingLoading(false);
       setRefreshing(false);
+      setLoadingMore(false);
     }
   };
 
@@ -286,7 +307,7 @@ export default function RepoList({ token, maxVisibleRows }: { token: string; max
           else cancelDeleteModal();
           return;
         }
-        if (input && input.toLowerCase() === 'y') {
+        if (input === 'Y') {
           confirmDeleteNow();
           return;
         }
@@ -297,7 +318,7 @@ export default function RepoList({ token, maxVisibleRows }: { token: string; max
 
     // When in archive mode, trap inputs for modal
     if (archiveMode) {
-      if (key.escape || input === 'c') {
+      if (key.escape || input === 'C') {
         closeArchiveModal();
         return;
       }
@@ -309,7 +330,7 @@ export default function RepoList({ token, maxVisibleRows }: { token: string; max
         setArchiveFocus('cancel');
         return;
       }
-      if (key.return || (input && input.toLowerCase() === 'y')) {
+      if (key.return || input === 'Y') {
         if (archiveFocus === 'cancel') {
           closeArchiveModal();
           return;
@@ -335,6 +356,62 @@ export default function RepoList({ token, maxVisibleRows }: { token: string; max
       return;
     }
 
+    // When in sync mode, trap inputs for modal
+    if (syncMode) {
+      if (key.escape || input === 'C') {
+        closeSyncModal();
+        return;
+      }
+      if (key.leftArrow) {
+        setSyncFocus('confirm');
+        return;
+      }
+      if (key.rightArrow) {
+        setSyncFocus('cancel');
+        return;
+      }
+      if (key.return || input === 'Y') {
+        if (syncFocus === 'cancel') {
+          closeSyncModal();
+          return;
+        }
+        if (!syncTarget) return;
+        (async () => {
+          try {
+            setSyncing(true);
+            const [owner, repo] = syncTarget.nameWithOwner.split('/');
+            const result = await syncForkWithUpstream(token, owner, repo);
+            
+            // Update the repository state to show 0 behind
+            setItems(prev => prev.map(r => {
+              if (r.id === (syncTarget as any).id && r.parent && r.defaultBranchRef?.target?.history && r.parent.defaultBranchRef?.target?.history) {
+                return {
+                  ...r,
+                  defaultBranchRef: {
+                    ...r.defaultBranchRef,
+                    target: {
+                      ...r.defaultBranchRef.target,
+                      history: {
+                        totalCount: r.parent.defaultBranchRef.target.history.totalCount
+                      }
+                    }
+                  }
+                };
+              }
+              return r;
+            }));
+            closeSyncModal();
+          } catch (e: any) {
+            setSyncing(false);
+            setSyncError(e.message || 'Failed to sync fork. Check permissions and network.');
+          }
+        })();
+        return;
+      }
+      // Trap everything else
+      return;
+    }
+
     // When in filter mode, only handle input for the TextInput
     if (filterMode) {
       if (key.escape) {
@@ -345,7 +422,7 @@ export default function RepoList({ token, maxVisibleRows }: { token: string; max
       return;
     }
 
-    if (input === 'q' || key.escape) {
+    if (input === 'Q' || key.escape) {
       exit();
       return;
     }
@@ -358,8 +435,8 @@ export default function RepoList({ token, maxVisibleRows }: { token: string; max
       const repo = filteredAndSorted[cursor];
       if (repo) openInBrowser(`https://github.com/${repo.nameWithOwner}`);
     }
-    // Delete key: open delete modal
-    if (key.delete || key.backspace) {
+    // Delete key: open delete modal (Del or Ctrl+Backspace)
+    if (key.delete || (key.backspace && key.ctrl)) {
       const repo = filteredAndSorted[cursor];
       if (repo) {
         setDeleteTarget(repo);
@@ -375,10 +452,9 @@ export default function RepoList({ token, maxVisibleRows }: { token: string; max
       }
       return;
     }
-    if (input === 'g') setCursor(0);
     if (input === 'g' && key.ctrl) setCursor(0);
     if (input === 'G') setCursor(items.length - 1);
-    if (input === 'r') {
+    if (input === 'R') {
       // Refresh - show loading screen
       setCursor(0);
       setRefreshing(true);
@@ -386,8 +462,8 @@ export default function RepoList({ token, maxVisibleRows }: { token: string; max
       fetchPage(null, true, true); // Reset and show loading
     }
 
-    // Archive/unarchive modal
-    if (input === 'a') {
+    // Archive/unarchive modal (Ctrl+A)
+    if (input === 'a' && key.ctrl) {
       const repo = filteredAndSorted[cursor];
       if (repo) {
         setArchiveTarget(repo);
@@ -399,6 +475,26 @@ export default function RepoList({ token, maxVisibleRows }: { token: string; max
       return;
     }
 
+    // Sync fork with upstream modal (Ctrl+U)
+    if (input === 'u' && key.ctrl) {
+      const repo = filteredAndSorted[cursor];
+      if (repo && repo.isFork && repo.parent) {
+        // Only show sync option for forks that are behind
+        const hasCommitData = repo.defaultBranchRef && repo.parent.defaultBranchRef
+          && repo.parent.defaultBranchRef.target?.history && repo.defaultBranchRef.target?.history;
+        const commitsBehind = hasCommitData
+          ? (repo.parent.defaultBranchRef.target.history.totalCount - repo.defaultBranchRef.target.history.totalCount)
+          : 0;
+        
+        setSyncTarget(repo);
+        setSyncMode(true);
+        setSyncError(null);
+        setSyncing(false);
+        setSyncFocus('confirm');
+      }
+      return;
+    }
+
     // Start filter mode
     if (input === '/') {
       setFilterMode(true);
@@ -406,7 +502,7 @@ export default function RepoList({ token, maxVisibleRows }: { token: string; max
     }
 
     // Sorting toggles: cycle key and direction - triggers server refresh
-    if (input === 's') {
+    if (input === 'S') {
       const order: SortKey[] = ['updated', 'pushed', 'name', 'stars'];
       const idx = order.indexOf(sortKey);
       const newSortKey = order[(idx + 1) % order.length];
@@ -416,7 +512,7 @@ export default function RepoList({ token, maxVisibleRows }: { token: string; max
       // Will trigger refresh via useEffect
       return;
     }
-    if (input === 'd') {
+    if (input === 'D') {
       setSortDir(prev => {
         const next = prev === 'asc' ? 'desc' : 'asc';
         storeUIPrefs({ sortDir: next });
@@ -428,14 +524,14 @@ export default function RepoList({ token, maxVisibleRows }: { token: string; max
     }
 
     // Explicit open in browser
-    if (input === 'o') {
+    if (input === 'O') {
       const repo = filteredAndSorted[cursor];
       if (repo) openInBrowser(`https://github.com/${repo.nameWithOwner}`);
       return;
     }
 
     // Toggle display density
-    if (input === 't') {
+    if (input === 'T') {
       setDensity((d) => {
         const next = (((d + 1) % 3) as 0 | 1 | 2);
         storeUIPrefs({ density: next });
@@ -445,7 +541,7 @@ export default function RepoList({ token, maxVisibleRows }: { token: string; max
     }
 
     // Toggle fork tracking
-    if (input === 'f') {
+    if (input === 'F') {
       setForkTracking((prev) => {
         const next = !prev;
         storeUIPrefs({ forkTracking: next });
@@ -471,11 +567,11 @@ export default function RepoList({ token, maxVisibleRows }: { token: string; max
   // Infinite scroll: prefetch when near end (based on filtered length)
   useEffect(() => {
     // Map cursor in filtered view to underlying index; prefetch when selection near end of loaded items
-    if (!loading && hasNextPage && cursor >= filteredAndSorted.length - 5) {
+    if (!loading && !loadingMore && hasNextPage && cursor >= filteredAndSorted.length - 5) {
       fetchPage(endCursor);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [cursor, hasNextPage, endCursor, loading]);
+  }, [cursor, hasNextPage, endCursor, loading, loadingMore]);
 
   // Derived: filtered + sorted items
   const filtered = useMemo(() => {
@@ -515,7 +611,7 @@ export default function RepoList({ token, maxVisibleRows }: { token: string; max
 
   // Calculate fixed heights for layout sections and list area
   const headerHeight = 2; // Header bar + margin
-  const footerHeight = 3; // Footer with border + margin
+  const footerHeight = 4; // Footer with border + margin (flexible height)
   const containerPadding = 2; // Top and bottom padding inside container
   const contentHeight = Math.max(1, availableHeight - headerHeight - footerHeight - containerPadding);
   const listHeight = Math.max(1, contentHeight - (filterMode ? 2 : 0) - 2);
@@ -548,7 +644,7 @@ export default function RepoList({ token, maxVisibleRows }: { token: string; max
   }
 
   const lowRate = rateLimit && rateLimit.remaining <= Math.ceil(rateLimit.limit * 0.1);
-  const modalOpen = deleteMode || archiveMode;
+  const modalOpen = deleteMode || archiveMode || syncMode;
 
   // Memoize header to prevent re-renders - must be before any returns
   const headerBar = useMemo(() => (
@@ -630,7 +726,7 @@ export default function RepoList({ token, maxVisibleRows }: { token: string; max
         </Box>
 
         {/* Help footer */}
-        <Box borderStyle="single" borderColor="yellow" paddingX={1} paddingY={0} marginTop={1} marginX={1} height={3}>
+        <Box marginTop={1} paddingX={1}>
           <Text color="gray">
             Please wait...
           </Text>
@@ -730,7 +826,7 @@ export default function RepoList({ token, maxVisibleRows }: { token: string; max
                   {/* Bottom prompt with dynamic Enter action and key hints (gray) */}
                   <Box marginTop={1} flexDirection="row" justifyContent="center">
                     <Text color="gray">
-                      Press Enter to {confirmFocus === 'delete' ? 'Delete' : 'Cancel'} • y to confirm • c to cancel
+                      Press Enter to {confirmFocus === 'delete' ? 'Delete' : 'Cancel'} • Y to confirm • C to cancel
                     </Text>
                   </Box>
                   {/* Hidden input to capture Enter key */}
@@ -783,7 +879,12 @@ export default function RepoList({ token, maxVisibleRows }: { token: string; max
                   justifyContent="center"
                   flexDirection="column"
                 >
-                  <Text bold color={archiveTarget.isArchived ? 'green' : 'yellow'}>{archiveTarget.isArchived ? 'Unarchive' : 'Archive'}</Text>
+                  <Text>
+                    {archiveFocus === 'confirm' ? 
+                      chalk.bgGreen.white.bold(` ${archiveTarget.isArchived ? 'Unarchive' : 'Archive'} `) : 
+                      chalk.bold[archiveTarget.isArchived ? 'green' : 'yellow'](archiveTarget.isArchived ? 'Unarchive' : 'Archive')
+                    }
+                  </Text>
                 </Box>
                 <Box
                   borderStyle="round"
@@ -794,11 +895,16 @@ export default function RepoList({ token, maxVisibleRows }: { token: string; max
                   justifyContent="center"
                   flexDirection="column"
                 >
-                  <Text bold color={archiveFocus === 'cancel' ? 'white' : 'gray'}>Cancel</Text>
+                  <Text>
+                    {archiveFocus === 'cancel' ? 
+                      chalk.bgGray.white.bold(' Cancel ') : 
+                      chalk.gray.bold('Cancel')
+                    }
+                  </Text>
                 </Box>
               </Box>
               <Box marginTop={1} flexDirection="row" justifyContent="center">
-                <Text color="gray">Press Enter to {archiveFocus === 'confirm' ? (archiveTarget.isArchived ? 'Unarchive' : 'Archive') : 'Cancel'} • y to confirm • c to cancel</Text>
+                <Text color="gray">Press Enter to {archiveFocus === 'confirm' ? (archiveTarget.isArchived ? 'Unarchive' : 'Archive') : 'Cancel'} • Y to confirm • C to cancel</Text>
               </Box>
               <Box marginTop={1}>
                 <TextInput
@@ -834,6 +940,112 @@ export default function RepoList({ token, maxVisibleRows }: { token: string; max
               {archiving && (
                 <Box marginTop={1}>
                   <Text color="yellow">{archiveTarget.isArchived ? 'Unarchiving...' : 'Archiving...'}</Text>
+                </Box>
+              )}
+            </Box>
+          </Box>
+        ) : syncMode && syncTarget ? (
+          <Box height={contentHeight} alignItems="center" justifyContent="center">
+            <Box flexDirection="column" borderStyle="round" borderColor="blue" paddingX={3} paddingY={2} width={Math.min(terminalWidth - 8, 80)}>
+              <Text bold>Sync Fork Confirmation</Text>
+              <Text color="blue">⟲  Sync fork with upstream?</Text>
+              <Box height={1}><Text> </Text></Box>
+              <Text>{syncTarget.nameWithOwner}</Text>
+              {syncTarget.parent && (
+                <Text color="gray">Upstream: {syncTarget.parent.nameWithOwner}</Text>
+              )}
+              <Box marginTop={1}>
+                <Text>
+                  This will merge upstream changes into your fork.
+                </Text>
+              </Box>
+              <Box marginTop={1} flexDirection="row" justifyContent="center" gap={6}>
+                <Box
+                  borderStyle="round"
+                  borderColor="blue"
+                  height={3}
+                  width={20}
+                  alignItems="center"
+                  justifyContent="center"
+                  flexDirection="column"
+                >
+                  <Text>
+                    {syncFocus === 'confirm' ? 
+                      chalk.bgBlue.white.bold(' Sync ') : 
+                      chalk.blue.bold('Sync')
+                    }
+                  </Text>
+                </Box>
+                <Box
+                  borderStyle="round"
+                  borderColor={syncFocus === 'cancel' ? 'white' : 'gray'}
+                  height={3}
+                  width={20}
+                  alignItems="center"
+                  justifyContent="center"
+                  flexDirection="column"
+                >
+                  <Text>
+                    {syncFocus === 'cancel' ? 
+                      chalk.bgGray.white.bold(' Cancel ') : 
+                      chalk.gray.bold('Cancel')
+                    }
+                  </Text>
+                </Box>
+              </Box>
+              <Box marginTop={1} flexDirection="row" justifyContent="center">
+                <Text color="gray">Press Enter to {syncFocus === 'confirm' ? 'Sync' : 'Cancel'} • y to confirm • c to cancel</Text>
+              </Box>
+              <Box marginTop={1}>
+                <TextInput
+                  value=""
+                  onChange={() => { /* noop */ }}
+                  onSubmit={() => {
+                    if (syncFocus === 'confirm') {
+                      (async () => {
+                        try {
+                          setSyncing(true);
+                          const [owner, repo] = syncTarget.nameWithOwner.split('/');
+                          const result = await syncForkWithUpstream(token, owner, repo);
+                          
+                          // Update the repository state to show 0 behind
+                          setItems(prev => prev.map(r => {
+                            if (r.id === (syncTarget as any).id && r.parent && r.defaultBranchRef?.target?.history && r.parent.defaultBranchRef?.target?.history) {
+                              return {
+                                ...r,
+                                defaultBranchRef: {
+                                  ...r.defaultBranchRef,
+                                  target: {
+                                    ...r.defaultBranchRef.target,
+                                    history: {
+                                      totalCount: r.parent.defaultBranchRef.target.history.totalCount
+                                    }
+                                  }
+                                }
+                              };
+                            }
+                            return r;
+                          }));
+                          closeSyncModal();
+                        } catch (e: any) {
+                          setSyncing(false);
+                          setSyncError(e.message || 'Failed to sync fork. Check permissions and network.');
+                        }
+                      })();
+                    } else {
+                      closeSyncModal();
+                    }
+                  }}
+                />
+              </Box>
+              {syncError && (
+                <Box marginTop={1}>
+                  <Text color="magenta">{syncError}</Text>
+                </Box>
+              )}
+              {syncing && (
+                <Box marginTop={1}>
+                  <Text color="yellow">Syncing...</Text>
                 </Box>
               )}
             </Box>
@@ -885,6 +1097,20 @@ export default function RepoList({ token, maxVisibleRows }: { token: string; max
                 );
               })}
               
+              {/* Infinite scroll loading indicator */}
+              {loadingMore && hasNextPage && (
+                <Box justifyContent="center" alignItems="center" marginTop={1}>
+                  <Box flexDirection="row">
+                    <Box width={2} flexShrink={0} flexGrow={0} marginRight={1}>
+                      <Text color="cyan">
+                        <SlowSpinner />
+                      </Text>
+                    </Box>
+                    <Text color="cyan">Loading more repositories...</Text>
+                  </Box>
+                </Box>
+              )}
+              
               {!loading && filteredAndSorted.length === 0 && (
                 <Box justifyContent="center" alignItems="center" flexGrow={1}>
                   <Text color="gray" dimColor>
@@ -898,10 +1124,17 @@ export default function RepoList({ token, maxVisibleRows }: { token: string; max
       </Box>
 
       {/* Help footer */}
-      <Box borderStyle="single" borderColor={modalOpen ? 'gray' : 'yellow'} paddingX={1} paddingY={0} marginTop={1} marginX={1} height={3}>
-        <Text color="gray" dimColor={modalOpen ? true : undefined}>
-          ↑↓ Navigate • / Filter • s Sort • d Direction • t Density • f Forks • ⏎ Open • Del Delete • a Archive • r Refresh • q Quit
-        </Text>
+      <Box marginTop={1} paddingX={1} flexDirection="column">
+        <Box width={terminalWidth} justifyContent="center">
+          <Text color="gray" dimColor={modalOpen ? true : undefined}>
+            ↑↓ Navigate • Ctrl+G Top • G Bottom • / Filter • S Sort • D Direction • T Density • F Forks • ⏎/O Open
+          </Text>
+        </Box>
+        <Box width={terminalWidth} justifyContent="center">
+          <Text color="gray" dimColor={modalOpen ? true : undefined}>
+            Del/Ctrl+Backspace Delete • Ctrl+A Un/Archive • Ctrl+U Sync Fork • R Refresh • Q Quit
+          </Text>
+        </Box>
       </Box>
     </Box>
   );

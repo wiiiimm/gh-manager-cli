@@ -23,7 +23,7 @@ Legend:
 
 - [x] Repo actions with confirmations
   - [x] Archive / Unarchive repositories
-    - Key mapping: `a` to toggle archive status (archive if active, unarchive if archived)
+    - Key mapping: `Ctrl+A` to open archive/unarchive modal
     - GraphQL mutations: `archiveRepository` and `unarchiveRepository`
     - Confirmation modal with Left/Right focus navigation and button styling
     - Update local state (`isArchived` field) after successful operation
@@ -61,7 +61,7 @@ Legend:
   - On other failure: show error with retry option
 
 - [ ] Rename repository
-  - Assign a key to trigger rename: e.g. `e` (Edit name)
+  - Assign a key to trigger rename: e.g. `E` (Edit name)
   - Modal overlay with a single-line text input prefilled with current repo name
     - User can edit or clear and retype; value cannot be empty (trimmed)
     - `Esc` cancels and closes the modal without changes
@@ -78,19 +78,19 @@ Legend:
     - Show a picker overlay listing:
       - Personal Account (@your_github_handle)
       - Organizations (name and @login)
-    - Keyboard: assign `w` (Workspace/Who) to open the switcher; Up/Down to select; Enter to switch; Esc to cancel
+    - Keyboard: assign `W` (Workspace/Who) to open the switcher; Up/Down to select; Enter to switch; Esc to cancel
     - Persist last-selected context and show it in header (e.g., “Repositories — Personal Account” or “Repositories — org: @acme”)
     - Apply context to repo queries (scoped owner/org), and refresh list/totalCount on switch
 
 - [ ] Bulk selection and actions
   - Multi-select mode
-    - Enter multi-select with a key (e.g., `m`)
-    - Use Up/Down to navigate; Space toggles selection; `*` selects all in view; `u` unselects all
+    - Enter multi-select with a key (e.g., `M`)
+    - Use Up/Down to navigate; Space toggles selection; `*` selects all in view; `U` unselects all
     - Show selected count in header/footer
   - Bulk operations
     - Bulk archive/unarchive selected
     - Bulk delete selected (with aggregate confirmation including per-repo list)
-    - Two-step confirm for destructive operations; follow modal UX (Left/Right, Enter, y/c)
+    - Two-step confirm for destructive operations; follow modal UX (Left/Right, Enter, Y/C)
   - Performance and UX
     - Use batched REST/GraphQL calls; display progress with spinner and per-item status
     - On success: update local list states (archived flag or removal) without full refetch
@@ -164,11 +164,11 @@ Legend:
 
 - [ ] Copy repository URL to clipboard
   - HTTPS URL copy
-    - Assign key: `y` (yank) to copy `https://github.com/<owner>/<repo>.git`
+    - Assign key: `H` to copy `https://github.com/<owner>/<repo>.git`
     - On success: show a short-lived footer toast (e.g., “Copied HTTPS URL”)
     - On failure: show error toast with suggestion
   - SSH URL copy
-    - Assign key: `Y` (shift+y) to copy `git@github.com:<owner>/<repo>.git`
+    - Assign key: `S` to copy `git@github.com:<owner>/<repo>.git`
     - On success/failure: same toasts as above
   - Cross‑platform clipboard
     - Prefer `clipboardy` dependency; fallback to OS commands: macOS `pbcopy`, Windows `clip`, Linux `xclip`/`xsel`/`wl-copy`
@@ -190,15 +190,14 @@ Legend:
   - Considerations: requires OAuth app registration, local server for callback
 
 - [ ] Logout (clear stored token)
-  - Assign key to open logout prompt (e.g., `l` or `Ctrl+L`)
+  - Assign key: `Ctrl+L` to open logout prompt
   - Confirmation modal: "Are you sure you want to log out?"
-    - `Esc` or `n` = cancel
-    - `y` or `Enter` = confirm
+    - `Esc` or `N` = cancel
+    - `Y` or `Enter` = confirm
   - On confirm:
     - Remove token from config (delete token field or whole file if only token is stored)
-    - Clear in-memory token and return to token bootstrap screen
+    - Clear in-memory token and return to the Authentication Required prompt (token bootstrap screen)
     - Show success toast (e.g., "Logged out. Token cleared.")
-    - Quit the app after logout (graceful exit)
   - Handle errors gracefully and keep user in current state on failure
 
 ## Later
