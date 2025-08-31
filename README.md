@@ -5,8 +5,12 @@ Interactive terminal app to browse and manage your personal GitHub repositories.
 ## Quick Start
 
 ```bash
-# Run with npx (no installation required)
+# Option 1: Run with npx (no installation required)
 npx github:wiiiimm/gh-manager-cli
+
+# Option 2: Install globally via NPM
+npm install -g gh-manager-cli
+gh-manager
 ```
 
 On first run, you'll be prompted for a GitHub Personal Access Token.
@@ -54,7 +58,6 @@ npx github:wiiiimm/gh-manager-cli
 Install globally for persistent `gh-manager` command:
 
 ```bash
-# When published to NPM (coming soon)
 npm install -g gh-manager-cli
 gh-manager
 ```
