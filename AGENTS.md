@@ -198,7 +198,7 @@ First run prompts for a PAT if not provided via env vars. The token is validated
 - **Feature branches:** For new features and major changes
 
 ### Commit Message Format
-Follow [Conventional Commits](https://www.conventionalcommits.org/) specification:
+**REQUIRED:** All commits MUST follow the [Conventional Commits](https://www.conventionalcommits.org/) specification:
 ```
 <type>[optional scope]: <description>
 
@@ -213,6 +213,10 @@ Follow [Conventional Commits](https://www.conventionalcommits.org/) specificatio
 - `feat: add repository filtering by language`
 - `fix: resolve spacing issues in terminal rendering`
 - `docs: update installation instructions`
+- `chore: update dependencies`
+- `refactor: simplify RepoList component logic`
+
+**Important:** Every commit message MUST use semantic format to ensure proper versioning and changelog generation.
 
 ### Automated Release Process
 1. **PR Creation:** Titles automatically formatted to conventional commits
@@ -292,10 +296,24 @@ When working on this project:
 1. **Always test changes** in multiple terminals before considering complete
 2. **Use chalk for colors** instead of Ink's color props to avoid nesting issues
 3. **Follow TypeScript strictly** - no any types without justification
-4. **Maintain semantic commits** for proper versioning
+4. **ALWAYS use semantic commit messages** - This is REQUIRED for every commit
 5. **Update this file** when adding major features or changing architecture
 6. **Consider terminal constraints** - not all ANSI features work everywhere
 7. **Keep it fast** - terminal UIs should feel instant
+
+### Commit Requirements
+Every single commit MUST follow semantic format:
+- `feat:` for new features
+- `fix:` for bug fixes
+- `docs:` for documentation only
+- `style:` for formatting, missing semicolons, etc.
+- `refactor:` for code changes that neither fix bugs nor add features
+- `perf:` for performance improvements
+- `test:` for adding missing tests
+- `build:` for changes to build system or dependencies
+- `ci:` for CI configuration changes
+- `chore:` for other changes that don't modify src or test files
+- `revert:` for reverting previous commits
 
 ---
 
