@@ -70,7 +70,7 @@ Legend:
     - Success: close modal and update the repo in local list (name and nameWithOwner); re-run local sorting if applicable; no server refetch required
     - Failure: show error message in the modal; allow retry or cancel
 
-- [ ] Organization support
+- [x] Organization support
   - Switch between personal and organizations
   - List orgs (viewer.organizations) and browse their repos
   - Owner affiliation filters (OWNER, COLLABORATOR, ORGANIZATION_MEMBER)
@@ -79,8 +79,14 @@ Legend:
       - Personal Account (@your_github_handle)
       - Organizations (name and @login)
     - Keyboard: assign `W` (Workspace/Who) to open the switcher; Up/Down to select; Enter to switch; Esc to cancel
-    - Persist last-selected context and show it in header (e.g., “Repositories — Personal Account” or “Repositories — org: @acme”)
+    - Persist last-selected context and show it in header (e.g., "Repositories — Personal Account" or "Repositories — org: @acme")
     - Apply context to repo queries (scoped owner/org), and refresh list/totalCount on switch
+  - Implemented features:
+    - OrgSwitcher component with organization listing
+    - Context persistence in UI preferences
+    - Dynamic GraphQL queries for personal vs org repositories
+    - Header displays current context (org/@user or @user)
+    - Automatic affiliation switching (OWNER for personal, ORGANIZATION_MEMBER for orgs)
 
 - [ ] Bulk selection and actions
   - Multi-select mode
@@ -168,13 +174,17 @@ Legend:
   - Recompute layout on terminal resize; keep selection visible
 
 - [ ] Copy repository URL to clipboard
-  - HTTPS URL copy
-    - Assign key: `H` to copy `https://github.com/<owner>/<repo>.git`
-    - On success: show a short-lived footer toast (e.g., “Copied HTTPS URL”)
-    - On failure: show error toast with suggestion
-  - SSH URL copy
-    - Assign key: `S` to copy `git@github.com:<owner>/<repo>.git`
-    - On success/failure: same toasts as above
+  - Key trigger: `C` to open copy URL modal
+  - Modal UI:
+    - Show two buttons: SSH and HTTPS
+    - Left/Right arrow keys to select between buttons
+    - Keyboard shortcuts while modal is open:
+      - `S` to copy SSH URL (`git@github.com:<owner>/<repo>.git`)
+      - `H` to copy HTTPS URL (`https://github.com/<owner>/<repo>.git`)
+      - `Esc` or `C` to close modal without copying
+    - Visual focus indication on selected button
+  - On success: show a short-lived footer toast (e.g., "Copied SSH URL" or "Copied HTTPS URL")
+  - On failure: show error toast with suggestion
   - Cross‑platform clipboard
     - Prefer `clipboardy` dependency; fallback to OS commands: macOS `pbcopy`, Windows `clip`, Linux `xclip`/`xsel`/`wl-copy`
     - Silent no‑op if clipboard utility absent and `clipboardy` unavailable, but show error toast

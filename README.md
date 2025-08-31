@@ -142,6 +142,7 @@ Launch the app, then use the keys below:
   - Esc: Clear search and return to full repository list
 - Sorting: `S` to cycle field (updated → pushed → name → stars → forks), `D` to toggle direction
 - Display density: `T` to toggle compact/cozy/comfy
+- Workspace switcher: `W` to switch between personal account and organizations
 - Repository info: `I` to view detailed metadata (size, language, timestamps)
 - Open in browser: Enter or `O`
 - Delete repository: `Del` or `Ctrl+Backspace` (with confirmation modal)
@@ -253,12 +254,17 @@ GH_MANAGER_DEBUG=1 npx gh-manager
 
 For the up-to-date task board, see [TODOs.md](./TODOs.md).
 
+Recently implemented:
+- ✅ Density toggle for row spacing (compact/cozy/comfy)
+- ✅ Repo actions (archive/unarchive, delete) with confirmations
+- ✅ Organization support and switching (press `W`)
+- ✅ Enhanced server-side search with improved UX
+- ✅ Smart infinite scroll with 80% prefetch trigger
+
 Highlights on deck:
-- Density toggle for row spacing (compact/cozy/comfy)
-- Repo actions (archive/unarchive, delete) with confirmations
-- Organization support and switching
-- Enhanced server-side search with improved UX
 - Optional OS keychain storage via `keytar`
+- Bulk selection and actions
+- Repository renaming
 
 ## License
 
