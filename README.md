@@ -5,8 +5,8 @@ Interactive terminal app to browse and manage your personal GitHub repositories.
 ## Quick Start
 
 ```bash
-# Run with npx (no installation required)
-npx gh-manager-cli
+# Run with npx (no install) — package name differs from the CLI name
+npx -y -p gh-manager-cli gh-manager
 ```
 
 On first run, you'll be prompted for a GitHub Personal Access Token.
@@ -20,13 +20,13 @@ On first run, you'll be prompted for a GitHub Personal Access Token.
 - **Real-time Sorting**: Server-side sorting by updated, pushed, name, or stars (with direction toggle)
 - **Smart Filtering**: Client-side search through repository names and descriptions
 - **Repository Actions**:
-  - Open in browser (Enter/`o`)
-  - Delete repository (`Del`/Backspace) with secure two-step confirmation
-  - Archive/unarchive repositories (`a`) with confirmation prompts
+  - Open in browser (Enter/`O`)
+  - Delete repository (`Del` or `Ctrl+Backspace`) with secure two-step confirmation
+  - Archive/unarchive repositories (`Ctrl+A`) with confirmation prompts
 
 ### User Interface & Experience
-- **Keyboard Navigation**: Full keyboard control (arrow keys, PageUp/Down, `g`/`G`)
-- **Display Density**: Toggle between compact/cozy/comfy spacing (`t`)
+- **Keyboard Navigation**: Full keyboard control (arrow keys, PageUp/Down, `Ctrl+G`/`G`)
+- **Display Density**: Toggle between compact/cozy/comfy spacing (`T`)
 - **Visual Indicators**: Fork status, private/archived badges, language colors
 - **Loading States**: Contextual loading screens for sorting and refreshing operations
 - **Rate Limit Monitoring**: Live API usage display with visual warnings
@@ -42,14 +42,10 @@ On first run, you'll be prompted for a GitHub Personal Access Token.
 
 ### NPX (Recommended - No Installation Required)
 
-Run instantly without installing:
+Run instantly without installing (package: `gh-manager-cli`, CLI: `gh-manager`):
 
 ```bash
-# From NPM registry (clean, fast)
-npx gh-manager-cli
-
-# From GitHub (always latest)
-npx github:wiiiimm/gh-manager-cli
+npx -y -p gh-manager-cli gh-manager
 ```
 
 ### NPM Global Install
