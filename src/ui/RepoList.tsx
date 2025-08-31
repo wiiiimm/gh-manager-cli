@@ -1205,7 +1205,7 @@ export default function RepoList({ token, maxVisibleRows }: { token: string; max
         </Box>
         <Box width={terminalWidth} justifyContent="center">
           <Text color="gray" dimColor={modalOpen ? true : undefined}>
-            Del/Ctrl+Backspace Delete • Ctrl+A Un/Archive • Ctrl+U Sync Fork • R Refresh • Q Quit
+            Del/Ctrl+Backspace Delete • Ctrl+A Un/Archive • Ctrl+U Sync Fork • Ctrl+L Logout • R Refresh • Q Quit
           </Text>
         </Box>
       </Box>

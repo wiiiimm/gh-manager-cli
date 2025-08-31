@@ -98,6 +98,7 @@ Launch the app, then use the keys below:
   - Confirm: press `Y` or Enter
   - Cancel: press `C` or Esc
 - Archive/Unarchive: `Ctrl+A`
+- Logout: `Ctrl+L`
 - Toggle fork metrics: `F`
 - Quit: `Q`
 - Esc: cancels modals or exits filter mode (does not quit)

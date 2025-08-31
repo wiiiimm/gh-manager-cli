@@ -112,6 +112,7 @@ See the living roadmap in [TODOs.md](./TODOs.md) for the canonical, up-to-date l
 - Enter or `O`: open selected repo in browser
 - `Del` or `Ctrl+Backspace`: delete selected repo (opens confirmation modal)
 - `Ctrl+A`: archive/unarchive selected repo
+- `Ctrl+L`: logout (returns to Authentication Required)
 - `R`: refresh list
 - `Q`: quit (Esc cancels an open modal or exits filter mode; does not quit)
 
