@@ -1,3 +1,10 @@
+# [1.5.0](https://github.com/wiiiimm/gh-manager-cli/compare/v1.4.2...v1.5.0) (2025-08-31)
+
+
+### Features
+
+* add fork sync functionality and update documentation ([1d37a10](https://github.com/wiiiimm/gh-manager-cli/commit/1d37a10d90636731c436679b0a4ff2d1c3e1daae))
+
 ## [1.4.2](https://github.com/wiiiimm/gh-manager-cli/compare/v1.4.1...v1.4.2) (2025-08-31)
 
 
