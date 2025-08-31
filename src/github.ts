@@ -12,7 +12,7 @@ export function makeClient(token: string) {
   });
 }
 
-// Apollo Client with persisted cache (loaded on demand when GH_MANAGER_APOLLO=1)
+// Apollo Client with persisted cache (default for all queries)
 async function makeApolloClient(token: string): Promise<any> {
   try {
     // Node 18+ has native fetch, ensure it's available
@@ -197,7 +197,7 @@ export async function fetchViewerReposPage(
   };
 }
 
-// Unified entry point with optional Apollo path (set GH_MANAGER_APOLLO=1 to use Apollo)
+// Unified entry point - Apollo Client is the default with Octokit fallback
 export async function fetchViewerReposPageUnified(
   token: string,
   first: number,
@@ -206,7 +206,7 @@ export async function fetchViewerReposPageUnified(
   includeForkTracking: boolean = true,
   fetchPolicy: 'cache-first' | 'network-only' = 'cache-first'
 ): Promise<ReposPageResult> {
-  const isApolloEnabled = true;
+  const isApolloEnabled = true; // Apollo is the default, with Octokit as fallback
   const debug = process.env.GH_MANAGER_DEBUG === '1';
   
   if (debug) {
