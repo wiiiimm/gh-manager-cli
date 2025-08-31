@@ -1,3 +1,10 @@
+## [1.6.2](https://github.com/wiiiimm/gh-manager-cli/compare/v1.6.1...v1.6.2) (2025-08-31)
+
+
+### Bug Fixes
+
+* resolve ES module import issues and improve search UX ([2a08c6b](https://github.com/wiiiimm/gh-manager-cli/commit/2a08c6b557c5a00e1005136074273e38c817a4c3))
+
 ## [1.6.1](https://github.com/wiiiimm/gh-manager-cli/compare/v1.6.0...v1.6.1) (2025-08-31)
 
 
