@@ -136,3 +136,20 @@ jobs:
           GH_TOKEN: ${{ secrets.GH_TOKEN || secrets.GITHUB_TOKEN }}
           NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
         run: npx semantic-release
+
+      - name: Publish to GitHub Packages
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          # Create .npmrc for GitHub Packages
+          echo "@wiiiimm:registry=https://npm.pkg.github.com" >> .npmrc
+          echo "//npm.pkg.github.com/:_authToken=${NODE_AUTH_TOKEN}" >> .npmrc
+          
+          # Create scoped package.json for GitHub Packages
+          cp package.json package-github.json
+          
+          # Update name to be scoped for GitHub Packages  
+          sed -i 's/"name": "gh-manager-cli"/"name": "@wiiiimm\/gh-manager-cli"/' package-github.json
+          
+          # Publish to GitHub Packages
+          npm publish package-github.json --registry=https://npm.pkg.github.com
