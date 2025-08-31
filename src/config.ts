@@ -4,11 +4,15 @@ import envPaths from 'env-paths';
 
 type Density = 0 | 1 | 2;
 
+export type OwnerContext = 'personal' | { type: 'organization', login: string, name?: string };
+
 interface UIPrefs {
   sortKey?: 'updated' | 'pushed' | 'name' | 'stars';
   sortDir?: 'asc' | 'desc';
   density?: Density;
   forkTracking?: boolean;
+  ownerAffiliations?: string[];
+  ownerContext?: OwnerContext;
 }
 
 interface ConfigShape {
