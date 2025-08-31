@@ -1,3 +1,10 @@
+## [1.6.1](https://github.com/wiiiimm/gh-manager-cli/compare/v1.6.0...v1.6.1) (2025-08-31)
+
+
+### Bug Fixes
+
+* correct GitHub Packages publishing in workflow ([191fcd5](https://github.com/wiiiimm/gh-manager-cli/commit/191fcd503389cb09774305ebde58481cccc9e518))
+
 # [1.6.0](https://github.com/wiiiimm/gh-manager-cli/compare/v1.5.0...v1.6.0) (2025-08-31)
 
 
