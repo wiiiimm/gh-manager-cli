@@ -2,11 +2,12 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { Box, Text, useApp, useInput, useStdout, Spacer, Newline } from 'ink';
 import TextInput from 'ink-text-input';
 import chalk from 'chalk';
-import { makeClient, fetchViewerReposPageUnified, deleteRepositoryRest, archiveRepositoryById, unarchiveRepositoryById, syncForkWithUpstream, purgeApolloCacheFiles, inspectCacheStatus } from '../github';
-import { getUIPrefs, storeUIPrefs } from '../config';
+import { makeClient, fetchViewerReposPageUnified, deleteRepositoryRest, archiveRepositoryById, unarchiveRepositoryById, syncForkWithUpstream, purgeApolloCacheFiles, inspectCacheStatus, OwnerAffiliation } from '../github';
+import { getUIPrefs, storeUIPrefs, OwnerContext } from '../config';
 import { makeApolloKey, isFresh, markFetched } from '../apolloMeta';
 import type { RepoNode, RateLimitInfo } from '../types';
 import { exec } from 'child_process';
+import OrgSwitcher from './OrgSwitcher';
 
 const PAGE_SIZE = (process.env.GH_MANAGER_DEV === '1' || process.env.NODE_ENV === 'development') ? 5 : 15;
 
@@ -127,6 +128,11 @@ export default function RepoList({ token, maxVisibleRows, onLogout, viewerLogin 
   // Display density: 0 = compact (0 lines), 1 = cozy (1 line), 2 = comfy (2 lines)
   const [density, setDensity] = useState<0 | 1 | 2>(2);
   const [prefsLoaded, setPrefsLoaded] = useState(false);
+  
+  // Organization context state
+  const [ownerContext, setOwnerContext] = useState<OwnerContext>('personal');
+  const [ownerAffiliations, setOwnerAffiliations] = useState<OwnerAffiliation[]>(['OWNER']);
+  const [orgSwitcherOpen, setOrgSwitcherOpen] = useState(false);
   // Delete modal state
   const [deleteMode, setDeleteMode] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState<RepoNode | null>(null);
@@ -153,6 +159,11 @@ export default function RepoList({ token, maxVisibleRows, onLogout, viewerLogin 
 
   // Info (hidden) modal state
   const [infoMode, setInfoMode] = useState(false);
+  
+  // Organization switcher state
+  const [orgSwitcherOpen, setOrgSwitcherOpen] = useState(false);
+  const [ownerContext, setOwnerContext] = useState<OwnerContext>('personal');
+  const [ownerAffiliations, setOwnerAffiliations] = useState<OwnerAffiliation[]>(['OWNER']);
 
   // Logout modal state
   const [logoutMode, setLogoutMode] = useState(false);
@@ -249,18 +260,26 @@ export default function RepoList({ token, maxVisibleRows, onLogout, viewerLogin 
         field: sortFieldMap[sortKey],
         direction: sortDir.toUpperCase()
       };
+      
+      // Determine organization login if in org context
+      const orgLogin = ownerContext !== 'personal' ? ownerContext.login : undefined;
+      
       const page = await fetchViewerReposPageUnified(
         token,
         PAGE_SIZE,
         after ?? null,
         orderBy,
         overrideForkTracking ?? forkTracking,
-        policy ?? (after ? 'network-only' : 'cache-first')
+        policy ?? (after ? 'network-only' : 'cache-first'),
+        ownerAffiliations,
+        orgLogin
       );
+      
       setItems(prev => (reset || !after ? page.nodes : [...prev, ...page.nodes]));
       setEndCursor(page.endCursor);
       setHasNextPage(page.hasNextPage);
       setTotalCount(page.totalCount);
+      
       // Mark fetched time for TTL tracking (first page only)
       if (!after) {
         try {
@@ -270,10 +289,13 @@ export default function RepoList({ token, maxVisibleRows, onLogout, viewerLogin 
             sortDir,
             pageSize: PAGE_SIZE,
             forkTracking: overrideForkTracking ?? forkTracking,
+            ownerContext: orgLogin ? `org:${orgLogin}` : 'personal',
+            affiliations: ownerAffiliations.join(',')
           });
           markFetched(key);
         } catch {}
       }
+      
       // Track rate limit changes for delta display
       if (page.rateLimit && rateLimit) {
         setPrevRateLimit(rateLimit.remaining);
@@ -290,7 +312,7 @@ export default function RepoList({ token, maxVisibleRows, onLogout, viewerLogin 
     }
   };
 
-  // Load UI preferences (density, sort key/dir, fork tracking) on mount
+  // Load UI preferences (density, sort key/dir, fork tracking, owner context) on mount
   useEffect(() => {
     const ui = getUIPrefs();
     if (ui.density !== undefined) setDensity(ui.density as 0 | 1 | 2);
@@ -302,6 +324,17 @@ export default function RepoList({ token, maxVisibleRows, onLogout, viewerLogin 
     }
     if (ui.forkTracking !== undefined) setForkTracking(ui.forkTracking);
     else setForkTracking(true); // Default to ON if not set in config
+    
+    // Load organization context
+    if (ui.ownerContext) {
+      setOwnerContext(ui.ownerContext);
+    }
+    
+    // Load owner affiliations
+    if (ui.ownerAffiliations && Array.isArray(ui.ownerAffiliations)) {
+      setOwnerAffiliations(ui.ownerAffiliations as OwnerAffiliation[]);
+    }
+    
     setPrefsLoaded(true);
   }, []);
 
@@ -309,6 +342,10 @@ export default function RepoList({ token, maxVisibleRows, onLogout, viewerLogin 
     if (!prefsLoaded) return;
     // Choose Apollo fetch policy based on TTL freshness
     let policy: 'cache-first' | 'cache-and-network' = 'cache-first';
+    
+    // Determine organization login if in org context
+    const orgLogin = ownerContext !== 'personal' ? ownerContext.login : undefined;
+    
     try {
       const key = makeApolloKey({
         viewer: viewerLogin || 'unknown',
@@ -316,18 +353,29 @@ export default function RepoList({ token, maxVisibleRows, onLogout, viewerLogin 
         sortDir,
         pageSize: PAGE_SIZE,
         forkTracking,
+        ownerContext: orgLogin ? `org:${orgLogin}` : 'personal',
+        affiliations: ownerAffiliations.join(',')
       });
       policy = isFresh(key) ? 'cache-first' : 'cache-and-network';
     } catch {}
+    
+    // Reset cursor when changing context
+    setCursor(0);
+    
+    // Fetch repositories with the current context
     fetchPage(null, true, false, undefined, policy);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [client, prefsLoaded]);
+  }, [client, prefsLoaded, ownerContext, ownerAffiliations]);
 
   // Refresh from server when sorting changes
   useEffect(() => {
     // Skip initial mount
     if (items.length > 0) {
       let policy: 'cache-first' | 'cache-and-network' = 'cache-first';
+      
+      // Determine organization login if in org context
+      const orgLogin = ownerContext !== 'personal' ? ownerContext.login : undefined;
+      
       try {
         const key = makeApolloKey({
           viewer: viewerLogin || 'unknown',
@@ -335,6 +383,8 @@ export default function RepoList({ token, maxVisibleRows, onLogout, viewerLogin 
           sortDir,
           pageSize: PAGE_SIZE,
           forkTracking,
+          ownerContext: orgLogin ? `org:${orgLogin}` : 'personal',
+          affiliations: ownerAffiliations.join(',')
         });
         policy = isFresh(key) ? 'cache-first' : 'cache-and-network';
       } catch {}
@@ -343,7 +393,31 @@ export default function RepoList({ token, maxVisibleRows, onLogout, viewerLogin 
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [sortKey, sortDir]);
 
+  // Handle organization context switching
+  const handleOrgContextChange = (newContext: OwnerContext) => {
+    setOwnerContext(newContext);
+    storeUIPrefs({ ownerContext: newContext });
+    
+    // Reset cursor and close the switcher
+    setCursor(0);
+    setOrgSwitcherOpen(false);
+    
+    // If switching to personal, use OWNER affiliation by default
+    // If switching to org, use ORGANIZATION_MEMBER by default
+    const newAffiliations = newContext === 'personal' 
+      ? ['OWNER'] as OwnerAffiliation[]
+      : ['ORGANIZATION_MEMBER'] as OwnerAffiliation[];
+    
+    setOwnerAffiliations(newAffiliations);
+    storeUIPrefs({ ownerAffiliations: newAffiliations });
+  };
+  
   useInput((input, key) => {
+    // When organization switcher is open, trap inputs for modal
+    if (orgSwitcherOpen) {
+      return; // OrgSwitcher component handles its own keyboard input
+    }
+    
     // When in delete mode, trap inputs for modal
     if (deleteMode) {
       if (key.escape || (input && input.toUpperCase() === 'C')) {
@@ -627,6 +701,12 @@ export default function RepoList({ token, maxVisibleRows, onLogout, viewerLogin 
     // Hidden Info modal toggle (I)
     if (input && input.toUpperCase() === 'I') {
       setInfoMode(true);
+      return;
+    }
+    
+    // Organization switcher (W for Workspace/Who)
+    if (input && input.toUpperCase() === 'W') {
+      setOrgSwitcherOpen(true);
       return;
     }
 
@@ -1231,6 +1311,15 @@ export default function RepoList({ token, maxVisibleRows, onLogout, viewerLogin 
               </Box>
             </Box>
           </Box>
+        ) : orgSwitcherOpen ? (
+          <Box height={contentHeight} alignItems="center" justifyContent="center">
+            <OrgSwitcher 
+              token={token}
+              currentContext={ownerContext}
+              onSelect={handleOrgContextChange}
+              onClose={() => setOrgSwitcherOpen(false)}
+            />
+          </Box>
         ) : infoMode ? (
           <Box height={contentHeight} alignItems="center" justifyContent="center">
             {(() => {
@@ -1266,8 +1355,13 @@ export default function RepoList({ token, maxVisibleRows, onLogout, viewerLogin 
           </Box>
         ) : (
           <>
-            {/* Filter/sort status */}
+            {/* Context/Filter/sort status */}
             <Box flexDirection="row" gap={2} marginBottom={1}>
+              <Text color="cyan" bold>
+                {ownerContext === 'personal' 
+                  ? 'Personal Account' 
+                  : `Organization: ${ownerContext.name || ownerContext.login}`}
+              </Text>
               <Text color="gray" dimColor>
                 Sort: {sortKey} {sortDir === 'asc' ? '↑' : '↓'}
               </Text>
