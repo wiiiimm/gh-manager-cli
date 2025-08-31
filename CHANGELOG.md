@@ -1,3 +1,10 @@
+# [1.1.0](https://github.com/wiiiimm/gh-manager-cli/compare/v1.0.0...v1.1.0) (2025-08-31)
+
+
+### Features
+
+* re-enable NPM publishing with NPM_TOKEN configured ([a0c3520](https://github.com/wiiiimm/gh-manager-cli/commit/a0c3520ca53092941d4a761d6f94a66a500753dd))
+
 # 1.0.0 (2025-08-31)
 
 
