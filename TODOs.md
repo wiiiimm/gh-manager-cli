@@ -96,16 +96,17 @@ Legend:
     - On success: update local list states (archived flag or removal) without full refetch
     - On failure: show summary with failed items and suggested remediation
 
-- [~] Infinite scroll improvements
+- [x] Infinite scroll improvements
   - [x] Inline loading indicator at end of list
     - When user reaches end of loaded repos, show spinner/loading message inline
     - Display "Loading more repositories..." with animated spinner at bottom of list
     - Keep existing repos visible while fetching next page
-  - [ ] Smarter prefetching trigger
-    - Change prefetch trigger from "5 items from end" to "80% from bottom"
-    - Calculate: trigger when `cursor >= Math.floor(loadedItems.length * 0.8)`
+  - [x] Smarter prefetching trigger
+    - Changed prefetch trigger from "5 items from end" to "80% from bottom"
+    - Calculates: trigger when `cursor >= Math.floor(loadedItems.length * 0.8)`
     - Prevents user from ever reaching actual end before more data loads
     - Smoother infinite scroll experience with earlier prefetching
+    - Added debug messages to track when prefetching occurs
 
 - [x] Server‑side search
   - Support GitHub search for repos (beyond loaded pages)
@@ -304,3 +305,7 @@ Legend:
 - [x] Cache purging on refresh (`R` key)
   - Purges Apollo cache files before refreshing
   - Forces network-only fetch after purge
+- [x] Infinite scroll improvements
+  - Inline loading indicator showing "Loading more repositories..."
+  - Smarter prefetch at 80% threshold instead of 5 items from end
+  - Smoother scrolling experience with earlier data loading

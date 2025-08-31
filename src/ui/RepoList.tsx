@@ -916,13 +916,22 @@ export default function RepoList({ token, maxVisibleRows, onLogout, viewerLogin 
     return { start, end };
   }, [visibleItems.length, cursor, listHeight, spacingLines]);
 
-  // Infinite scroll: prefetch when near end (listing or search)
+  // Infinite scroll: prefetch when at 80% of loaded items
   useEffect(() => {
-    const nearEnd = cursor >= (visibleItems.length - 5);
+    // Trigger prefetch when cursor reaches 80% of the loaded items
+    const prefetchThreshold = Math.floor(visibleItems.length * 0.8);
+    const nearEnd = visibleItems.length > 0 && cursor >= prefetchThreshold;
+    
     if (searchActive) {
-      if (!searchLoading && searchHasNextPage && nearEnd) fetchSearchPage(searchEndCursor);
+      if (!searchLoading && searchHasNextPage && nearEnd) {
+        addDebugMessage(`[Infinite Scroll] Prefetching search results at ${cursor}/${visibleItems.length} (80% threshold: ${prefetchThreshold})`);
+        fetchSearchPage(searchEndCursor);
+      }
     } else {
-      if (!loading && !loadingMore && hasNextPage && nearEnd) fetchPage(endCursor);
+      if (!loading && !loadingMore && hasNextPage && nearEnd) {
+        addDebugMessage(`[Infinite Scroll] Prefetching repos at ${cursor}/${visibleItems.length} (80% threshold: ${prefetchThreshold})`);
+        fetchPage(endCursor);
+      }
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [cursor, visibleItems.length, searchActive, searchLoading, searchHasNextPage, searchEndCursor, loading, loadingMore, hasNextPage, endCursor]);
