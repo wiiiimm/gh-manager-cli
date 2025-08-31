@@ -194,6 +194,9 @@ export default function App() {
           {'  '}GitHub Repository Manager
         </Text>
         <Text color="gray" dimColor>v{packageJson.version}</Text>
+        {process.env.GH_MANAGER_DEBUG === '1' && (
+          <Text backgroundColor="blue" color="white"> debug mode </Text>
+        )}
       </Box>
       {viewer && <Text color="gray">@{viewer}  </Text>}
     </Box>

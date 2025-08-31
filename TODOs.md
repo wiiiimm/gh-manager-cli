@@ -41,9 +41,9 @@ Legend:
     - On success: close modal, remove repo from list, refresh totalCount
     - On failure: show error in modal with proper error handling
 
-- [ ] Sync fork with upstream
-  - Assign a key to trigger sync: e.g. `u` (Update from upstream)
-  - Only show option for forked repositories that are behind upstream
+- [x] Sync fork with upstream
+  - Assigned key `Ctrl+U` to trigger sync
+  - Only shown for forked repositories that are behind upstream
   - Confirmation modal showing:
     - Fork name and upstream repository
     - Number of commits behind
@@ -96,24 +96,29 @@ Legend:
     - On success: update local list states (archived flag or removal) without full refetch
     - On failure: show summary with failed items and suggested remediation
 
-- [ ] Infinite scroll improvements
-  - Inline loading indicator at end of list
+- [x] Infinite scroll improvements
+  - [x] Inline loading indicator at end of list
     - When user reaches end of loaded repos, show spinner/loading message inline
     - Display "Loading more repositories..." with animated spinner at bottom of list
     - Keep existing repos visible while fetching next page
-  - Smarter prefetching trigger
-    - Change prefetch trigger from "5 items from end" to "80% from bottom"
-    - Calculate: trigger when `cursor >= Math.floor(loadedItems.length * 0.8)`
+  - [x] Smarter prefetching trigger
+    - Changed prefetch trigger from "5 items from end" to "80% from bottom"
+    - Calculates: trigger when `cursor >= Math.floor(loadedItems.length * 0.8)`
     - Prevents user from ever reaching actual end before more data loads
     - Smoother infinite scroll experience with earlier prefetching
+    - Added debug messages to track when prefetching occurs
 
-- [ ] Server‑side search
+- [x] Server‑side search
   - Support GitHub search for repos (beyond loaded pages)
   - Integrate with `/` filter bar; show mode indicator
-  - Consider Apollo Client + apollo3-cache-persist for normalized caching and persistence
-    - Migrate GraphQL calls to ApolloClient with InMemoryCache
+  - Implemented Apollo Client + apollo3-cache-persist for normalized caching and persistence
+    - Migrated GraphQL calls to ApolloClient with InMemoryCache
     - Persist cache to files under app data dir via custom fs storage
-    - Add TTL overlay for stale-while-revalidate on startup
+    - Added TTL overlay for stale-while-revalidate on startup
+  - Search requires 3+ characters to trigger server-side query
+  - ESC key clears search and returns to normal listing
+  - Down arrow from search input acts like Enter to start browsing results
+  - No auto-selection of first result - user must explicitly navigate
 
 - [x] Sorting enhancements  
   - [x] Persist sort field + direction in config (implemented in UI preferences)
@@ -189,8 +194,8 @@ Legend:
   - Benefits: no need to manually create PATs, auto-scoping, better UX
   - Considerations: requires OAuth app registration, local server for callback
 
-- [ ] Logout (clear stored token)
-  - Assign key: `Ctrl+L` to open logout prompt
+- [x] Logout (clear stored token)
+  - Assigned key: `Ctrl+L` to open logout prompt
   - Confirmation modal: "Are you sure you want to log out?"
     - `Esc` or `N` = cancel
     - `Y` or `Enter` = confirm
@@ -277,3 +282,30 @@ Legend:
   - Configured semantic-release to attach binaries to GitHub releases automatically
   - Added build:binaries script for local binary creation
   - Updated documentation with installation instructions for pre-built binaries
+- [x] Sync fork with upstream (`Ctrl+U`)
+  - Shows modal with fork name, upstream repo, and commits behind
+  - Executes sync via GitHub REST API with proper error handling
+  - Updates local state and shows success/conflict messages
+- [x] Server-side search with Apollo Client
+  - Implemented Apollo Client with persistent cache
+  - Server-side search triggers at 3+ characters
+  - ESC key clears search and returns to normal listing
+  - Improved UX: no auto-selection, down arrow acts like Enter
+- [x] Logout functionality (`Ctrl+L`)
+  - Confirmation modal with Y/N options
+  - Clears stored token and returns to auth screen
+  - Graceful error handling
+- [x] Repository info modal (`I` key)
+  - Shows detailed repository metadata
+  - Displays size, language, timestamps, visibility
+  - Modal overlay with ESC to close
+- [x] Cache inspection (`Ctrl+I`)
+  - Inspects Apollo cache status
+  - Shows cache statistics and health
+- [x] Cache purging on refresh (`R` key)
+  - Purges Apollo cache files before refreshing
+  - Forces network-only fetch after purge
+- [x] Infinite scroll improvements
+  - Inline loading indicator showing "Loading more repositories..."
+  - Smarter prefetch at 80% threshold instead of 5 items from end
+  - Smoother scrolling experience with earlier data loading

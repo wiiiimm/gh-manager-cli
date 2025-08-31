@@ -39,7 +39,7 @@ On first run, you'll be prompted for a GitHub Personal Access Token.
 - **Repository Listing**: Browse all your personal repositories with metadata (stars, forks, language, etc.)
 - **Live Pagination**: Infinite scroll with automatic page prefetching
 - **Real-time Sorting**: Server-side sorting by updated, pushed, name, or stars (with direction toggle)
-- **Smart Filtering**: Client-side search through repository names and descriptions
+- **Smart Search**: Server-side search through repository names and descriptions (3+ characters)
 - **Repository Actions**:
   - View detailed info (`I`) - Shows repository metadata, language, size, and timestamps
   - Open in browser (Enter/`O`)
@@ -137,7 +137,9 @@ Launch the app, then use the keys below:
 
 - Navigation: Up/Down, PageUp/PageDown, `Ctrl+G` (top), `G` (bottom)
 - Refresh: `R`
-- Filter: `/` to enter, type query, Enter to apply (Esc cancels)
+- Search: `/` to enter search mode, type 3+ characters for server-side search
+  - Down arrow or Enter: Start browsing search results
+  - Esc: Clear search and return to full repository list
 - Sorting: `S` to cycle field (updated → pushed → name → stars → forks), `D` to toggle direction
 - Display density: `T` to toggle compact/cozy/comfy
 - Repository info: `I` to view detailed metadata (size, language, timestamps)
@@ -152,7 +154,7 @@ Launch the app, then use the keys below:
 - Logout: `Ctrl+L`
 - Toggle fork metrics: `F`
 - Quit: `Q`
-- Esc: cancels modals or exits filter mode (does not quit)
+- Esc: cancels modals, clears search, or returns to normal listing (does not quit)
 
 Status bar shows loaded count vs total. A rate-limit line displays `remaining/limit` and the reset time; it turns yellow when remaining ≤ 10% of the limit.
 
@@ -186,7 +188,7 @@ Notes:
 Project layout:
 - `src/index.tsx` — CLI entry and error handling
 - `src/ui/App.tsx` — token bootstrap, renders `RepoList`
-- `src/ui/RepoList.tsx` — list UI, keys, filtering, sorting, infinite scroll
+- `src/ui/RepoList.tsx` — list UI, keys, search, sorting, infinite scroll
 - `src/github.ts` — GraphQL client and queries (repos + rateLimit)
 - `src/config.ts` — token read/write and file perms
 - `src/types.ts` — shared types
@@ -195,22 +197,31 @@ Project layout:
 
 gh-manager-cli includes built-in Apollo Client caching to reduce GitHub API calls and improve performance. Caching is **always enabled** for optimal performance.
 
+### Debug Mode
+
+Run with `GH_MANAGER_DEBUG=1` to enable debugging features:
+```bash
+GH_MANAGER_DEBUG=1 npx gh-manager
+```
+
+Debug mode provides:
+- **Apollo performance metrics**: Query execution time, cache hit/miss indicators
+- **Detailed error messages**: Full GraphQL and network errors for troubleshooting
+- **Data source tracking**: Shows whether data came from cache or network
+
 ### Verifying Cache is Working
 
-1. **Debug Output**: Run with `GH_MANAGER_DEBUG=1` to see cache status:
-   ```bash
-   GH_MANAGER_DEBUG=1 npx gh-manager
-   ```
-
-2. **Cache Inspection**: Press `i` (in debug mode) to inspect cache status:
-   - Shows cache file size and age
-   - Lists recent cache entries with timestamps
-   - Displays cache directory location
-
-3. **Performance Indicators**:
+1. **Performance Indicators** (visible in debug mode):
    - **From cache: YES** = Data served from cache
    - **Query time < 50ms** = Likely cache hit
-   - **API credits stable** = Fewer API calls being made
+   - **Network status codes** = Shows Apollo's internal cache state
+
+2. **API Credits**: Monitor the API counter in the header - it should remain stable when navigating previously loaded data
+
+3. **Cache Inspection**: Press `Ctrl+I` (available anytime) to see:
+   - Cache file location and size
+   - Recent cache entries with timestamps
+   - Cache age for each query type
 
 ### Why API Credits Might Still Decrease
 
@@ -246,7 +257,7 @@ Highlights on deck:
 - Density toggle for row spacing (compact/cozy/comfy)
 - Repo actions (archive/unarchive, delete) with confirmations
 - Organization support and switching
-- Server-side search; cached first page for faster startup
+- Enhanced server-side search with improved UX
 - Optional OS keychain storage via `keytar`
 
 ## License

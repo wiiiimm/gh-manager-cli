@@ -46,6 +46,19 @@ export function makeApolloKey(opts: {
   return `viewer:${v}|context:${context}|affiliations:${affiliations}|sort:${opts.sortKey}:${opts.sortDir}|ps:${opts.pageSize}|forks:${opts.forkTracking ? '1' : '0'}`;
 }
 
+export function makeSearchKey(opts: {
+  viewer: string;
+  q: string;
+  sortKey: string;
+  sortDir: string;
+  pageSize: number;
+  forkTracking: boolean;
+}) {
+  const v = opts.viewer || 'unknown';
+  const query = (opts.q || '').trim().toLowerCase();
+  return `search:${query}|viewer:${v}|sort:${opts.sortKey}:${opts.sortDir}|ps:${opts.pageSize}|forks:${opts.forkTracking ? '1' : '0'}`;
+}
+
 export function isFresh(key: string, ttlMs = Number(process.env.APOLLO_TTL_MS || 30 * 60 * 1000)) {
   const meta = readMeta();
   const iso = meta.fetched[key];

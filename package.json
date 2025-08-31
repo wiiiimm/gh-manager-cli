@@ -1,6 +1,6 @@
 {
   "name": "gh-manager-cli",
-  "version": "1.6.1",
+  "version": "1.7.0",
   "private": false,
   "description": "Interactive CLI to manage your GitHub repos (personal) with Ink",
   "license": "MIT",
@@ -38,12 +38,13 @@
     "node": ">=18"
   },
   "dependencies": {
-    "@apollo/client": "^3.11.10",
+    "@apollo/client": "^3.14.0",
     "@octokit/graphql": "^9.0.1",
     "apollo3-cache-persist": "^0.14.1",
     "chalk": "^5.6.0",
     "dotenv": "^17.2.1",
     "env-paths": "^3.0.0",
+    "graphql": "^16.11.0",
     "ink": "^6.2.3",
     "ink-spinner": "^5.0.0",
     "ink-text-input": "^6.0.0",
