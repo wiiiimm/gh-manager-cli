@@ -7,7 +7,7 @@ import { getUIPrefs, storeUIPrefs } from '../config';
 import type { RepoNode, RateLimitInfo } from '../types';
 import { exec } from 'child_process';
 
-const PAGE_SIZE = (process.env.GH_MANAGER_DEV === '1' || process.env.NODE_ENV === 'development') ? 5 : 25;
+const PAGE_SIZE = (process.env.GH_MANAGER_DEV === '1' || process.env.NODE_ENV === 'development') ? 5 : 15;
 
 // Custom slow spinner that updates every 0.5 seconds
 function SlowSpinner() {
