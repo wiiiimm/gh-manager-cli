@@ -1,3 +1,10 @@
+## [1.4.2](https://github.com/wiiiimm/gh-manager-cli/compare/v1.4.1...v1.4.2) (2025-08-31)
+
+
+### Bug Fixes
+
+* add packages permission and improve GitHub Packages publishing with jq ([2346944](https://github.com/wiiiimm/gh-manager-cli/commit/2346944739f70d237240c6d67ae39c32d1d623d5))
+
 ## [1.4.1](https://github.com/wiiiimm/gh-manager-cli/compare/v1.4.0...v1.4.1) (2025-08-31)
 
 
