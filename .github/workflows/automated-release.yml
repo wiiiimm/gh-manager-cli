@@ -146,11 +146,14 @@ jobs:
           echo "@wiiiimm:registry=https://npm.pkg.github.com" >> .npmrc
           echo "//npm.pkg.github.com/:_authToken=${NODE_AUTH_TOKEN}" >> .npmrc
           
-          # Create a temporary package.json for GitHub Packages
-          jq '.name = "@wiiiimm/gh-manager-cli" | .publishConfig = {"registry": "https://npm.pkg.github.com"}' package.json > package-gh.json
+          # Backup original package.json
+          cp package.json package-original.json
           
-          # Publish to GitHub Packages using the temporary file
-          npm publish package-gh.json --registry=https://npm.pkg.github.com
+          # Modify package.json for GitHub Packages
+          jq '.name = "@wiiiimm/gh-manager-cli" | .publishConfig = {"registry": "https://npm.pkg.github.com"}' package-original.json > package.json
           
-          # Clean up temporary file
-          rm package-gh.json
+          # Publish to GitHub Packages
+          npm publish --registry=https://npm.pkg.github.com
+          
+          # Restore original package.json
+          mv package-original.json package.json

@@ -1346,8 +1346,7 @@ export default function RepoList({ token, maxVisibleRows, onLogout, viewerLogin 
         </Box>
         <Box width={terminalWidth} justifyContent="center">
           <Text color="gray" dimColor={modalOpen ? true : undefined}>
-            Del/Ctrl+Backspace Delete • Ctrl+A Un/Archive • Ctrl+U Sync Fork • Ctrl+L Logout • R Refresh • Q Quit
-            {process.env.GH_MANAGER_DEBUG === '1' && ' • I Cache Info'}
+            Del/Ctrl+Backspace Delete • Ctrl+A Un/Archive • Ctrl+U Sync Fork • I Info • Ctrl+L Logout • R Refresh • Q Quit
           </Text>
         </Box>
       </Box>
