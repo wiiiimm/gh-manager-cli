@@ -185,6 +185,21 @@ export default function RepoList({ token, maxVisibleRows, onLogout, viewerLogin 
     setSyncError(null);
     setSyncFocus('confirm');
   }
+  
+  function handleOrgContextChange(newContext: OwnerContext) {
+    setOwnerContext(newContext);
+    storeUIPrefs({ ownerContext: newContext });
+    setCursor(0);
+    setOrgSwitcherOpen(false);
+    
+    // Update affiliations based on context
+    const newAffiliations = newContext === 'personal' 
+      ? ['OWNER'] as OwnerAffiliation[]
+      : ['ORGANIZATION_MEMBER'] as OwnerAffiliation[];
+    
+    setOwnerAffiliations(newAffiliations);
+    storeUIPrefs({ ownerAffiliations: newAffiliations });
+  }
 
   function cancelDeleteModal() {
     setDeleteMode(false);
@@ -636,6 +651,12 @@ export default function RepoList({ token, maxVisibleRows, onLogout, viewerLogin 
         try { await purgeApolloCacheFiles(); } catch {}
         fetchPage(null, true, true, undefined, 'network-only'); // force network after purge
       })();
+    }
+    
+    // Organization switcher (W)
+    if (input && input.toUpperCase() === 'W') {
+      setOrgSwitcherOpen(true);
+      return;
     }
 
     // Archive/unarchive modal (Ctrl+A)
@@ -1435,7 +1456,7 @@ export default function RepoList({ token, maxVisibleRows, onLogout, viewerLogin 
       <Box marginTop={1} paddingX={1} flexDirection="column">
         <Box width={terminalWidth} justifyContent="center">
           <Text color="gray" dimColor={modalOpen ? true : undefined}>
-            ↑↓ Navigate • Ctrl+G Top • G Bottom • / Filter • S Sort • D Direction • T Density • F Forks - Commits Behind • ⏎/O Open
+            ↑↓ Navigate • Ctrl+G Top • G Bottom • / Filter • W Org Switcher • S Sort • D Direction • T Density • F Forks • ⏎/O Open
           </Text>
         </Box>
         <Box width={terminalWidth} justifyContent="center">
