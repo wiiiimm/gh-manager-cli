@@ -102,7 +102,7 @@ function RepoRow({ repo, selected, index, maxWidth, spacingLines, dim, forkTrack
   );
 }
 
-export default function RepoList({ token, maxVisibleRows }: { token: string; maxVisibleRows?: number }) {
+export default function RepoList({ token, maxVisibleRows, onLogout }: { token: string; maxVisibleRows?: number; onLogout?: () => void }) {
   const { exit } = useApp();
   const { stdout } = useStdout();
   const client = useMemo(() => makeClient(token), [token]);
@@ -149,6 +149,11 @@ export default function RepoList({ token, maxVisibleRows }: { token: string; max
   const [syncing, setSyncing] = useState(false);
   const [syncError, setSyncError] = useState<string | null>(null);
   const [syncFocus, setSyncFocus] = useState<'confirm' | 'cancel'>('confirm');
+
+  // Logout modal state
+  const [logoutMode, setLogoutMode] = useState(false);
+  const [logoutFocus, setLogoutFocus] = useState<'confirm' | 'cancel'>('confirm');
+  const [logoutError, setLogoutError] = useState<string | null>(null);
 
   function closeArchiveModal() {
     setArchiveMode(false);
@@ -409,6 +414,24 @@ export default function RepoList({ token, maxVisibleRows }: { token: string; max
         return;
       }
       // Trap everything else
+      return;
+    }
+
+    // When in logout mode, trap inputs for modal
+    if (logoutMode) {
+      if (key.escape || (input && input.toUpperCase() === 'C')) {
+        setLogoutMode(false);
+        setLogoutError(null);
+        setLogoutFocus('confirm');
+        return;
+      }
+      if (key.leftArrow) { setLogoutFocus('confirm'); return; }
+      if (key.rightArrow) { setLogoutFocus('cancel'); return; }
+      if (key.return || (input && input.toUpperCase() === 'Y')) {
+        if (logoutFocus === 'cancel') { setLogoutMode(false); return; }
+        try { onLogout && onLogout(); } catch (e: any) { setLogoutError(e?.message || 'Failed to logout.'); }
+        return;
+      }
       return;
     }
 
