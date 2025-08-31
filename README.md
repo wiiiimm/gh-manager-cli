@@ -2,6 +2,18 @@
 
 Interactive terminal app to browse and manage your personal GitHub repositories. Built with Ink (React for CLIs) and the GitHub GraphQL API.
 
+## Quick Start
+
+```bash
+# Install globally
+npm install -g gh-manager-cli
+
+# Run the app
+gh-manager
+```
+
+On first run, you'll be prompted for a GitHub Personal Access Token.
+
 ## Features
 
 ### Core Repository Management
@@ -31,9 +43,22 @@ Interactive terminal app to browse and manage your personal GitHub repositories.
 
 ## Installation
 
-### Pre-built Binaries (Recommended)
+### NPM (Recommended)
 
-Download the latest binary for your platform from [GitHub Releases](https://github.com/wiiiimm/gh-manager-cli/releases):
+Install globally via NPM for the easiest setup:
+
+```bash
+npm install -g gh-manager-cli
+```
+
+Then run from anywhere:
+```bash
+gh-manager
+```
+
+### Pre-built Binaries (No Node.js Required)
+
+Download standalone executables from [GitHub Releases](https://github.com/wiiiimm/gh-manager-cli/releases):
 
 - **Linux**: `gh-manager-linux-x64`
 - **macOS**: `gh-manager-macos-x64` 
