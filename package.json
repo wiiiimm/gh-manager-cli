@@ -8,12 +8,28 @@
   "bin": {
     "gh-manager": "dist/index.js"
   },
+  "files": [
+    "dist/",
+    "README.md",
+    "LICENSE",
+    "CHANGELOG.md"
+  ],
+  "keywords": [
+    "github",
+    "cli",
+    "repository",
+    "management",
+    "terminal",
+    "tui",
+    "react-ink"
+  ],
   "type": "module",
   "scripts": {
     "build": "tsup",
     "build:binaries": "npm run build && pkg dist/index.js --targets node18-linux-x64,node18-macos-x64,node18-windows-x64 --out-path ./binaries",
     "dev": "tsup --watch",
-    "start": "node dist/index.js"
+    "start": "node dist/index.js",
+    "prepublishOnly": "pnpm run build"
   },
   "engines": {
     "node": ">=18"
@@ -54,7 +70,6 @@
       "@semantic-release/commit-analyzer",
       "@semantic-release/release-notes-generator",
       "@semantic-release/changelog",
-      "@semantic-release/npm",
       [
         "@semantic-release/git",
         {
