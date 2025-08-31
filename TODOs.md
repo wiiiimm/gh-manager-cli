@@ -21,36 +21,44 @@ Legend:
 
 ## Near‑Term
 
-- [ ] Repo actions with confirmations
-  - Archive / Unarchive repositories
+- [x] Repo actions with confirmations
+  - [x] Archive / Unarchive repositories
     - Key mapping: `a` to toggle archive status (archive if active, unarchive if archived)
     - GraphQL mutations: `archiveRepository` and `unarchiveRepository`
-    - Confirmation modal with warning: 
-      - Archive: "⚠️  Archive [repo-name]? This will make it read-only. (y/N)"
-      - Unarchive: "Unarchive [repo-name]? This will make it active again. (y/N)"
-      - User must confirm with 'y' or Enter, Esc/c to cancel
+    - Confirmation modal with Left/Right focus navigation and button styling
     - Update local state (`isArchived` field) after successful operation
-    - Handle API errors gracefully (403 for insufficient permissions, etc.)
-  - Archive badge in repository list
-    - Show "Archived" badge or indicator next to archived repositories in main listing
-    - Use distinct styling (gray/dim text or special icon) to visually distinguish archived repos
-    - Badge should be visible but not obtrusive to maintain clean UI
-  - Delete (dangerous; detailed confirm flow; handle missing scopes gracefully)
-    - Assign a key to trigger delete: `Del` or `Backspace` from the list view
-    - Show a full-screen modal overlay with repo info (nameWithOwner, visibility, stars, forks, updatedAt)
-    - Require user to type a 4-character uppercase validation string to confirm
-      - Generate 4 random uppercase letters, excluding `C` for each character
-      - Example generator: choose from `ABDEFGHIJKLMNOPQRSTUVWXYZ` 4 times
-      - The generated code must never contain `C`
-    - Confirmation mechanics
-      - User types the exact code then presses Enter to proceed
-      - Pressing `Esc` or `c` cancels the deletion (case-sensitive)
-      - Because `c` is cancel, ensure the generated code never includes `C`
-    - Execute delete via GitHub REST API (DELETE /repos/{owner}/{repo}); GraphQL has no delete mutation
-      - Requires `delete_repo` scope and admin permissions on the repo
+    - Handle API errors gracefully with error messages
+  - [x] Archive badge in repository list
+    - Show "Archived" badge next to archived repositories in main listing
+    - Use gray/dim styling to visually distinguish archived repos
+  - [x] Delete (dangerous; detailed confirm flow)
+    - Key trigger: `Del` or `Backspace` from the list view
+    - Full-screen modal overlay with repo info (nameWithOwner, visibility, stars, forks, updatedAt)
+    - Two-stage confirmation:
+      - Stage 1: User types 4-character uppercase validation code (excluding 'C')
+      - Stage 2: Final warning with Left/Right button focus and multiple confirm options
+    - Execute delete via GitHub REST API (DELETE /repos/{owner}/{repo})
     - On success: close modal, remove repo from list, refresh totalCount
-    - On failure: show error in modal, allow retry or cancel
-  - Respect read‑only tokens (hide actions or show tooltip)
+    - On failure: show error in modal with proper error handling
+
+- [ ] Sync fork with upstream
+  - Assign a key to trigger sync: e.g. `u` (Update from upstream)
+  - Only show option for forked repositories that are behind upstream
+  - Confirmation modal showing:
+    - Fork name and upstream repository
+    - Number of commits behind
+    - Warning about potential conflicts
+  - Execute sync via GitHub REST API (POST /repos/{owner}/{repo}/merge-upstream)
+    - Requires `contents:write` scope and push permissions
+    - Request body: `{ "branch": "main" }` (or current default branch)
+  - On success:
+    - Update local repo state to show 0 commits behind
+    - Show success message with number of commits pulled
+    - Close modal and refresh the repository display
+  - On conflict (409 response):
+    - Show error explaining manual merge needed
+    - Suggest creating a pull request to resolve conflicts
+  - On other failure: show error with retry option
 
 - [ ] Rename repository
   - Assign a key to trigger rename: e.g. `e` (Edit name)
@@ -74,6 +82,20 @@ Legend:
     - Persist last-selected context and show it in header (e.g., “Repositories — Personal Account” or “Repositories — org: @acme”)
     - Apply context to repo queries (scoped owner/org), and refresh list/totalCount on switch
 
+- [ ] Bulk selection and actions
+  - Multi-select mode
+    - Enter multi-select with a key (e.g., `m`)
+    - Use Up/Down to navigate; Space toggles selection; `*` selects all in view; `u` unselects all
+    - Show selected count in header/footer
+  - Bulk operations
+    - Bulk archive/unarchive selected
+    - Bulk delete selected (with aggregate confirmation including per-repo list)
+    - Two-step confirm for destructive operations; follow modal UX (Left/Right, Enter, y/c)
+  - Performance and UX
+    - Use batched REST/GraphQL calls; display progress with spinner and per-item status
+    - On success: update local list states (archived flag or removal) without full refetch
+    - On failure: show summary with failed items and suggested remediation
+
 - [ ] Infinite scroll improvements
   - Inline loading indicator at end of list
     - When user reaches end of loaded repos, show spinner/loading message inline
@@ -88,18 +110,51 @@ Legend:
 - [ ] Server‑side search
   - Support GitHub search for repos (beyond loaded pages)
   - Integrate with `/` filter bar; show mode indicator
+  - Consider Apollo Client + apollo3-cache-persist for normalized caching and persistence
+    - Migrate GraphQL calls to ApolloClient with InMemoryCache
+    - Persist cache to files under app data dir via custom fs storage
+    - Add TTL overlay for stale-while-revalidate on startup
 
-- [ ] Sorting enhancements
-  - Additional fields (created, size)
-  - Persist sort field + direction in config
+- [x] Sorting enhancements  
+  - [x] Persist sort field + direction in config (implemented in UI preferences)
+  - [ ] Additional fields (created, size)
 
-- [ ] First‑page cache
-  - Cache first page on disk to speed startup
-  - Short TTL and invalidation on manual refresh
+- [ ] Smart repository data caching system
+  - **Challenge**: Each sort/direction combination changes server-side ordering, requiring separate cache entries
+  - **Hybrid caching approach**:
+    - **Full page cache**: Cache complete sorted repository lists by `{sortKey}-{sortDir}` key
+    - **Partial cache**: Cache expensive per-repo data (commits behind, etc.) by repo ID/name
+  - Cache strategies to consider:
+    - **Option A - Full page caching**: 
+      - Pro: Simple, matches current GraphQL query structure
+      - Con: Need separate cache for each sort combination (4 fields × 2 directions = 8 cache files)
+      - Cache key: `repos-{sortKey}-{sortDir}-{ownerAffiliation}.json`
+    - **Option B - Hybrid caching**:
+      - Cache basic repo metadata (name, description, stars, etc.) in unsorted format
+      - Cache expensive data (commits behind) separately by repo name/ID with longer TTL
+      - Pro: More efficient for sort changes, shared expensive data across views
+      - Con: Complex merge logic, may require individual queries for commit data
+    - **Option C - Smart invalidation**:
+      - Cache only the most recent sort combination to avoid cache explosion
+      - Invalidate when user changes sort, but keep expensive per-repo data
+  - Implementation considerations:
+    - Full queries save more API calls but create cache explosion
+    - Partial caching might require individual repo queries for commits behind (expensive)
+    - Client-side sorting of cached basic data isn't possible for server-only fields (like GitHub's sort fields)
+  - Recommended approach: Start with Option A (full page cache) for simplicity, monitor cache directory size
 
-- [ ] Rate‑limit improvements
-  - Show reset time in footer
-  - Color thresholds and gentle throttling when low
+- [x] Rate‑limit improvements
+  - [x] Show rate limit usage with delta changes: API: remaining/limit (+/-delta)
+  - [x] Color thresholds (yellow when low)
+  - [x] Toggle to show/hide "commits behind" for forks
+    - Key binding: `f` to toggle fork commit tracking on/off
+    - When disabled: exclude expensive commit history queries from GraphQL
+    - Saves significant API rate limit usage (removes defaultBranchRef.target.history queries)
+    - Show toggle state in header: "Forks: ON/OFF"
+    - Persist preference in config alongside other UI settings
+    - When toggled on: smart refresh to populate commit counts if data missing
+    - Visual indicator: forks show "Fork of parent" without behind count when disabled
+    - Show "up to date" for forks with 0 commits behind when tracking enabled
 
 - [ ] OS keychain support
   - Optional storage via `keytar`; fallback to file with 0600 perms
@@ -173,7 +228,22 @@ Legend:
 - [x] List personal repos with metadata
 - [x] Infinite scroll with page prefetch and dynamic totalCount
 - [x] Client‑side filter (`/`)
-- [x] Sorting toggles (`s` field, `d` direction)
+- [x] Sorting toggles (`s` field, `d` direction) with server-side refresh
 - [x] Open selected repo in browser (Enter / `o`)
-- [x] Rate‑limit indicator (remaining/limit)
+- [x] Rate‑limit indicator (remaining/limit) with delta changes
 - [x] Row spacing via Box height with virtualization fix
+- [x] Environment-based page sizes (development: 15, production: 25)
+- [x] Dotenv loading for development configuration
+- [x] Fork commit tracking toggle ('f' key) with smart refresh
+- [x] Fork status display: "Fork of upstream" with commits behind/up to date
+- [x] Archive/unarchive repositories with confirmation modals
+- [x] Delete repositories with two-stage confirmation and REST API
+- [x] Archive status badges in repository listings
+- [x] UI preference persistence (sort, density, fork tracking)
+- [x] Repository deletion via REST API (GraphQL unsupported)
+- [x] Modal focus navigation and keyboard shortcuts
+- [x] Smart loading states for sort changes and refreshes
+- [x] Comprehensive feature documentation added to README
+- [x] Repository sync with upstream planning (REST API research completed)
+- [x] OAuth login alternative research and planning
+- [x] Version display planning (next to app title)

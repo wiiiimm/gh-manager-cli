@@ -1,5 +1,6 @@
 import React from 'react';
 import { render, Box, Text } from 'ink';
+import 'dotenv/config';
 import App from './ui/App';
 
 process.on('uncaughtException', (err) => {

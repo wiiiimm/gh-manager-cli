@@ -33,12 +33,14 @@ export async function fetchViewerReposPage(
   client: ReturnType<typeof makeClient>,
   first: number,
   after?: string | null,
-  orderBy?: { field: string; direction: string }
+  orderBy?: { field: string; direction: string },
+  includeForkTracking: boolean = true
 ): Promise<ReposPageResult> {
   // Default to UPDATED_AT DESC if not specified
   const sortField = orderBy?.field || 'UPDATED_AT';
   const sortDirection = orderBy?.direction || 'DESC';
 
+  // Build GraphQL query conditionally based on fork tracking preference
   const query = /* GraphQL */ `
     query ViewerRepos(
       $first: Int!
@@ -81,6 +83,7 @@ export async function fetchViewerReposPage(
             updatedAt
             pushedAt
             diskUsage
+            ${includeForkTracking ? `
             parent {
               nameWithOwner
               defaultBranchRef {
@@ -101,7 +104,10 @@ export async function fetchViewerReposPage(
                   }
                 }
               }
-            }
+            }` : `
+            parent {
+              nameWithOwner
+            }`}
           }
         }
       }

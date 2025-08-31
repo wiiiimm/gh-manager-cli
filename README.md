@@ -2,14 +2,32 @@
 
 Interactive terminal app to browse and manage your personal GitHub repositories. Built with Ink (React for CLIs) and the GitHub GraphQL API.
 
-## Highlights
+## Features
 
-- Prompt → validate → persist GitHub Personal Access Token (PAT)
-- Lists your repositories (OWNER affiliation) with live pagination
-- Keyboard navigation with infinite scroll and refresh
-- Client-side filter and sorting toggles
-- Open selected repo in your browser
-- Rate-limit banner showing remaining requests and reset time
+### Core Repository Management
+- **Token Authentication**: Secure PAT storage with validation and persistence
+- **Repository Listing**: Browse all your personal repositories with metadata (stars, forks, language, etc.)
+- **Live Pagination**: Infinite scroll with automatic page prefetching
+- **Real-time Sorting**: Server-side sorting by updated, pushed, name, or stars (with direction toggle)
+- **Smart Filtering**: Client-side search through repository names and descriptions
+- **Repository Actions**:
+  - Open in browser (Enter/`o`)
+  - Delete repository (`Del`/Backspace) with secure two-step confirmation
+  - Archive/unarchive repositories (`a`) with confirmation prompts
+
+### User Interface & Experience
+- **Keyboard Navigation**: Full keyboard control (arrow keys, PageUp/Down, `g`/`G`)
+- **Display Density**: Toggle between compact/cozy/comfy spacing (`t`)
+- **Visual Indicators**: Fork status, private/archived badges, language colors
+- **Loading States**: Contextual loading screens for sorting and refreshing operations
+- **Rate Limit Monitoring**: Live API usage display with visual warnings
+
+### Technical Features
+- **Preference Persistence**: UI settings (sort, density) saved between sessions
+- **Cross-platform**: Works on macOS, Linux, and Windows
+- **Secure Storage**: Token stored with proper file permissions (0600)
+- **Error Handling**: Graceful error recovery with retry mechanisms
+- **Performance**: Efficient GraphQL queries with virtualized rendering
 
 ## Quick Start
 

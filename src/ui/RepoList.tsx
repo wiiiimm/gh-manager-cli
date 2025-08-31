@@ -7,7 +7,7 @@ import { getUIPrefs, storeUIPrefs } from '../config';
 import type { RepoNode, RateLimitInfo } from '../types';
 import { exec } from 'child_process';
 
-const PAGE_SIZE = 50;
+const PAGE_SIZE = process.env.NODE_ENV === 'development' ? 15 : 25;
 
 // Custom slow spinner that updates every 0.5 seconds
 function SlowSpinner() {
@@ -44,14 +44,19 @@ function formatDate(dateStr: string): string {
   return `${Math.floor(diffDays / 365)} years ago`;
 }
 
-function RepoRow({ repo, selected, index, maxWidth, spacingLines, dim }: { repo: RepoNode; selected: boolean; index: number; maxWidth: number; spacingLines: number; dim?: boolean }) {
+function RepoRow({ repo, selected, index, maxWidth, spacingLines, dim, forkTracking }: { repo: RepoNode; selected: boolean; index: number; maxWidth: number; spacingLines: number; dim?: boolean; forkTracking: boolean }) {
   const langName = repo.primaryLanguage?.name || '';
   const langColor = repo.primaryLanguage?.color || '#666666';
   
-  // Calculate commits behind for forks
-  const commitsBehind = repo.isFork && repo.parent && repo.defaultBranchRef && repo.parent.defaultBranchRef
+  // Calculate commits behind for forks - only show if tracking is enabled AND data is available
+  const hasCommitData = repo.isFork && repo.parent && repo.defaultBranchRef && repo.parent.defaultBranchRef
+    && repo.parent.defaultBranchRef.target?.history && repo.defaultBranchRef.target?.history;
+  
+  const commitsBehind = hasCommitData
     ? (repo.parent.defaultBranchRef.target.history.totalCount - repo.defaultBranchRef.target.history.totalCount)
     : 0;
+  
+  const showCommitsBehind = forkTracking && hasCommitData;
   
   // Build colored line 1
   let line1 = '';
@@ -63,7 +68,13 @@ function RepoRow({ repo, selected, index, maxWidth, spacingLines, dim }: { repo:
   if (repo.isArchived) line1 += chalk.gray.dim(' Archived');
   if (repo.isFork && repo.parent) {
     line1 += chalk.blue(` Fork of ${repo.parent.nameWithOwner}`);
-    if (commitsBehind > 0) line1 += chalk.yellow(` (${commitsBehind} behind)`);
+    if (showCommitsBehind) {
+      if (commitsBehind > 0) {
+        line1 += chalk.yellow(` (${commitsBehind} behind)`);
+      } else {
+        line1 += chalk.green(` (up to date)`);
+      }
+    }
   }
   
   // Build colored line 2
@@ -109,6 +120,7 @@ export default function RepoList({ token, maxVisibleRows }: { token: string; max
   const [refreshing, setRefreshing] = useState(false); // Track if this is a manual refresh
   const [error, setError] = useState<string | null>(null);
   const [rateLimit, setRateLimit] = useState<RateLimitInfo | undefined>(undefined);
+  const [prevRateLimit, setPrevRateLimit] = useState<number | undefined>(undefined);
   // Display density: 0 = compact (0 lines), 1 = cozy (1 line), 2 = comfy (2 lines)
   const [density, setDensity] = useState<0 | 1 | 2>(2);
   const [prefsLoaded, setPrefsLoaded] = useState(false);
@@ -179,6 +191,9 @@ export default function RepoList({ token, maxVisibleRows }: { token: string; max
   type SortKey = 'updated' | 'pushed' | 'name' | 'stars';
   const [sortKey, setSortKey] = useState<SortKey>('updated');
   const [sortDir, setSortDir] = useState<'asc' | 'desc'>('desc');
+  
+  // Fork tracking toggle - default ON to show commits behind
+  const [forkTracking, setForkTracking] = useState<boolean>(true);
 
   // Map our sort keys to GitHub's GraphQL field names
   const sortFieldMap: Record<SortKey, string> = {
@@ -188,7 +203,7 @@ export default function RepoList({ token, maxVisibleRows }: { token: string; max
     'stars': 'STARGAZERS'
   };
 
-  const fetchPage = async (after?: string | null, reset = false, isSortChange = false) => {
+  const fetchPage = async (after?: string | null, reset = false, isSortChange = false, overrideForkTracking?: boolean) => {
     if (isSortChange) {
       setSortingLoading(true);
     } else {
@@ -199,11 +214,15 @@ export default function RepoList({ token, maxVisibleRows }: { token: string; max
         field: sortFieldMap[sortKey],
         direction: sortDir.toUpperCase()
       };
-      const page = await fetchViewerReposPage(client, PAGE_SIZE, after ?? null, orderBy);
+      const page = await fetchViewerReposPage(client, PAGE_SIZE, after ?? null, orderBy, overrideForkTracking ?? forkTracking);
       setItems(prev => (reset || !after ? page.nodes : [...prev, ...page.nodes]));
       setEndCursor(page.endCursor);
       setHasNextPage(page.hasNextPage);
       setTotalCount(page.totalCount);
+      // Track rate limit changes for delta display
+      if (page.rateLimit && rateLimit) {
+        setPrevRateLimit(rateLimit.remaining);
+      }
       setRateLimit(page.rateLimit);
       setError(null);
     } catch (e: any) {
@@ -215,7 +234,7 @@ export default function RepoList({ token, maxVisibleRows }: { token: string; max
     }
   };
 
-  // Load UI preferences (density, sort key/dir) on mount
+  // Load UI preferences (density, sort key/dir, fork tracking) on mount
   useEffect(() => {
     const ui = getUIPrefs();
     if (ui.density !== undefined) setDensity(ui.density as 0 | 1 | 2);
@@ -225,6 +244,8 @@ export default function RepoList({ token, maxVisibleRows }: { token: string; max
     if (ui.sortDir && (ui.sortDir === 'asc' || ui.sortDir === 'desc')) {
       setSortDir(ui.sortDir);
     }
+    if (ui.forkTracking !== undefined) setForkTracking(ui.forkTracking);
+    else setForkTracking(true); // Default to ON if not set in config
     setPrefsLoaded(true);
   }, []);
 
@@ -422,6 +443,29 @@ export default function RepoList({ token, maxVisibleRows }: { token: string; max
       });
       return;
     }
+
+    // Toggle fork tracking
+    if (input === 'f') {
+      setForkTracking((prev) => {
+        const next = !prev;
+        storeUIPrefs({ forkTracking: next });
+        
+        // Check if we need to refresh data
+        const needsRefresh = next && items.some(repo => 
+          repo.isFork && repo.parent && (!repo.defaultBranchRef?.target?.history || !repo.parent.defaultBranchRef?.target?.history)
+        );
+        
+        if (needsRefresh) {
+          // Current data lacks commit history, need full refresh with new fork tracking value
+          setSortingLoading(true);
+          fetchPage(null, true, true, next);
+        }
+        // If toggling OFF or data is already complete, just update display immediately
+        
+        return next;
+      });
+      return;
+    }
   });
 
   // Infinite scroll: prefetch when near end (based on filtered length)
@@ -524,10 +568,15 @@ export default function RepoList({ token, maxVisibleRows }: { token: string; max
       {rateLimit && (
         <Text color={lowRate ? 'yellow' : 'gray'}>
           API: {rateLimit.remaining}/{rateLimit.limit}
+          {prevRateLimit !== undefined && prevRateLimit !== rateLimit.remaining && (
+            <Text color={rateLimit.remaining < prevRateLimit ? 'red' : 'green'}>
+              {` (${rateLimit.remaining - prevRateLimit > 0 ? '+' : ''}${rateLimit.remaining - prevRateLimit})`}
+            </Text>
+          )}
         </Text>
       )}
     </Box>
-  ), [filteredAndSorted.length, totalCount, loading, rateLimit, lowRate, modalOpen]);
+  ), [filteredAndSorted.length, totalCount, loading, rateLimit, lowRate, modalOpen, prevRateLimit]);
 
   if (error) {
     return (
@@ -664,7 +713,7 @@ export default function RepoList({ token, maxVisibleRows }: { token: string; max
                       justifyContent="center"
                       flexDirection="column"
                     >
-                      <Text bold color="red">Delete</Text>
+                      <Text>{confirmFocus === 'delete' ? chalk.bgRed.white.bold(' Delete ') : chalk.red.bold('Delete')}</Text>
                     </Box>
                     <Box
                       borderStyle="round"
@@ -675,7 +724,7 @@ export default function RepoList({ token, maxVisibleRows }: { token: string; max
                       justifyContent="center"
                       flexDirection="column"
                     >
-                      <Text bold color={confirmFocus === 'cancel' ? 'white' : 'gray'}>Cancel</Text>
+                      <Text>{confirmFocus === 'cancel' ? chalk.bgGray.white.bold(' Cancel ') : chalk.gray.bold('Cancel')}</Text>
                     </Box>
                   </Box>
                   {/* Bottom prompt with dynamic Enter action and key hints (gray) */}
@@ -796,6 +845,9 @@ export default function RepoList({ token, maxVisibleRows }: { token: string; max
               <Text color="gray" dimColor>
                 Sort: {sortKey} {sortDir === 'asc' ? '↑' : '↓'}
               </Text>
+              <Text color="gray" dimColor>
+                Forks: {forkTracking ? 'ON' : 'OFF'}
+              </Text>
               {filter && (
                 <Text color="cyan">
                   Filter: "{filter}"
@@ -828,6 +880,7 @@ export default function RepoList({ token, maxVisibleRows }: { token: string; max
                     index={idx + 1}
                     maxWidth={terminalWidth - 6}
                     spacingLines={spacingLines}
+                    forkTracking={forkTracking}
                   />
                 );
               })}
@@ -847,7 +900,7 @@ export default function RepoList({ token, maxVisibleRows }: { token: string; max
       {/* Help footer */}
       <Box borderStyle="single" borderColor={modalOpen ? 'gray' : 'yellow'} paddingX={1} paddingY={0} marginTop={1} marginX={1} height={3}>
         <Text color="gray" dimColor={modalOpen ? true : undefined}>
-          ↑↓ Navigate • / Filter • s Sort • d Direction • t Density • ⏎ Open • Del Delete • a Archive • r Refresh • q Quit
+          ↑↓ Navigate • / Filter • s Sort • d Direction • t Density • f Forks • ⏎ Open • Del Delete • a Archive • r Refresh • q Quit
         </Text>
       </Box>
     </Box>

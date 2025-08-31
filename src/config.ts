@@ -8,6 +8,7 @@ interface UIPrefs {
   sortKey?: 'updated' | 'pushed' | 'name' | 'stars';
   sortDir?: 'asc' | 'desc';
   density?: Density;
+  forkTracking?: boolean;
 }
 
 interface ConfigShape {
