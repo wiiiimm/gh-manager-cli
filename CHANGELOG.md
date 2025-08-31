@@ -1,3 +1,17 @@
+# [1.6.0](https://github.com/wiiiimm/gh-manager-cli/compare/v1.5.0...v1.6.0) (2025-08-31)
+
+
+### Bug Fixes
+
+* make cache inspection visible in terminal ([2030466](https://github.com/wiiiimm/gh-manager-cli/commit/2030466e1b2bf377a22e07eba5a0334b9c3a6bc5))
+
+
+### Features
+
+* add Apollo cache debugging and verification tools ([e4828c4](https://github.com/wiiiimm/gh-manager-cli/commit/e4828c4463b6ebb58f419f6e6e17c06c699b31ac))
+* add cache testing scripts and environment template ([2b4d840](https://github.com/wiiiimm/gh-manager-cli/commit/2b4d840f0a32a4089c47bca9664ac393e824643a))
+* add repository info modal and always-on Apollo cache ([aecfd31](https://github.com/wiiiimm/gh-manager-cli/commit/aecfd311feaf5e674d2f8f15062f12d6deffcfe5))
+
 # [1.5.0](https://github.com/wiiiimm/gh-manager-cli/compare/v1.4.2...v1.5.0) (2025-08-31)
 
 
