@@ -1,0 +1,303 @@
+name: PR Title Manager
+# [AUTOMATED] - Unified workflow for managing PR titles
+#
+# Triggers:
+# - When PR is opened or reopened
+# - When new commits are added (synchronize)
+# - Only runs for non-draft PRs
+#
+# Features:
+# - Respects [skip title auto pr] marker to bypass automation
+# - Auto-generates semantic conventional commit titles
+# - Recalculates titles when new commits are added
+
+on:
+  pull_request:
+    types: [opened, reopened, synchronize]
+
+# Prevent race conditions when multiple events trigger simultaneously
+concurrency:
+  group: pr-title-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  manage-title:
+    name: Manage PR Title
+    runs-on: ubuntu-latest
+    # Skip draft PRs
+    if: github.event.pull_request.draft == false
+    permissions:
+      pull-requests: write
+      issues: write  # Required for creating/updating PR comments
+      contents: read
+    steps:
+      # CRITICAL: Bot Detection - Prevent cascading triggers
+      - name: Check if triggered by bot
+        id: bot-check
+        run: |
+          if [[ "${{ github.actor }}" == *"[bot]"* ]]; then
+            echo "is_bot=true" >> $GITHUB_OUTPUT
+            echo "Triggered by bot, skipping to prevent cascade"
+          else
+            echo "is_bot=false" >> $GITHUB_OUTPUT
+          fi
+      
+      # Check for skip automation marker
+      - name: Check for skip automation marker
+        if: steps.bot-check.outputs.is_bot == 'false'
+        id: skip-check
+        uses: actions/github-script@v7
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            const prTitle = context.payload.pull_request.title;
+            
+            if (prTitle.includes('[skip title auto pr]')) {
+              console.log('Skip marker detected, will warn and exit');
+              core.setOutput('should_skip', 'true');
+              
+              // Check if we already warned about this
+              const comments = await github.rest.issues.listComments({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: context.issue.number
+              });
+              
+              const hasWarned = comments.data.some(comment => 
+                comment.body?.includes('Manual Title Management Mode')
+              );
+              
+              if (!hasWarned) {
+                // Add warning comment
+                await github.rest.issues.createComment({
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  issue_number: context.issue.number,
+                  body: `## ⚠️ Manual Title Management Mode
+              
+              You've added \`[skip title auto pr]\` to your PR title, which disables automatic title management.
+              
+              **Important considerations:**
+              - ❌ Your title won't be automatically formatted to follow conventional commits
+              - ❌ Semantic versioning may not work correctly
+              - ❌ Changelog generation might be affected
+              - ❌ CI/CD workflows that depend on conventional commits may fail
+              
+              **Make sure your title follows the format:**
+              \`\`\`
+              <type>(<scope>): <subject>
+              \`\`\`
+              
+              **Valid types:** feat, fix, docs, style, refactor, perf, test, build, ci, chore, revert
+              
+              Remove \`[skip title auto pr]\` from your title to re-enable automatic management.`
+                });
+              }
+            } else {
+              core.setOutput('should_skip', 'false');
+            }
+      
+      # Stop here if skip marker is present
+      - name: Exit if skip marker present
+        if: steps.skip-check.outputs.should_skip == 'true'
+        run: |
+          echo "Skip marker detected, exiting workflow"
+          exit 0
+      
+      # Checkout to access shared scripts
+      - name: Checkout repository
+        if: steps.bot-check.outputs.is_bot == 'false' && steps.skip-check.outputs.should_skip == 'false'
+        uses: actions/checkout@v4
+        with:
+          sparse-checkout: |
+            .github/scripts
+      
+      # Main title management logic
+      - name: Process PR Title
+        if: steps.bot-check.outputs.is_bot == 'false' && steps.skip-check.outputs.should_skip == 'false'
+        uses: actions/github-script@v7
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            // Load the shared normalization script
+            const fs = require('fs');
+            const path = require('path');
+            const scriptPath = path.join(process.env.GITHUB_WORKSPACE, '.github/scripts/normalize-pr-title.js');
+            const { processPRTitle } = require(scriptPath);
+            
+            // Get PR details
+            const { data: pullRequest } = await github.rest.pulls.get({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              pull_number: context.issue.number
+            });
+            
+            const currentTitle = pullRequest.title;
+            const eventType = context.payload.action;
+            console.log(`Current title: ${currentTitle}`);
+            console.log(`Event type: ${eventType}`);
+            
+            // Track what markers were present
+            const hasSemanticMarker = currentTitle.includes('[semantic pr title]');
+            
+            // Get all commit messages from the PR (handles >30 commits)
+            const commits = await github.paginate(
+              github.rest.pulls.listCommits,
+              {
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                pull_number: context.issue.number,
+                per_page: 100
+              }
+            );
+            
+            console.log(`Found ${commits.length} commits`);
+            
+            // Remove all markers for processing
+            const titleWithoutMarkers = currentTitle
+              .replace(' [semantic pr title]', '')
+              .replace(' [skip title auto pr]', '');
+            
+            // Check if current title (without markers) already follows conventional format
+            const validFormat = /^(feat|fix|docs|style|refactor|perf|test|build|ci|chore|revert)(\(.+\))?!?: .+$/;
+            const isAlreadyValid = validFormat.test(titleWithoutMarkers);
+            
+            let newTitle = titleWithoutMarkers;
+            let wasProcessed = false;
+            
+            // Process title based on context
+            if (eventType === 'synchronize' && hasSemanticMarker) {
+              // Recalculate for new commits on auto-generated titles
+              console.log('Recalculating title for new commits...');
+              const result = processPRTitle(titleWithoutMarkers, commits, pullRequest.head.ref);
+              if (result.changed) {
+                newTitle = result.newTitle;
+                wasProcessed = true;
+              }
+            } else if (!isAlreadyValid || (eventType !== 'synchronize' && !hasSemanticMarker)) {
+              // Generate semantic title for new PRs or invalid titles
+              console.log('Generating semantic title...');
+              const result = processPRTitle(titleWithoutMarkers, commits, pullRequest.head.ref);
+              newTitle = result.newTitle;
+              wasProcessed = true;
+            }
+            
+            // No additional markers needed for this project
+            
+            // Add semantic marker if we processed the title
+            if (wasProcessed && !newTitle.includes('[semantic pr title]')) {
+              newTitle = `${newTitle} [semantic pr title]`;
+            } else if (hasSemanticMarker && !newTitle.includes('[semantic pr title]')) {
+              // Preserve semantic marker if it was there
+              newTitle = `${newTitle} [semantic pr title]`;
+            }
+            
+            console.log(`New title: ${newTitle}`);
+            
+            // Helper functions for sticky comment management (defined outside conditional)
+            const addCommentMarker = (body) => {
+              return `<!-- pr-title-manager-bot -->\n${body}`;
+            };
+            
+            const findOrCreateComment = async (body) => {
+              try {
+                const comments = await github.rest.issues.listComments({
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  issue_number: context.issue.number
+                });
+                
+                // Look for existing comment from this workflow
+                const botComment = comments.data.find(comment => 
+                  comment.body?.startsWith('<!-- pr-title-manager-bot -->') &&
+                  comment.user?.login === 'github-actions[bot]'
+                );
+                
+                const markedBody = addCommentMarker(body);
+                
+                if (botComment) {
+                  // Update existing comment
+                  await github.rest.issues.updateComment({
+                    owner: context.repo.owner,
+                    repo: context.repo.repo,
+                    comment_id: botComment.id,
+                    body: markedBody
+                  });
+                  console.log(`Updated existing comment #${botComment.id}`);
+                } else {
+                  // Create new comment
+                  const newComment = await github.rest.issues.createComment({
+                    owner: context.repo.owner,
+                    repo: context.repo.repo,
+                    issue_number: context.issue.number,
+                    body: markedBody
+                  });
+                  console.log(`Created new comment #${newComment.data.id}`);
+                }
+              } catch (error) {
+                console.error('Failed to manage sticky comment:', error.message);
+                // Continue workflow execution even if comment management fails
+                // The PR title update is more important than the comment
+              }
+            };
+            
+            // Only update PR title if it changed
+            if (newTitle !== currentTitle) {
+              // Update the PR title
+              await github.rest.pulls.update({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                pull_number: context.issue.number,
+                title: newTitle
+              });
+              
+              console.log('PR title updated successfully');
+            } else {
+              console.log('Title unchanged, no update needed');
+            }
+            
+            // Determine comment content and post/update sticky comment
+            let comment = '';
+            const displayTitle = (newTitle !== currentTitle ? newTitle : currentTitle)
+              .replace(' [semantic pr title]', '');
+            
+            if (eventType === 'synchronize' && wasProcessed && newTitle !== currentTitle) {
+              comment = `## 🔄 PR Title Updated
+              
+              I've updated your PR title based on the latest commits:
+              
+              **Updated title:** \`${displayTitle}\`
+              
+              This ensures your PR title stays current with the changes you've made.`;
+            } else if (eventType === 'opened' || eventType === 'reopened') {
+              // Always post informational comment on open/reopen
+              const action = newTitle !== currentTitle ? 'automatically formatted' : 'verified';
+              comment = `## 🤖 PR Title ${action === 'verified' ? 'Verified' : 'Automated'}
+              
+              ${action === 'verified' 
+                ? `Your PR title already follows [Conventional Commits](https://www.conventionalcommits.org/) format:`
+                : `I've automatically formatted your PR title to follow [Conventional Commits](https://www.conventionalcommits.org/):`}
+              
+              **Current title:** \`${displayTitle}\`
+              
+              ### What happened:
+              - ✅ Title ${action === 'verified' ? 'follows' : 'formatted to'} semantic convention
+              - ✅ ${action === 'verified' ? 'Has' : 'Added'} \`[semantic pr title]\` marker for automatic updates
+              
+              ### Why this matters:
+              Since we use **squash merging**, your PR title becomes the commit message. This ensures:
+              - Clean, semantic git history
+              - Automated version bumping
+              - Proper changelog generation
+              
+              ### Automatic updates:
+              Your title will be automatically recalculated when you add new commits.
+              
+              ### Opt-out:
+              Add \`[skip title auto pr]\` to your title to disable automation (not recommended).`;
+            }
+            
+            // Add or update comment if we have one
+            if (comment) {
+              await findOrCreateComment(comment);
+            }
