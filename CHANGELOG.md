@@ -1,3 +1,10 @@
+## [1.1.1](https://github.com/wiiiimm/gh-manager-cli/compare/v1.1.0...v1.1.1) (2025-08-31)
+
+
+### Bug Fixes
+
+* temporarily disable NPM publishing due to 2FA requirement ([2ab09ca](https://github.com/wiiiimm/gh-manager-cli/commit/2ab09ca8d543c771f97c999ad6beb6ebf36747be))
+
 # [1.1.0](https://github.com/wiiiimm/gh-manager-cli/compare/v1.0.0...v1.1.0) (2025-08-31)
 
 
