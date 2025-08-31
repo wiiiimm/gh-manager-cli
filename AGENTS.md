@@ -113,7 +113,7 @@ See the living roadmap in [TODOs.md](./TODOs.md) for the canonical, up-to-date l
 - `Del` or `Ctrl+Backspace`: delete selected repo (opens confirmation modal)
 - `Ctrl+A`: archive/unarchive selected repo
 - `R`: refresh list
-- `Q` or Esc: quit (Esc cancels an open modal instead of quitting)
+- `Q`: quit (Esc cancels an open modal or exits filter mode; does not quit)
 
 ### Modal UX Convention (preferred)
 - Left/Right: move focus between buttons (e.g., Delete, Cancel)

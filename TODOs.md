@@ -200,6 +200,31 @@ Legend:
     - Show success toast (e.g., "Logged out. Token cleared.")
   - Handle errors gracefully and keep user in current state on failure
 
+- [ ] Toggle repository visibility
+  - Assign key: `V` to trigger visibility change modal
+  - Detection and capabilities:
+    - Check if user has enterprise account (supports "internal" visibility)
+    - Use GraphQL to detect current visibility state
+    - Note: GraphQL `isPrivate` returns true for both private and internal repos
+  - Modal UI:
+    - Show current visibility status prominently
+    - Offer options based on account capabilities:
+      - Standard accounts: Public / Private
+      - Enterprise accounts: Public / Private / Internal
+    - Left/Right arrow keys to select option
+    - Enter to confirm, Esc to cancel
+  - Implementation:
+    - Use GraphQL `updateRepository` mutation if supported
+    - Fallback to REST API PATCH /repos/{owner}/{repo} for visibility changes
+    - Validate user has admin permissions (required for visibility changes)
+  - On success:
+    - Update local state (visibility/isPrivate fields)
+    - Show success message with new visibility status
+    - No need to refetch entire list
+  - On failure:
+    - Show error explaining why (permissions, enterprise-only, etc.)
+    - Keep modal open for retry or cancel
+
 ## Later
 
 - [ ] Language filter and indicators

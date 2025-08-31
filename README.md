@@ -83,7 +83,8 @@ Launch the app, then use the keys below:
   - Cancel: press `C` or Esc
 - Archive/Unarchive: `Ctrl+A`
 - Toggle fork metrics: `F`
-- Quit: `Q` or Esc
+- Quit: `Q`
+- Esc: cancels modals or exits filter mode (does not quit)
 
 Status bar shows loaded count vs total. A rate-limit line displays `remaining/limit` and the reset time; it turns yellow when remaining ≤ 10% of the limit.
 

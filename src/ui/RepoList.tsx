@@ -288,7 +288,7 @@ export default function RepoList({ token, maxVisibleRows }: { token: string; max
   useInput((input, key) => {
     // When in delete mode, trap inputs for modal
     if (deleteMode) {
-      if (key.escape || input === 'c') {
+      if (key.escape || (input && input.toUpperCase() === 'C')) {
         cancelDeleteModal();
         return;
       }
@@ -307,7 +307,7 @@ export default function RepoList({ token, maxVisibleRows }: { token: string; max
           else cancelDeleteModal();
           return;
         }
-        if (input === 'Y') {
+        if (input && input.toUpperCase() === 'Y') {
           confirmDeleteNow();
           return;
         }
@@ -318,7 +318,7 @@ export default function RepoList({ token, maxVisibleRows }: { token: string; max
 
     // When in archive mode, trap inputs for modal
     if (archiveMode) {
-      if (key.escape || input === 'C') {
+      if (key.escape || (input && input.toUpperCase() === 'C')) {
         closeArchiveModal();
         return;
       }
@@ -330,7 +330,7 @@ export default function RepoList({ token, maxVisibleRows }: { token: string; max
         setArchiveFocus('cancel');
         return;
       }
-      if (key.return || input === 'Y') {
+      if (key.return || (input && input.toUpperCase() === 'Y')) {
         if (archiveFocus === 'cancel') {
           closeArchiveModal();
           return;
@@ -358,7 +358,7 @@ export default function RepoList({ token, maxVisibleRows }: { token: string; max
 
     // When in sync mode, trap inputs for modal
     if (syncMode) {
-      if (key.escape || input === 'C') {
+      if (key.escape || (input && input.toUpperCase() === 'C')) {
         closeSyncModal();
         return;
       }
@@ -370,7 +370,7 @@ export default function RepoList({ token, maxVisibleRows }: { token: string; max
         setSyncFocus('cancel');
         return;
       }
-      if (key.return || input === 'Y') {
+      if (key.return || (input && input.toUpperCase() === 'Y')) {
         if (syncFocus === 'cancel') {
           closeSyncModal();
           return;
@@ -422,7 +422,13 @@ export default function RepoList({ token, maxVisibleRows }: { token: string; max
       return;
     }
 
-    if (input === 'Q' || key.escape) {
+    // Quit only on 'Q' (Esc is reserved for cancel/close in modals and filter)
+    if (input && input.toUpperCase() === 'Q') {
+      try {
+        const seq = '\x1b[2J\x1b[3J\x1b[H';
+        if (stdout && typeof (stdout as any).write === 'function') (stdout as any).write(seq);
+        else if (typeof process.stdout.write === 'function') process.stdout.write(seq);
+      } catch {}
       exit();
       return;
     }
@@ -436,7 +442,8 @@ export default function RepoList({ token, maxVisibleRows }: { token: string; max
       if (repo) openInBrowser(`https://github.com/${repo.nameWithOwner}`);
     }
     // Delete key: open delete modal (Del or Ctrl+Backspace)
-    if (key.delete || (key.backspace && key.ctrl)) {
+    // Some terminals may set delete=true even for Backspace; require delete=true AND backspace=false.
+    if ((key.delete && !key.backspace) || (key.backspace && key.ctrl)) {
       const repo = filteredAndSorted[cursor];
       if (repo) {
         setDeleteTarget(repo);
@@ -452,9 +459,15 @@ export default function RepoList({ token, maxVisibleRows }: { token: string; max
       }
       return;
     }
-    if (input === 'g' && key.ctrl) setCursor(0);
-    if (input === 'G') setCursor(items.length - 1);
-    if (input === 'R') {
+    if (key.ctrl && (input === 'g' || input === 'G')) {
+      setCursor(0);
+      return;
+    }
+    if (!key.ctrl && input && input.toUpperCase() === 'G') {
+      setCursor(items.length - 1);
+      return;
+    }
+    if (input && input.toUpperCase() === 'R') {
       // Refresh - show loading screen
       setCursor(0);
       setRefreshing(true);
@@ -463,7 +476,7 @@ export default function RepoList({ token, maxVisibleRows }: { token: string; max
     }
 
     // Archive/unarchive modal (Ctrl+A)
-    if (input === 'a' && key.ctrl) {
+    if (key.ctrl && (input === 'a' || input === 'A')) {
       const repo = filteredAndSorted[cursor];
       if (repo) {
         setArchiveTarget(repo);
@@ -476,7 +489,7 @@ export default function RepoList({ token, maxVisibleRows }: { token: string; max
     }
 
     // Sync fork with upstream modal (Ctrl+U)
-    if (input === 'u' && key.ctrl) {
+    if (key.ctrl && (input === 'u' || input === 'U')) {
       const repo = filteredAndSorted[cursor];
       if (repo && repo.isFork && repo.parent) {
         // Only show sync option for forks that are behind
@@ -502,7 +515,7 @@ export default function RepoList({ token, maxVisibleRows }: { token: string; max
     }
 
     // Sorting toggles: cycle key and direction - triggers server refresh
-    if (input === 'S') {
+    if (input && input.toUpperCase() === 'S') {
       const order: SortKey[] = ['updated', 'pushed', 'name', 'stars'];
       const idx = order.indexOf(sortKey);
       const newSortKey = order[(idx + 1) % order.length];
@@ -512,7 +525,7 @@ export default function RepoList({ token, maxVisibleRows }: { token: string; max
       // Will trigger refresh via useEffect
       return;
     }
-    if (input === 'D') {
+    if (input && input.toUpperCase() === 'D') {
       setSortDir(prev => {
         const next = prev === 'asc' ? 'desc' : 'asc';
         storeUIPrefs({ sortDir: next });
@@ -524,14 +537,14 @@ export default function RepoList({ token, maxVisibleRows }: { token: string; max
     }
 
     // Explicit open in browser
-    if (input === 'O') {
+    if (input && input.toUpperCase() === 'O') {
       const repo = filteredAndSorted[cursor];
       if (repo) openInBrowser(`https://github.com/${repo.nameWithOwner}`);
       return;
     }
 
     // Toggle display density
-    if (input === 'T') {
+    if (input && input.toUpperCase() === 'T') {
       setDensity((d) => {
         const next = (((d + 1) % 3) as 0 | 1 | 2);
         storeUIPrefs({ density: next });
@@ -541,7 +554,7 @@ export default function RepoList({ token, maxVisibleRows }: { token: string; max
     }
 
     // Toggle fork tracking
-    if (input === 'F') {
+    if (input && input.toUpperCase() === 'F') {
       setForkTracking((prev) => {
         const next = !prev;
         storeUIPrefs({ forkTracking: next });
@@ -777,22 +790,30 @@ export default function RepoList({ token, maxVisibleRows }: { token: string; max
                       {!deleteConfirmStage && (
                         <Box marginTop={1}>
                           <Text>Confirm code: </Text>
-                           <TextInput
-                             value={typedCode}
-                             onChange={(v) => setTypedCode(v.toUpperCase())}
-                             onSubmit={() => {
-                               if (typedCode !== deleteCode || !deleteTarget) {
-                                 setDeleteError('Code does not match');
-                                 return;
-                               }
-                      setDeleteError(null);
-                      setDeleteConfirmStage(true);
-                      setConfirmFocus('delete');
-                             }}
-                             placeholder={deleteCode}
-                           />
-                         </Box>
-                       )}
+                          <TextInput
+                            value={typedCode}
+                            onChange={(v) => {
+                              const up = (v || '').toUpperCase();
+                              const cut = up.slice(0, 4);
+                              setTypedCode(cut);
+                              if (cut.length < 4) {
+                                setDeleteError(null);
+                              }
+                              if (cut.length === 4) {
+                                if (cut === deleteCode && deleteTarget) {
+                                  setDeleteError(null);
+                                  setDeleteConfirmStage(true);
+                                  setConfirmFocus('delete');
+                                } else {
+                                  setDeleteError('Code does not match');
+                                }
+                              }
+                            }}
+                            onSubmit={() => { /* no-op: auto-advance on 4 chars */ }}
+                            placeholder={deleteCode}
+                          />
+                        </Box>
+                      )}
               {deleteConfirmStage && (
                 <Box marginTop={1} flexDirection="column">
                   <Text color="red">
@@ -1058,7 +1079,7 @@ export default function RepoList({ token, maxVisibleRows }: { token: string; max
                 Sort: {sortKey} {sortDir === 'asc' ? '↑' : '↓'}
               </Text>
               <Text color="gray" dimColor>
-                Forks: {forkTracking ? 'ON' : 'OFF'}
+                Forks - Commits Behind: {forkTracking ? 'ON' : 'OFF'}
               </Text>
               {filter && (
                 <Text color="cyan">
@@ -1127,7 +1148,7 @@ export default function RepoList({ token, maxVisibleRows }: { token: string; max
       <Box marginTop={1} paddingX={1} flexDirection="column">
         <Box width={terminalWidth} justifyContent="center">
           <Text color="gray" dimColor={modalOpen ? true : undefined}>
-            ↑↓ Navigate • Ctrl+G Top • G Bottom • / Filter • S Sort • D Direction • T Density • F Forks • ⏎/O Open
+            ↑↓ Navigate • Ctrl+G Top • G Bottom • / Filter • S Sort • D Direction • T Density • F Forks - Commits Behind • ⏎/O Open
           </Text>
         </Box>
         <Box width={terminalWidth} justifyContent="center">
