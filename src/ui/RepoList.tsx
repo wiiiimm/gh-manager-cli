@@ -118,6 +118,17 @@ export default function RepoList({ token, maxVisibleRows }: { token: string; max
   const [deleting, setDeleting] = useState(false);
   const [deleteError, setDeleteError] = useState<string | null>(null);
   const [deleteConfirmStage, setDeleteConfirmStage] = useState(false); // true after code verified
+  const [confirmFocus, setConfirmFocus] = useState<'delete' | 'cancel'>('delete');
+
+  function cancelDeleteModal() {
+    setDeleteMode(false);
+    setDeleteTarget(null);
+    setTypedCode('');
+    setDeleteError(null);
+    setDeleteConfirmStage(false);
+    setDeleting(false);
+    setConfirmFocus('delete');
+  }
 
   async function confirmDeleteNow() {
     if (!deleteTarget) return;
@@ -203,19 +214,30 @@ export default function RepoList({ token, maxVisibleRows }: { token: string; max
     // When in delete mode, trap inputs for modal
     if (deleteMode) {
       if (key.escape || input === 'c') {
-        setDeleteMode(false);
-        setDeleteTarget(null);
-        setTypedCode('');
-        setDeleteError(null);
-        setDeleteConfirmStage(false);
+        cancelDeleteModal();
         return;
       }
-      // In final warning stage, allow pressing 'y' to confirm
-      if (deleteConfirmStage && input && input.toLowerCase() === 'y') {
-        confirmDeleteNow();
-        return;
+      // In final warning stage, support left/right focus and confirm/cancel with Enter
+      if (deleteConfirmStage) {
+        if (key.leftArrow) {
+          setConfirmFocus('delete');
+          return;
+        }
+        if (key.rightArrow) {
+          setConfirmFocus('cancel');
+          return;
+        }
+        if (key.return) {
+          if (confirmFocus === 'delete') confirmDeleteNow();
+          else cancelDeleteModal();
+          return;
+        }
+        if (input && input.toLowerCase() === 'y') {
+          confirmDeleteNow();
+          return;
+        }
       }
-      // Let TextInput inside modal handle text and Enter
+      // Let TextInput inside modal handle text and Enter for stage 1
       return;
     }
 
@@ -255,6 +277,7 @@ export default function RepoList({ token, maxVisibleRows }: { token: string; max
         const code = Array.from({ length: 4 }, () => letters[Math.floor(Math.random() * letters.length)]).join('');
         setDeleteCode(code);
         setDeleteConfirmStage(false);
+        setConfirmFocus('delete');
       }
       return;
     }
@@ -479,47 +502,14 @@ export default function RepoList({ token, maxVisibleRows }: { token: string; max
       {/* Main content container with border - fixed height */}
       <Box borderStyle="single" borderColor={deleteMode ? 'gray' : 'yellow'} paddingX={1} paddingY={1} marginX={1} height={contentHeight + containerPadding + 2} flexDirection="column">
         {deleteMode && deleteTarget ? (
-          // Centered modal with list dimmed and split around the modal (no true overlay)
-          <Box height={contentHeight} flexDirection="column">
-            {(() => {
-              const LINES_PER_REPO = 3 + spacingLines;
-              const approxModalHeight = deleteConfirmStage ? 9 : 8;
-              const availableForList = Math.max(0, contentHeight - approxModalHeight);
-              const topRows = Math.floor(availableForList / 2);
-              const bottomRows = availableForList - topRows;
-              const topCount = Math.max(0, Math.floor(topRows / LINES_PER_REPO));
-              const bottomCount = Math.max(0, Math.floor(bottomRows / LINES_PER_REPO));
-              const startIdx = windowed.start;
-              const topSlice = filteredAndSorted.slice(startIdx, Math.min(filteredAndSorted.length, startIdx + topCount));
-              const afterTopIdx = startIdx + topSlice.length;
-              const bottomSlice = filteredAndSorted.slice(afterTopIdx, Math.min(filteredAndSorted.length, afterTopIdx + bottomCount));
-              return (
-                <>
-                  {/* Top portion of dimmed list */}
-                  {topRows > 0 && (
-                    <Box flexDirection="column" height={topRows}>
-                      {topSlice.map((repo, i) => {
-                        const idx = startIdx + i;
-                        return (
-                          <RepoRow
-                            key={repo.nameWithOwner}
-                            repo={repo}
-                            selected={false}
-                            index={idx + 1}
-                            maxWidth={terminalWidth - 6}
-                            spacingLines={spacingLines}
-                            dim
-                          />
-                        );
-                      })}
-                    </Box>
-                  )}
-
-                  {/* Centered modal */}
-                  <Box flexDirection="row" justifyContent="center">
-                    <Box flexDirection="column" borderStyle="round" borderColor="red" paddingX={3} paddingY={2} width={Math.min(terminalWidth - 8, 80)}>
+          // Centered modal; hide list content while modal is open
+          <Box height={contentHeight} alignItems="center" justifyContent="center">
+            <Box flexDirection="column" borderStyle="round" borderColor="red" paddingX={3} paddingY={2} width={Math.min(terminalWidth - 8, 80)}>
                       <Text bold>Delete Confirmation</Text>
                       <Text color="red">⚠️  Delete repository?</Text>
+                      <Box height={2}>
+                        <Text> </Text>
+                      </Box>
                       {(() => {
                         const langName = deleteTarget.primaryLanguage?.name || '';
                         const langColor = deleteTarget.primaryLanguage?.color || '#666666';
@@ -540,7 +530,7 @@ export default function RepoList({ token, maxVisibleRows }: { token: string; max
                       })()}
                       <Box marginTop={1}>
                         <Text>
-                          Type <Text color="yellow" bold>{deleteCode}</Text> to confirm, then press Enter. Press <Text bold>Esc</Text> or <Text bold>c</Text> to cancel.
+                          Type <Text color="yellow" bold>{deleteCode}</Text> to confirm.
                         </Text>
                       </Box>
                       {!deleteConfirmStage && (
@@ -554,8 +544,9 @@ export default function RepoList({ token, maxVisibleRows }: { token: string; max
                                  setDeleteError('Code does not match');
                                  return;
                                }
-                               setDeleteError(null);
-                               setDeleteConfirmStage(true);
+                      setDeleteError(null);
+                      setDeleteConfirmStage(true);
+                      setConfirmFocus('delete');
                              }}
                              placeholder={deleteCode}
                            />
@@ -566,29 +557,49 @@ export default function RepoList({ token, maxVisibleRows }: { token: string; max
                   <Text color="red">
                     This action will permanently delete the repository. This cannot be undone.
                   </Text>
-                  {/* Action buttons row */}
-                  <Box marginTop={1} flexDirection="row" justifyContent="center" gap={4}>
-                    <Box borderStyle="round" borderColor="red" paddingX={2} paddingY={0}>
+                  {/* Action buttons row (taller buttons; no inline hints) */}
+                  <Box marginTop={1} flexDirection="row" justifyContent="center" gap={6}>
+                    <Box
+                      borderStyle="round"
+                      borderColor="red"
+                      height={3}
+                      width={20}
+                      alignItems="center"
+                      justifyContent="center"
+                      flexDirection="column"
+                    >
                       <Text bold color="red">Delete</Text>
                     </Box>
-                    <Box borderStyle="round" borderColor="gray" paddingX={2} paddingY={0}>
-                      <Text bold color="gray">Cancel</Text>
+                    <Box
+                      borderStyle="round"
+                      borderColor={confirmFocus === 'cancel' ? 'white' : 'gray'}
+                      height={3}
+                      width={20}
+                      alignItems="center"
+                      justifyContent="center"
+                      flexDirection="column"
+                    >
+                      <Text bold color={confirmFocus === 'cancel' ? 'white' : 'gray'}>Cancel</Text>
                     </Box>
                   </Box>
-                  {/* Shortcuts hint under buttons */}
-                  <Box marginTop={0} flexDirection="row" justifyContent="center" gap={8}>
-                    <Text>y / Enter</Text>
-                    <Text>c / Esc</Text>
+                  {/* Bottom prompt with dynamic Enter action and key hints (gray) */}
+                  <Box marginTop={1} flexDirection="row" justifyContent="center">
+                    <Text color="gray">
+                      Press Enter to {confirmFocus === 'delete' ? 'Delete' : 'Cancel'} • y to confirm • c to cancel
+                    </Text>
                   </Box>
                   {/* Hidden input to capture Enter key */}
-                  <Box marginTop={1}>
-                    <TextInput
-                      value=""
-                      onChange={() => { /* noop */ }}
-                      onSubmit={confirmDeleteNow}
-                      placeholder="Press Enter to confirm"
-                    />
-                  </Box>
+                          <Box marginTop={1}>
+                            <TextInput
+                              value=""
+                              onChange={() => { /* noop */ }}
+                              onSubmit={() => {
+                                if (confirmFocus === 'delete') confirmDeleteNow();
+                                else cancelDeleteModal();
+                              }}
+                              placeholder=""
+                            />
+                          </Box>
                 </Box>
               )}
           {deleteError && (
@@ -601,31 +612,7 @@ export default function RepoList({ token, maxVisibleRows }: { token: string; max
                           <Text color="yellow">Deleting...</Text>
                         </Box>
                       )}
-                    </Box>
-                  </Box>
-
-                  {/* Bottom portion of dimmed list */}
-                  {bottomRows > 0 && (
-                    <Box flexDirection="column" height={bottomRows}>
-                      {bottomSlice.map((repo, i) => {
-                        const idx = afterTopIdx + i;
-                        return (
-                          <RepoRow
-                            key={repo.nameWithOwner}
-                            repo={repo}
-                            selected={false}
-                            index={idx + 1}
-                            maxWidth={terminalWidth - 6}
-                            spacingLines={spacingLines}
-                            dim
-                          />
-                        );
-                      })}
-                    </Box>
-                  )}
-                </>
-              );
-            })()}
+            </Box>
           </Box>
         ) : (
           <>

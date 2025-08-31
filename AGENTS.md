@@ -110,9 +110,14 @@ See the living roadmap in [TODOs.md](./TODOs.md) for the canonical, up-to-date l
 - `t`: toggle display density (compact/cozy/comfy)
 - Enter or `o`: open selected repo in browser
 - `Del` or Backspace: delete selected repo (opens confirmation modal)
-  - In destructive modals: confirm with `y` or Enter; cancel with `c` or Esc
 - `r`: refresh list
 - `q` or Esc: quit (Esc cancels an open modal instead of quitting)
+
+### Modal UX Convention (preferred)
+- Left/Right: move focus between buttons (e.g., Delete, Cancel)
+- Enter: run the currently focused button’s action
+- `y`: confirm (applies to any confirmation action)
+- `c`: cancel (preferred); `Esc` also cancels
 
 ## Setup & Usage
 
