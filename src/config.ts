@@ -2,9 +2,18 @@ import fs from 'fs';
 import path from 'path';
 import envPaths from 'env-paths';
 
+type Density = 0 | 1 | 2;
+
+interface UIPrefs {
+  sortKey?: 'updated' | 'pushed' | 'name' | 'stars';
+  sortDir?: 'asc' | 'desc';
+  density?: Density;
+}
+
 interface ConfigShape {
   token?: string;
   tokenVersion?: number;
+  ui?: UIPrefs;
 }
 
 const paths = envPaths('gh-manager-cli');
@@ -53,3 +62,13 @@ export function storeToken(token: string) {
   writeConfig({ ...existing, token, tokenVersion: 1 });
 }
 
+export function getUIPrefs(): UIPrefs {
+  const cfg = readConfig();
+  return cfg.ui || {};
+}
+
+export function storeUIPrefs(patch: Partial<UIPrefs>) {
+  const existing = readConfig();
+  const mergedUI = { ...(existing.ui || {}), ...patch };
+  writeConfig({ ...existing, ui: mergedUI });
+}

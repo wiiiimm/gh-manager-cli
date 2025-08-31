@@ -3,6 +3,7 @@ import { Box, Text, useApp, useInput, useStdout, Spacer, Newline } from 'ink';
 import TextInput from 'ink-text-input';
 import chalk from 'chalk';
 import { makeClient, fetchViewerReposPage, deleteRepositoryById } from '../github';
+import { getUIPrefs, storeUIPrefs } from '../config';
 import type { RepoNode, RateLimitInfo } from '../types';
 import { exec } from 'child_process';
 
@@ -110,6 +111,7 @@ export default function RepoList({ token, maxVisibleRows }: { token: string; max
   const [rateLimit, setRateLimit] = useState<RateLimitInfo | undefined>(undefined);
   // Display density: 0 = compact (0 lines), 1 = cozy (1 line), 2 = comfy (2 lines)
   const [density, setDensity] = useState<0 | 1 | 2>(2);
+  const [prefsLoaded, setPrefsLoaded] = useState(false);
   // Delete modal state
   const [deleteMode, setDeleteMode] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState<RepoNode | null>(null);
@@ -196,10 +198,24 @@ export default function RepoList({ token, maxVisibleRows }: { token: string; max
     }
   };
 
+  // Load UI preferences (density, sort key/dir) on mount
   useEffect(() => {
+    const ui = getUIPrefs();
+    if (ui.density !== undefined) setDensity(ui.density as 0 | 1 | 2);
+    if (ui.sortKey && ['updated','pushed','name','stars'].includes(ui.sortKey)) {
+      setSortKey(ui.sortKey as SortKey);
+    }
+    if (ui.sortDir && (ui.sortDir === 'asc' || ui.sortDir === 'desc')) {
+      setSortDir(ui.sortDir);
+    }
+    setPrefsLoaded(true);
+  }, []);
+
+  useEffect(() => {
+    if (!prefsLoaded) return;
     fetchPage();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [client]);
+  }, [client, prefsLoaded]);
 
   // Refresh from server when sorting changes
   useEffect(() => {
@@ -305,11 +321,16 @@ export default function RepoList({ token, maxVisibleRows }: { token: string; max
       const newSortKey = order[(idx + 1) % order.length];
       setSortKey(newSortKey);
       setCursor(0); // Reset cursor to top
+      storeUIPrefs({ sortKey: newSortKey });
       // Will trigger refresh via useEffect
       return;
     }
     if (input === 'd') {
-      setSortDir(prev => (prev === 'asc' ? 'desc' : 'asc'));
+      setSortDir(prev => {
+        const next = prev === 'asc' ? 'desc' : 'asc';
+        storeUIPrefs({ sortDir: next });
+        return next;
+      });
       setCursor(0); // Reset cursor to top
       // Will trigger refresh via useEffect
       return;
@@ -324,7 +345,11 @@ export default function RepoList({ token, maxVisibleRows }: { token: string; max
 
     // Toggle display density
     if (input === 't') {
-      setDensity((d) => (((d + 1) % 3) as 0 | 1 | 2));
+      setDensity((d) => {
+        const next = (((d + 1) % 3) as 0 | 1 | 2);
+        storeUIPrefs({ density: next });
+        return next;
+      });
       return;
     }
   });
