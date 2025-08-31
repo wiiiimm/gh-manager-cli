@@ -393,7 +393,7 @@ export async function purgeApolloCacheFiles(): Promise<void> {
   } catch {}
 }
 
-// Debug function to inspect cache status
+// Debug function to inspect cache status - using stderr to bypass Ink UI
 export async function inspectCacheStatus(): Promise<void> {
   try {
     const fs = await import('fs');
@@ -403,34 +403,36 @@ export async function inspectCacheStatus(): Promise<void> {
     const cacheFile = path.join(p, 'apollo-cache.json');
     const metaFile = path.join(p, 'apollo-cache-meta.json');
     
-    console.log(`📂 Cache directory: ${p}`);
+    // Use stderr to bypass Ink UI capture
+    process.stderr.write(`\n📂 Cache directory: ${p}\n`);
     
     try {
       const cacheStats = fs.statSync(cacheFile);
-      console.log(`💾 Cache file: ${Math.round(cacheStats.size / 1024)}KB (${cacheStats.mtime.toISOString()})`);
+      process.stderr.write(`💾 Cache file: ${Math.round(cacheStats.size / 1024)}KB (${cacheStats.mtime.toISOString()})\n`);
     } catch {
-      console.log(`💾 Cache file: NOT FOUND`);
+      process.stderr.write(`💾 Cache file: NOT FOUND\n`);
     }
     
     try {
       const metaStats = fs.statSync(metaFile);
       const metaContent = fs.readFileSync(metaFile, 'utf8');
       const meta = JSON.parse(metaContent);
-      console.log(`📊 Meta file: ${Object.keys(meta.fetched || {}).length} entries (${metaStats.mtime.toISOString()})`);
+      process.stderr.write(`📊 Meta file: ${Object.keys(meta.fetched || {}).length} entries (${metaStats.mtime.toISOString()})\n`);
       
       // Show recent entries
       const entries = Object.entries(meta.fetched || {});
       if (entries.length > 0) {
-        console.log('📋 Recent cache entries:');
+        process.stderr.write('📋 Recent cache entries:\n');
         entries.slice(-3).forEach(([key, timestamp]) => {
           const age = Date.now() - Date.parse(timestamp as string);
-          console.log(`   ${key} (${Math.round(age / 1000)}s ago)`);
+          process.stderr.write(`   ${key} (${Math.round(age / 1000)}s ago)\n`);
         });
       }
     } catch {
-      console.log(`📊 Meta file: NOT FOUND`);
+      process.stderr.write(`📊 Meta file: NOT FOUND\n`);
     }
-  } catch (e) {
-    console.log(`❌ Cache inspection failed:`, e.message);
+    process.stderr.write('\n');
+  } catch (e: any) {
+    process.stderr.write(`❌ Cache inspection failed: ${e.message}\n`);
   }
 }
