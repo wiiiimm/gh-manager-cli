@@ -1,3 +1,10 @@
+# [1.8.0](https://github.com/wiiiimm/gh-manager-cli/compare/v1.7.0...v1.8.0) (2025-08-31)
+
+
+### Features
+
+* implement organization support feature ([#1](https://github.com/wiiiimm/gh-manager-cli/issues/1)) ([5a404b2](https://github.com/wiiiimm/gh-manager-cli/commit/5a404b29cdd3a30bd12b59438e0c3fd978da93b9))
+
 # [1.7.0](https://github.com/wiiiimm/gh-manager-cli/compare/v1.6.2...v1.7.0) (2025-08-31)
 
 
