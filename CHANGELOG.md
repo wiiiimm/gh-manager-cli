@@ -1,3 +1,10 @@
+## [1.4.1](https://github.com/wiiiimm/gh-manager-cli/compare/v1.4.0...v1.4.1) (2025-08-31)
+
+
+### Bug Fixes
+
+* correct GitHub Packages publishing step ([6a8122a](https://github.com/wiiiimm/gh-manager-cli/commit/6a8122ad32308cbd8e3cbf07176608fe3639887d))
+
 # [1.4.0](https://github.com/wiiiimm/gh-manager-cli/compare/v1.3.0...v1.4.0) (2025-08-31)
 
 
