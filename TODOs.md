@@ -22,7 +22,19 @@ Legend:
 ## Near‑Term
 
 - [ ] Repo actions with confirmations
-  - Archive / Unarchive (GraphQL mutation)
+  - Archive / Unarchive repositories
+    - Key mapping: `a` to toggle archive status (archive if active, unarchive if archived)
+    - GraphQL mutations: `archiveRepository` and `unarchiveRepository`
+    - Confirmation modal with warning: 
+      - Archive: "⚠️  Archive [repo-name]? This will make it read-only. (y/N)"
+      - Unarchive: "Unarchive [repo-name]? This will make it active again. (y/N)"
+      - User must confirm with 'y' or Enter, Esc/c to cancel
+    - Update local state (`isArchived` field) after successful operation
+    - Handle API errors gracefully (403 for insufficient permissions, etc.)
+  - Archive badge in repository list
+    - Show "Archived" badge or indicator next to archived repositories in main listing
+    - Use distinct styling (gray/dim text or special icon) to visually distinguish archived repos
+    - Badge should be visible but not obtrusive to maintain clean UI
   - Delete (dangerous; detailed confirm flow; handle missing scopes gracefully)
     - Assign a key to trigger delete: `Del` or `Backspace` from the list view
     - Show a full-screen modal overlay with repo info (nameWithOwner, visibility, stars, forks, updatedAt)
@@ -61,6 +73,17 @@ Legend:
     - Persist last-selected context and show it in header (e.g., “Repositories — Personal Account” or “Repositories — org: @acme”)
     - Apply context to repo queries (scoped owner/org), and refresh list/totalCount on switch
 
+- [ ] Infinite scroll improvements
+  - Inline loading indicator at end of list
+    - When user reaches end of loaded repos, show spinner/loading message inline
+    - Display "Loading more repositories..." with animated spinner at bottom of list
+    - Keep existing repos visible while fetching next page
+  - Smarter prefetching trigger
+    - Change prefetch trigger from "5 items from end" to "80% from bottom"
+    - Calculate: trigger when `cursor >= Math.floor(loadedItems.length * 0.8)`
+    - Prevents user from ever reaching actual end before more data loads
+    - Smoother infinite scroll experience with earlier prefetching
+
 - [ ] Server‑side search
   - Support GitHub search for repos (beyond loaded pages)
   - Integrate with `/` filter bar; show mode indicator
@@ -94,6 +117,21 @@ Legend:
   - Cross‑platform clipboard
     - Prefer `clipboardy` dependency; fallback to OS commands: macOS `pbcopy`, Windows `clip`, Linux `xclip`/`xsel`/`wl-copy`
     - Silent no‑op if clipboard utility absent and `clipboardy` unavailable, but show error toast
+
+- [ ] OAuth login flow (alternative to token)
+  - GitHub OAuth App authentication as alternative to Personal Access Token
+  - Implementation approach:
+    - Register OAuth app with GitHub (client ID/secret)
+    - CLI flow: open browser to GitHub OAuth authorize URL
+    - Start local HTTP server to receive callback with authorization code
+    - Exchange code for access token via GitHub token endpoint
+    - Store token with same security as current PAT implementation
+  - User experience:
+    - On first run: "Login via (1) Personal Access Token or (2) GitHub OAuth"
+    - OAuth flow: "Opening browser for GitHub login..." → callback → "Authentication successful!"
+    - Same token storage and management as current implementation
+  - Benefits: no need to manually create PATs, auto-scoping, better UX
+  - Considerations: requires OAuth app registration, local server for callback
 
 - [ ] Logout (clear stored token)
   - Assign key to open logout prompt (e.g., `l` or `Ctrl+L`)
