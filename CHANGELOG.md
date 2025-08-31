@@ -1,3 +1,11 @@
+# [1.2.0](https://github.com/wiiiimm/gh-manager-cli/compare/v1.1.1...v1.2.0) (2025-08-31)
+
+
+### Features
+
+* add npx support as primary installation method ([eeae1c8](https://github.com/wiiiimm/gh-manager-cli/commit/eeae1c8e60f0b4bd1f3076a16b65aec01cf5afdf))
+* re-enable NPM publishing and update installation docs ([e6d5cff](https://github.com/wiiiimm/gh-manager-cli/commit/e6d5cffc64678899ecc89cf294c4413fab4cdf66))
+
 ## [1.1.1](https://github.com/wiiiimm/gh-manager-cli/compare/v1.1.0...v1.1.1) (2025-08-31)
 
 
