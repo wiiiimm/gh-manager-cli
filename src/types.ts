@@ -22,17 +22,19 @@ export interface RepoNode {
   diskUsage: number; // KB
   parent: Maybe<{
     nameWithOwner: string;
-    defaultBranchRef: {
-      target: {
-        history: {
+    defaultBranchRef?: {
+      name?: string;
+      target?: {
+        history?: {
           totalCount: number;
         }
       }
-    }
+    } | null;
   }>;
   defaultBranchRef: Maybe<{
-    target: {
-      history: {
+    name?: string;
+    target?: {
+      history?: {
         totalCount: number;
       }
     }

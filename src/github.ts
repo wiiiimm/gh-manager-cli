@@ -87,6 +87,7 @@ export async function fetchViewerReposPage(
             parent {
               nameWithOwner
               defaultBranchRef {
+                name
                 target {
                   ... on Commit {
                     history(first: 0) {
@@ -97,6 +98,7 @@ export async function fetchViewerReposPage(
               }
             }
             defaultBranchRef {
+              name
               target {
                 ... on Commit {
                   history(first: 0) {
@@ -107,7 +109,9 @@ export async function fetchViewerReposPage(
             }` : `
             parent {
               nameWithOwner
-            }`}
+            }
+            defaultBranchRef { name }
+            `}
           }
         }
       }

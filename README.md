@@ -44,6 +44,7 @@ On first run, you'll be prompted for a GitHub Personal Access Token.
   - Open in browser (Enter/`O`)
   - Delete repository (`Del` or `Ctrl+Backspace`) with secure two-step confirmation
   - Archive/unarchive repositories (`Ctrl+A`) with confirmation prompts
+  - Sync forks with upstream (`Ctrl+U`) with automatic conflict detection
 
 ### User Interface & Experience
 - **Keyboard Navigation**: Full keyboard control (arrow keys, PageUp/Down, `Ctrl+G`/`G`)
@@ -145,6 +146,7 @@ Launch the app, then use the keys below:
   - Confirm: press `Y` or Enter
   - Cancel: press `C` or Esc
 - Archive/Unarchive: `Ctrl+A`
+- Sync fork with upstream: `Ctrl+U` (for forks only, shows commit status and handles conflicts)
 - Logout: `Ctrl+L`
 - Toggle fork metrics: `F`
 - Quit: `Q`

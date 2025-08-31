@@ -385,7 +385,8 @@ export default function RepoList({ token, maxVisibleRows, onLogout }: { token: s
           try {
             setSyncing(true);
             const [owner, repo] = syncTarget.nameWithOwner.split('/');
-            const result = await syncForkWithUpstream(token, owner, repo);
+            const branchName = syncTarget.defaultBranchRef?.name || 'main';
+            const result = await syncForkWithUpstream(token, owner, repo, branchName);
             
             // Update the repository state to show 0 behind
             setItems(prev => prev.map(r => {
