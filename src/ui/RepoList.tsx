@@ -665,7 +665,7 @@ export default function RepoList({ token, maxVisibleRows }: { token: string; max
   }
 
   const lowRate = rateLimit && rateLimit.remaining <= Math.ceil(rateLimit.limit * 0.1);
-  const modalOpen = deleteMode || archiveMode || syncMode;
+  const modalOpen = deleteMode || archiveMode || syncMode || logoutMode;
 
   // Memoize header to prevent re-renders - must be before any returns
   const headerBar = useMemo(() => (
@@ -1077,6 +1077,50 @@ export default function RepoList({ token, maxVisibleRows }: { token: string; max
                   <Text color="yellow">Syncing...</Text>
                 </Box>
               )}
+            </Box>
+          </Box>
+        ) : logoutMode ? (
+          <Box height={contentHeight} alignItems="center" justifyContent="center">
+            <Box flexDirection="column" borderStyle="round" borderColor="cyan" paddingX={3} paddingY={2} width={Math.min(terminalWidth - 8, 80)}>
+              <Text bold>Logout Confirmation</Text>
+              <Text color="cyan">Are you sure you want to log out?</Text>
+              <Box marginTop={1} flexDirection="row" justifyContent="center" gap={6}>
+                <Box
+                  borderStyle="round"
+                  borderColor="cyan"
+                  height={3}
+                  width={20}
+                  alignItems="center"
+                  justifyContent="center"
+                  flexDirection="column"
+                >
+                  <Text>
+                    {logoutFocus === 'confirm' ? 
+                      chalk.bgCyan.white.bold(' Logout ') : 
+                      chalk.cyan.bold('Logout')
+                    }
+                  </Text>
+                </Box>
+                <Box
+                  borderStyle="round"
+                  borderColor={logoutFocus === 'cancel' ? 'white' : 'gray'}
+                  height={3}
+                  width={20}
+                  alignItems="center"
+                  justifyContent="center"
+                  flexDirection="column"
+                >
+                  <Text>
+                    {logoutFocus === 'cancel' ? 
+                      chalk.bgGray.white.bold(' Cancel ') : 
+                      chalk.gray.bold('Cancel')
+                    }
+                  </Text>
+                </Box>
+              </Box>
+              <Box marginTop={1} flexDirection="row" justifyContent="center">
+                <Text color="gray">Press Enter to {logoutFocus === 'confirm' ? 'Logout' : 'Cancel'} • Y to confirm • C to cancel</Text>
+              </Box>
             </Box>
           </Box>
         ) : (
