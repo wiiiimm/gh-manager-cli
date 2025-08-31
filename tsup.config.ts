@@ -10,4 +10,9 @@ export default defineConfig({
   dts: false,
   shims: false,
   banner: { js: '#!/usr/bin/env node' },
+  external: [
+    '@apollo/client',
+    '@apollo/client/core',
+    'apollo3-cache-persist'
+  ]
 });

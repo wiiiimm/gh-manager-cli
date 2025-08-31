@@ -2,8 +2,9 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { Box, Text, useApp, useInput, useStdout, Spacer, Newline } from 'ink';
 import TextInput from 'ink-text-input';
 import chalk from 'chalk';
-import { makeClient, fetchViewerReposPage, deleteRepositoryRest, archiveRepositoryById, unarchiveRepositoryById, syncForkWithUpstream } from '../github';
+import { makeClient, fetchViewerReposPageUnified, deleteRepositoryRest, archiveRepositoryById, unarchiveRepositoryById, syncForkWithUpstream, purgeApolloCacheFiles, inspectCacheStatus } from '../github';
 import { getUIPrefs, storeUIPrefs } from '../config';
+import { makeApolloKey, isFresh, markFetched } from '../apolloMeta';
 import type { RepoNode, RateLimitInfo } from '../types';
 import { exec } from 'child_process';
 
@@ -102,7 +103,7 @@ function RepoRow({ repo, selected, index, maxWidth, spacingLines, dim, forkTrack
   );
 }
 
-export default function RepoList({ token, maxVisibleRows, onLogout }: { token: string; maxVisibleRows?: number; onLogout?: () => void }) {
+export default function RepoList({ token, maxVisibleRows, onLogout, viewerLogin }: { token: string; maxVisibleRows?: number; onLogout?: () => void; viewerLogin?: string }) {
   const { exit } = useApp();
   const { stdout } = useStdout();
   const client = useMemo(() => makeClient(token), [token]);
@@ -225,7 +226,13 @@ export default function RepoList({ token, maxVisibleRows, onLogout }: { token: s
     'stars': 'STARGAZERS'
   };
 
-  const fetchPage = async (after?: string | null, reset = false, isSortChange = false, overrideForkTracking?: boolean) => {
+  const fetchPage = async (
+    after?: string | null,
+    reset = false,
+    isSortChange = false,
+    overrideForkTracking?: boolean,
+    policy?: 'cache-first' | 'cache-and-network' | 'network-only'
+  ) => {
     if (isSortChange) {
       setSortingLoading(true);
     } else if (after && !reset) {
@@ -239,11 +246,31 @@ export default function RepoList({ token, maxVisibleRows, onLogout }: { token: s
         field: sortFieldMap[sortKey],
         direction: sortDir.toUpperCase()
       };
-      const page = await fetchViewerReposPage(client, PAGE_SIZE, after ?? null, orderBy, overrideForkTracking ?? forkTracking);
+      const page = await fetchViewerReposPageUnified(
+        token,
+        PAGE_SIZE,
+        after ?? null,
+        orderBy,
+        overrideForkTracking ?? forkTracking,
+        policy ?? (after ? 'network-only' : 'cache-first')
+      );
       setItems(prev => (reset || !after ? page.nodes : [...prev, ...page.nodes]));
       setEndCursor(page.endCursor);
       setHasNextPage(page.hasNextPage);
       setTotalCount(page.totalCount);
+      // Mark fetched time for TTL tracking (first page only)
+      if (!after) {
+        try {
+          const key = makeApolloKey({
+            viewer: viewerLogin || 'unknown',
+            sortKey,
+            sortDir,
+            pageSize: PAGE_SIZE,
+            forkTracking: overrideForkTracking ?? forkTracking,
+          });
+          markFetched(key);
+        } catch {}
+      }
       // Track rate limit changes for delta display
       if (page.rateLimit && rateLimit) {
         setPrevRateLimit(rateLimit.remaining);
@@ -277,7 +304,19 @@ export default function RepoList({ token, maxVisibleRows, onLogout }: { token: s
 
   useEffect(() => {
     if (!prefsLoaded) return;
-    fetchPage();
+    // Choose Apollo fetch policy based on TTL freshness
+    let policy: 'cache-first' | 'cache-and-network' = 'cache-first';
+    try {
+      const key = makeApolloKey({
+        viewer: viewerLogin || 'unknown',
+        sortKey,
+        sortDir,
+        pageSize: PAGE_SIZE,
+        forkTracking,
+      });
+      policy = isFresh(key) ? 'cache-first' : 'cache-and-network';
+    } catch {}
+    fetchPage(null, true, false, undefined, policy);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [client, prefsLoaded]);
 
@@ -285,7 +324,18 @@ export default function RepoList({ token, maxVisibleRows, onLogout }: { token: s
   useEffect(() => {
     // Skip initial mount
     if (items.length > 0) {
-      fetchPage(null, true, true); // Reset and fetch with new sorting, mark as sort change
+      let policy: 'cache-first' | 'cache-and-network' = 'cache-first';
+      try {
+        const key = makeApolloKey({
+          viewer: viewerLogin || 'unknown',
+          sortKey,
+          sortDir,
+          pageSize: PAGE_SIZE,
+          forkTracking,
+        });
+        policy = isFresh(key) ? 'cache-first' : 'cache-and-network';
+      } catch {}
+      fetchPage(null, true, true, undefined, policy);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [sortKey, sortDir]);
@@ -348,7 +398,7 @@ export default function RepoList({ token, maxVisibleRows, onLogout }: { token: s
             const id = (archiveTarget as any).id;
             if (isArchived) await unarchiveRepositoryById(client, id);
             else await archiveRepositoryById(client, id);
-            setItems(prev => prev.map(r => (r.id === (archiveTarget as any).id ? { ...r, isArchived: !isArchived } : r)));
+              setItems(prev => prev.map(r => (r.id === (archiveTarget as any).id ? { ...r, isArchived: !isArchived } : r)));
             closeArchiveModal();
           } catch (e) {
             setArchiving(false);
@@ -496,7 +546,10 @@ export default function RepoList({ token, maxVisibleRows, onLogout }: { token: s
       setCursor(0);
       setRefreshing(true);
       setSortingLoading(true); // Use same loading state for consistency
-      fetchPage(null, true, true); // Reset and show loading
+      ;(async () => {
+        try { await purgeApolloCacheFiles(); } catch {}
+        fetchPage(null, true, true, undefined, 'network-only'); // force network after purge
+      })();
     }
 
     // Archive/unarchive modal (Ctrl+A)
@@ -537,6 +590,19 @@ export default function RepoList({ token, maxVisibleRows, onLogout }: { token: s
       setLogoutMode(true);
       setLogoutError(null);
       setLogoutFocus('confirm');
+      return;
+    }
+    
+    // Cache debug (Ctrl+Shift+D or just D in debug mode)
+    if ((key.ctrl && key.shift && (input === 'd' || input === 'D')) || 
+        (process.env.GH_MANAGER_DEBUG === '1' && input === 'i')) {
+      (async () => {
+        try {
+          await inspectCacheStatus();
+        } catch (e) {
+          console.log('Failed to inspect cache:', e);
+        }
+      })();
       return;
     }
 

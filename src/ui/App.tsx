@@ -331,7 +331,12 @@ export default function App() {
   return (
     <Box flexDirection="column" height={dims.rows} paddingX={2} paddingTop={verticalPadding} paddingBottom={verticalPadding}>
       {header}
-      <RepoList token={token as string} maxVisibleRows={dims.rows - (verticalPadding * 2) - 4} onLogout={handleLogout} />
+      <RepoList
+        token={token as string}
+        maxVisibleRows={dims.rows - (verticalPadding * 2) - 4}
+        onLogout={handleLogout}
+        viewerLogin={viewer ?? undefined}
+      />
     </Box>
   );
 }
