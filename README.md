@@ -2,6 +2,27 @@
 
 Interactive terminal app to browse and manage your personal GitHub repositories. Built with Ink (React for CLIs) and the GitHub GraphQL API.
 
+## Screenshots
+
+<div align="center">
+
+### Repository Listing
+Browse your repositories with rich metadata, sorting, and filtering options.
+
+<img src="docs/demo_repo_listing.png" alt="Repository listing interface showing repositories with metadata" width="800">
+
+### Authentication Flow  
+Secure GitHub token authentication with validation and persistence.
+
+<img src="docs/demo_login.png" alt="Login screen prompting for GitHub token" width="800">
+
+### Delete Confirmation
+Safe repository deletion with two-step confirmation process.
+
+<img src="docs/demo_delete_confirmation.png" alt="Delete confirmation dialog with security prompts" width="800">
+
+</div>
+
 ## Quick Start
 
 ```bash
