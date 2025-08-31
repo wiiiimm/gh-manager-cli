@@ -483,7 +483,7 @@ export default function RepoList({ token, maxVisibleRows }: { token: string; max
           <Box height={contentHeight} flexDirection="column">
             {(() => {
               const LINES_PER_REPO = 3 + spacingLines;
-              const approxModalHeight = deleteConfirmStage ? 7 : 6;
+              const approxModalHeight = deleteConfirmStage ? 9 : 8;
               const availableForList = Math.max(0, contentHeight - approxModalHeight);
               const topRows = Math.floor(availableForList / 2);
               const bottomRows = availableForList - topRows;
@@ -520,9 +520,24 @@ export default function RepoList({ token, maxVisibleRows }: { token: string; max
                     <Box flexDirection="column" borderStyle="round" borderColor="red" paddingX={3} paddingY={2} width={Math.min(terminalWidth - 8, 80)}>
                       <Text bold>Delete Confirmation</Text>
                       <Text color="red">⚠️  Delete repository?</Text>
-                      <Text>
-                        {deleteTarget.nameWithOwner} • {deleteTarget.visibility.toLowerCase()} • ★ {deleteTarget.stargazerCount} • ⑂ {deleteTarget.forkCount}
-                      </Text>
+                      {(() => {
+                        const langName = deleteTarget.primaryLanguage?.name || '';
+                        const langColor = deleteTarget.primaryLanguage?.color || '#666666';
+                        let line1 = '';
+                        line1 += chalk.white(deleteTarget.nameWithOwner);
+                        if (deleteTarget.isPrivate) line1 += chalk.yellow(' Private');
+                        if (deleteTarget.isArchived) line1 += chalk.gray.dim(' Archived');
+                        if (deleteTarget.isFork && deleteTarget.parent) line1 += chalk.blue(` Fork of ${deleteTarget.parent.nameWithOwner}`);
+                        let line2 = '';
+                        if (langName) line2 += chalk.hex(langColor)('● ') + chalk.gray(`${langName}  `);
+                        line2 += chalk.gray(`★ ${deleteTarget.stargazerCount}  ⑂ ${deleteTarget.forkCount}  Updated ${formatDate(deleteTarget.updatedAt)}`);
+                        return (
+                          <>
+                            <Text>{line1}</Text>
+                            <Text>{line2}</Text>
+                          </>
+                        );
+                      })()}
                       <Box marginTop={1}>
                         <Text>
                           Type <Text color="yellow" bold>{deleteCode}</Text> to confirm, then press Enter. Press <Text bold>Esc</Text> or <Text bold>c</Text> to cancel.
