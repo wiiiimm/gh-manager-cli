@@ -1,3 +1,10 @@
+# [1.4.0](https://github.com/wiiiimm/gh-manager-cli/compare/v1.3.0...v1.4.0) (2025-08-31)
+
+
+### Features
+
+* add GitHub Packages publishing to release workflow ([0cc2052](https://github.com/wiiiimm/gh-manager-cli/commit/0cc2052591d01717fbdaf7d844f2b210c3013341))
+
 # [1.3.0](https://github.com/wiiiimm/gh-manager-cli/compare/v1.2.0...v1.3.0) (2025-08-31)
 
 
