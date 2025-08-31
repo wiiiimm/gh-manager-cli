@@ -563,11 +563,11 @@ export default function RepoList({ token, maxVisibleRows }: { token: string; max
                           </Box>
                         </Box>
                       )}
-                      {deleteError && (
-                        <Box marginTop={1}>
-                          <Text color="red">{deleteError}</Text>
-                        </Box>
-                      )}
+          {deleteError && (
+            <Box marginTop={1}>
+              <Text color="magenta">{deleteError}</Text>
+            </Box>
+          )}
                       {deleting && (
                         <Box marginTop={1}>
                           <Text color="yellow">Deleting...</Text>
