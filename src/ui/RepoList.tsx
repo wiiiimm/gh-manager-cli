@@ -518,6 +518,7 @@ export default function RepoList({ token, maxVisibleRows }: { token: string; max
                   {/* Centered modal */}
                   <Box flexDirection="row" justifyContent="center">
                     <Box flexDirection="column" borderStyle="round" borderColor="red" paddingX={3} paddingY={2} width={Math.min(terminalWidth - 8, 80)}>
+                      <Text bold>Delete Confirmation</Text>
                       <Text color="red">⚠️  Delete repository?</Text>
                       <Text>
                         {deleteTarget.nameWithOwner} • {deleteTarget.visibility.toLowerCase()} • ★ {deleteTarget.stargazerCount} • ⑂ {deleteTarget.forkCount}
@@ -545,24 +546,36 @@ export default function RepoList({ token, maxVisibleRows }: { token: string; max
                            />
                          </Box>
                        )}
-                      {deleteConfirmStage && (
-                        <Box marginTop={1} flexDirection="column">
-                          <Text color="red">
-                            This action will permanently delete the repository. This cannot be undone.
-                          </Text>
-                          <Text>
-                            Press <Text bold>y</Text> or <Text bold>Enter</Text> to permanently delete, or <Text bold>Esc</Text>/<Text bold>c</Text> to cancel.
-                          </Text>
-                          <Box marginTop={1}>
-                            <TextInput
-                              value=""
-                              onChange={() => { /* noop */ }}
-                              onSubmit={confirmDeleteNow}
-                              placeholder="Press Enter to confirm"
-                            />
-                          </Box>
-                        </Box>
-                      )}
+              {deleteConfirmStage && (
+                <Box marginTop={1} flexDirection="column">
+                  <Text color="red">
+                    This action will permanently delete the repository. This cannot be undone.
+                  </Text>
+                  {/* Action buttons row */}
+                  <Box marginTop={1} flexDirection="row" justifyContent="center" gap={4}>
+                    <Box borderStyle="round" borderColor="red" paddingX={2} paddingY={0}>
+                      <Text bold color="red">Delete</Text>
+                    </Box>
+                    <Box borderStyle="round" borderColor="gray" paddingX={2} paddingY={0}>
+                      <Text bold color="gray">Cancel</Text>
+                    </Box>
+                  </Box>
+                  {/* Shortcuts hint under buttons */}
+                  <Box marginTop={0} flexDirection="row" justifyContent="center" gap={8}>
+                    <Text>y / Enter</Text>
+                    <Text>c / Esc</Text>
+                  </Box>
+                  {/* Hidden input to capture Enter key */}
+                  <Box marginTop={1}>
+                    <TextInput
+                      value=""
+                      onChange={() => { /* noop */ }}
+                      onSubmit={confirmDeleteNow}
+                      placeholder="Press Enter to confirm"
+                    />
+                  </Box>
+                </Box>
+              )}
           {deleteError && (
             <Box marginTop={1}>
               <Text color="magenta">{deleteError}</Text>
