@@ -14,6 +14,11 @@ Legend:
   - Update virtualization math to reflect spacing
   - [ ] Persist preference in config (and read on boot)
 
+- [ ] Persist UI preferences (s/d/t)
+  - Store sort field (`s`), sort direction (`d`), and density (`t`) in config
+  - Read on startup and apply to initial state; write on each toggle
+  - Backward‑compatible defaults when values are missing
+
 ## Near‑Term
 
 - [ ] Repo actions with confirmations
@@ -89,6 +94,18 @@ Legend:
   - Cross‑platform clipboard
     - Prefer `clipboardy` dependency; fallback to OS commands: macOS `pbcopy`, Windows `clip`, Linux `xclip`/`xsel`/`wl-copy`
     - Silent no‑op if clipboard utility absent and `clipboardy` unavailable, but show error toast
+
+- [ ] Logout (clear stored token)
+  - Assign key to open logout prompt (e.g., `l` or `Ctrl+L`)
+  - Confirmation modal: "Are you sure you want to log out?"
+    - `Esc` or `n` = cancel
+    - `y` or `Enter` = confirm
+  - On confirm:
+    - Remove token from config (delete token field or whole file if only token is stored)
+    - Clear in-memory token and return to token bootstrap screen
+    - Show success toast (e.g., "Logged out. Token cleared.")
+    - Quit the app after logout (graceful exit)
+  - Handle errors gracefully and keep user in current state on failure
 
 ## Later
 
