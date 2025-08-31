@@ -2,7 +2,7 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { Box, Text, useApp, useInput, useStdout, Spacer, Newline } from 'ink';
 import TextInput from 'ink-text-input';
 import chalk from 'chalk';
-import { makeClient, fetchViewerReposPage } from '../github';
+import { makeClient, fetchViewerReposPage, deleteRepositoryById } from '../github';
 import type { RepoNode, RateLimitInfo } from '../types';
 import { exec } from 'child_process';
 
@@ -110,6 +110,36 @@ export default function RepoList({ token, maxVisibleRows }: { token: string; max
   const [rateLimit, setRateLimit] = useState<RateLimitInfo | undefined>(undefined);
   // Display density: 0 = compact (0 lines), 1 = cozy (1 line), 2 = comfy (2 lines)
   const [density, setDensity] = useState<0 | 1 | 2>(2);
+  // Delete modal state
+  const [deleteMode, setDeleteMode] = useState(false);
+  const [deleteTarget, setDeleteTarget] = useState<RepoNode | null>(null);
+  const [deleteCode, setDeleteCode] = useState('');
+  const [typedCode, setTypedCode] = useState('');
+  const [deleting, setDeleting] = useState(false);
+  const [deleteError, setDeleteError] = useState<string | null>(null);
+  const [deleteConfirmStage, setDeleteConfirmStage] = useState(false); // true after code verified
+
+  async function confirmDeleteNow() {
+    if (!deleteTarget) return;
+    try {
+      setDeleting(true);
+      await deleteRepositoryById(client, (deleteTarget as any).id);
+      // Remove from items and update counts
+      setItems((prev) => prev.filter((r: any) => r.id !== (deleteTarget as any).id));
+      setTotalCount((c) => Math.max(0, c - 1));
+      setDeleteMode(false);
+      setDeleteTarget(null);
+      setTypedCode('');
+      setDeleteError(null);
+      setDeleting(false);
+      setDeleteConfirmStage(false);
+      // Keep cursor in range
+      setCursor((c) => Math.max(0, Math.min(c, filteredAndSorted.length - 2)));
+    } catch (e: any) {
+      setDeleting(false);
+      setDeleteError('Failed to delete repository. Check token scopes and permissions.');
+    }
+  }
 
   // Filter state
   const [filter, setFilter] = useState('');
@@ -170,6 +200,25 @@ export default function RepoList({ token, maxVisibleRows }: { token: string; max
   }, [sortKey, sortDir]);
 
   useInput((input, key) => {
+    // When in delete mode, trap inputs for modal
+    if (deleteMode) {
+      if (key.escape || input === 'c') {
+        setDeleteMode(false);
+        setDeleteTarget(null);
+        setTypedCode('');
+        setDeleteError(null);
+        setDeleteConfirmStage(false);
+        return;
+      }
+      // In final warning stage, allow pressing 'y' to confirm
+      if (deleteConfirmStage && input && input.toLowerCase() === 'y') {
+        confirmDeleteNow();
+        return;
+      }
+      // Let TextInput inside modal handle text and Enter
+      return;
+    }
+
     // When in filter mode, only handle input for the TextInput
     if (filterMode) {
       if (key.escape) {
@@ -192,6 +241,22 @@ export default function RepoList({ token, maxVisibleRows }: { token: string; max
       // Open in browser
       const repo = filteredAndSorted[cursor];
       if (repo) openInBrowser(`https://github.com/${repo.nameWithOwner}`);
+    }
+    // Delete key: open delete modal
+    if (key.delete || key.backspace) {
+      const repo = filteredAndSorted[cursor];
+      if (repo) {
+        setDeleteTarget(repo);
+        setDeleteMode(true);
+        setTypedCode('');
+        setDeleteError(null);
+        // Generate random 4-char uppercase code excluding 'C'
+        const letters = 'ABDEFGHIJKLMNOPQRSTUVWXYZ';
+        const code = Array.from({ length: 4 }, () => letters[Math.floor(Math.random() * letters.length)]).join('');
+        setDeleteCode(code);
+        setDeleteConfirmStage(false);
+      }
+      return;
     }
     if (input === 'g') setCursor(0);
     if (input === 'g' && key.ctrl) setCursor(0);
@@ -260,8 +325,26 @@ export default function RepoList({ token, maxVisibleRows }: { token: string; max
     );
   }, [items, filter]);
 
-  // Items are already sorted server-side, just apply filter
-  const filteredAndSorted = filtered;
+  const filteredAndSorted = useMemo(() => {
+    const arr = [...filtered];
+    const dir = sortDir === 'asc' ? 1 : -1;
+    arr.sort((a, b) => {
+      switch (sortKey) {
+        case 'name':
+          return a.nameWithOwner.localeCompare(b.nameWithOwner) * dir;
+        case 'stars':
+          return (a.stargazerCount - b.stargazerCount) * dir;
+        case 'forks':
+          return (a.forkCount - b.forkCount) * dir;
+        case 'pushed':
+          return (new Date(a.pushedAt).getTime() - new Date(b.pushedAt).getTime()) * dir;
+        case 'updated':
+        default:
+          return (new Date(a.updatedAt).getTime() - new Date(b.updatedAt).getTime()) * dir;
+      }
+    });
+    return arr;
+  }, [filtered, sortKey, sortDir]);
 
   // Keep cursor in range when filter or sort changes
   useEffect(() => {
@@ -308,7 +391,7 @@ export default function RepoList({ token, maxVisibleRows }: { token: string; max
   const headerBar = useMemo(() => (
     <Box flexDirection="row" justifyContent="space-between" height={1} marginBottom={1}>
       <Box flexDirection="row" gap={1}>
-        <Text bold>  Repositories</Text>
+        <Text bold color={deleteMode ? 'gray' : undefined} dimColor={deleteMode ? true : undefined}>  Repositories</Text>
         <Text color="gray">({filteredAndSorted.length}/{totalCount})</Text>
         {loading && (
           <Box width={2} flexShrink={0} flexGrow={0} marginLeft={1}>
@@ -325,7 +408,7 @@ export default function RepoList({ token, maxVisibleRows }: { token: string; max
         </Text>
       )}
     </Box>
-  ), [filteredAndSorted.length, totalCount, loading, rateLimit, lowRate]);
+  ), [filteredAndSorted.length, totalCount, loading, rateLimit, lowRate, deleteMode]);
 
   if (error) {
     return (
@@ -394,62 +477,127 @@ export default function RepoList({ token, maxVisibleRows }: { token: string; max
       {headerBar}
 
       {/* Main content container with border - fixed height */}
-      <Box borderStyle="single" borderColor="yellow" paddingX={1} paddingY={1} marginX={1} height={contentHeight + containerPadding + 2} flexDirection="column">
-        {/* Filter/sort status */}
-        <Box flexDirection="row" gap={2} marginBottom={1}>
-          <Text color="gray" dimColor>
-            Sort: {sortKey} {sortDir === 'asc' ? '↑' : '↓'}
-          </Text>
-          {filter && (
-            <Text color="cyan">
-              Filter: "{filter}"
-            </Text>
-          )}
-        </Box>
-
-        {/* Filter input */}
-        {filterMode && (
-          <Box marginBottom={1}>
-            <Text>Filter: </Text>
-            <TextInput
-              value={filter}
-              onChange={setFilter}
-              onSubmit={() => setFilterMode(false)}
-              placeholder="Type to filter..."
-            />
-          </Box>
-        )}
-
-        {/* Repository list */}
-        <Box flexDirection="column" height={listHeight}>
-          {filteredAndSorted.slice(windowed.start, windowed.end).map((repo, i) => {
-            const idx = windowed.start + i;
-            return (
-              <RepoRow
-                key={repo.nameWithOwner}
-                repo={repo}
-                selected={idx === cursor}
-                index={idx + 1}
-                maxWidth={terminalWidth - 6}
-                spacingLines={spacingLines}
-              />
-            );
-          })}
-          
-          {!loading && filteredAndSorted.length === 0 && (
-            <Box justifyContent="center" alignItems="center" flexGrow={1}>
-              <Text color="gray" dimColor>
-                {filter ? 'No repositories match your filter' : 'No repositories found'}
-              </Text>
+      <Box borderStyle="single" borderColor={deleteMode ? 'gray' : 'yellow'} paddingX={1} paddingY={1} marginX={1} height={contentHeight + containerPadding + 2} flexDirection="column">
+        {deleteMode && deleteTarget ? (
+          // Centered modal overlay without shaded backdrop; dim header/border/footer instead
+          <Box height={contentHeight} alignItems="center" justifyContent="center">
+            <Box flexDirection="column" borderStyle="round" borderColor="red" paddingX={2} paddingY={1} width={Math.min(terminalWidth - 8, 80)}>
+                      <Text color="red">⚠️  Delete repository?</Text>
+                      <Text>
+                        {deleteTarget.nameWithOwner} • {deleteTarget.visibility.toLowerCase()} • ★ {deleteTarget.stargazerCount} • ⑂ {deleteTarget.forkCount}
+                      </Text>
+                      <Box marginTop={1}>
+                        <Text>
+                          Type <Text color="yellow" bold>{deleteCode}</Text> to confirm, then press Enter. Press <Text bold>Esc</Text> or <Text bold>c</Text> to cancel.
+                        </Text>
+                      </Box>
+                      {!deleteConfirmStage && (
+                        <Box marginTop={1}>
+                          <Text>Confirm code: </Text>
+                          <TextInput
+                            value={typedCode}
+                            onChange={(v) => setTypedCode(v.toUpperCase())}
+                            onSubmit={() => {
+                              if (typedCode !== deleteCode || !deleteTarget) {
+                                setDeleteError('Code does not match');
+                                return;
+                              }
+                              setDeleteError(null);
+                              setDeleteConfirmStage(true);
+                            }}
+                            placeholder="ABCD"
+                          />
+                        </Box>
+                      )}
+                      {deleteConfirmStage && (
+                        <Box marginTop={1} flexDirection="column">
+                          <Text color="red">
+                            This action will permanently delete the repository. This cannot be undone.
+                          </Text>
+                          <Text>
+                            Press <Text bold>y</Text> or <Text bold>Enter</Text> to permanently delete, or <Text bold>Esc</Text>/<Text bold>c</Text> to cancel.
+                          </Text>
+                          <Box marginTop={1}>
+                            <TextInput
+                              value=""
+                              onChange={() => { /* noop */ }}
+                              onSubmit={confirmDeleteNow}
+                              placeholder="Press Enter to confirm"
+                            />
+                          </Box>
+                        </Box>
+                      )}
+                      {deleteError && (
+                        <Box marginTop={1}>
+                          <Text color="red">{deleteError}</Text>
+                        </Box>
+                      )}
+                      {deleting && (
+                        <Box marginTop={1}>
+                          <Text color="yellow">Deleting...</Text>
+                        </Box>
+                      )}
             </Box>
-          )}
-        </Box>
+          </Box>
+        ) : (
+          <>
+            {/* Filter/sort status */}
+            <Box flexDirection="row" gap={2} marginBottom={1}>
+              <Text color="gray" dimColor>
+                Sort: {sortKey} {sortDir === 'asc' ? '↑' : '↓'}
+              </Text>
+              {filter && (
+                <Text color="cyan">
+                  Filter: "{filter}"
+                </Text>
+              )}
+            </Box>
+
+            {/* Filter input */}
+            {filterMode && (
+              <Box marginBottom={1}>
+                <Text>Filter: </Text>
+                <TextInput
+                  value={filter}
+                  onChange={setFilter}
+                  onSubmit={() => setFilterMode(false)}
+                  placeholder="Type to filter..."
+                />
+              </Box>
+            )}
+
+            {/* Repository list */}
+            <Box flexDirection="column" height={listHeight}>
+              {filteredAndSorted.slice(windowed.start, windowed.end).map((repo, i) => {
+                const idx = windowed.start + i;
+                return (
+                  <RepoRow
+                    key={repo.nameWithOwner}
+                    repo={repo}
+                    selected={idx === cursor}
+                    index={idx + 1}
+                    maxWidth={terminalWidth - 6}
+                    spacingLines={spacingLines}
+                  />
+                );
+              })}
+              
+              {!loading && filteredAndSorted.length === 0 && (
+                <Box justifyContent="center" alignItems="center" flexGrow={1}>
+                  <Text color="gray" dimColor>
+                    {filter ? 'No repositories match your filter' : 'No repositories found'}
+                  </Text>
+                </Box>
+              )}
+            </Box>
+          </>
+        )}
       </Box>
 
       {/* Help footer */}
-      <Box borderStyle="single" borderColor="yellow" paddingX={1} paddingY={0} marginTop={1} marginX={1} height={3}>
-        <Text color="gray">
-          ↑↓ Navigate • / Filter • s Sort • d Direction • t Density • ⏎ Open • r Refresh • q Quit
+      <Box borderStyle="single" borderColor={deleteMode ? 'gray' : 'yellow'} paddingX={1} paddingY={0} marginTop={1} marginX={1} height={3}>
+        <Text color="gray" dimColor={deleteMode ? true : undefined}>
+          ↑↓ Navigate • / Filter • s Sort • d Direction • t Density • ⏎ Open • Del Delete • r Refresh • q Quit
         </Text>
       </Box>
     </Box>

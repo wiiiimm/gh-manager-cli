@@ -5,6 +5,9 @@ import { getStoredToken, storeToken, getTokenFromEnv } from '../config';
 import { makeClient, getViewerLogin } from '../github';
 import RepoList from './RepoList';
 
+// Import version from package.json
+const packageJson = require('../../package.json');
+
 type Mode = 'checking' | 'prompt' | 'validating' | 'ready' | 'error';
 
 export default function App() {
@@ -80,9 +83,12 @@ export default function App() {
   
   const header = useMemo(() => (
     <Box flexDirection="row" justifyContent="space-between" marginBottom={1}>
-      <Text bold color="cyan">
-        {'  '}GitHub Repository Manager
-      </Text>
+      <Box flexDirection="row" gap={1}>
+        <Text bold color="cyan">
+          {'  '}GitHub Repository Manager
+        </Text>
+        <Text color="gray" dimColor>v{packageJson.version}</Text>
+      </Box>
       {viewer && <Text color="gray">@{viewer}  </Text>}
     </Box>
   ), [viewer]);

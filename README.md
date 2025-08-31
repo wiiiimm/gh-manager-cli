@@ -56,7 +56,11 @@ Launch the app, then use the keys below:
 - Refresh: `r`
 - Filter: `/` to enter, type query, Enter to apply (Esc cancels)
 - Sorting: `s` to cycle field (updated → pushed → name → stars → forks), `d` to toggle direction
+- Display density: `t` to toggle compact/cozy/comfy
 - Open in browser: Enter or `o`
+- Delete repository: `Del` or Backspace (with confirmation modal)
+  - Confirm: press `y` or Enter
+  - Cancel: press `c` or Esc
 - Quit: `q` or Esc
 
 Status bar shows loaded count vs total. A rate-limit line displays `remaining/limit` and the reset time; it turns yellow when remaining ≤ 10% of the limit.

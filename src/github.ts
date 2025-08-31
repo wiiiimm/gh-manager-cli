@@ -48,6 +48,7 @@ export async function fetchViewerReposPage(
           totalCount
           pageInfo { endCursor hasNextPage }
           nodes {
+            id
             name
             nameWithOwner
             description
@@ -101,4 +102,18 @@ export async function fetchViewerReposPage(
     totalCount: data.totalCount,
     rateLimit: res.rateLimit as RateLimitInfo,
   };
+}
+
+export async function deleteRepositoryById(
+  client: ReturnType<typeof makeClient>,
+  repositoryId: string
+): Promise<void> {
+  const mutation = /* GraphQL */ `
+    mutation DeleteRepo($repositoryId: ID!) {
+      deleteRepository(input: { repositoryId: $repositoryId }) {
+        clientMutationId
+      }
+    }
+  `;
+  await client(mutation, { repositoryId });
 }

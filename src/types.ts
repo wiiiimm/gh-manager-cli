@@ -6,6 +6,7 @@ export interface Language {
 }
 
 export interface RepoNode {
+  id: string;
   name: string;
   nameWithOwner: string;
   description: Maybe<string>;

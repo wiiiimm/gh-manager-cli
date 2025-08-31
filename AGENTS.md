@@ -105,9 +105,14 @@ See the living roadmap in [TODOs.md](./TODOs.md) for the canonical, up-to-date l
 - PageUp/PageDown: jump ±10
 - `g` (Ctrl+g): jump to top
 - `G`: jump to bottom
-- `r`: refresh
-- `q` or Esc: quit
-- Enter: reserved for future actions
+- `/`: filter mode (Enter applies, Esc cancels)
+- `s` / `d`: sort field / direction
+- `t`: toggle display density (compact/cozy/comfy)
+- Enter or `o`: open selected repo in browser
+- `Del` or Backspace: delete selected repo (opens confirmation modal)
+  - In destructive modals: confirm with `y` or Enter; cancel with `c` or Esc
+- `r`: refresh list
+- `q` or Esc: quit (Esc cancels an open modal instead of quitting)
 
 ## Setup & Usage
 
