@@ -1,3 +1,10 @@
+# [1.7.0](https://github.com/wiiiimm/gh-manager-cli/compare/v1.6.2...v1.7.0) (2025-08-31)
+
+
+### Features
+
+* implement smarter infinite scroll prefetch trigger at 80% ([d124b94](https://github.com/wiiiimm/gh-manager-cli/commit/d124b9483196fe703ccffaea1ffdecef9cca31a5))
+
 ## [1.6.2](https://github.com/wiiiimm/gh-manager-cli/compare/v1.6.1...v1.6.2) (2025-08-31)
 
 
