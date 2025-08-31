@@ -43,7 +43,7 @@ function formatDate(dateStr: string): string {
   return `${Math.floor(diffDays / 365)} years ago`;
 }
 
-function RepoRow({ repo, selected, index, maxWidth, spacingLines }: { repo: RepoNode; selected: boolean; index: number; maxWidth: number; spacingLines: number }) {
+function RepoRow({ repo, selected, index, maxWidth, spacingLines, dim }: { repo: RepoNode; selected: boolean; index: number; maxWidth: number; spacingLines: number; dim?: boolean }) {
   const langName = repo.primaryLanguage?.name || '';
   const langColor = repo.primaryLanguage?.color || '#666666';
   
@@ -79,7 +79,7 @@ function RepoRow({ repo, selected, index, maxWidth, spacingLines }: { repo: Repo
   
   return (
     <Box flexDirection="column">
-      <Text>{fullText}</Text>
+      <Text>{dim ? chalk.dim(fullText) : fullText}</Text>
       {spacingLines > 0 && (
         <Box height={spacingLines}>
           <Text> </Text>
@@ -479,9 +479,45 @@ export default function RepoList({ token, maxVisibleRows }: { token: string; max
       {/* Main content container with border - fixed height */}
       <Box borderStyle="single" borderColor={deleteMode ? 'gray' : 'yellow'} paddingX={1} paddingY={1} marginX={1} height={contentHeight + containerPadding + 2} flexDirection="column">
         {deleteMode && deleteTarget ? (
-          // Centered modal overlay without shaded backdrop; dim header/border/footer instead
-          <Box height={contentHeight} alignItems="center" justifyContent="center">
-            <Box flexDirection="column" borderStyle="round" borderColor="red" paddingX={2} paddingY={1} width={Math.min(terminalWidth - 8, 80)}>
+          // Centered modal with list dimmed and split around the modal (no true overlay)
+          <Box height={contentHeight} flexDirection="column">
+            {(() => {
+              const LINES_PER_REPO = 3 + spacingLines;
+              const approxModalHeight = deleteConfirmStage ? 7 : 6;
+              const availableForList = Math.max(0, contentHeight - approxModalHeight);
+              const topRows = Math.floor(availableForList / 2);
+              const bottomRows = availableForList - topRows;
+              const topCount = Math.max(0, Math.floor(topRows / LINES_PER_REPO));
+              const bottomCount = Math.max(0, Math.floor(bottomRows / LINES_PER_REPO));
+              const startIdx = windowed.start;
+              const topSlice = filteredAndSorted.slice(startIdx, Math.min(filteredAndSorted.length, startIdx + topCount));
+              const afterTopIdx = startIdx + topSlice.length;
+              const bottomSlice = filteredAndSorted.slice(afterTopIdx, Math.min(filteredAndSorted.length, afterTopIdx + bottomCount));
+              return (
+                <>
+                  {/* Top portion of dimmed list */}
+                  {topRows > 0 && (
+                    <Box flexDirection="column" height={topRows}>
+                      {topSlice.map((repo, i) => {
+                        const idx = startIdx + i;
+                        return (
+                          <RepoRow
+                            key={repo.nameWithOwner}
+                            repo={repo}
+                            selected={false}
+                            index={idx + 1}
+                            maxWidth={terminalWidth - 6}
+                            spacingLines={spacingLines}
+                            dim
+                          />
+                        );
+                      })}
+                    </Box>
+                  )}
+
+                  {/* Centered modal */}
+                  <Box flexDirection="row" justifyContent="center">
+                    <Box flexDirection="column" borderStyle="round" borderColor="red" paddingX={3} paddingY={2} width={Math.min(terminalWidth - 8, 80)}>
                       <Text color="red">⚠️  Delete repository?</Text>
                       <Text>
                         {deleteTarget.nameWithOwner} • {deleteTarget.visibility.toLowerCase()} • ★ {deleteTarget.stargazerCount} • ⑂ {deleteTarget.forkCount}
@@ -494,21 +530,21 @@ export default function RepoList({ token, maxVisibleRows }: { token: string; max
                       {!deleteConfirmStage && (
                         <Box marginTop={1}>
                           <Text>Confirm code: </Text>
-                          <TextInput
-                            value={typedCode}
-                            onChange={(v) => setTypedCode(v.toUpperCase())}
-                            onSubmit={() => {
-                              if (typedCode !== deleteCode || !deleteTarget) {
-                                setDeleteError('Code does not match');
-                                return;
-                              }
-                              setDeleteError(null);
-                              setDeleteConfirmStage(true);
-                            }}
-                            placeholder="ABCD"
-                          />
-                        </Box>
-                      )}
+                           <TextInput
+                             value={typedCode}
+                             onChange={(v) => setTypedCode(v.toUpperCase())}
+                             onSubmit={() => {
+                               if (typedCode !== deleteCode || !deleteTarget) {
+                                 setDeleteError('Code does not match');
+                                 return;
+                               }
+                               setDeleteError(null);
+                               setDeleteConfirmStage(true);
+                             }}
+                             placeholder={deleteCode}
+                           />
+                         </Box>
+                       )}
                       {deleteConfirmStage && (
                         <Box marginTop={1} flexDirection="column">
                           <Text color="red">
@@ -537,7 +573,31 @@ export default function RepoList({ token, maxVisibleRows }: { token: string; max
                           <Text color="yellow">Deleting...</Text>
                         </Box>
                       )}
-            </Box>
+                    </Box>
+                  </Box>
+
+                  {/* Bottom portion of dimmed list */}
+                  {bottomRows > 0 && (
+                    <Box flexDirection="column" height={bottomRows}>
+                      {bottomSlice.map((repo, i) => {
+                        const idx = afterTopIdx + i;
+                        return (
+                          <RepoRow
+                            key={repo.nameWithOwner}
+                            repo={repo}
+                            selected={false}
+                            index={idx + 1}
+                            maxWidth={terminalWidth - 6}
+                            spacingLines={spacingLines}
+                            dim
+                          />
+                        );
+                      })}
+                    </Box>
+                  )}
+                </>
+              );
+            })()}
           </Box>
         ) : (
           <>
