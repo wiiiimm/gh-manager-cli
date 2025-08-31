@@ -588,6 +588,14 @@ export default function RepoList({ token, maxVisibleRows, onLogout, viewerLogin,
       if (repo) {
         setDeleteTarget(repo);
         setDeleteMode(true);
+        setTypedCode('');
+        setDeleteError(null);
+        // Generate random 4-char uppercase code excluding 'C'
+        const letters = 'ABDEFGHIJKLMNOPQRSTUVWXYZ';
+        const code = Array.from({ length: 4 }, () => letters[Math.floor(Math.random() * letters.length)]).join('');
+        setDeleteCode(code);
+        setDeleteConfirmStage(false);
+        setConfirmFocus('delete');
       }
       return;
     }
@@ -622,6 +630,9 @@ export default function RepoList({ token, maxVisibleRows, onLogout, viewerLogin,
       if (repo) {
         setArchiveTarget(repo);
         setArchiveMode(true);
+        setArchiveError(null);
+        setArchiving(false);
+        setArchiveFocus('confirm');
       }
       return;
     }
@@ -639,6 +650,9 @@ export default function RepoList({ token, maxVisibleRows, onLogout, viewerLogin,
         
         setSyncTarget(repo);
         setSyncMode(true);
+        setSyncError(null);
+        setSyncing(false);
+        setSyncFocus('confirm');
       }
       return;
     }
@@ -646,6 +660,8 @@ export default function RepoList({ token, maxVisibleRows, onLogout, viewerLogin,
     // Logout modal (Ctrl+L)
     if (key.ctrl && (input === 'l' || input === 'L')) {
       setLogoutMode(true);
+      setLogoutError(null);
+      setLogoutFocus('confirm');
       return;
     }
     
@@ -993,6 +1009,409 @@ export default function RepoList({ token, maxVisibleRows, onLogout, viewerLogin,
         />
         
         {orgSwitcherOpen ? (
+          <Box height={contentHeight} alignItems="center" justifyContent="center">
+            <OrgSwitcher 
+              token={token}
+              currentContext={ownerContext}
+              onSelect={handleOrgContextChange}
+              onClose={() => setOrgSwitcherOpen(false)}
+            />
+          </Box>
+        ) : infoMode ? (
+          <Box height={contentHeight} alignItems="center" justifyContent="center">
+            {(() => {
+              const repo = visibleItems[cursor];
+              if (!repo) return <Text color="red">No repository selected.</Text>;
+              const langName = repo.primaryLanguage?.name || 'N/A';
+              const langColor = repo.primaryLanguage?.color || '#666666';
+              return (
+                <Box flexDirection="column" borderStyle="round" borderColor="magenta" paddingX={3} paddingY={2} width={Math.min(terminalWidth - 8, 90)}>
+                  <Text bold>Repository Info</Text>
+                  <Box height={1}><Text> </Text></Box>
+                  <Text>{chalk.bold(repo.nameWithOwner)}</Text>
+                  {repo.description && <Text color="gray">{repo.description}</Text>}
+                  <Box height={1}><Text> </Text></Box>
+                  <Text>
+                    {repo.isPrivate ? chalk.yellow('Private') : chalk.green('Public')}
+                    {repo.isArchived ? chalk.gray('  Archived') : ''}
+                    {repo.isFork ? chalk.blue('  Fork') : ''}
+                  </Text>
+                  <Text>
+                    {chalk.gray(`★ ${repo.stargazerCount}  ⑂ ${repo.forkCount}`)}
+                  </Text>
+                  <Text>
+                    {chalk.hex(langColor)(`● `)}{chalk.gray(`${langName}`)}
+                  </Text>
+                  <Text color="gray">Updated: {formatDate(repo.updatedAt)} • Pushed: {formatDate(repo.pushedAt)}</Text>
+                  <Text color="gray">Size: {repo.diskUsage} KB</Text>
+                  <Box height={1}><Text> </Text></Box>
+                  <Text color="gray">Press Esc or I to close</Text>
+                </Box>
+              );
+            })()}
+          </Box>
+        ) : (
+          <>
+          // Centered modal; hide list content while modal is open
+          <Box height={contentHeight} alignItems="center" justifyContent="center">
+            <Box flexDirection="column" borderStyle="round" borderColor="red" paddingX={3} paddingY={2} width={Math.min(terminalWidth - 8, 80)}>
+                      <Text bold>Delete Confirmation</Text>
+                      <Text color="red">⚠️  Delete repository?</Text>
+                      <Box height={2}>
+                        <Text> </Text>
+                      </Box>
+                      {(() => {
+                        const langName = deleteTarget.primaryLanguage?.name || '';
+                        const langColor = deleteTarget.primaryLanguage?.color || '#666666';
+                        let line1 = '';
+                        line1 += chalk.white(deleteTarget.nameWithOwner);
+                        if (deleteTarget.isPrivate) line1 += chalk.yellow(' Private');
+                        if (deleteTarget.isArchived) line1 += chalk.gray.dim(' Archived');
+                        if (deleteTarget.isFork && deleteTarget.parent) line1 += chalk.blue(` Fork of ${deleteTarget.parent.nameWithOwner}`);
+                        let line2 = '';
+                        if (langName) line2 += chalk.hex(langColor)('● ') + chalk.gray(`${langName}  `);
+                        line2 += chalk.gray(`★ ${deleteTarget.stargazerCount}  ⑂ ${deleteTarget.forkCount}  Updated ${formatDate(deleteTarget.updatedAt)}`);
+                        return (
+                          <>
+                            <Text>{line1}</Text>
+                            <Text>{line2}</Text>
+                          </>
+                        );
+                      })()}
+                      <Box marginTop={1}>
+                        <Text>
+                          Type <Text color="yellow" bold>{deleteCode}</Text> to confirm.
+                        </Text>
+                      </Box>
+                      {!deleteConfirmStage && (
+                        <Box marginTop={1}>
+                          <Text>Confirm code: </Text>
+                          <TextInput
+                            value={typedCode}
+                            onChange={(v) => {
+                              const up = (v || '').toUpperCase();
+                              const cut = up.slice(0, 4);
+                              setTypedCode(cut);
+                              if (cut.length < 4) {
+                                setDeleteError(null);
+                              }
+                              if (cut.length === 4) {
+                                if (cut === deleteCode && deleteTarget) {
+                                  setDeleteError(null);
+                                  setDeleteConfirmStage(true);
+                                  setConfirmFocus('delete');
+                                } else {
+                                  setDeleteError('Code does not match');
+                                }
+                              }
+                            }}
+                            onSubmit={() => { /* no-op: auto-advance on 4 chars */ }}
+                            placeholder={deleteCode}
+                          />
+                        </Box>
+                      )}
+              {deleteConfirmStage && (
+                <Box marginTop={1} flexDirection="column">
+                  <Text color="red">
+                    This action will permanently delete the repository. This cannot be undone.
+                  </Text>
+                  {/* Action buttons row (taller buttons; no inline hints) */}
+                  <Box marginTop={1} flexDirection="row" justifyContent="center" gap={6}>
+                    <Box
+                      borderStyle="round"
+                      borderColor="red"
+                      height={3}
+                      width={20}
+                      alignItems="center"
+                      justifyContent="center"
+                      flexDirection="column"
+                    >
+                      <Text>{confirmFocus === 'delete' ? chalk.bgRed.white.bold(' Delete ') : chalk.red.bold('Delete')}</Text>
+                    </Box>
+                    <Box
+                      borderStyle="round"
+                      borderColor={confirmFocus === 'cancel' ? 'white' : 'gray'}
+                      height={3}
+                      width={20}
+                      alignItems="center"
+                      justifyContent="center"
+                      flexDirection="column"
+                    >
+                      <Text>{confirmFocus === 'cancel' ? chalk.bgGray.white.bold(' Cancel ') : chalk.gray.bold('Cancel')}</Text>
+                    </Box>
+                  </Box>
+                  {/* Bottom prompt with dynamic Enter action and key hints (gray) */}
+                  <Box marginTop={1} flexDirection="row" justifyContent="center">
+                    <Text color="gray">
+                      Press Enter to {confirmFocus === 'delete' ? 'Delete' : 'Cancel'} • Y to confirm • C to cancel
+                    </Text>
+                  </Box>
+                  {/* Hidden input to capture Enter key */}
+                          <Box marginTop={1}>
+                            <TextInput
+                              value=""
+                              onChange={() => { /* noop */ }}
+                              onSubmit={() => {
+                                if (confirmFocus === 'delete') confirmDeleteNow();
+                                else cancelDeleteModal();
+                              }}
+                              placeholder=""
+                            />
+                          </Box>
+                </Box>
+              )}
+          {deleteError && (
+            <Box marginTop={1}>
+              <Text color="magenta">{deleteError}</Text>
+            </Box>
+          )}
+                      {deleting && (
+                        <Box marginTop={1}>
+                          <Text color="yellow">Deleting...</Text>
+                        </Box>
+                      )}
+            </Box>
+          </Box>
+        ) : archiveMode && archiveTarget ? (
+          <Box height={contentHeight} alignItems="center" justifyContent="center">
+            <Box flexDirection="column" borderStyle="round" borderColor={archiveTarget.isArchived ? 'green' : 'yellow'} paddingX={3} paddingY={2} width={Math.min(terminalWidth - 8, 80)}>
+              <Text bold>{archiveTarget.isArchived ? 'Unarchive Confirmation' : 'Archive Confirmation'}</Text>
+              <Text color={archiveTarget.isArchived ? 'green' : 'yellow'}>
+                {archiveTarget.isArchived ? '↺  Unarchive repository?' : '⚠️  Archive repository?'}
+              </Text>
+              <Box height={1}><Text> </Text></Box>
+              <Text>{archiveTarget.nameWithOwner}</Text>
+              <Box marginTop={1}>
+                <Text>
+                  {archiveTarget.isArchived ? 'This will make the repository active again.' : 'This will make the repository read-only.'}
+                </Text>
+              </Box>
+              <Box marginTop={1} flexDirection="row" justifyContent="center" gap={6}>
+                <Box
+                  borderStyle="round"
+                  borderColor={archiveTarget.isArchived ? 'green' : 'yellow'}
+                  height={3}
+                  width={20}
+                  alignItems="center"
+                  justifyContent="center"
+                  flexDirection="column"
+                >
+                  <Text>
+                    {archiveFocus === 'confirm' ? 
+                      chalk.bgGreen.white.bold(` ${archiveTarget.isArchived ? 'Unarchive' : 'Archive'} `) : 
+                      chalk.bold[archiveTarget.isArchived ? 'green' : 'yellow'](archiveTarget.isArchived ? 'Unarchive' : 'Archive')
+                    }
+                  </Text>
+                </Box>
+                <Box
+                  borderStyle="round"
+                  borderColor={archiveFocus === 'cancel' ? 'white' : 'gray'}
+                  height={3}
+                  width={20}
+                  alignItems="center"
+                  justifyContent="center"
+                  flexDirection="column"
+                >
+                  <Text>
+                    {archiveFocus === 'cancel' ? 
+                      chalk.bgGray.white.bold(' Cancel ') : 
+                      chalk.gray.bold('Cancel')
+                    }
+                  </Text>
+                </Box>
+              </Box>
+              <Box marginTop={1} flexDirection="row" justifyContent="center">
+                <Text color="gray">Press Enter to {archiveFocus === 'confirm' ? (archiveTarget.isArchived ? 'Unarchive' : 'Archive') : 'Cancel'} • Y to confirm • C to cancel</Text>
+              </Box>
+              <Box marginTop={1}>
+                <TextInput
+                  value=""
+                  onChange={() => { /* noop */ }}
+                  onSubmit={() => {
+                    if (archiveFocus === 'confirm') {
+                      (async () => {
+                        try {
+                          setArchiving(true);
+                          const isArchived = archiveTarget.isArchived;
+                          const id = (archiveTarget as any).id;
+                          if (isArchived) await unarchiveRepositoryById(client, id);
+                          else await archiveRepositoryById(client, id);
+                          setItems(prev => prev.map(r => (r.id === (archiveTarget as any).id ? { ...r, isArchived: !isArchived } : r)));
+                          closeArchiveModal();
+                        } catch (e) {
+                          setArchiving(false);
+                          setArchiveError('Failed to update archive state. Check permissions.');
+                        }
+                      })();
+                    } else {
+                      closeArchiveModal();
+                    }
+                  }}
+                />
+              </Box>
+              {archiveError && (
+                <Box marginTop={1}>
+                  <Text color="magenta">{archiveError}</Text>
+                </Box>
+              )}
+              {archiving && (
+                <Box marginTop={1}>
+                  <Text color="yellow">{archiveTarget.isArchived ? 'Unarchiving...' : 'Archiving...'}</Text>
+                </Box>
+              )}
+            </Box>
+          </Box>
+        ) : syncMode && syncTarget ? (
+          <Box height={contentHeight} alignItems="center" justifyContent="center">
+            <Box flexDirection="column" borderStyle="round" borderColor="blue" paddingX={3} paddingY={2} width={Math.min(terminalWidth - 8, 80)}>
+              <Text bold>Sync Fork Confirmation</Text>
+              <Text color="blue">⟲  Sync fork with upstream?</Text>
+              <Box height={1}><Text> </Text></Box>
+              <Text>{syncTarget.nameWithOwner}</Text>
+              {syncTarget.parent && (
+                <Text color="gray">Upstream: {syncTarget.parent.nameWithOwner}</Text>
+              )}
+              <Box marginTop={1}>
+                <Text>
+                  This will merge upstream changes into your fork.
+                </Text>
+              </Box>
+              <Box marginTop={1} flexDirection="row" justifyContent="center" gap={6}>
+                <Box
+                  borderStyle="round"
+                  borderColor="blue"
+                  height={3}
+                  width={20}
+                  alignItems="center"
+                  justifyContent="center"
+                  flexDirection="column"
+                >
+                  <Text>
+                    {syncFocus === 'confirm' ? 
+                      chalk.bgBlue.white.bold(' Sync ') : 
+                      chalk.blue.bold('Sync')
+                    }
+                  </Text>
+                </Box>
+                <Box
+                  borderStyle="round"
+                  borderColor={syncFocus === 'cancel' ? 'white' : 'gray'}
+                  height={3}
+                  width={20}
+                  alignItems="center"
+                  justifyContent="center"
+                  flexDirection="column"
+                >
+                  <Text>
+                    {syncFocus === 'cancel' ? 
+                      chalk.bgGray.white.bold(' Cancel ') : 
+                      chalk.gray.bold('Cancel')
+                    }
+                  </Text>
+                </Box>
+              </Box>
+              <Box marginTop={1} flexDirection="row" justifyContent="center">
+                <Text color="gray">Press Enter to {syncFocus === 'confirm' ? 'Sync' : 'Cancel'} • y to confirm • c to cancel</Text>
+              </Box>
+              <Box marginTop={1}>
+                <TextInput
+                  value=""
+                  onChange={() => { /* noop */ }}
+                  onSubmit={() => {
+                    if (syncFocus === 'confirm') {
+                      (async () => {
+                        try {
+                          setSyncing(true);
+                          const [owner, repo] = syncTarget.nameWithOwner.split('/');
+                          const result = await syncForkWithUpstream(token, owner, repo);
+                          
+                          // Update the repository state to show 0 behind
+                          setItems(prev => prev.map(r => {
+                            if (r.id === (syncTarget as any).id && r.parent && r.defaultBranchRef?.target?.history && r.parent.defaultBranchRef?.target?.history) {
+                              return {
+                                ...r,
+                                defaultBranchRef: {
+                                  ...r.defaultBranchRef,
+                                  target: {
+                                    ...r.defaultBranchRef.target,
+                                    history: {
+                                      totalCount: r.parent.defaultBranchRef.target.history.totalCount
+                                    }
+                                  }
+                                }
+                              };
+                            }
+                            return r;
+                          }));
+                          closeSyncModal();
+                        } catch (e: any) {
+                          setSyncing(false);
+                          setSyncError(e.message || 'Failed to sync fork. Check permissions and network.');
+                        }
+                      })();
+                    } else {
+                      closeSyncModal();
+                    }
+                  }}
+                />
+              </Box>
+              {syncError && (
+                <Box marginTop={1}>
+                  <Text color="magenta">{syncError}</Text>
+                </Box>
+              )}
+              {syncing && (
+                <Box marginTop={1}>
+                  <Text color="yellow">Syncing...</Text>
+                </Box>
+              )}
+            </Box>
+          </Box>
+        ) : logoutMode ? (
+          <Box height={contentHeight} alignItems="center" justifyContent="center">
+            <Box flexDirection="column" borderStyle="round" borderColor="cyan" paddingX={3} paddingY={2} width={Math.min(terminalWidth - 8, 80)}>
+              <Text bold>Logout Confirmation</Text>
+              <Text color="cyan">Are you sure you want to log out?</Text>
+              <Box marginTop={1} flexDirection="row" justifyContent="center" gap={6}>
+                <Box
+                  borderStyle="round"
+                  borderColor="cyan"
+                  height={3}
+                  width={20}
+                  alignItems="center"
+                  justifyContent="center"
+                  flexDirection="column"
+                >
+                  <Text>
+                    {logoutFocus === 'confirm' ? 
+                      chalk.bgCyan.white.bold(' Logout ') : 
+                      chalk.cyan.bold('Logout')
+                    }
+                  </Text>
+                </Box>
+                <Box
+                  borderStyle="round"
+                  borderColor={logoutFocus === 'cancel' ? 'white' : 'gray'}
+                  height={3}
+                  width={20}
+                  alignItems="center"
+                  justifyContent="center"
+                  flexDirection="column"
+                >
+                  <Text>
+                    {logoutFocus === 'cancel' ? 
+                      chalk.bgGray.white.bold(' Cancel ') : 
+                      chalk.gray.bold('Cancel')
+                    }
+                  </Text>
+                </Box>
+              </Box>
+              <Box marginTop={1} flexDirection="row" justifyContent="center">
+                <Text color="gray">Press Enter to {logoutFocus === 'confirm' ? 'Logout' : 'Cancel'} • Y to confirm • C to cancel</Text>
+              </Box>
+            </Box>
+          </Box>
+        ) : orgSwitcherOpen ? (
           <Box height={contentHeight} alignItems="center" justifyContent="center">
             <OrgSwitcher 
               token={token}
