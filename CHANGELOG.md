@@ -1,3 +1,10 @@
+# [1.3.0](https://github.com/wiiiimm/gh-manager-cli/compare/v1.2.0...v1.3.0) (2025-08-31)
+
+
+### Features
+
+* **auth:** add Logout modal (Ctrl+L) with confirm/cancel; return to Authentication Required on confirm; fix modalOpen; center footer; clarify fork metric labels; refine key handling (case-insensitive, Ctrl+G/G separation); clear screen on quit; set page size to 5 (dev)/15 (prod) ([7a6a0fb](https://github.com/wiiiimm/gh-manager-cli/commit/7a6a0fb8767986b8640371e483f0fc5a084e75a2))
+
 # [1.2.0](https://github.com/wiiiimm/gh-manager-cli/compare/v1.1.1...v1.2.0) (2025-08-31)
 
 
