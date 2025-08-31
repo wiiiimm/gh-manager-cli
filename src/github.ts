@@ -200,7 +200,7 @@ export async function fetchViewerReposPageUnified(
   includeForkTracking: boolean = true,
   fetchPolicy: 'cache-first' | 'cache-and-network' | 'network-only' = 'cache-first'
 ): Promise<ReposPageResult> {
-  const isApolloEnabled = process.env.GH_MANAGER_APOLLO === '1';
+  const isApolloEnabled = true;
   const debug = process.env.GH_MANAGER_DEBUG === '1';
   
   if (debug) {

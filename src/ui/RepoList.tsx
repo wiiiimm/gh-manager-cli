@@ -151,6 +151,9 @@ export default function RepoList({ token, maxVisibleRows, onLogout, viewerLogin 
   const [syncError, setSyncError] = useState<string | null>(null);
   const [syncFocus, setSyncFocus] = useState<'confirm' | 'cancel'>('confirm');
 
+  // Info (hidden) modal state
+  const [infoMode, setInfoMode] = useState(false);
+
   // Logout modal state
   const [logoutMode, setLogoutMode] = useState(false);
   const [logoutFocus, setLogoutFocus] = useState<'confirm' | 'cancel'>('confirm');
@@ -486,6 +489,15 @@ export default function RepoList({ token, maxVisibleRows, onLogout, viewerLogin 
       return;
     }
 
+    // When in info mode, trap inputs (Esc or I to close)
+    if (infoMode) {
+      if (key.escape || (input && input.toUpperCase() === 'I')) {
+        setInfoMode(false);
+        return;
+      }
+      return;
+    }
+
     // When in filter mode, only handle input for the TextInput
     if (filterMode) {
       if (key.escape) {
@@ -609,6 +621,12 @@ export default function RepoList({ token, maxVisibleRows, onLogout, viewerLogin 
     // Start filter mode
     if (input === '/') {
       setFilterMode(true);
+      return;
+    }
+
+    // Hidden Info modal toggle (I)
+    if (input && input.toUpperCase() === 'I') {
+      setInfoMode(true);
       return;
     }
 
@@ -755,7 +773,7 @@ export default function RepoList({ token, maxVisibleRows, onLogout, viewerLogin 
   }
 
   const lowRate = rateLimit && rateLimit.remaining <= Math.ceil(rateLimit.limit * 0.1);
-  const modalOpen = deleteMode || archiveMode || syncMode || logoutMode;
+  const modalOpen = deleteMode || archiveMode || syncMode || logoutMode || infoMode;
 
   // Memoize header to prevent re-renders - must be before any returns
   const headerBar = useMemo(() => (
@@ -1212,6 +1230,39 @@ export default function RepoList({ token, maxVisibleRows, onLogout, viewerLogin 
                 <Text color="gray">Press Enter to {logoutFocus === 'confirm' ? 'Logout' : 'Cancel'} • Y to confirm • C to cancel</Text>
               </Box>
             </Box>
+          </Box>
+        ) : infoMode ? (
+          <Box height={contentHeight} alignItems="center" justifyContent="center">
+            {(() => {
+              const repo = filteredAndSorted[cursor];
+              if (!repo) return <Text color="red">No repository selected.</Text>;
+              const langName = repo.primaryLanguage?.name || 'N/A';
+              const langColor = repo.primaryLanguage?.color || '#666666';
+              return (
+                <Box flexDirection="column" borderStyle="round" borderColor="magenta" paddingX={3} paddingY={2} width={Math.min(terminalWidth - 8, 90)}>
+                  <Text bold>Repository Info</Text>
+                  <Box height={1}><Text> </Text></Box>
+                  <Text>{chalk.bold(repo.nameWithOwner)}</Text>
+                  {repo.description && <Text color="gray">{repo.description}</Text>}
+                  <Box height={1}><Text> </Text></Box>
+                  <Text>
+                    {repo.isPrivate ? chalk.yellow('Private') : chalk.green('Public')}
+                    {repo.isArchived ? chalk.gray('  Archived') : ''}
+                    {repo.isFork ? chalk.blue('  Fork') : ''}
+                  </Text>
+                  <Text>
+                    {chalk.gray(`★ ${repo.stargazerCount}  ⑂ ${repo.forkCount}`)}
+                  </Text>
+                  <Text>
+                    {chalk.hex(langColor)(`● `)}{chalk.gray(`${langName}`)}
+                  </Text>
+                  <Text color="gray">Updated: {formatDate(repo.updatedAt)} • Pushed: {formatDate(repo.pushedAt)}</Text>
+                  <Text color="gray">Size: {repo.diskUsage} KB</Text>
+                  <Box height={1}><Text> </Text></Box>
+                  <Text color="gray">Press Esc or I to close</Text>
+                </Box>
+              );
+            })()}
           </Box>
         ) : (
           <>

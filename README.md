@@ -41,6 +41,7 @@ On first run, you'll be prompted for a GitHub Personal Access Token.
 - **Real-time Sorting**: Server-side sorting by updated, pushed, name, or stars (with direction toggle)
 - **Smart Filtering**: Client-side search through repository names and descriptions
 - **Repository Actions**:
+  - View detailed info (`I`) - Shows repository metadata, language, size, and timestamps
   - Open in browser (Enter/`O`)
   - Delete repository (`Del` or `Ctrl+Backspace`) with secure two-step confirmation
   - Archive/unarchive repositories (`Ctrl+A`) with confirmation prompts
@@ -139,6 +140,7 @@ Launch the app, then use the keys below:
 - Filter: `/` to enter, type query, Enter to apply (Esc cancels)
 - Sorting: `S` to cycle field (updated → pushed → name → stars → forks), `D` to toggle direction
 - Display density: `T` to toggle compact/cozy/comfy
+- Repository info: `I` to view detailed metadata (size, language, timestamps)
 - Open in browser: Enter or `O`
 - Delete repository: `Del` or `Ctrl+Backspace` (with confirmation modal)
   - Uses GitHub REST API (requires `delete_repo` scope and admin rights)
@@ -191,20 +193,13 @@ Project layout:
 
 ## Apollo Cache (Performance)
 
-gh-manager-cli includes optional Apollo Client caching to reduce GitHub API calls and improve performance:
-
-### Enabling Apollo Cache
-
-```bash
-# Enable Apollo caching with debug output
-GH_MANAGER_APOLLO=1 GH_MANAGER_DEBUG=1 npx gh-manager
-```
+gh-manager-cli includes built-in Apollo Client caching to reduce GitHub API calls and improve performance. Caching is **always enabled** for optimal performance.
 
 ### Verifying Cache is Working
 
 1. **Debug Output**: Run with `GH_MANAGER_DEBUG=1` to see cache status:
    ```bash
-   GH_MANAGER_APOLLO=1 GH_MANAGER_DEBUG=1 npx gh-manager
+   GH_MANAGER_DEBUG=1 npx gh-manager
    ```
 
 2. **Cache Inspection**: Press `i` (in debug mode) to inspect cache status:
@@ -230,11 +225,11 @@ Even with caching enabled, API credits may decrease due to:
 ### Cache Configuration
 
 ```bash
-# Custom cache TTL (milliseconds)
-APOLLO_TTL_MS=1800000 npx gh-manager  # 30 minutes
+# Custom cache TTL (milliseconds) - default: 30 minutes
+APOLLO_TTL_MS=1800000 npx gh-manager
 
-# Force network-only (disable cache)
-GH_MANAGER_APOLLO=0 npx gh-manager
+# Enable debug mode to see cache performance
+GH_MANAGER_DEBUG=1 npx gh-manager
 ```
 
 ## Troubleshooting
