@@ -145,11 +145,11 @@ jobs:
           echo "@wiiiimm:registry=https://npm.pkg.github.com" >> .npmrc
           echo "//npm.pkg.github.com/:_authToken=${NODE_AUTH_TOKEN}" >> .npmrc
           
-          # Create scoped package.json for GitHub Packages
-          cp package.json package-github.json
-          
-          # Update name to be scoped for GitHub Packages  
-          sed -i 's/"name": "gh-manager-cli"/"name": "@wiiiimm\/gh-manager-cli"/' package-github.json
+          # Temporarily update package.json for scoped publishing
+          sed -i 's/"name": "gh-manager-cli"/"name": "@wiiiimm\/gh-manager-cli"/' package.json
           
           # Publish to GitHub Packages
-          npm publish package-github.json --registry=https://npm.pkg.github.com
+          npm publish --registry=https://npm.pkg.github.com
+          
+          # Restore original package.json
+          git checkout package.json
