@@ -7,10 +7,14 @@ export function makeClient(token: string) {
   });
 }
 
-export async function getViewerLogin(client: ReturnType<typeof makeClient>): Promise<string> {
+export async function getViewerLogin(
+  client: ReturnType<typeof makeClient>
+): Promise<string> {
   const query = /* GraphQL */ `
     query ViewerLogin {
-      viewer { login }
+      viewer {
+        login
+      }
     }
   `;
   const res: any = await client(query);
@@ -34,19 +38,31 @@ export async function fetchViewerReposPage(
   // Default to UPDATED_AT DESC if not specified
   const sortField = orderBy?.field || 'UPDATED_AT';
   const sortDirection = orderBy?.direction || 'DESC';
-  
+
   const query = /* GraphQL */ `
-    query ViewerRepos($first: Int!, $after: String, $sortField: RepositoryOrderField!, $sortDirection: OrderDirection!) {
-      rateLimit { limit remaining resetAt }
+    query ViewerRepos(
+      $first: Int!
+      $after: String
+      $sortField: RepositoryOrderField!
+      $sortDirection: OrderDirection!
+    ) {
+      rateLimit {
+        limit
+        remaining
+        resetAt
+      }
       viewer {
         repositories(
-          ownerAffiliations: OWNER,
-          first: $first,
-          after: $after,
+          ownerAffiliations: OWNER
+          first: $first
+          after: $after
           orderBy: { field: $sortField, direction: $sortDirection }
         ) {
           totalCount
-          pageInfo { endCursor hasNextPage }
+          pageInfo {
+            endCursor
+            hasNextPage
+          }
           nodes {
             id
             name
@@ -58,7 +74,10 @@ export async function fetchViewerReposPage(
             isArchived
             stargazerCount
             forkCount
-            primaryLanguage { name color }
+            primaryLanguage {
+              name
+              color
+            }
             updatedAt
             pushedAt
             diskUsage
@@ -88,11 +107,11 @@ export async function fetchViewerReposPage(
       }
     }
   `;
-  const res: any = await client(query, { 
-    first, 
+  const res: any = await client(query, {
+    first,
     after: after ?? null,
     sortField,
-    sortDirection
+    sortDirection,
   });
   const data = res.viewer.repositories;
   return {
@@ -104,13 +123,53 @@ export async function fetchViewerReposPage(
   };
 }
 
-export async function deleteRepositoryById(
+// GitHub GraphQL does not support deleting repos. Use REST: DELETE /repos/{owner}/{repo}
+export async function deleteRepositoryRest(
+  token: string,
+  owner: string,
+  repo: string
+): Promise<void> {
+  const url = `https://api.github.com/repos/${owner}/${repo}`;
+  const res = await fetch(url, {
+    method: 'DELETE',
+    headers: {
+      'Authorization': `token ${token}`,
+      'Accept': 'application/vnd.github+json',
+      'User-Agent': 'gh-manager-cli'
+    }
+  } as any);
+  if (res.status === 204) return; // No Content = success
+  let msg = `GitHub REST delete failed (status ${res.status})`;
+  try {
+    const body = await res.json();
+    if (body && body.message) msg += `: ${body.message}`;
+  } catch {
+    // ignore
+  }
+  throw new Error(msg);
+}
+
+export async function archiveRepositoryById(
   client: ReturnType<typeof makeClient>,
   repositoryId: string
 ): Promise<void> {
   const mutation = /* GraphQL */ `
-    mutation DeleteRepo($repositoryId: ID!) {
-      deleteRepository(input: { repositoryId: $repositoryId }) {
+    mutation ArchiveRepo($repositoryId: ID!) {
+      archiveRepository(input: { repositoryId: $repositoryId }) {
+        clientMutationId
+      }
+    }
+  `;
+  await client(mutation, { repositoryId });
+}
+
+export async function unarchiveRepositoryById(
+  client: ReturnType<typeof makeClient>,
+  repositoryId: string
+): Promise<void> {
+  const mutation = /* GraphQL */ `
+    mutation UnarchiveRepo($repositoryId: ID!) {
+      unarchiveRepository(input: { repositoryId: $repositoryId }) {
         clientMutationId
       }
     }

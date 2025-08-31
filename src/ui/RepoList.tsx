@@ -2,7 +2,7 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { Box, Text, useApp, useInput, useStdout, Spacer, Newline } from 'ink';
 import TextInput from 'ink-text-input';
 import chalk from 'chalk';
-import { makeClient, fetchViewerReposPage, deleteRepositoryById } from '../github';
+import { makeClient, fetchViewerReposPage, deleteRepositoryRest, archiveRepositoryById, unarchiveRepositoryById } from '../github';
 import { getUIPrefs, storeUIPrefs } from '../config';
 import type { RepoNode, RateLimitInfo } from '../types';
 import { exec } from 'child_process';
@@ -122,6 +122,21 @@ export default function RepoList({ token, maxVisibleRows }: { token: string; max
   const [deleteConfirmStage, setDeleteConfirmStage] = useState(false); // true after code verified
   const [confirmFocus, setConfirmFocus] = useState<'delete' | 'cancel'>('delete');
 
+  // Archive modal state
+  const [archiveMode, setArchiveMode] = useState(false);
+  const [archiveTarget, setArchiveTarget] = useState<RepoNode | null>(null);
+  const [archiving, setArchiving] = useState(false);
+  const [archiveError, setArchiveError] = useState<string | null>(null);
+  const [archiveFocus, setArchiveFocus] = useState<'confirm' | 'cancel'>('confirm');
+
+  function closeArchiveModal() {
+    setArchiveMode(false);
+    setArchiveTarget(null);
+    setArchiving(false);
+    setArchiveError(null);
+    setArchiveFocus('confirm');
+  }
+
   function cancelDeleteModal() {
     setDeleteMode(false);
     setDeleteTarget(null);
@@ -136,7 +151,9 @@ export default function RepoList({ token, maxVisibleRows }: { token: string; max
     if (!deleteTarget) return;
     try {
       setDeleting(true);
-      await deleteRepositoryById(client, (deleteTarget as any).id);
+      // REST: requires owner/repo and a token with delete_repo scope
+      const [owner, repo] = (deleteTarget.nameWithOwner || '').split('/');
+      await deleteRepositoryRest(token, owner, repo);
       // Remove from items and update counts
       setItems((prev) => prev.filter((r: any) => r.id !== (deleteTarget as any).id));
       setTotalCount((c) => Math.max(0, c - 1));
@@ -150,7 +167,7 @@ export default function RepoList({ token, maxVisibleRows }: { token: string; max
       setCursor((c) => Math.max(0, Math.min(c, filteredAndSorted.length - 2)));
     } catch (e: any) {
       setDeleting(false);
-      setDeleteError('Failed to delete repository. Check token scopes and permissions.');
+      setDeleteError('Failed to delete repository. Ensure delete_repo scope and admin permissions.');
     }
   }
 
@@ -257,6 +274,46 @@ export default function RepoList({ token, maxVisibleRows }: { token: string; max
       return;
     }
 
+    // When in archive mode, trap inputs for modal
+    if (archiveMode) {
+      if (key.escape || input === 'c') {
+        closeArchiveModal();
+        return;
+      }
+      if (key.leftArrow) {
+        setArchiveFocus('confirm');
+        return;
+      }
+      if (key.rightArrow) {
+        setArchiveFocus('cancel');
+        return;
+      }
+      if (key.return || (input && input.toLowerCase() === 'y')) {
+        if (archiveFocus === 'cancel') {
+          closeArchiveModal();
+          return;
+        }
+        if (!archiveTarget) return;
+        (async () => {
+          try {
+            setArchiving(true);
+            const isArchived = archiveTarget.isArchived;
+            const id = (archiveTarget as any).id;
+            if (isArchived) await unarchiveRepositoryById(client, id);
+            else await archiveRepositoryById(client, id);
+            setItems(prev => prev.map(r => (r.id === (archiveTarget as any).id ? { ...r, isArchived: !isArchived } : r)));
+            closeArchiveModal();
+          } catch (e) {
+            setArchiving(false);
+            setArchiveError('Failed to update archive state. Check permissions.');
+          }
+        })();
+        return;
+      }
+      // Trap everything else
+      return;
+    }
+
     // When in filter mode, only handle input for the TextInput
     if (filterMode) {
       if (key.escape) {
@@ -306,6 +363,19 @@ export default function RepoList({ token, maxVisibleRows }: { token: string; max
       setRefreshing(true);
       setSortingLoading(true); // Use same loading state for consistency
       fetchPage(null, true, true); // Reset and show loading
+    }
+
+    // Archive/unarchive modal
+    if (input === 'a') {
+      const repo = filteredAndSorted[cursor];
+      if (repo) {
+        setArchiveTarget(repo);
+        setArchiveMode(true);
+        setArchiveError(null);
+        setArchiving(false);
+        setArchiveFocus('confirm');
+      }
+      return;
     }
 
     // Start filter mode
@@ -434,12 +504,13 @@ export default function RepoList({ token, maxVisibleRows }: { token: string; max
   }
 
   const lowRate = rateLimit && rateLimit.remaining <= Math.ceil(rateLimit.limit * 0.1);
+  const modalOpen = deleteMode || archiveMode;
 
   // Memoize header to prevent re-renders - must be before any returns
   const headerBar = useMemo(() => (
     <Box flexDirection="row" justifyContent="space-between" height={1} marginBottom={1}>
       <Box flexDirection="row" gap={1}>
-        <Text bold color={deleteMode ? 'gray' : undefined} dimColor={deleteMode ? true : undefined}>  Repositories</Text>
+        <Text bold color={modalOpen ? 'gray' : undefined} dimColor={modalOpen ? true : undefined}>  Repositories</Text>
         <Text color="gray">({filteredAndSorted.length}/{totalCount})</Text>
         {loading && (
           <Box width={2} flexShrink={0} flexGrow={0} marginLeft={1}>
@@ -456,7 +527,7 @@ export default function RepoList({ token, maxVisibleRows }: { token: string; max
         </Text>
       )}
     </Box>
-  ), [filteredAndSorted.length, totalCount, loading, rateLimit, lowRate, deleteMode]);
+  ), [filteredAndSorted.length, totalCount, loading, rateLimit, lowRate, modalOpen]);
 
   if (error) {
     return (
@@ -525,7 +596,7 @@ export default function RepoList({ token, maxVisibleRows }: { token: string; max
       {headerBar}
 
       {/* Main content container with border - fixed height */}
-      <Box borderStyle="single" borderColor={deleteMode ? 'gray' : 'yellow'} paddingX={1} paddingY={1} marginX={1} height={contentHeight + containerPadding + 2} flexDirection="column">
+      <Box borderStyle="single" borderColor={modalOpen ? 'gray' : 'yellow'} paddingX={1} paddingY={1} marginX={1} height={contentHeight + containerPadding + 2} flexDirection="column">
         {deleteMode && deleteTarget ? (
           // Centered modal; hide list content while modal is open
           <Box height={contentHeight} alignItems="center" justifyContent="center">
@@ -639,6 +710,85 @@ export default function RepoList({ token, maxVisibleRows }: { token: string; max
                       )}
             </Box>
           </Box>
+        ) : archiveMode && archiveTarget ? (
+          <Box height={contentHeight} alignItems="center" justifyContent="center">
+            <Box flexDirection="column" borderStyle="round" borderColor={archiveTarget.isArchived ? 'green' : 'yellow'} paddingX={3} paddingY={2} width={Math.min(terminalWidth - 8, 80)}>
+              <Text bold>{archiveTarget.isArchived ? 'Unarchive Confirmation' : 'Archive Confirmation'}</Text>
+              <Text color={archiveTarget.isArchived ? 'green' : 'yellow'}>
+                {archiveTarget.isArchived ? '↺  Unarchive repository?' : '⚠️  Archive repository?'}
+              </Text>
+              <Box height={1}><Text> </Text></Box>
+              <Text>{archiveTarget.nameWithOwner}</Text>
+              <Box marginTop={1}>
+                <Text>
+                  {archiveTarget.isArchived ? 'This will make the repository active again.' : 'This will make the repository read-only.'}
+                </Text>
+              </Box>
+              <Box marginTop={1} flexDirection="row" justifyContent="center" gap={6}>
+                <Box
+                  borderStyle="round"
+                  borderColor={archiveTarget.isArchived ? 'green' : 'yellow'}
+                  height={3}
+                  width={20}
+                  alignItems="center"
+                  justifyContent="center"
+                  flexDirection="column"
+                >
+                  <Text bold color={archiveTarget.isArchived ? 'green' : 'yellow'}>{archiveTarget.isArchived ? 'Unarchive' : 'Archive'}</Text>
+                </Box>
+                <Box
+                  borderStyle="round"
+                  borderColor={archiveFocus === 'cancel' ? 'white' : 'gray'}
+                  height={3}
+                  width={20}
+                  alignItems="center"
+                  justifyContent="center"
+                  flexDirection="column"
+                >
+                  <Text bold color={archiveFocus === 'cancel' ? 'white' : 'gray'}>Cancel</Text>
+                </Box>
+              </Box>
+              <Box marginTop={1} flexDirection="row" justifyContent="center">
+                <Text color="gray">Press Enter to {archiveFocus === 'confirm' ? (archiveTarget.isArchived ? 'Unarchive' : 'Archive') : 'Cancel'} • y to confirm • c to cancel</Text>
+              </Box>
+              <Box marginTop={1}>
+                <TextInput
+                  value=""
+                  onChange={() => { /* noop */ }}
+                  onSubmit={() => {
+                    if (archiveFocus === 'confirm') {
+                      (async () => {
+                        try {
+                          setArchiving(true);
+                          const isArchived = archiveTarget.isArchived;
+                          const id = (archiveTarget as any).id;
+                          if (isArchived) await unarchiveRepositoryById(client, id);
+                          else await archiveRepositoryById(client, id);
+                          setItems(prev => prev.map(r => (r.id === (archiveTarget as any).id ? { ...r, isArchived: !isArchived } : r)));
+                          closeArchiveModal();
+                        } catch (e) {
+                          setArchiving(false);
+                          setArchiveError('Failed to update archive state. Check permissions.');
+                        }
+                      })();
+                    } else {
+                      closeArchiveModal();
+                    }
+                  }}
+                />
+              </Box>
+              {archiveError && (
+                <Box marginTop={1}>
+                  <Text color="magenta">{archiveError}</Text>
+                </Box>
+              )}
+              {archiving && (
+                <Box marginTop={1}>
+                  <Text color="yellow">{archiveTarget.isArchived ? 'Unarchiving...' : 'Archiving...'}</Text>
+                </Box>
+              )}
+            </Box>
+          </Box>
         ) : (
           <>
             {/* Filter/sort status */}
@@ -695,9 +845,9 @@ export default function RepoList({ token, maxVisibleRows }: { token: string; max
       </Box>
 
       {/* Help footer */}
-      <Box borderStyle="single" borderColor={deleteMode ? 'gray' : 'yellow'} paddingX={1} paddingY={0} marginTop={1} marginX={1} height={3}>
-        <Text color="gray" dimColor={deleteMode ? true : undefined}>
-          ↑↓ Navigate • / Filter • s Sort • d Direction • t Density • ⏎ Open • Del Delete • r Refresh • q Quit
+      <Box borderStyle="single" borderColor={modalOpen ? 'gray' : 'yellow'} paddingX={1} paddingY={0} marginTop={1} marginX={1} height={3}>
+        <Text color="gray" dimColor={modalOpen ? true : undefined}>
+          ↑↓ Navigate • / Filter • s Sort • d Direction • t Density • ⏎ Open • Del Delete • a Archive • r Refresh • q Quit
         </Text>
       </Box>
     </Box>

@@ -59,6 +59,8 @@ Launch the app, then use the keys below:
 - Display density: `t` to toggle compact/cozy/comfy
 - Open in browser: Enter or `o`
 - Delete repository: `Del` or Backspace (with confirmation modal)
+  - Uses GitHub REST API (requires `delete_repo` scope and admin rights)
+  - Two-step confirm: type code → confirm (y/Enter)
   - Confirm: press `y` or Enter
   - Cancel: press `c` or Esc
 - Quit: `q` or Esc

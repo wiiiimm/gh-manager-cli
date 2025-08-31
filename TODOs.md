@@ -12,9 +12,9 @@ Legend:
 - [x] Density toggle (row spacing)
   - Key `t` cycles: Compact (0), Cozy (1), Comfy (2) blank lines
   - Update virtualization math to reflect spacing
-  - [ ] Persist preference in config (and read on boot)
+  - [x] Persist preference in config (and read on boot)
 
-- [ ] Persist UI preferences (s/d/t)
+- [x] Persist UI preferences (s/d/t)
   - Store sort field (`s`), sort direction (`d`), and density (`t`) in config
   - Read on startup and apply to initial state; write on each toggle
   - Backward‑compatible defaults when values are missing
@@ -46,7 +46,8 @@ Legend:
       - User types the exact code then presses Enter to proceed
       - Pressing `Esc` or `c` cancels the deletion (case-sensitive)
       - Because `c` is cancel, ensure the generated code never includes `C`
-    - Execute delete via GitHub API (GraphQL mutation), requires appropriate admin/scopes
+    - Execute delete via GitHub REST API (DELETE /repos/{owner}/{repo}); GraphQL has no delete mutation
+      - Requires `delete_repo` scope and admin permissions on the repo
     - On success: close modal, remove repo from list, refresh totalCount
     - On failure: show error in modal, allow retry or cancel
   - Respect read‑only tokens (hide actions or show tooltip)
