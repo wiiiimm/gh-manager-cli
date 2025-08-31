@@ -2,9 +2,9 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { Box, Text, useApp, useInput, useStdout, Spacer, Newline } from 'ink';
 import TextInput from 'ink-text-input';
 import chalk from 'chalk';
-import { makeClient, fetchViewerReposPageUnified, deleteRepositoryRest, archiveRepositoryById, unarchiveRepositoryById, syncForkWithUpstream, purgeApolloCacheFiles, inspectCacheStatus } from '../github';
+import { makeClient, fetchViewerReposPageUnified, searchRepositoriesUnified, deleteRepositoryRest, archiveRepositoryById, unarchiveRepositoryById, syncForkWithUpstream, purgeApolloCacheFiles, inspectCacheStatus } from '../github';
 import { getUIPrefs, storeUIPrefs } from '../config';
-import { makeApolloKey, isFresh, markFetched } from '../apolloMeta';
+import { makeApolloKey, makeSearchKey, isFresh, markFetched } from '../apolloMeta';
 import type { RepoNode, RateLimitInfo } from '../types';
 import { exec } from 'child_process';
 
@@ -108,6 +108,19 @@ export default function RepoList({ token, maxVisibleRows, onLogout, viewerLogin 
   const { stdout } = useStdout();
   const client = useMemo(() => makeClient(token), [token]);
   
+  // Debug messages state
+  const [debugMessages, setDebugMessages] = useState<string[]>([]);
+  const addDebugMessage = (msg: string) => {
+    if (process.env.GH_MANAGER_DEBUG === '1') {
+      setDebugMessages(prev => [...prev.slice(-9), msg]); // Keep last 10 messages
+    }
+  };
+  
+  // Log on component mount
+  React.useEffect(() => {
+    addDebugMessage(`[RepoList] Component mounted`);
+  }, []);
+  
   // Get terminal width for dynamic description truncation
   const terminalWidth = stdout?.columns ?? 80;
   const availableHeight = maxVisibleRows ?? 20;
@@ -127,6 +140,12 @@ export default function RepoList({ token, maxVisibleRows, onLogout, viewerLogin 
   // Display density: 0 = compact (0 lines), 1 = cozy (1 line), 2 = comfy (2 lines)
   const [density, setDensity] = useState<0 | 1 | 2>(2);
   const [prefsLoaded, setPrefsLoaded] = useState(false);
+  // Search state (server-side)
+  const [searchItems, setSearchItems] = useState<RepoNode[]>([]);
+  const [searchEndCursor, setSearchEndCursor] = useState<string | null>(null);
+  const [searchHasNextPage, setSearchHasNextPage] = useState(false);
+  const [searchTotalCount, setSearchTotalCount] = useState<number>(0);
+  const [searchLoading, setSearchLoading] = useState(false);
   // Delete modal state
   const [deleteMode, setDeleteMode] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState<RepoNode | null>(null);
@@ -202,7 +221,7 @@ export default function RepoList({ token, maxVisibleRows, onLogout, viewerLogin 
       setDeleting(false);
       setDeleteConfirmStage(false);
       // Keep cursor in range
-      setCursor((c) => Math.max(0, Math.min(c, filteredAndSorted.length - 2)));
+      setCursor((c) => Math.max(0, Math.min(c, visibleItems.length - 2)));
     } catch (e: any) {
       setDeleting(false);
       setDeleteError('Failed to delete repository. Ensure delete_repo scope and admin permissions.');
@@ -234,7 +253,7 @@ export default function RepoList({ token, maxVisibleRows, onLogout, viewerLogin 
     reset = false,
     isSortChange = false,
     overrideForkTracking?: boolean,
-    policy?: 'cache-first' | 'cache-and-network' | 'network-only'
+    policy?: 'cache-first' | 'network-only'
   ) => {
     if (isSortChange) {
       setSortingLoading(true);
@@ -290,6 +309,69 @@ export default function RepoList({ token, maxVisibleRows, onLogout, viewerLogin 
     }
   };
 
+  // Server-side search fetch
+  const fetchSearchPage = async (after?: string | null, reset = false, policy?: 'cache-first' | 'network-only', searchQuery?: string) => {
+    // Use provided searchQuery or fall back to filter state
+    const query = searchQuery ?? filter;
+    
+    addDebugMessage(`[fetchSearchPage] query="${query}", searchQuery="${searchQuery}", filter="${filter}"`);
+    
+    if (!viewerLogin) {
+      addDebugMessage('❌ No viewerLogin for search');
+      return;
+    }
+    setSearchLoading(true);
+    try {
+      const orderBy = { field: sortFieldMap[sortKey], direction: sortDir.toUpperCase() };
+      addDebugMessage(`[fetchSearchPage] Calling API with viewer="${viewerLogin}", query="${query.trim()}"`);
+      const page = await searchRepositoriesUnified(
+        token,
+        viewerLogin,
+        query.trim(),
+        PAGE_SIZE,
+        after ?? null,
+        orderBy.field,
+        orderBy.direction,
+        forkTracking,
+        policy ?? (after ? 'network-only' : 'cache-first')
+      );
+      
+      addDebugMessage(`[fetchSearchPage] API returned ${page.nodes.length} results, totalCount=${page.totalCount}`);
+      if (page.nodes.length > 0) {
+        addDebugMessage(`[fetchSearchPage] First result: ${page.nodes[0].name}`);
+      }
+      
+      setSearchItems(prev => (reset || !after ? page.nodes : [...prev, ...page.nodes]));
+      setSearchEndCursor(page.endCursor);
+      setSearchHasNextPage(page.hasNextPage);
+      setSearchTotalCount(page.totalCount);
+      if (!after) {
+        try {
+          const key = makeSearchKey({
+            viewer: viewerLogin || 'unknown',
+            q: query.trim(),
+            sortKey,
+            sortDir,
+            pageSize: PAGE_SIZE,
+            forkTracking,
+          });
+          // 90 seconds TTL for search
+          markFetched(key);
+        } catch {}
+      }
+      setError(null);
+    } catch (e: any) {
+      const errorMsg = `Failed to search: ${e.message || e}`;
+      addDebugMessage(`❌ Search error: ${e.message || e}`);
+      if (e.stack) {
+        addDebugMessage(`Stack: ${e.stack.split('\n')[0]}`);
+      }
+      setError(errorMsg);
+    } finally {
+      setSearchLoading(false);
+    }
+  };
+
   // Load UI preferences (density, sort key/dir, fork tracking) on mount
   useEffect(() => {
     const ui = getUIPrefs();
@@ -308,7 +390,7 @@ export default function RepoList({ token, maxVisibleRows, onLogout, viewerLogin 
   useEffect(() => {
     if (!prefsLoaded) return;
     // Choose Apollo fetch policy based on TTL freshness
-    let policy: 'cache-first' | 'cache-and-network' = 'cache-first';
+    let policy: 'cache-first' | 'network-only' = 'cache-first';
     try {
       const key = makeApolloKey({
         viewer: viewerLogin || 'unknown',
@@ -317,7 +399,7 @@ export default function RepoList({ token, maxVisibleRows, onLogout, viewerLogin 
         pageSize: PAGE_SIZE,
         forkTracking,
       });
-      policy = isFresh(key) ? 'cache-first' : 'cache-and-network';
+      policy = isFresh(key) ? 'cache-first' : 'network-only';
     } catch {}
     fetchPage(null, true, false, undefined, policy);
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -326,22 +408,61 @@ export default function RepoList({ token, maxVisibleRows, onLogout, viewerLogin 
   // Refresh from server when sorting changes
   useEffect(() => {
     // Skip initial mount
-    if (items.length > 0) {
-      let policy: 'cache-first' | 'cache-and-network' = 'cache-first';
+    if (!searchActive) {
+      if (items.length > 0) {
+        let policy: 'cache-first' | 'network-only' = 'cache-first';
+        try {
+          const key = makeApolloKey({
+            viewer: viewerLogin || 'unknown',
+            sortKey,
+            sortDir,
+            pageSize: PAGE_SIZE,
+            forkTracking,
+          });
+          policy = isFresh(key) ? 'cache-first' : 'network-only';
+        } catch {}
+        fetchPage(null, true, true, undefined, policy);
+      }
+    } else {
+      // Re-run search with new sort
+      if (!searchLoading && filter.trim().length >= 3) {
+        let policy: 'cache-first' | 'network-only' = 'cache-first';
+        try {
+          const key = makeSearchKey({
+            viewer: viewerLogin || 'unknown',
+            q: filter.trim(),
+            sortKey,
+            sortDir,
+            pageSize: PAGE_SIZE,
+            forkTracking,
+          });
+          policy = isFresh(key, 90 * 1000) ? 'cache-first' : 'network-only';
+        } catch {}
+        fetchSearchPage(null, true, policy);
+      }
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [sortKey, sortDir]);
+
+  // If viewerLogin becomes available after typing (>=3), kick off search
+  useEffect(() => {
+    if (viewerLogin && searchActive && !searchLoading && searchItems.length === 0) {
+      let policy: 'cache-first' | 'network-only' = 'cache-first';
       try {
-        const key = makeApolloKey({
+        const key = makeSearchKey({
           viewer: viewerLogin || 'unknown',
+          q: filter.trim(),
           sortKey,
           sortDir,
           pageSize: PAGE_SIZE,
           forkTracking,
         });
-        policy = isFresh(key) ? 'cache-first' : 'cache-and-network';
+        policy = isFresh(key, 90 * 1000) ? 'cache-first' : 'network-only';
       } catch {}
-      fetchPage(null, true, true, undefined, policy);
+      fetchSearchPage(null, true, policy);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [sortKey, sortDir]);
+  }, [viewerLogin]);
 
   useInput((input, key) => {
     // When in delete mode, trap inputs for modal
@@ -501,10 +622,37 @@ export default function RepoList({ token, maxVisibleRows, onLogout, viewerLogin 
     // When in filter mode, only handle input for the TextInput
     if (filterMode) {
       if (key.escape) {
+        // Clear search and return to normal listing
         setFilterMode(false);
+        setFilter('');
+        setSearchItems([]);
+        setSearchEndCursor(null);
+        setSearchHasNextPage(false);
+        setSearchTotalCount(0);
+        setCursor(0); // Reset cursor to top
+        addDebugMessage('[ESC] Cleared search and returned to normal listing');
+        return;
+      }
+      // Down arrow in filter mode with search results - exit filter mode and select first item
+      if (key.downArrow && searchActive && visibleItems.length > 0) {
+        setFilterMode(false);
+        setCursor(0); // Select first item
+        addDebugMessage('[DOWN] Exited filter mode and selected first search result');
         return;
       }
       // Let TextInput handle characters; Enter will exit via onSubmit
+      return;
+    }
+
+    // ESC key while viewing search results - clear search and return to normal listing
+    if (key.escape && searchActive) {
+      setFilter('');
+      setSearchItems([]);
+      setSearchEndCursor(null);
+      setSearchHasNextPage(false);
+      setSearchTotalCount(0);
+      setCursor(0); // Reset cursor to top
+      addDebugMessage('[ESC] Cleared search and returned to normal listing');
       return;
     }
 
@@ -518,19 +666,19 @@ export default function RepoList({ token, maxVisibleRows, onLogout, viewerLogin 
       exit();
       return;
     }
-    if (key.downArrow) setCursor(c => Math.min(c + 1, items.length - 1));
+    if (key.downArrow) setCursor(c => Math.min(c + 1, visibleItems.length - 1));
     if (key.upArrow) setCursor(c => Math.max(c - 1, 0));
-    if (key.pageDown) setCursor(c => Math.min(c + 10, items.length - 1));
+    if (key.pageDown) setCursor(c => Math.min(c + 10, visibleItems.length - 1));
     if (key.pageUp) setCursor(c => Math.max(c - 10, 0));
     if (key.return) {
       // Open in browser
-      const repo = filteredAndSorted[cursor];
+      const repo = visibleItems[cursor];
       if (repo) openInBrowser(`https://github.com/${repo.nameWithOwner}`);
     }
     // Delete key: open delete modal (Del or Ctrl+Backspace)
     // Some terminals may set delete=true even for Backspace; require delete=true AND backspace=false.
     if ((key.delete && !key.backspace) || (key.backspace && key.ctrl)) {
-      const repo = filteredAndSorted[cursor];
+      const repo = visibleItems[cursor];
       if (repo) {
         setDeleteTarget(repo);
         setDeleteMode(true);
@@ -550,7 +698,7 @@ export default function RepoList({ token, maxVisibleRows, onLogout, viewerLogin 
       return;
     }
     if (!key.ctrl && input && input.toUpperCase() === 'G') {
-      setCursor(items.length - 1);
+      setCursor(visibleItems.length - 1);
       return;
     }
     if (input && input.toUpperCase() === 'R') {
@@ -566,7 +714,7 @@ export default function RepoList({ token, maxVisibleRows, onLogout, viewerLogin 
 
     // Archive/unarchive modal (Ctrl+A)
     if (key.ctrl && (input === 'a' || input === 'A')) {
-      const repo = filteredAndSorted[cursor];
+      const repo = visibleItems[cursor];
       if (repo) {
         setArchiveTarget(repo);
         setArchiveMode(true);
@@ -579,7 +727,7 @@ export default function RepoList({ token, maxVisibleRows, onLogout, viewerLogin 
 
     // Sync fork with upstream modal (Ctrl+U)
     if (key.ctrl && (input === 'u' || input === 'U')) {
-      const repo = filteredAndSorted[cursor];
+      const repo = visibleItems[cursor];
       if (repo && repo.isFork && repo.parent) {
         // Only show sync option for forks that are behind
         const hasCommitData = repo.defaultBranchRef && repo.parent.defaultBranchRef
@@ -605,14 +753,13 @@ export default function RepoList({ token, maxVisibleRows, onLogout, viewerLogin 
       return;
     }
     
-    // Cache debug (Ctrl+Shift+D or just D in debug mode)
-    if ((key.ctrl && key.shift && (input === 'd' || input === 'D')) || 
-        (process.env.GH_MANAGER_DEBUG === '1' && input === 'i')) {
+    // Cache inspection (Ctrl+I)
+    if (key.ctrl && (input === 'i' || input === 'I')) {
       (async () => {
         try {
           await inspectCacheStatus();
-        } catch (e) {
-          console.log('Failed to inspect cache:', e);
+        } catch (e: any) {
+          process.stderr.write(`❌ Failed to inspect cache: ${e.message}\n`);
         }
       })();
       return;
@@ -654,7 +801,7 @@ export default function RepoList({ token, maxVisibleRows, onLogout, viewerLogin 
 
     // Explicit open in browser
     if (input && input.toUpperCase() === 'O') {
-      const repo = filteredAndSorted[cursor];
+      const repo = visibleItems[cursor];
       if (repo) openInBrowser(`https://github.com/${repo.nameWithOwner}`);
       return;
     }
@@ -693,16 +840,9 @@ export default function RepoList({ token, maxVisibleRows, onLogout, viewerLogin 
     }
   });
 
-  // Infinite scroll: prefetch when near end (based on filtered length)
-  useEffect(() => {
-    // Map cursor in filtered view to underlying index; prefetch when selection near end of loaded items
-    if (!loading && !loadingMore && hasNextPage && cursor >= filteredAndSorted.length - 5) {
-      fetchPage(endCursor);
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [cursor, hasNextPage, endCursor, loading, loadingMore]);
+  // (moved below visibleItems definition)
 
-  // Derived: filtered + sorted items
+  // Derived: filtered + sorted items (local filter applies only when search not active)
   const filtered = useMemo(() => {
     const q = filter.trim().toLowerCase();
     if (!q) return items;
@@ -733,10 +873,21 @@ export default function RepoList({ token, maxVisibleRows, onLogout, viewerLogin 
     return arr;
   }, [filtered, sortKey, sortDir]);
 
-  // Keep cursor in range when filter or sort changes
+  const searchActive = filter.trim().length >= 3;
+  const visibleItems = searchActive ? searchItems : filteredAndSorted;
+  
+  // Debug log
   useEffect(() => {
-    setCursor(c => Math.min(c, Math.max(0, filteredAndSorted.length - 1)));
-  }, [filteredAndSorted.length]);
+    if (searchActive) {
+      addDebugMessage(`[State] searchActive=${searchActive}, searchItems=${searchItems.length}, visibleItems=${visibleItems.length}, filter="${filter}"`);
+    }
+  }, [searchActive, searchItems.length, visibleItems.length, filter]);
+  
+
+  // Keep cursor in range when data changes
+  useEffect(() => {
+    setCursor(c => Math.min(c, Math.max(0, (searchActive ? searchItems.length : items.length) - 1)));
+  }, [searchActive, searchItems.length, items.length]);
 
   // Calculate fixed heights for layout sections and list area
   const headerHeight = 2; // Header bar + margin
@@ -749,7 +900,7 @@ export default function RepoList({ token, maxVisibleRows, onLogout, viewerLogin 
 
   // Virtualize list: compute window around cursor if maxVisibleRows provided
   const windowed = useMemo(() => {
-    const total = filteredAndSorted.length;
+    const total = visibleItems.length;
     // Approximate lines: name + stats + optional description (assume 3) + spacing lines
     const LINES_PER_REPO = 3 + spacingLines;
     const visibleRepos = Math.max(1, Math.floor(listHeight / LINES_PER_REPO));
@@ -763,7 +914,18 @@ export default function RepoList({ token, maxVisibleRows, onLogout, viewerLogin 
     start = Math.min(start, Math.max(0, total - visibleRepos));
     const end = Math.min(total, start + visibleRepos + buffer);
     return { start, end };
-  }, [filteredAndSorted.length, cursor, listHeight, spacingLines]);
+  }, [visibleItems.length, cursor, listHeight, spacingLines]);
+
+  // Infinite scroll: prefetch when near end (listing or search)
+  useEffect(() => {
+    const nearEnd = cursor >= (visibleItems.length - 5);
+    if (searchActive) {
+      if (!searchLoading && searchHasNextPage && nearEnd) fetchSearchPage(searchEndCursor);
+    } else {
+      if (!loading && !loadingMore && hasNextPage && nearEnd) fetchPage(endCursor);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [cursor, visibleItems.length, searchActive, searchLoading, searchHasNextPage, searchEndCursor, loading, loadingMore, hasNextPage, endCursor]);
 
   // Helper: open URL in default browser (cross-platform best-effort)
   function openInBrowser(url: string) {
@@ -780,8 +942,8 @@ export default function RepoList({ token, maxVisibleRows, onLogout, viewerLogin 
     <Box flexDirection="row" justifyContent="space-between" height={1} marginBottom={1}>
       <Box flexDirection="row" gap={1}>
         <Text bold color={modalOpen ? 'gray' : undefined} dimColor={modalOpen ? true : undefined}>  Repositories</Text>
-        <Text color="gray">({filteredAndSorted.length}/{totalCount})</Text>
-        {loading && (
+        <Text color="gray">({visibleItems.length}/{searchActive ? searchTotalCount : totalCount})</Text>
+        {(loading || searchLoading) && (
           <Box width={2} flexShrink={0} flexGrow={0} marginLeft={1}>
             <Text color="yellow">
               <SlowSpinner />
@@ -801,7 +963,7 @@ export default function RepoList({ token, maxVisibleRows, onLogout, viewerLogin 
         </Text>
       )}
     </Box>
-  ), [filteredAndSorted.length, totalCount, loading, rateLimit, lowRate, modalOpen, prevRateLimit]);
+  ), [visibleItems.length, searchActive, searchTotalCount, totalCount, loading, searchLoading, rateLimit, lowRate, modalOpen, prevRateLimit]);
 
   if (error) {
     return (
@@ -1234,7 +1396,7 @@ export default function RepoList({ token, maxVisibleRows, onLogout, viewerLogin 
         ) : infoMode ? (
           <Box height={contentHeight} alignItems="center" justifyContent="center">
             {(() => {
-              const repo = filteredAndSorted[cursor];
+              const repo = visibleItems[cursor];
               if (!repo) return <Text color="red">No repository selected.</Text>;
               const langName = repo.primaryLanguage?.name || 'N/A';
               const langColor = repo.primaryLanguage?.color || '#666666';
@@ -1274,10 +1436,18 @@ export default function RepoList({ token, maxVisibleRows, onLogout, viewerLogin 
               <Text color="gray" dimColor>
                 Forks - Commits Behind: {forkTracking ? 'ON' : 'OFF'}
               </Text>
-              {filter && (
-                <Text color="cyan">
-                  Filter: "{filter}"
-                </Text>
+              {filter && !searchActive && (
+                <Text color="cyan">Filter: "{filter}"</Text>
+              )}
+              {searchActive && (
+                <>
+                  <Text color="cyan">Search: "{filter.trim()}"</Text>
+                  {searchLoading && (
+                    <Box marginLeft={1}>
+                      <Text color="cyan"><SlowSpinner /> Searching…</Text>
+                    </Box>
+                  )}
+                </>
               )}
             </Box>
 
@@ -1285,31 +1455,68 @@ export default function RepoList({ token, maxVisibleRows, onLogout, viewerLogin 
             {filterMode && (
               <Box marginBottom={1}>
                 <Text>Filter: </Text>
-                <TextInput
-                  value={filter}
-                  onChange={setFilter}
-                  onSubmit={() => setFilterMode(false)}
-                  placeholder="Type to filter..."
-                />
-              </Box>
-            )}
+            <TextInput
+              value={filter}
+              onChange={(val) => {
+                addDebugMessage(`[onChange] val="${val}"`);
+                setFilter(val);
+                const q = (val || '').trim();
+                addDebugMessage(`[onChange] trimmed="${q}", len=${q.length}`);
+                if (q.length >= 3) {
+                  // Kick off server search
+                  addDebugMessage(`[onChange] Triggering search for "${q}"`);
+                  let policy: 'cache-first' | 'network-only' = 'cache-first';
+                  try {
+                    const key = makeSearchKey({
+                      viewer: viewerLogin || 'unknown',
+                      q,
+                      sortKey,
+                      sortDir,
+                      pageSize: PAGE_SIZE,
+                      forkTracking,
+                    });
+                    policy = isFresh(key, 90 * 1000) ? 'cache-first' : 'network-only';
+                  } catch {}
+                  addDebugMessage(`[onChange] Calling fetchSearchPage with q="${q}"`);
+                  fetchSearchPage(null, true, policy, q);
+                } else {
+                  // Clear search results under threshold
+                  setSearchItems([]);
+                  setSearchEndCursor(null);
+                  setSearchHasNextPage(false);
+                  setSearchTotalCount(0);
+                }
+              }}
+              onSubmit={() => {
+                setFilterMode(false);
+              }}
+              placeholder="Type to search (3+ chars for server search)..."
+            />
+          </Box>
+        )}
 
             {/* Repository list */}
             <Box flexDirection="column" height={listHeight}>
-              {filteredAndSorted.slice(windowed.start, windowed.end).map((repo, i) => {
-                const idx = windowed.start + i;
-                return (
-                  <RepoRow
-                    key={repo.nameWithOwner}
-                    repo={repo}
-                    selected={idx === cursor}
-                    index={idx + 1}
-                    maxWidth={terminalWidth - 6}
-                    spacingLines={spacingLines}
-                    forkTracking={forkTracking}
-                  />
-                );
-              })}
+              {(filterMode && filter.trim().length > 0 && filter.trim().length < 3) ? (
+                <Box justifyContent="center" alignItems="center" flexGrow={1}>
+                  <Text color="gray" dimColor>Type at least 3 characters to search</Text>
+                </Box>
+              ) : (
+                visibleItems.slice(windowed.start, windowed.end).map((repo, i) => {
+                  const idx = windowed.start + i;
+                  return (
+                    <RepoRow
+                      key={repo.nameWithOwner}
+                      repo={repo}
+                      selected={filterMode && searchActive ? false : idx === cursor}
+                      index={idx + 1}
+                      maxWidth={terminalWidth - 6}
+                      spacingLines={spacingLines}
+                      forkTracking={forkTracking}
+                    />
+                  );
+                })
+              )}
               
               {/* Infinite scroll loading indicator */}
               {loadingMore && hasNextPage && (
@@ -1325,10 +1532,10 @@ export default function RepoList({ token, maxVisibleRows, onLogout, viewerLogin 
                 </Box>
               )}
               
-              {!loading && filteredAndSorted.length === 0 && (
+              {!loading && !searchLoading && visibleItems.length === 0 && (
                 <Box justifyContent="center" alignItems="center" flexGrow={1}>
                   <Text color="gray" dimColor>
-                    {filter ? 'No repositories match your filter' : 'No repositories found'}
+                    {searchActive ? 'No repositories match your search' : (filter ? 'No repositories match your filter' : 'No repositories found')}
                   </Text>
                 </Box>
               )}
@@ -1346,10 +1553,24 @@ export default function RepoList({ token, maxVisibleRows, onLogout, viewerLogin 
         </Box>
         <Box width={terminalWidth} justifyContent="center">
           <Text color="gray" dimColor={modalOpen ? true : undefined}>
-            Del/Ctrl+Backspace Delete • Ctrl+A Un/Archive • Ctrl+U Sync Fork • I Info • Ctrl+L Logout • R Refresh • Q Quit
+            Del/Ctrl+Backspace Delete • Ctrl+A Un/Archive • Ctrl+U Sync Fork • I Info • Ctrl+I Cache • Ctrl+L Logout • R Refresh • Q Quit
           </Text>
         </Box>
       </Box>
+
+      {/* Debug panel */}
+      {process.env.GH_MANAGER_DEBUG === '1' && (
+        <Box marginTop={1} borderStyle="single" borderColor="yellow" paddingX={1} flexDirection="column">
+          <Text bold color="yellow">Debug Messages:</Text>
+          {debugMessages.length === 0 ? (
+            <Text color="gray">No debug messages yet...</Text>
+          ) : (
+            debugMessages.map((msg, i) => (
+              <Text key={i} color="gray">{msg}</Text>
+            ))
+          )}
+        </Box>
+      )}
     </Box>
   );
 }

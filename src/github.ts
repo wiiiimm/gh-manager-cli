@@ -1,4 +1,9 @@
 import { graphql as makeGraphQL } from '@octokit/graphql';
+import { ApolloClient, InMemoryCache, HttpLink, gql } from '@apollo/client/core/index.js';
+import { persistCache } from 'apollo3-cache-persist';
+import fs from 'fs';
+import path from 'path';
+import envPaths from 'env-paths';
 import type { RepoNode, RateLimitInfo } from './types';
 
 export function makeClient(token: string) {
@@ -9,60 +14,61 @@ export function makeClient(token: string) {
 
 // Apollo Client with persisted cache (loaded on demand when GH_MANAGER_APOLLO=1)
 async function makeApolloClient(token: string): Promise<any> {
-  // Dynamic imports to avoid hard dependency when not enabled
-  // @ts-ignore
-  const apollo = await import('@apollo/client/core');
-  // @ts-ignore
-  const { persistCache } = await import('apollo3-cache-persist');
-  const { ApolloClient, InMemoryCache, HttpLink, gql } = apollo as any;
-  const cache = new InMemoryCache();
-  // Simple file storage
-  const storage = {
-    async getItem(key: string) {
-      try {
-        const fs = await import('fs');
-        const path = await import('path');
-        const envPaths = (await import('env-paths')).default;
-        const p = envPaths('gh-manager-cli').data;
-        const file = path.join(p, 'apollo-cache.json');
-        return fs.readFileSync(file, 'utf8');
-      } catch {
-        return null;
-      }
-    },
-    async setItem(key: string, value: string) {
-      try {
-        const fs = await import('fs');
-        const path = await import('path');
-        const envPaths = (await import('env-paths')).default;
-        const p = envPaths('gh-manager-cli').data;
-        fs.mkdirSync(p, { recursive: true });
-        const file = path.join(p, 'apollo-cache.json');
-        fs.writeFileSync(file, value, 'utf8');
-        if (process.platform !== 'win32') {
-          try { fs.chmodSync(file, 0o600); } catch {}
-        }
-      } catch {}
-    },
-    async removeItem(key: string) {
-      try {
-        const fs = await import('fs');
-        const path = await import('path');
-        const envPaths = (await import('env-paths')).default;
-        const p = envPaths('gh-manager-cli').data;
-        const file = path.join(p, 'apollo-cache.json');
-        fs.unlinkSync(file);
-      } catch {}
+  try {
+    // Node 18+ has native fetch, ensure it's available
+    if (typeof globalThis.fetch === 'undefined') {
+      throw new Error('Fetch API not available. Node 18+ is required.');
     }
-  };
-  await persistCache({ cache, storage, debounce: 500, maxSize: 5 * 1024 * 1024 } as any);
-  const link = new (HttpLink as any)({
-    uri: 'https://api.github.com/graphql',
-    fetch: (globalThis as any).fetch,
-    headers: { authorization: `Bearer ${token}` }
-  });
-  const client = new ApolloClient({ cache, link });
-  return { client, gql };
+    
+    const cache = new InMemoryCache();
+    // Simple file storage
+    const storage = {
+      async getItem(key: string) {
+        try {
+          const p = envPaths('gh-manager-cli').data;
+          const file = path.join(p, 'apollo-cache.json');
+          return fs.readFileSync(file, 'utf8');
+        } catch {
+          return null;
+        }
+      },
+      async setItem(key: string, value: string) {
+        try {
+          const p = envPaths('gh-manager-cli').data;
+          fs.mkdirSync(p, { recursive: true });
+          const file = path.join(p, 'apollo-cache.json');
+          fs.writeFileSync(file, value, 'utf8');
+          if (process.platform !== 'win32') {
+            try { fs.chmodSync(file, 0o600); } catch {}
+          }
+        } catch {}
+      },
+      async removeItem(key: string) {
+        try {
+          const p = envPaths('gh-manager-cli').data;
+          const file = path.join(p, 'apollo-cache.json');
+          fs.unlinkSync(file);
+        } catch {}
+      }
+    };
+    await persistCache({ cache, storage, debounce: 500, maxSize: 5 * 1024 * 1024 } as any);
+    const link = new (HttpLink as any)({
+      uri: 'https://api.github.com/graphql',
+      fetch: (globalThis as any).fetch,
+      headers: { authorization: `Bearer ${token}` }
+    });
+    const client = new ApolloClient({ cache, link });
+    return { client, gql };
+  } catch (error: any) {
+    const debug = process.env.GH_MANAGER_DEBUG === '1';
+    if (debug) {
+      process.stderr.write(`\n❌ Failed to initialize Apollo Client: ${error.message}\n`);
+      if (error.stack) {
+        process.stderr.write(`Stack: ${error.stack}\n`);
+      }
+    }
+    throw new Error(`Apollo Client initialization failed: ${error.message}`);
+  }
 }
 
 export async function getViewerLogin(
@@ -198,7 +204,7 @@ export async function fetchViewerReposPageUnified(
   after?: string | null,
   orderBy?: { field: string; direction: string },
   includeForkTracking: boolean = true,
-  fetchPolicy: 'cache-first' | 'cache-and-network' | 'network-only' = 'cache-first'
+  fetchPolicy: 'cache-first' | 'network-only' = 'cache-first'
 ): Promise<ReposPageResult> {
   const isApolloEnabled = true;
   const debug = process.env.GH_MANAGER_DEBUG === '1';
@@ -276,6 +282,87 @@ export async function fetchViewerReposPageUnified(
   if (debug) console.log('📡 Using Octokit fallback...');
   const octo = makeClient(token);
   return fetchViewerReposPage(octo, first, after, orderBy, includeForkTracking);
+}
+
+// Server-side search repositories for the viewer (Apollo-first, network-only by default)
+export async function searchRepositoriesUnified(
+  token: string,
+  viewer: string,
+  text: string,
+  first: number,
+  after?: string | null,
+  sortKey: string = 'UPDATED_AT',
+  sortDir: string = 'DESC',
+  includeForkTracking: boolean = true,
+  fetchPolicy: 'network-only' | 'cache-first' = 'network-only'
+): Promise<ReposPageResult> {
+  // GitHub search API doesn't support sort in query string - remove it
+  // Include forks in search results with fork:true
+  const q = `${text} user:${viewer} in:name,description fork:true`;
+  
+  
+  try {
+    const ap = await makeApolloClient(token);
+    const queryDoc = (ap.gql as any)`
+      query SearchRepos($q: String!, $first: Int!, $after: String) {
+        rateLimit { limit remaining resetAt }
+        search(query: $q, type: REPOSITORY, first: $first, after: $after) {
+          repositoryCount
+          pageInfo { endCursor hasNextPage }
+          nodes {
+            ... on Repository {
+              id
+              name
+              nameWithOwner
+              description
+              visibility
+              isPrivate
+              isFork
+              isArchived
+              stargazerCount
+              forkCount
+              primaryLanguage { name color }
+              updatedAt
+              pushedAt
+              diskUsage
+              ${includeForkTracking ? `
+              parent { nameWithOwner defaultBranchRef { name target { ... on Commit { history(first: 0) { totalCount } } } } }
+              defaultBranchRef { name target { ... on Commit { history(first: 0) { totalCount } } } }` : `
+              parent { nameWithOwner }
+              defaultBranchRef { name }`}
+            }
+          }
+        }
+      }
+    `;
+    const res = await ap.client.query({
+      query: queryDoc,
+      variables: { q, first, after: after ?? null },
+      fetchPolicy,
+    });
+    const data = res.data.search;
+    return {
+      nodes: data.nodes as RepoNode[],
+      endCursor: data.pageInfo.endCursor,
+      hasNextPage: data.pageInfo.hasNextPage,
+      totalCount: data.repositoryCount,
+      rateLimit: res.data.rateLimit as RateLimitInfo,
+    };
+  } catch (e: any) {
+    // Log errors to stderr only in debug mode
+    const debug = process.env.GH_MANAGER_DEBUG === '1';
+    if (debug) {
+      process.stderr.write(`\n❌ Search failed: ${e.message}\n`);
+      if (e.graphQLErrors) {
+        process.stderr.write(`GraphQL errors: ${JSON.stringify(e.graphQLErrors, null, 2)}\n`);
+      }
+      if (e.networkError) {
+        process.stderr.write(`Network error: ${e.networkError.message}\n`);
+      }
+    }
+    // Re-throw the error so we can see it in the UI
+    throw e;
+  }
 }
 
 // GitHub GraphQL does not support deleting repos. Use REST: DELETE /repos/{owner}/{repo}
