@@ -63,6 +63,13 @@ export function storeToken(token: string) {
   writeConfig({ ...existing, token, tokenVersion: 1 });
 }
 
+export function clearStoredToken() {
+  const existing = readConfig();
+  // Preserve other settings like ui prefs
+  const { token, tokenVersion, ...rest } = existing as any;
+  writeConfig({ ...rest });
+}
+
 export function getUIPrefs(): UIPrefs {
   const cfg = readConfig();
   return cfg.ui || {};

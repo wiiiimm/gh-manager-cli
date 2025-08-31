@@ -11,6 +11,7 @@
   "type": "module",
   "scripts": {
     "build": "tsup",
+    "build:binaries": "npm run build && pkg dist/index.js --targets node20-linux-x64,node20-macos-x64,node20-windows-x64 --out-path ./binaries",
     "dev": "tsup --watch",
     "start": "node dist/index.js"
   },
@@ -32,6 +33,7 @@
     "@semantic-release/git": "^10.0.1",
     "@types/node": "^24.3.0",
     "@types/react": "^19.1.12",
+    "pkg": "^5.8.1",
     "semantic-release": "^24.2.7",
     "tsup": "^8.5.0",
     "typescript": "^5.9.2"
@@ -63,7 +65,28 @@
           "message": "chore(release): ${nextRelease.version}\n\n${nextRelease.notes}"
         }
       ],
-      "@semantic-release/github"
+      [
+        "@semantic-release/github",
+        {
+          "assets": [
+            {
+              "path": "binaries/gh-manager-linux-x64/gh-manager-linux-x64",
+              "name": "gh-manager-linux-x64",
+              "label": "Linux x64 Binary"
+            },
+            {
+              "path": "binaries/gh-manager-macos-x64/gh-manager-macos-x64",
+              "name": "gh-manager-macos-x64",
+              "label": "macOS x64 Binary"
+            },
+            {
+              "path": "binaries/gh-manager-windows-x64/gh-manager-windows-x64.exe",
+              "name": "gh-manager-windows-x64.exe",
+              "label": "Windows x64 Binary"
+            }
+          ]
+        }
+      ]
     ]
   }
 }

@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { Box, Text, useApp, useStdout, useInput } from 'ink';
 import TextInput from 'ink-text-input';
-import { getStoredToken, storeToken, getTokenFromEnv } from '../config';
+import { getStoredToken, storeToken, getTokenFromEnv, clearStoredToken } from '../config';
 import { makeClient, getViewerLogin } from '../github';
 import RepoList from './RepoList';
 
@@ -142,6 +142,14 @@ export default function App() {
     setToken(input.trim());
     setError(null);
     setMode('validating');
+  };
+
+  // Handle logout from child components
+  const handleLogout = () => {
+    try { clearStoredToken(); } catch {}
+    setToken(null);
+    setViewer(null);
+    setMode('prompt');
   };
 
   // Handle keyboard input for different modes
@@ -323,7 +331,7 @@ export default function App() {
   return (
     <Box flexDirection="column" height={dims.rows} paddingX={2} paddingTop={verticalPadding} paddingBottom={verticalPadding}>
       {header}
-      <RepoList token={token as string} maxVisibleRows={dims.rows - (verticalPadding * 2) - 4} />
+      <RepoList token={token as string} maxVisibleRows={dims.rows - (verticalPadding * 2) - 4} onLogout={handleLogout} />
     </Box>
   );
 }

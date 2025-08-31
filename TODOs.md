@@ -271,3 +271,9 @@ Legend:
 - [x] Repository sync with upstream planning (REST API research completed)
 - [x] OAuth login alternative research and planning
 - [x] Version display planning (next to app title)
+- [x] Automated release workflow with compiled binaries
+  - Enhanced GitHub Actions workflow to build cross-platform binaries (Linux, macOS, Windows)
+  - Used pkg to create standalone executables for each platform
+  - Configured semantic-release to attach binaries to GitHub releases automatically
+  - Added build:binaries script for local binary creation
+  - Updated documentation with installation instructions for pre-built binaries

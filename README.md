@@ -29,7 +29,23 @@ Interactive terminal app to browse and manage your personal GitHub repositories.
 - **Error Handling**: Graceful error recovery with retry mechanisms
 - **Performance**: Efficient GraphQL queries with virtualized rendering
 
-## Quick Start
+## Installation
+
+### Pre-built Binaries (Recommended)
+
+Download the latest binary for your platform from [GitHub Releases](https://github.com/wiiiimm/gh-manager-cli/releases):
+
+- **Linux**: `gh-manager-linux-x64`
+- **macOS**: `gh-manager-macos-x64` 
+- **Windows**: `gh-manager-windows-x64.exe`
+
+Make the binary executable (Linux/macOS):
+```bash
+chmod +x gh-manager-*
+./gh-manager-*
+```
+
+### From Source
 
 Prerequisites:
 - Node.js 18+
@@ -106,9 +122,10 @@ Stack:
 Scripts:
 
 ```bash
-pnpm build   # build to dist/
-pnpm dev     # watch mode
-pnpm start   # node dist/index.js
+pnpm build          # build to dist/
+pnpm build:binaries # build cross-platform binaries to ./binaries/
+pnpm dev            # watch mode
+pnpm start          # node dist/index.js
 ```
 
 Notes:

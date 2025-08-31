@@ -508,6 +508,14 @@ export default function RepoList({ token, maxVisibleRows }: { token: string; max
       return;
     }
 
+    // Logout modal (Ctrl+L)
+    if (key.ctrl && (input === 'l' || input === 'L')) {
+      setLogoutMode(true);
+      setLogoutError(null);
+      setLogoutFocus('confirm');
+      return;
+    }
+
     // Start filter mode
     if (input === '/') {
       setFilterMode(true);
