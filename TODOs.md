@@ -96,12 +96,12 @@ Legend:
     - On success: update local list states (archived flag or removal) without full refetch
     - On failure: show summary with failed items and suggested remediation
 
-- [ ] Infinite scroll improvements
-  - Inline loading indicator at end of list
+- [~] Infinite scroll improvements
+  - [x] Inline loading indicator at end of list
     - When user reaches end of loaded repos, show spinner/loading message inline
     - Display "Loading more repositories..." with animated spinner at bottom of list
     - Keep existing repos visible while fetching next page
-  - Smarter prefetching trigger
+  - [ ] Smarter prefetching trigger
     - Change prefetch trigger from "5 items from end" to "80% from bottom"
     - Calculate: trigger when `cursor >= Math.floor(loadedItems.length * 0.8)`
     - Prevents user from ever reaching actual end before more data loads
