@@ -1,6 +1,6 @@
 {
   "name": "gh-manager-cli",
-  "version": "1.10.4",
+  "version": "1.10.5",
   "private": false,
   "description": "Interactive CLI to manage your GitHub repos (personal) with Ink",
   "license": "MIT",

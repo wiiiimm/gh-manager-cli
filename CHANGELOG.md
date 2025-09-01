@@ -1,3 +1,10 @@
+## [1.10.5](https://github.com/wiiiimm/gh-manager-cli/compare/v1.10.4...v1.10.5) (2025-09-01)
+
+
+### Bug Fixes
+
+* prevent duplicate modal handlers and improve modal UI ([79281d3](https://github.com/wiiiimm/gh-manager-cli/commit/79281d34fe42d3345885cad257e6800e94eb2bb3))
+
 ## [1.10.4](https://github.com/wiiiimm/gh-manager-cli/compare/v1.10.3...v1.10.4) (2025-09-01)
 
 
