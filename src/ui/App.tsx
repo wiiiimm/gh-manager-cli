@@ -73,6 +73,7 @@ export default function App() {
         if (!getStoredToken()) {
           storeToken(token);
         }
+        setInput(''); // Clear the input after successful authentication
         setMode('ready');
       } catch (e: any) {
         clearTimeout(timeoutId);
@@ -150,6 +151,7 @@ export default function App() {
     try { clearStoredToken(); } catch {}
     setToken(null);
     setViewer(null);
+    setInput(''); // Clear the token input field
     setMode('prompt');
   };
 
