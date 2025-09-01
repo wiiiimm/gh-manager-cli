@@ -247,11 +247,32 @@ export default function RepoList({ token, maxVisibleRows, onLogout, viewerLogin,
       // Update Apollo cache
       await updateCacheAfterVisibilityChange(token, id, newVisibility as 'PUBLIC' | 'PRIVATE');
       
-      // Update both regular items and search items with both visibility and isPrivate
-      const isPrivate = newVisibility === 'PRIVATE';
-      const updateRepo = (r: any) => (r.id === id ? { ...r, visibility: newVisibility, isPrivate } : r);
-      setItems(prev => prev.map(updateRepo));
-      setSearchItems(prev => prev.map(updateRepo));
+      // Check if the repo should be removed based on current visibility filter
+      const shouldRemove = 
+        (visibilityFilter === 'public' && newVisibility === 'PRIVATE') ||
+        (visibilityFilter === 'private' && newVisibility === 'PUBLIC');
+      
+      if (shouldRemove) {
+        // Remove the repo from the list if it doesn't match the filter
+        setItems(prev => prev.filter((r: any) => r.id !== id));
+        setSearchItems(prev => prev.filter((r: any) => r.id !== id));
+        
+        // Update counts
+        setTotalCount(c => Math.max(0, c - 1));
+        if (searchActive) {
+          setSearchTotalCount(c => Math.max(0, c - 1));
+        }
+        
+        // Adjust cursor if needed
+        const currentItemsLength = searchActive ? searchItems.length : items.length;
+        setCursor(c => Math.max(0, Math.min(c, currentItemsLength - 2)));
+      } else {
+        // Update the repo in place if it still matches the filter
+        const isPrivate = newVisibility === 'PRIVATE';
+        const updateRepo = (r: any) => (r.id === id ? { ...r, visibility: newVisibility, isPrivate } : r);
+        setItems(prev => prev.map(updateRepo));
+        setSearchItems(prev => prev.map(updateRepo));
+      }
       
       closeChangeVisibilityModal();
     } catch (e: any) {
