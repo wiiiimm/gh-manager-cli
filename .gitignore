@@ -19,6 +19,9 @@ pnpm-debug.log*
 coverage/
 .nyc_output/
 
+# Test artifacts
+tests/.tmp/
+
 # Editors/IDE
 .vscode/
 .idea/
