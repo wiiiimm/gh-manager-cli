@@ -163,7 +163,7 @@ Legend:
     - Smoother infinite scroll experience with earlier prefetching
     - Added debug messages to track when prefetching occurs
 
-- [x] Server‑side search
+- [x] Server‑side search  
   - Support GitHub search for repos (beyond loaded pages)
   - Integrate with `/` filter bar; show mode indicator
   - Implemented Apollo Client + apollo3-cache-persist for normalized caching and persistence
@@ -178,6 +178,13 @@ Legend:
 - [x] Sorting enhancements  
   - [x] Persist sort field + direction in config (implemented in UI preferences)
   - [ ] Additional fields (created, size)
+
+- [ ] Packaging for Homebrew
+  - Create a Homebrew Tap (e.g., `wiiiimm/homebrew-tap`) or submit to `homebrew-core`
+  - Provide tarball URLs and SHA256 for each release (from GitHub Releases)
+  - Write a formula that installs the npm package or bundled binary
+  - Add CI job to update formula on new tags (semantic-release hook)
+  - Test install on macOS (Intel/ARM) and verify `gh-manager` runs
 
 - [ ] Smart repository data caching system
   - **Challenge**: Each sort/direction combination changes server-side ordering, requiring separate cache entries
@@ -307,8 +314,7 @@ Legend:
   - Unit tests for formatting and reducers
   - Snapshot tests for row rendering (where feasible)
 
-- [ ] Packaging
-  - Publish to npm; verify bin and shebang; versioned release notes
+ 
 
 ## Done
 
@@ -368,3 +374,7 @@ Legend:
   - Inline loading indicator showing "Loading more repositories..."
   - Smarter prefetch at 80% threshold instead of 5 items from end
   - Smoother scrolling experience with earlier data loading
+- [x] Packaging (npm)
+  - Published to npm with executable `gh-manager`
+  - Verified bin field and shebang
+  - Release notes automated via semantic-release
