@@ -2,12 +2,14 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { Box, Text, useApp, useInput, useStdout, Spacer, Newline } from 'ink';
 import TextInput from 'ink-text-input';
 import chalk from 'chalk';
-import { makeClient, fetchViewerReposPageUnified, searchRepositoriesUnified, deleteRepositoryRest, archiveRepositoryById, unarchiveRepositoryById, syncForkWithUpstream, purgeApolloCacheFiles, inspectCacheStatus, OwnerAffiliation } from '../github';
+import { makeClient, fetchViewerReposPageUnified, searchRepositoriesUnified, syncForkWithUpstream, purgeApolloCacheFiles, inspectCacheStatus, OwnerAffiliation } from '../github';
 import { getUIPrefs, storeUIPrefs, OwnerContext } from '../config';
 import { makeApolloKey, makeSearchKey, isFresh, markFetched } from '../apolloMeta';
 import type { RepoNode, RateLimitInfo } from '../types';
 import { exec } from 'child_process';
 import OrgSwitcher from './OrgSwitcher';
+import DeleteModal from './DeleteModal';
+import ArchiveModal from './ArchiveModal';
 
 const PAGE_SIZE = (process.env.GH_MANAGER_DEV === '1' || process.env.NODE_ENV === 'development') ? 5 : 15;
 
@@ -160,21 +162,10 @@ export default function RepoList({ token, maxVisibleRows, onLogout, viewerLogin,
   const [searchTotalCount, setSearchTotalCount] = useState<number>(0);
   const [searchLoading, setSearchLoading] = useState(false);
   // Delete modal state
-  const [deleteMode, setDeleteMode] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState<RepoNode | null>(null);
-  const [deleteCode, setDeleteCode] = useState('');
-  const [typedCode, setTypedCode] = useState('');
-  const [deleting, setDeleting] = useState(false);
-  const [deleteError, setDeleteError] = useState<string | null>(null);
-  const [deleteConfirmStage, setDeleteConfirmStage] = useState(false); // true after code verified
-  const [confirmFocus, setConfirmFocus] = useState<'delete' | 'cancel'>('delete');
 
   // Archive modal state
-  const [archiveMode, setArchiveMode] = useState(false);
   const [archiveTarget, setArchiveTarget] = useState<RepoNode | null>(null);
-  const [archiving, setArchiving] = useState(false);
-  const [archiveError, setArchiveError] = useState<string | null>(null);
-  const [archiveFocus, setArchiveFocus] = useState<'confirm' | 'cancel'>('confirm');
 
   // Sync modal state
   const [syncMode, setSyncMode] = useState(false);
@@ -191,13 +182,7 @@ export default function RepoList({ token, maxVisibleRows, onLogout, viewerLogin,
   const [logoutFocus, setLogoutFocus] = useState<'confirm' | 'cancel'>('confirm');
   const [logoutError, setLogoutError] = useState<string | null>(null);
 
-  function closeArchiveModal() {
-    setArchiveMode(false);
-    setArchiveTarget(null);
-    setArchiving(false);
-    setArchiveError(null);
-    setArchiveFocus('confirm');
-  }
+  // Legacy archive modal handler removed; ArchiveModal component manages its own state
 
   function closeSyncModal() {
     setSyncMode(false);
@@ -227,39 +212,7 @@ export default function RepoList({ token, maxVisibleRows, onLogout, viewerLogin,
     }
   }
 
-  function cancelDeleteModal() {
-    setDeleteMode(false);
-    setDeleteTarget(null);
-    setTypedCode('');
-    setDeleteError(null);
-    setDeleteConfirmStage(false);
-    setDeleting(false);
-    setConfirmFocus('delete');
-  }
-
-  async function confirmDeleteNow() {
-    if (!deleteTarget) return;
-    try {
-      setDeleting(true);
-      // REST: requires owner/repo and a token with delete_repo scope
-      const [owner, repo] = (deleteTarget.nameWithOwner || '').split('/');
-      await deleteRepositoryRest(token, owner, repo);
-      // Remove from items and update counts
-      setItems((prev) => prev.filter((r: any) => r.id !== (deleteTarget as any).id));
-      setTotalCount((c) => Math.max(0, c - 1));
-      setDeleteMode(false);
-      setDeleteTarget(null);
-      setTypedCode('');
-      setDeleteError(null);
-      setDeleting(false);
-      setDeleteConfirmStage(false);
-      // Keep cursor in range
-      setCursor((c) => Math.max(0, Math.min(c, visibleItems.length - 2)));
-    } catch (e: any) {
-      setDeleting(false);
-      setDeleteError('Failed to delete repository. Ensure delete_repo scope and admin permissions.');
-    }
-  }
+  // Delete modal handled by separate component; callbacks defined later
 
   // Filter state
   const [filter, setFilter] = useState('');
@@ -549,75 +502,9 @@ export default function RepoList({ token, maxVisibleRows, onLogout, viewerLogin,
     if (orgSwitcherOpen) {
       return; // OrgSwitcher component handles its own keyboard input
     }
-    
-    // When in delete mode, trap inputs for modal
-    if (deleteMode) {
-      if (key.escape || (input && input.toUpperCase() === 'C')) {
-        cancelDeleteModal();
-        return;
-      }
-      // In final warning stage, support left/right focus and confirm/cancel with Enter
-      if (deleteConfirmStage) {
-        if (key.leftArrow) {
-          setConfirmFocus('delete');
-          return;
-        }
-        if (key.rightArrow) {
-          setConfirmFocus('cancel');
-          return;
-        }
-        if (key.return) {
-          if (confirmFocus === 'delete') confirmDeleteNow();
-          else cancelDeleteModal();
-          return;
-        }
-        if (input && input.toUpperCase() === 'Y') {
-          confirmDeleteNow();
-          return;
-        }
-      }
-      // Let TextInput inside modal handle text and Enter for stage 1
-      return;
-    }
 
-    // When in archive mode, trap inputs for modal
-    if (archiveMode) {
-      if (key.escape || (input && input.toUpperCase() === 'C')) {
-        closeArchiveModal();
-        return;
-      }
-      if (key.leftArrow) {
-        setArchiveFocus('confirm');
-        return;
-      }
-      if (key.rightArrow) {
-        setArchiveFocus('cancel');
-        return;
-      }
-      if (key.return || (input && input.toUpperCase() === 'Y')) {
-        if (archiveFocus === 'cancel') {
-          closeArchiveModal();
-          return;
-        }
-        if (!archiveTarget) return;
-        (async () => {
-          try {
-            setArchiving(true);
-            const isArchived = archiveTarget.isArchived;
-            const id = (archiveTarget as any).id;
-            if (isArchived) await unarchiveRepositoryById(client, id);
-            else await archiveRepositoryById(client, id);
-              setItems(prev => prev.map(r => (r.id === (archiveTarget as any).id ? { ...r, isArchived: !isArchived } : r)));
-            closeArchiveModal();
-          } catch (e) {
-            setArchiving(false);
-            setArchiveError('Failed to update archive state. Check permissions.');
-          }
-        })();
-        return;
-      }
-      // Trap everything else
-      return;
+    if (deleteTarget || archiveTarget) {
+      return; // Modals handle their own input
     }
 
     // When in sync mode, trap inputs for modal
@@ -764,18 +651,7 @@ export default function RepoList({ token, maxVisibleRows, onLogout, viewerLogin,
     // Some terminals may set delete=true even for Backspace; require delete=true AND backspace=false.
     if ((key.delete && !key.backspace) || (key.backspace && key.ctrl)) {
       const repo = visibleItems[cursor];
-      if (repo) {
-        setDeleteTarget(repo);
-        setDeleteMode(true);
-        setTypedCode('');
-        setDeleteError(null);
-        // Generate random 4-char uppercase code excluding 'C'
-        const letters = 'ABDEFGHIJKLMNOPQRSTUVWXYZ';
-        const code = Array.from({ length: 4 }, () => letters[Math.floor(Math.random() * letters.length)]).join('');
-        setDeleteCode(code);
-        setDeleteConfirmStage(false);
-        setConfirmFocus('delete');
-      }
+      if (repo) setDeleteTarget(repo);
       return;
     }
     if (key.ctrl && (input === 'g' || input === 'G')) {
@@ -806,13 +682,7 @@ export default function RepoList({ token, maxVisibleRows, onLogout, viewerLogin,
     // Archive/unarchive modal (Ctrl+A)
     if (key.ctrl && (input === 'a' || input === 'A')) {
       const repo = visibleItems[cursor];
-      if (repo) {
-        setArchiveTarget(repo);
-        setArchiveMode(true);
-        setArchiveError(null);
-        setArchiving(false);
-        setArchiveFocus('confirm');
-      }
+      if (repo) setArchiveTarget(repo);
       return;
     }
 
@@ -972,6 +842,18 @@ export default function RepoList({ token, maxVisibleRows, onLogout, viewerLogin,
 
   const searchActive = filter.trim().length >= 3;
   const visibleItems = searchActive ? searchItems : filteredAndSorted;
+
+  function handleDeleteSuccess(id: string) {
+    setItems(prev => prev.filter((r: any) => r.id !== id));
+    setTotalCount(c => Math.max(0, c - 1));
+    setDeleteTarget(null);
+    setCursor(c => Math.max(0, Math.min(c, visibleItems.length - 2)));
+  }
+
+  function handleArchiveToggle(id: string, isArchived: boolean) {
+    setItems(prev => prev.map(r => (r.id === id ? { ...r, isArchived } : r)));
+    setArchiveTarget(null);
+  }
   
   // Debug log
   useEffect(() => {
@@ -1041,7 +923,7 @@ export default function RepoList({ token, maxVisibleRows, onLogout, viewerLogin,
   }
 
   const lowRate = rateLimit && rateLimit.remaining <= Math.ceil(rateLimit.limit * 0.1);
-  const modalOpen = deleteMode || archiveMode || syncMode || logoutMode || infoMode;
+  const modalOpen = !!deleteTarget || !!archiveTarget || syncMode || logoutMode || infoMode;
 
   // Memoize header to prevent re-renders - must be before any returns
   const headerBar = useMemo(() => (
@@ -1139,215 +1021,13 @@ export default function RepoList({ token, maxVisibleRows, onLogout, viewerLogin,
 
       {/* Main content container with border - fixed height */}
       <Box borderStyle="single" borderColor={modalOpen ? 'gray' : 'yellow'} paddingX={1} paddingY={1} marginX={1} height={contentHeight + containerPadding + 2} flexDirection="column">
-        {deleteMode && deleteTarget ? (
-          // Centered modal; hide list content while modal is open
+        {deleteTarget ? (
           <Box height={contentHeight} alignItems="center" justifyContent="center">
-            <Box flexDirection="column" borderStyle="round" borderColor="red" paddingX={3} paddingY={2} width={Math.min(terminalWidth - 8, 80)}>
-                      <Text bold>Delete Confirmation</Text>
-                      <Text color="red">⚠️  Delete repository?</Text>
-                      <Box height={2}>
-                        <Text> </Text>
-                      </Box>
-                      {(() => {
-                        const langName = deleteTarget.primaryLanguage?.name || '';
-                        const langColor = deleteTarget.primaryLanguage?.color || '#666666';
-                        let line1 = '';
-                        line1 += chalk.white(deleteTarget.nameWithOwner);
-                        if (deleteTarget.isPrivate) line1 += chalk.yellow(' Private');
-                        if (deleteTarget.isArchived) line1 += chalk.gray.dim(' Archived');
-                        if (deleteTarget.isFork && deleteTarget.parent) line1 += chalk.blue(` Fork of ${deleteTarget.parent.nameWithOwner}`);
-                        let line2 = '';
-                        if (langName) line2 += chalk.hex(langColor)('● ') + chalk.gray(`${langName}  `);
-                        line2 += chalk.gray(`★ ${deleteTarget.stargazerCount}  ⑂ ${deleteTarget.forkCount}  Updated ${formatDate(deleteTarget.updatedAt)}`);
-                        return (
-                          <>
-                            <Text>{line1}</Text>
-                            <Text>{line2}</Text>
-                          </>
-                        );
-                      })()}
-                      <Box marginTop={1}>
-                        <Text>
-                          Type <Text color="yellow" bold>{deleteCode}</Text> to confirm.
-                        </Text>
-                      </Box>
-                      {!deleteConfirmStage && (
-                        <Box marginTop={1}>
-                          <Text>Confirm code: </Text>
-                          <TextInput
-                            value={typedCode}
-                            onChange={(v) => {
-                              const up = (v || '').toUpperCase();
-                              const cut = up.slice(0, 4);
-                              setTypedCode(cut);
-                              if (cut.length < 4) {
-                                setDeleteError(null);
-                              }
-                              if (cut.length === 4) {
-                                if (cut === deleteCode && deleteTarget) {
-                                  setDeleteError(null);
-                                  setDeleteConfirmStage(true);
-                                  setConfirmFocus('delete');
-                                } else {
-                                  setDeleteError('Code does not match');
-                                }
-                              }
-                            }}
-                            onSubmit={() => { /* no-op: auto-advance on 4 chars */ }}
-                            placeholder={deleteCode}
-                          />
-                        </Box>
-                      )}
-              {deleteConfirmStage && (
-                <Box marginTop={1} flexDirection="column">
-                  <Text color="red">
-                    This action will permanently delete the repository. This cannot be undone.
-                  </Text>
-                  {/* Action buttons row (taller buttons; no inline hints) */}
-                  <Box marginTop={1} flexDirection="row" justifyContent="center" gap={6}>
-                    <Box
-                      borderStyle="round"
-                      borderColor="red"
-                      height={3}
-                      width={20}
-                      alignItems="center"
-                      justifyContent="center"
-                      flexDirection="column"
-                    >
-                      <Text>{confirmFocus === 'delete' ? chalk.bgRed.white.bold(' Delete ') : chalk.red.bold('Delete')}</Text>
-                    </Box>
-                    <Box
-                      borderStyle="round"
-                      borderColor={confirmFocus === 'cancel' ? 'white' : 'gray'}
-                      height={3}
-                      width={20}
-                      alignItems="center"
-                      justifyContent="center"
-                      flexDirection="column"
-                    >
-                      <Text>{confirmFocus === 'cancel' ? chalk.bgGray.white.bold(' Cancel ') : chalk.gray.bold('Cancel')}</Text>
-                    </Box>
-                  </Box>
-                  {/* Bottom prompt with dynamic Enter action and key hints (gray) */}
-                  <Box marginTop={1} flexDirection="row" justifyContent="center">
-                    <Text color="gray">
-                      Press Enter to {confirmFocus === 'delete' ? 'Delete' : 'Cancel'} • Y to confirm • C to cancel
-                    </Text>
-                  </Box>
-                  {/* Hidden input to capture Enter key */}
-                          <Box marginTop={1}>
-                            <TextInput
-                              value=""
-                              onChange={() => { /* noop */ }}
-                              onSubmit={() => {
-                                if (confirmFocus === 'delete') confirmDeleteNow();
-                                else cancelDeleteModal();
-                              }}
-                              placeholder=""
-                            />
-                          </Box>
-                </Box>
-              )}
-          {deleteError && (
-            <Box marginTop={1}>
-              <Text color="magenta">{deleteError}</Text>
-            </Box>
-          )}
-                      {deleting && (
-                        <Box marginTop={1}>
-                          <Text color="yellow">Deleting...</Text>
-                        </Box>
-                      )}
-            </Box>
+            <DeleteModal token={token} repo={deleteTarget} onCancel={() => setDeleteTarget(null)} onDeleted={handleDeleteSuccess} />
           </Box>
-        ) : archiveMode && archiveTarget ? (
+        ) : archiveTarget ? (
           <Box height={contentHeight} alignItems="center" justifyContent="center">
-            <Box flexDirection="column" borderStyle="round" borderColor={archiveTarget.isArchived ? 'green' : 'yellow'} paddingX={3} paddingY={2} width={Math.min(terminalWidth - 8, 80)}>
-              <Text bold>{archiveTarget.isArchived ? 'Unarchive Confirmation' : 'Archive Confirmation'}</Text>
-              <Text color={archiveTarget.isArchived ? 'green' : 'yellow'}>
-                {archiveTarget.isArchived ? '↺  Unarchive repository?' : '⚠️  Archive repository?'}
-              </Text>
-              <Box height={1}><Text> </Text></Box>
-              <Text>{archiveTarget.nameWithOwner}</Text>
-              <Box marginTop={1}>
-                <Text>
-                  {archiveTarget.isArchived ? 'This will make the repository active again.' : 'This will make the repository read-only.'}
-                </Text>
-              </Box>
-              <Box marginTop={1} flexDirection="row" justifyContent="center" gap={6}>
-                <Box
-                  borderStyle="round"
-                  borderColor={archiveTarget.isArchived ? 'green' : 'yellow'}
-                  height={3}
-                  width={20}
-                  alignItems="center"
-                  justifyContent="center"
-                  flexDirection="column"
-                >
-                  <Text>
-                    {archiveFocus === 'confirm' ? 
-                      chalk.bgGreen.white.bold(` ${archiveTarget.isArchived ? 'Unarchive' : 'Archive'} `) : 
-                      chalk.bold[archiveTarget.isArchived ? 'green' : 'yellow'](archiveTarget.isArchived ? 'Unarchive' : 'Archive')
-                    }
-                  </Text>
-                </Box>
-                <Box
-                  borderStyle="round"
-                  borderColor={archiveFocus === 'cancel' ? 'white' : 'gray'}
-                  height={3}
-                  width={20}
-                  alignItems="center"
-                  justifyContent="center"
-                  flexDirection="column"
-                >
-                  <Text>
-                    {archiveFocus === 'cancel' ? 
-                      chalk.bgGray.white.bold(' Cancel ') : 
-                      chalk.gray.bold('Cancel')
-                    }
-                  </Text>
-                </Box>
-              </Box>
-              <Box marginTop={1} flexDirection="row" justifyContent="center">
-                <Text color="gray">Press Enter to {archiveFocus === 'confirm' ? (archiveTarget.isArchived ? 'Unarchive' : 'Archive') : 'Cancel'} • Y to confirm • C to cancel</Text>
-              </Box>
-              <Box marginTop={1}>
-                <TextInput
-                  value=""
-                  onChange={() => { /* noop */ }}
-                  onSubmit={() => {
-                    if (archiveFocus === 'confirm') {
-                      (async () => {
-                        try {
-                          setArchiving(true);
-                          const isArchived = archiveTarget.isArchived;
-                          const id = (archiveTarget as any).id;
-                          if (isArchived) await unarchiveRepositoryById(client, id);
-                          else await archiveRepositoryById(client, id);
-                          setItems(prev => prev.map(r => (r.id === (archiveTarget as any).id ? { ...r, isArchived: !isArchived } : r)));
-                          closeArchiveModal();
-                        } catch (e) {
-                          setArchiving(false);
-                          setArchiveError('Failed to update archive state. Check permissions.');
-                        }
-                      })();
-                    } else {
-                      closeArchiveModal();
-                    }
-                  }}
-                />
-              </Box>
-              {archiveError && (
-                <Box marginTop={1}>
-                  <Text color="magenta">{archiveError}</Text>
-                </Box>
-              )}
-              {archiving && (
-                <Box marginTop={1}>
-                  <Text color="yellow">{archiveTarget.isArchived ? 'Unarchiving...' : 'Archiving...'}</Text>
-                </Box>
-              )}
-            </Box>
+            <ArchiveModal client={client} repo={archiveTarget} onCancel={() => setArchiveTarget(null)} onToggled={handleArchiveToggle} />
           </Box>
         ) : syncMode && syncTarget ? (
           <Box height={contentHeight} alignItems="center" justifyContent="center">
