@@ -186,3 +186,39 @@ jobs:
           
           # Restore original package.json
           mv package-original.json package.json
+
+      - name: Update Homebrew Tap
+        if: env.NEW_VERSION_CREATED == 'true'
+        env:
+          GITHUB_TOKEN: ${{ secrets.GH_TOKEN || secrets.GITHUB_TOKEN }}
+        run: |
+          echo "Updating Homebrew tap for version ${{ env.VERSION_AFTER }}..."
+          
+          # Create npm tarball locally
+          npm pack
+          TARBALL="gh-manager-cli-${{ env.VERSION_AFTER }}.tgz"
+          
+          # Calculate SHA256 of the tarball
+          if [[ "$OSTYPE" == "darwin"* ]]; then
+            SHA256=$(shasum -a 256 "$TARBALL" | cut -d' ' -f1)
+          else
+            SHA256=$(sha256sum "$TARBALL" | cut -d' ' -f1)
+          fi
+          echo "SHA256: $SHA256"
+          
+          # Clone the tap repository
+          git config --global user.name "github-actions[bot]"
+          git config --global user.email "github-actions[bot]@users.noreply.github.com"
+          git clone https://github.com/wiiiimm/homebrew-tap.git tap-repo
+          
+          # Update the formula
+          FORMULA="tap-repo/Formula/gh-manager-cli.rb"
+          sed -i.bak -E "s|url \"https://registry.npmjs.org/gh-manager-cli/-/gh-manager-cli-[0-9.]+\.tgz\"|url \"https://registry.npmjs.org/gh-manager-cli/-/gh-manager-cli-${{ env.VERSION_AFTER }}.tgz\"|" "$FORMULA"
+          sed -i.bak -E "s|sha256 \"[a-f0-9]{64}\"|sha256 \"${SHA256}\"|" "$FORMULA"
+          rm -f "$FORMULA.bak"
+          
+          # Commit and push
+          cd tap-repo
+          git add Formula/gh-manager-cli.rb
+          git commit -m "Update gh-manager-cli to ${{ env.VERSION_AFTER }}"
+          git push origin main
