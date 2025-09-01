@@ -336,7 +336,8 @@ if (typeof module !== 'undefined' && module.exports) {
 }
 
 // CLI interface for testing
-if (require.main === module) {
+// Check if running as main module (works in both CommonJS and ES modules)
+if (typeof require !== 'undefined' && require.main === module) {
   const args = process.argv.slice(2);
   if (args.length === 0) {
     console.log('Usage: node normalize-pr-title.js "<title>" [commits-json] [branch-name]');
