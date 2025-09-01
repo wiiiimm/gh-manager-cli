@@ -149,6 +149,7 @@ export default function App() {
   // Handle logout from child components
   const handleLogout = () => {
     try { clearStoredToken(); } catch {}
+    setRateLimitReset(null);
     setToken(null);
     setViewer(null);
     setInput(''); // Clear the token input field
@@ -162,17 +163,15 @@ export default function App() {
     }
     
     if (mode === 'rate_limited') {
-      if (key.escape || input === 'q') {
+      const ch = (input || '').toLowerCase();
+      if (key.escape || ch === 'q') {
         exit();
-      } else if (input === 'r') {
+      } else if (ch === 'r') {
         // Retry with current token
         setMode('validating');
-      } else if (input === 'l') {
+      } else if (ch === 'l') {
         // Logout - go back to authentication
-        setToken(null);
-        setInput('');
-        setRateLimitReset(null);
-        setMode('prompt');
+        handleLogout();
       }
     }
     
