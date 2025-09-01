@@ -1,3 +1,10 @@
+## [1.11.1](https://github.com/wiiiimm/gh-manager-cli/compare/v1.11.0...v1.11.1) (2025-09-01)
+
+
+### Bug Fixes
+
+* handle require not defined error in GitHub Actions script ([49db95b](https://github.com/wiiiimm/gh-manager-cli/commit/49db95b8f69acbeb075190d81d7d5dcd6dc2991e))
+
 # [1.11.0](https://github.com/wiiiimm/gh-manager-cli/compare/v1.10.6...v1.11.0) (2025-09-01)
 
 
