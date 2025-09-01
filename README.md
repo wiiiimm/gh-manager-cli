@@ -10,25 +10,20 @@
 
 Interactive terminal app to browse and manage your personal GitHub repositories. Built with Ink (React for CLIs) and the GitHub GraphQL API.
 
+<p align="center">
+  <img src="docs/demo_interactive.gif" alt="Interactive demo of gh-manager-cli" width="900" />
+  <br />
+  <em>Fast, keyboard-first GitHub repo management from your terminal</em>
+ </p>
+
 ## Screenshots
 
 <div align="center">
-
-### Repository Listing
-Browse your repositories with rich metadata, sorting, and filtering options.
-
-<img src="docs/demo_repo_listing.png" alt="Repository listing interface showing repositories with metadata" width="800">
-
-### Authentication Flow  
-Secure GitHub token authentication with validation and persistence.
-
-<img src="docs/demo_login.png" alt="Login screen prompting for GitHub token" width="800">
-
-### Delete Confirmation
-Safe repository deletion with two-step confirmation process.
-
-<img src="docs/demo_delete_confirmation.png" alt="Delete confirmation dialog with security prompts" width="800">
-
+  <img src="docs/demo_repo_listing.png" alt="Repository listing with metadata" width="31%" />
+  <img src="docs/demo_login.png" alt="GitHub token authentication flow" width="31%" />
+  <img src="docs/demo_delete_confirmation.png" alt="Two-step delete confirmation" width="31%" />
+  <br />
+  <sub>Listing • Auth • Delete confirmation</sub>
 </div>
 
 ## Quick Start
