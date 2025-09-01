@@ -769,8 +769,8 @@ export default function RepoList({ token, maxVisibleRows, onLogout, viewerLogin,
       return;
     }
 
-    // Sync fork with upstream modal (Ctrl+U)
-    if (key.ctrl && (input === 'u' || input === 'U')) {
+    // Sync fork with upstream modal (Ctrl+S)
+    if (key.ctrl && (input === 's' || input === 'S')) {
       const repo = visibleItems[cursor];
       if (repo && repo.isFork && repo.parent) {
         // Only show sync option for forks that are behind
@@ -1689,7 +1689,7 @@ export default function RepoList({ token, maxVisibleRows, onLogout, viewerLogin,
         </Box>
         <Box width={terminalWidth} justifyContent="center">
           <Text color="gray" dimColor={modalOpen ? true : undefined}>
-            Del/Ctrl+Backspace Delete • Ctrl+A Un/Archive • Ctrl+U Sync Fork • I Info • Ctrl+I Cache • Ctrl+L Logout • R Refresh • Q Quit
+            Del/Ctrl+Backspace Delete • Ctrl+A Un/Archive • Ctrl+S Sync Fork • I Info • Ctrl+I Cache • Ctrl+L Logout • R Refresh • Q Quit
           </Text>
         </Box>
       </Box>

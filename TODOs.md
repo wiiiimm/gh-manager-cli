@@ -53,7 +53,7 @@ Legend:
     - On failure: show error in modal with proper error handling
 
 - [x] Sync fork with upstream
-  - Assigned key `Ctrl+U` to trigger sync
+  - Assigned key `Ctrl+S` to trigger sync
   - Only shown for forked repositories that are behind upstream
   - Confirmation modal showing:
     - Fork name and upstream repository
@@ -303,7 +303,7 @@ Legend:
   - Configured semantic-release to attach binaries to GitHub releases automatically
   - Added build:binaries script for local binary creation
   - Updated documentation with installation instructions for pre-built binaries
-- [x] Sync fork with upstream (`Ctrl+U`)
+- [x] Sync fork with upstream (`Ctrl+S`)
   - Shows modal with fork name, upstream repo, and commits behind
   - Executes sync via GitHub REST API with proper error handling
   - Updates local state and shows success/conflict messages
