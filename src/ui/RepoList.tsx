@@ -2,7 +2,7 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { Box, Text, useApp, useInput, useStdout, Spacer, Newline } from 'ink';
 import TextInput from 'ink-text-input';
 import chalk from 'chalk';
-import { makeClient, fetchViewerReposPageUnified, searchRepositoriesUnified, deleteRepositoryRest, archiveRepositoryById, unarchiveRepositoryById, syncForkWithUpstream, fetchRepositoryById, getRepositoryFromCache, purgeApolloCacheFiles, inspectCacheStatus, updateCacheAfterDelete, updateCacheAfterArchive, updateCacheWithRepository, OwnerAffiliation } from '../github';
+import { makeClient, fetchViewerReposPageUnified, searchRepositoriesUnified, deleteRepositoryRest, archiveRepositoryById, unarchiveRepositoryById, syncForkWithUpstream, getRepositoryFromCache, purgeApolloCacheFiles, inspectCacheStatus, updateCacheAfterDelete, updateCacheAfterArchive, updateCacheWithRepository, OwnerAffiliation } from '../github';
 import { getUIPrefs, storeUIPrefs, OwnerContext } from '../config';
 import { makeApolloKey, makeSearchKey, isFresh, markFetched } from '../apolloMeta';
 import type { RepoNode, RateLimitInfo } from '../types';
@@ -580,44 +580,38 @@ export default function RepoList({ token, maxVisibleRows, onLogout, viewerLogin,
             const branchName = syncTarget.defaultBranchRef?.name || 'main';
             const result = await syncForkWithUpstream(token, owner, repo, branchName);
             
-            // Fetch updated repository data from GitHub
-            const updatedRepo = await fetchRepositoryById(client, (syncTarget as any).id, forkTracking);
-            
-            if (updatedRepo) {
-              // Update Apollo cache with fresh data
-              await updateCacheWithRepository(token, updatedRepo);
-              
-              // Update both regular and search items with fresh data
-              const updateSyncedRepo = (r: any) => {
-                if (r.id === (syncTarget as any).id) {
-                  return updatedRepo;
-                }
-                return r;
-              };
-              setItems(prev => prev.map(updateSyncedRepo));
-              setSearchItems(prev => prev.map(updateSyncedRepo));
-            } else {
-              // Fallback to local update if fetch fails
-              const updateSyncedRepo = (r: any) => {
-                if (r.id === (syncTarget as any).id && r.parent && r.defaultBranchRef?.target?.history && r.parent.defaultBranchRef?.target?.history) {
-                  return {
-                    ...r,
-                    defaultBranchRef: {
-                      ...r.defaultBranchRef,
-                      target: {
-                        ...r.defaultBranchRef.target,
-                        history: {
-                          totalCount: r.parent.defaultBranchRef.target.history.totalCount
-                        }
-                      }
+            // After successful sync, update locally without fetching from GitHub
+            // GitHub sets updatedAt to current time when syncing, and commits behind becomes 0
+            const updatedRepo = {
+              ...syncTarget,
+              updatedAt: new Date().toISOString(),
+              // If we're tracking fork commits and this is a fork with parent data, set commits to be in sync
+              ...(forkTracking && syncTarget.isFork && syncTarget.parent && syncTarget.defaultBranchRef?.target?.history && syncTarget.parent.defaultBranchRef?.target?.history ? {
+                defaultBranchRef: {
+                  ...syncTarget.defaultBranchRef,
+                  target: {
+                    ...syncTarget.defaultBranchRef.target,
+                    history: {
+                      // Set fork's commit count equal to parent's (0 commits behind)
+                      totalCount: syncTarget.parent.defaultBranchRef.target.history.totalCount
                     }
-                  };
+                  }
                 }
-                return r;
-              };
-              setItems(prev => prev.map(updateSyncedRepo));
-              setSearchItems(prev => prev.map(updateSyncedRepo));
-            }
+              } : {})
+            };
+            
+            // Update Apollo cache with the locally updated data
+            await updateCacheWithRepository(token, updatedRepo);
+            
+            // Update both regular and search items with the locally updated data
+            const updateSyncedRepo = (r: any) => {
+              if (r.id === (syncTarget as any).id) {
+                return updatedRepo;
+              }
+              return r;
+            };
+            setItems(prev => prev.map(updateSyncedRepo));
+            setSearchItems(prev => prev.map(updateSyncedRepo));
             closeSyncModal();
           } catch (e: any) {
             setSyncing(false);
@@ -1411,44 +1405,38 @@ export default function RepoList({ token, maxVisibleRows, onLogout, viewerLogin,
                           const branchName = syncTarget.defaultBranchRef?.name || 'main';
                           const result = await syncForkWithUpstream(token, owner, repo, branchName);
                           
-                          // Fetch updated repository data from GitHub
-                          const updatedRepo = await fetchRepositoryById(client, (syncTarget as any).id, forkTracking);
-                          
-                          if (updatedRepo) {
-                            // Update Apollo cache with fresh data
-                            await updateCacheWithRepository(token, updatedRepo);
-                            
-                            // Update both regular and search items with fresh data
-                            const updateSyncedRepo = (r: any) => {
-                              if (r.id === (syncTarget as any).id) {
-                                return updatedRepo;
-                              }
-                              return r;
-                            };
-                            setItems(prev => prev.map(updateSyncedRepo));
-                            setSearchItems(prev => prev.map(updateSyncedRepo));
-                          } else {
-                            // Fallback to local update if fetch fails
-                            const updateSyncedRepo = (r: any) => {
-                              if (r.id === (syncTarget as any).id && r.parent && r.defaultBranchRef?.target?.history && r.parent.defaultBranchRef?.target?.history) {
-                                return {
-                                  ...r,
-                                  defaultBranchRef: {
-                                    ...r.defaultBranchRef,
-                                    target: {
-                                      ...r.defaultBranchRef.target,
-                                      history: {
-                                        totalCount: r.parent.defaultBranchRef.target.history.totalCount
-                                      }
-                                    }
+                          // After successful sync, update locally without fetching from GitHub
+                          // GitHub sets updatedAt to current time when syncing, and commits behind becomes 0
+                          const updatedRepo = {
+                            ...syncTarget,
+                            updatedAt: new Date().toISOString(),
+                            // If we're tracking fork commits and this is a fork with parent data, set commits to be in sync
+                            ...(forkTracking && syncTarget.isFork && syncTarget.parent && syncTarget.defaultBranchRef?.target?.history && syncTarget.parent.defaultBranchRef?.target?.history ? {
+                              defaultBranchRef: {
+                                ...syncTarget.defaultBranchRef,
+                                target: {
+                                  ...syncTarget.defaultBranchRef.target,
+                                  history: {
+                                    // Set fork's commit count equal to parent's (0 commits behind)
+                                    totalCount: syncTarget.parent.defaultBranchRef.target.history.totalCount
                                   }
-                                };
+                                }
                               }
-                              return r;
-                            };
-                            setItems(prev => prev.map(updateSyncedRepo));
-                            setSearchItems(prev => prev.map(updateSyncedRepo));
-                          }
+                            } : {})
+                          };
+                          
+                          // Update Apollo cache with the locally updated data
+                          await updateCacheWithRepository(token, updatedRepo);
+                          
+                          // Update both regular and search items with the locally updated data
+                          const updateSyncedRepo = (r: any) => {
+                            if (r.id === (syncTarget as any).id) {
+                              return updatedRepo;
+                            }
+                            return r;
+                          };
+                          setItems(prev => prev.map(updateSyncedRepo));
+                          setSearchItems(prev => prev.map(updateSyncedRepo));
                           closeSyncModal();
                         } catch (e: any) {
                           setSyncing(false);
