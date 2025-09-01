@@ -1,3 +1,10 @@
+# [1.11.0](https://github.com/wiiiimm/gh-manager-cli/compare/v1.10.6...v1.11.0) (2025-09-01)
+
+
+### Features
+
+* add modal-based visibility filtering and sort selection ([1c72224](https://github.com/wiiiimm/gh-manager-cli/commit/1c72224b4854f69481bb21f089a926dc2c18e53f))
+
 ## [1.10.6](https://github.com/wiiiimm/gh-manager-cli/compare/v1.10.5...v1.10.6) (2025-09-01)
 
 
