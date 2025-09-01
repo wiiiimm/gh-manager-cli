@@ -80,6 +80,13 @@ On first run, you'll be prompted for a GitHub Personal Access Token.
 
 ## Installation
 
+### Homebrew (macOS/Linux)
+
+```bash
+brew tap wiiiimm/tap
+brew install gh-manager-cli
+```
+
 ### NPX (Recommended - No Installation Required)
 
 Run instantly without installing:
