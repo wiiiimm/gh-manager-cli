@@ -1,3 +1,10 @@
+## [1.8.1](https://github.com/wiiiimm/gh-manager-cli/compare/v1.8.0...v1.8.1) (2025-09-01)
+
+
+### Bug Fixes
+
+* prevent duplicate npm publishing when version hasn't changed ([ff0b37b](https://github.com/wiiiimm/gh-manager-cli/commit/ff0b37b99c4232fa2d179a9becf6e314cc218d55))
+
 # [1.8.0](https://github.com/wiiiimm/gh-manager-cli/compare/v1.7.0...v1.8.0) (2025-08-31)
 
 
