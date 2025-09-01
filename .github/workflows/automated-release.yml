@@ -132,19 +132,48 @@ jobs:
           find ./binaries -type f -exec ls -la {} \;
 
       - name: Run semantic-release
+        id: semantic
         env:
           GITHUB_TOKEN: ${{ secrets.GH_TOKEN || secrets.GITHUB_TOKEN }}
           GH_TOKEN: ${{ secrets.GH_TOKEN || secrets.GITHUB_TOKEN }}
           NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
-        run: npx semantic-release
+        run: |
+          # Capture the version before semantic-release
+          VERSION_BEFORE=$(node -p "require('./package.json').version")
+          echo "VERSION_BEFORE=${VERSION_BEFORE}" >> $GITHUB_ENV
+          
+          # Run semantic-release
+          npx semantic-release
+          
+          # Capture the version after semantic-release
+          VERSION_AFTER=$(node -p "require('./package.json').version")
+          echo "VERSION_AFTER=${VERSION_AFTER}" >> $GITHUB_ENV
+          
+          # Check if version changed
+          if [ "$VERSION_BEFORE" != "$VERSION_AFTER" ]; then
+            echo "NEW_VERSION_CREATED=true" >> $GITHUB_ENV
+            echo "Version bumped from ${VERSION_BEFORE} to ${VERSION_AFTER}"
+          else
+            echo "NEW_VERSION_CREATED=false" >> $GITHUB_ENV
+            echo "No version bump occurred (still at ${VERSION_BEFORE})"
+          fi
 
       - name: Publish to GitHub Packages
+        if: env.NEW_VERSION_CREATED == 'true'
         env:
           NODE_AUTH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
+          echo "Publishing version ${{ env.VERSION_AFTER }} to GitHub Packages..."
+          
           # Create .npmrc for GitHub Packages
           echo "@wiiiimm:registry=https://npm.pkg.github.com" >> .npmrc
           echo "//npm.pkg.github.com/:_authToken=${NODE_AUTH_TOKEN}" >> .npmrc
+          
+          # Check if this version already exists in GitHub Packages
+          if npm view @wiiiimm/gh-manager-cli@${{ env.VERSION_AFTER }} --registry=https://npm.pkg.github.com 2>/dev/null; then
+            echo "Version ${{ env.VERSION_AFTER }} already exists in GitHub Packages, skipping publish"
+            exit 0
+          fi
           
           # Backup original package.json
           cp package.json package-original.json
