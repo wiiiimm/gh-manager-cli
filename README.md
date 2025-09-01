@@ -162,8 +162,8 @@ Status bar shows loaded count vs total. A rate-limit line displays `remaining/li
 ## Pagination Details
 
 - Uses GitHub GraphQL `viewer.repositories` with `ownerAffiliations: OWNER`, ordered by `UPDATED_AT DESC`.
-- Fetches 50 repos per page and updates `totalCount` each time.
-- Prefetches the next page when your selection nears the end of the loaded list.
+- Fetches 15 repos per page by default (configurable via `REPOS_PER_FETCH` environment variable, 1-50).
+- Updates `totalCount` each time and prefetches the next page when selection nears the end of loaded list.
 
 ## Development
 
@@ -180,11 +180,14 @@ Scripts:
 pnpm build          # build to dist/
 pnpm build:binaries # build cross-platform binaries to ./binaries/
 pnpm dev            # watch mode
-pnpm start          # node dist/index.js
+pnpm start          # run normally
+pnpm start:debug    # run with debug mode enabled
+pnpm start:dev      # run with 5 repos per page and debug mode
 ```
 
-Notes:
-- In development mode (set `NODE_ENV=development` or `GH_MANAGER_DEV=1`), the app fetches 5 repos per page to speed iteration.
+Environment variables:
+- `REPOS_PER_FETCH`: Number of repositories to fetch per page (1-50, default: 15)
+- `GH_MANAGER_DEBUG=1`: Enables debug mode with performance metrics and detailed errors
 
 Project layout:
 - `src/index.tsx` — CLI entry and error handling
@@ -241,14 +244,20 @@ Even with caching enabled, API credits may decrease due to:
 - **Cache-and-network policy**: Updates stale cache data in background
 - **Sorting changes**: Different sort orders create new cache entries
 
-### Cache Configuration
+### Configuration
 
 ```bash
+# Number of repositories to fetch per page (1-50, default: 15)
+REPOS_PER_FETCH=10 npx gh-manager
+
 # Custom cache TTL (milliseconds) - default: 30 minutes
 APOLLO_TTL_MS=1800000 npx gh-manager
 
 # Enable debug mode to see cache performance
 GH_MANAGER_DEBUG=1 npx gh-manager
+
+# Combine multiple environment variables
+REPOS_PER_FETCH=5 GH_MANAGER_DEBUG=1 npx gh-manager
 ```
 
 ## Troubleshooting

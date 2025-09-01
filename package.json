@@ -29,9 +29,8 @@
     "build:binaries": "npm run build && pkg dist/index.js --targets node18-linux-x64,node18-macos-x64,node18-windows-x64 --out-path ./binaries",
     "dev": "tsup --watch",
     "start": "node dist/index.js",
-    "start:cache": "GH_MANAGER_APOLLO=1 GH_MANAGER_DEBUG=1 node dist/index.js",
-    "start:no-cache": "GH_MANAGER_APOLLO=0 GH_MANAGER_DEBUG=1 node dist/index.js",
-    "test:cache": "pnpm build && pnpm start:cache",
+    "start:debug": "GH_MANAGER_DEBUG=1 node dist/index.js",
+    "start:dev": "REPOS_PER_FETCH=5 GH_MANAGER_DEBUG=1 node dist/index.js",
     "prepublishOnly": "pnpm run build"
   },
   "engines": {

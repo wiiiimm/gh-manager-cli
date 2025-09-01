@@ -13,7 +13,19 @@ import { RepoRow, FilterInput, RepoListHeader } from './components/repo';
 import { SlowSpinner } from './components/common';
 import { truncate, formatDate } from '../utils';
 
-const PAGE_SIZE = (process.env.GH_MANAGER_DEV === '1' || process.env.NODE_ENV === 'development') ? 5 : 15;
+// Allow customizable repos per fetch via env var (1-50, default 15)
+const getPageSize = () => {
+  const envValue = process.env.REPOS_PER_FETCH;
+  if (envValue) {
+    const parsed = parseInt(envValue, 10);
+    if (!isNaN(parsed) && parsed >= 1 && parsed <= 50) {
+      return parsed;
+    }
+  }
+  return 15; // Default
+};
+
+const PAGE_SIZE = getPageSize();
 
 export default function RepoList({ token, maxVisibleRows, onLogout, viewerLogin, onOrgContextChange }: { 
   token: string; 
