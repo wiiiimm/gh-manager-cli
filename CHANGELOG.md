@@ -1,3 +1,10 @@
+## [1.13.2](https://github.com/wiiiimm/gh-manager-cli/compare/v1.13.1...v1.13.2) (2025-09-01)
+
+
+### Bug Fixes
+
+* add authentication to Homebrew tap update in workflow ([31ec056](https://github.com/wiiiimm/gh-manager-cli/commit/31ec056a95bfbd696d8bb4d884fee0213c52257a))
+
 ## [1.13.1](https://github.com/wiiiimm/gh-manager-cli/compare/v1.13.0...v1.13.1) (2025-09-01)
 
 
