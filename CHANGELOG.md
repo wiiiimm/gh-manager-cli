@@ -1,3 +1,10 @@
+## [1.10.2](https://github.com/wiiiimm/gh-manager-cli/compare/v1.10.1...v1.10.2) (2025-09-01)
+
+
+### Bug Fixes
+
+* handle GitHub API 422 status for sync-upstream as potential success ([9a13e8a](https://github.com/wiiiimm/gh-manager-cli/commit/9a13e8a76d4ed09eb7af18b5b8de9e0f2d4c978f))
+
 ## [1.10.1](https://github.com/wiiiimm/gh-manager-cli/compare/v1.10.0...v1.10.1) (2025-09-01)
 
 
