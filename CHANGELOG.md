@@ -1,3 +1,10 @@
+# [1.13.0](https://github.com/wiiiimm/gh-manager-cli/compare/v1.12.0...v1.13.0) (2025-09-01)
+
+
+### Features
+
+* add Homebrew tap support and CLI flags ([#10](https://github.com/wiiiimm/gh-manager-cli/issues/10)) ([bba6c38](https://github.com/wiiiimm/gh-manager-cli/commit/bba6c38b5c1bd01b8a01d87b8e2910d3523dd776))
+
 # [1.12.0](https://github.com/wiiiimm/gh-manager-cli/compare/v1.11.1...v1.12.0) (2025-09-01)
 
 
