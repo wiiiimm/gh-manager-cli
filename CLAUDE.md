@@ -10,6 +10,6 @@ For detailed project architecture, setup instructions, features, and development
 - **Project Type:** Node.js CLI application with React-based TUI
 - **Primary File:** `AGENTS.md` contains all project documentation
 - **Build Command:** `pnpm build`
-- **Run Command:** `node dist/index.js` or `gh-manager` (after `pnpm link`)
+- **Run Command:** `node dist/index.js` or `gh-manager-cli` (after `pnpm link`)
 
 Always refer to `@AGENTS.md` for complete project details, architecture, and development instructions.

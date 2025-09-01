@@ -140,7 +140,7 @@ Run the CLI:
 ```bash
 node dist/index.js
 # or add to PATH (dev):
-pnpm link # then run: gh-manager
+pnpm link # then run: gh-manager-cli
 ```
 
 First run prompts for a PAT if not provided via env vars. The token is validated by a quick `viewer { login }` request; on success it’s stored in the config file with restricted permissions.
@@ -167,8 +167,8 @@ First run prompts for a PAT if not provided via env vars. The token is validated
 
 ## Packaging
 
-- `package.json` defines `bin: { "gh-manager": "dist/index.js" }`.
-- For local dev: `pnpm link` exposes `gh-manager` on PATH.
+- `package.json` defines `bin: { "gh-manager-cli": "dist/index.js" }`.
+- For local dev: `pnpm link` exposes `gh-manager-cli` on PATH.
 - For publish: `npm publish` (after setting version and adding README).
 
 ## Development Workflow

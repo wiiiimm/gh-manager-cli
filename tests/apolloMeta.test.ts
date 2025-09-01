@@ -5,7 +5,7 @@ import path from 'path';
 // Create a temp data dir within the workspace to avoid sandbox restrictions
 const tmpBase = path.join(process.cwd(), 'tests', '.tmp');
 fs.mkdirSync(tmpBase, { recursive: true });
-const tmpDir = fs.mkdtempSync(path.join(tmpBase, 'gh-manager-meta-'));
+const tmpDir = fs.mkdtempSync(path.join(tmpBase, 'gh-manager-cli-meta-'));
 
 // Mock env-paths to force apolloMeta to write inside our temp dir
 vi.mock('env-paths', () => ({

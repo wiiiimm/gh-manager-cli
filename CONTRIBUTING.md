@@ -54,7 +54,7 @@ pnpm build
 node dist/index.js
 # or link for development
 pnpm link
-gh-manager
+gh-manager-cli
 ```
 
 ### Project Structure
@@ -248,7 +248,7 @@ node dist/index.js
 
 # Link for global testing
 pnpm link
-gh-manager
+gh-manager-cli
 ```
 
 ### Release Process

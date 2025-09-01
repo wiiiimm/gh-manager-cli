@@ -35,7 +35,7 @@ Safe repository deletion with two-step confirmation process.
 
 ```bash
 # Run with npx (no install)
-npx gh-manager
+npx gh-manager-cli
 ```
 
 On first run, you'll be prompted for a GitHub Personal Access Token.
@@ -76,30 +76,30 @@ On first run, you'll be prompted for a GitHub Personal Access Token.
 Run instantly without installing:
 
 ```bash
-npx gh-manager
+npx gh-manager-cli
 ```
 
 ### NPM Global Install
 
-Install globally for persistent `gh-manager` command:
+Install globally for persistent `gh-manager-cli` command:
 
 ```bash
 npm install -g gh-manager-cli
-gh-manager
+gh-manager-cli
 ```
 
 ### Pre-built Binaries (No Node.js Required)
 
 Download standalone executables from [GitHub Releases](https://github.com/wiiiimm/gh-manager-cli/releases):
 
-- **Linux**: `gh-manager-linux-x64`
-- **macOS**: `gh-manager-macos-x64` 
-- **Windows**: `gh-manager-windows-x64.exe`
+- **Linux**: `gh-manager-cli-linux-x64`
+- **macOS**: `gh-manager-cli-macos-x64` 
+- **Windows**: `gh-manager-cli-windows-x64.exe`
 
 Make the binary executable (Linux/macOS):
 ```bash
-chmod +x gh-manager-*
-./gh-manager-*
+chmod +x gh-manager-cli-*
+./gh-manager-cli-*
 ```
 
 ### From Source
@@ -121,7 +121,7 @@ Run locally:
 node dist/index.js
 # Or add to PATH for dev
 pnpm link
-gh-manager
+gh-manager-cli
 ```
 
 ## Token & Security
@@ -220,7 +220,7 @@ gh-manager-cli includes built-in Apollo Client caching to reduce GitHub API call
 
 Run with `GH_MANAGER_DEBUG=1` to enable debugging features:
 ```bash
-GH_MANAGER_DEBUG=1 npx gh-manager
+GH_MANAGER_DEBUG=1 npx gh-manager-cli
 ```
 
 Debug mode provides:
@@ -256,16 +256,16 @@ Even with caching enabled, API credits may decrease due to:
 
 ```bash
 # Number of repositories to fetch per page (1-50, default: 15)
-REPOS_PER_FETCH=10 npx gh-manager
+REPOS_PER_FETCH=10 npx gh-manager-cli
 
 # Custom cache TTL (milliseconds) - default: 30 minutes
-APOLLO_TTL_MS=1800000 npx gh-manager
+APOLLO_TTL_MS=1800000 npx gh-manager-cli
 
 # Enable debug mode to see cache performance
-GH_MANAGER_DEBUG=1 npx gh-manager
+GH_MANAGER_DEBUG=1 npx gh-manager-cli
 
 # Combine multiple environment variables
-REPOS_PER_FETCH=5 GH_MANAGER_DEBUG=1 npx gh-manager
+REPOS_PER_FETCH=5 GH_MANAGER_DEBUG=1 npx gh-manager-cli-cli
 ```
 
 ## Troubleshooting

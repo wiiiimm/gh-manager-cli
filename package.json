@@ -6,7 +6,7 @@
   "license": "MIT",
   "main": "dist/index.js",
   "bin": {
-    "gh-manager": "dist/index.js"
+    "gh-manager-cli": "dist/index.js"
   },
   "files": [
     "dist/",
@@ -97,18 +97,18 @@
         {
           "assets": [
             {
-              "path": "binaries/gh-manager-linux-x64/gh-manager-linux-x64",
-              "name": "gh-manager-linux-x64",
+              "path": "binaries/gh-manager-cli-linux-x64/gh-manager-cli-linux-x64",
+              "name": "gh-manager-cli-linux-x64",
               "label": "Linux x64 Binary"
             },
             {
-              "path": "binaries/gh-manager-macos-x64/gh-manager-macos-x64",
-              "name": "gh-manager-macos-x64",
+              "path": "binaries/gh-manager-cli-macos-x64/gh-manager-cli-macos-x64",
+              "name": "gh-manager-cli-macos-x64",
               "label": "macOS x64 Binary"
             },
             {
-              "path": "binaries/gh-manager-windows-x64/gh-manager-windows-x64.exe",
-              "name": "gh-manager-windows-x64.exe",
+              "path": "binaries/gh-manager-cli-windows-x64/gh-manager-cli-windows-x64.exe",
+              "name": "gh-manager-cli-windows-x64.exe",
               "label": "Windows x64 Binary"
             }
           ]
