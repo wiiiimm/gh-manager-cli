@@ -2,7 +2,7 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { Box, Text, useApp, useInput, useStdout, Spacer, Newline } from 'ink';
 import TextInput from 'ink-text-input';
 import chalk from 'chalk';
-import { makeClient, fetchViewerReposPageUnified, searchRepositoriesUnified, deleteRepositoryRest, archiveRepositoryById, unarchiveRepositoryById, syncForkWithUpstream, fetchRepositoryById, purgeApolloCacheFiles, inspectCacheStatus, OwnerAffiliation } from '../github';
+import { makeClient, fetchViewerReposPageUnified, searchRepositoriesUnified, deleteRepositoryRest, archiveRepositoryById, unarchiveRepositoryById, syncForkWithUpstream, fetchRepositoryById, getRepositoryFromCache, purgeApolloCacheFiles, inspectCacheStatus, updateCacheAfterDelete, updateCacheAfterArchive, updateCacheWithRepository, OwnerAffiliation } from '../github';
 import { getUIPrefs, storeUIPrefs, OwnerContext } from '../config';
 import { makeApolloKey, makeSearchKey, isFresh, markFetched } from '../apolloMeta';
 import type { RepoNode, RateLimitInfo } from '../types';
@@ -96,6 +96,7 @@ export default function RepoList({ token, maxVisibleRows, onLogout, viewerLogin,
 
   // Info (hidden) modal state
   const [infoMode, setInfoMode] = useState(false);
+  const [infoRepo, setInfoRepo] = useState<RepoNode | null>(null);
 
   // Logout modal state
   const [logoutMode, setLogoutMode] = useState(false);
@@ -155,8 +156,12 @@ export default function RepoList({ token, maxVisibleRows, onLogout, viewerLogin,
       // REST: requires owner/repo and a token with delete_repo scope
       const [owner, repo] = (deleteTarget.nameWithOwner || '').split('/');
       await deleteRepositoryRest(token, owner, repo);
-      // Remove from both regular items and search items
+      
+      // Update Apollo cache
       const targetId = (deleteTarget as any).id;
+      await updateCacheAfterDelete(token, targetId);
+      
+      // Remove from both regular items and search items
       setItems((prev) => prev.filter((r: any) => r.id !== targetId));
       setSearchItems((prev) => prev.filter((r: any) => r.id !== targetId));
       
@@ -527,6 +532,9 @@ export default function RepoList({ token, maxVisibleRows, onLogout, viewerLogin,
             if (isArchived) await unarchiveRepositoryById(client, id);
             else await archiveRepositoryById(client, id);
             
+            // Update Apollo cache
+            await updateCacheAfterArchive(token, id, !isArchived);
+            
             // Update both regular items and search items
             const updateRepo = (r: any) => (r.id === id ? { ...r, isArchived: !isArchived } : r);
             setItems(prev => prev.map(updateRepo));
@@ -575,6 +583,9 @@ export default function RepoList({ token, maxVisibleRows, onLogout, viewerLogin,
             const updatedRepo = await fetchRepositoryById(client, (syncTarget as any).id, forkTracking);
             
             if (updatedRepo) {
+              // Update Apollo cache with fresh data
+              await updateCacheWithRepository(token, updatedRepo);
+              
               // Update both regular and search items with fresh data
               const updateSyncedRepo = (r: any) => {
                 if (r.id === (syncTarget as any).id) {
@@ -640,6 +651,7 @@ export default function RepoList({ token, maxVisibleRows, onLogout, viewerLogin,
     if (infoMode) {
       if (key.escape || (input && input.toUpperCase() === 'I')) {
         setInfoMode(false);
+        setInfoRepo(null);
         return;
       }
       return;
@@ -805,6 +817,18 @@ export default function RepoList({ token, maxVisibleRows, onLogout, viewerLogin,
 
     // Hidden Info modal toggle (I)
     if (input && input.toUpperCase() === 'I') {
+      const repo = visibleItems[cursor];
+      if (repo) {
+        // Try to get repo from cache first for instant display
+        (async () => {
+          const cachedRepo = await getRepositoryFromCache(token, repo.id);
+          if (cachedRepo) {
+            setInfoRepo(cachedRepo);
+          } else {
+            setInfoRepo(repo);
+          }
+        })();
+      }
       setInfoMode(true);
       return;
     }
@@ -1288,6 +1312,9 @@ export default function RepoList({ token, maxVisibleRows, onLogout, viewerLogin,
                           if (isArchived) await unarchiveRepositoryById(client, id);
                           else await archiveRepositoryById(client, id);
                           
+                          // Update Apollo cache
+                          await updateCacheAfterArchive(token, id, !isArchived);
+                          
                           // Update both regular items and search items
                           const updateRepo = (r: any) => (r.id === id ? { ...r, isArchived: !isArchived } : r);
                           setItems(prev => prev.map(updateRepo));
@@ -1386,6 +1413,9 @@ export default function RepoList({ token, maxVisibleRows, onLogout, viewerLogin,
                           const updatedRepo = await fetchRepositoryById(client, (syncTarget as any).id, forkTracking);
                           
                           if (updatedRepo) {
+                            // Update Apollo cache with fresh data
+                            await updateCacheWithRepository(token, updatedRepo);
+                            
                             // Update both regular and search items with fresh data
                             const updateSyncedRepo = (r: any) => {
                               if (r.id === (syncTarget as any).id) {
@@ -1497,13 +1527,13 @@ export default function RepoList({ token, maxVisibleRows, onLogout, viewerLogin,
         ) : infoMode ? (
           <Box height={contentHeight} alignItems="center" justifyContent="center">
             {(() => {
-              const repo = visibleItems[cursor];
+              const repo = infoRepo || visibleItems[cursor];
               if (!repo) return <Text color="red">No repository selected.</Text>;
               const langName = repo.primaryLanguage?.name || 'N/A';
               const langColor = repo.primaryLanguage?.color || '#666666';
               return (
                 <Box flexDirection="column" borderStyle="round" borderColor="magenta" paddingX={3} paddingY={2} width={Math.min(terminalWidth - 8, 90)}>
-                  <Text bold>Repository Info</Text>
+                  <Text bold>Repository Info {infoRepo ? chalk.dim('(cached)') : ''}</Text>
                   <Box height={1}><Text> </Text></Box>
                   <Text>{chalk.bold(repo.nameWithOwner)}</Text>
                   {repo.description && <Text color="gray">{repo.description}</Text>}

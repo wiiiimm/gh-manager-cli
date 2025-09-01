@@ -12,8 +12,16 @@ export function makeClient(token: string) {
   });
 }
 
+// Singleton Apollo client instance
+let apolloClientInstance: { client: ApolloClient<any>, gql: any } | null = null;
+
 // Apollo Client with persisted cache (default for all queries)
 async function makeApolloClient(token: string): Promise<any> {
+  // Return existing instance if available
+  if (apolloClientInstance) {
+    return apolloClientInstance;
+  }
+  
   try {
     // Node 18+ has native fetch, ensure it's available
     if (typeof globalThis.fetch === 'undefined') {
@@ -58,7 +66,8 @@ async function makeApolloClient(token: string): Promise<any> {
       headers: { authorization: `Bearer ${token}` }
     });
     const client = new ApolloClient({ cache, link });
-    return { client, gql };
+    apolloClientInstance = { client, gql };
+    return apolloClientInstance;
   } catch (error: any) {
     const debug = process.env.GH_MANAGER_DEBUG === '1';
     if (debug) {
@@ -607,6 +616,65 @@ export async function unarchiveRepositoryById(
   await client(mutation, { repositoryId });
 }
 
+// Try to get repository from cache first
+export async function getRepositoryFromCache(token: string, repositoryId: string): Promise<RepoNode | null> {
+  try {
+    const ap = await makeApolloClient(token);
+    if (!ap || !ap.client) return null;
+    
+    const cached = ap.client.cache.readFragment({
+      id: `Repository:${repositoryId}`,
+      fragment: gql`
+        fragment CachedRepository on Repository {
+          id
+          name
+          nameWithOwner
+          description
+          url
+          pushedAt
+          updatedAt
+          isPrivate
+          isArchived
+          isFork
+          stargazerCount
+          forkCount
+          diskUsage
+          primaryLanguage {
+            name
+            color
+          }
+          parent {
+            nameWithOwner
+            defaultBranchRef {
+              target {
+                ... on Commit {
+                  history(first: 0) {
+                    totalCount
+                  }
+                }
+              }
+            }
+          }
+          defaultBranchRef {
+            name
+            target {
+              ... on Commit {
+                history(first: 0) {
+                  totalCount
+                }
+              }
+            }
+          }
+        }
+      `
+    });
+    
+    return cached as RepoNode | null;
+  } catch {
+    return null;
+  }
+}
+
 export async function fetchRepositoryById(
   client: ReturnType<typeof makeClient>,
   repositoryId: string,
@@ -726,6 +794,89 @@ export async function purgeApolloCacheFiles(): Promise<void> {
     
     try { fs.unlinkSync(cacheFile); } catch {}
     try { fs.unlinkSync(metaFile); } catch {}
+  } catch {}
+}
+
+// Cache update functions
+export async function updateCacheAfterDelete(token: string, repositoryId: string): Promise<void> {
+  try {
+    const ap = await makeApolloClient(token);
+    if (!ap || !ap.client) return;
+    
+    // Evict the repository from cache
+    ap.client.cache.evict({ id: `Repository:${repositoryId}` });
+    ap.client.cache.gc();
+  } catch {}
+}
+
+export async function updateCacheAfterArchive(token: string, repositoryId: string, isArchived: boolean): Promise<void> {
+  try {
+    const ap = await makeApolloClient(token);
+    if (!ap || !ap.client) return;
+    
+    // Update the isArchived field in cache
+    ap.client.cache.modify({
+      id: `Repository:${repositoryId}`,
+      fields: {
+        isArchived: () => isArchived
+      }
+    });
+  } catch {}
+}
+
+export async function updateCacheWithRepository(token: string, repository: RepoNode): Promise<void> {
+  try {
+    const ap = await makeApolloClient(token);
+    if (!ap || !ap.client) return;
+    
+    // Write the updated repository data to cache
+    ap.client.cache.writeFragment({
+      id: `Repository:${repository.id}`,
+      fragment: gql`
+        fragment UpdatedRepository on Repository {
+          id
+          name
+          nameWithOwner
+          description
+          url
+          pushedAt
+          updatedAt
+          isPrivate
+          isArchived
+          isFork
+          stargazerCount
+          forkCount
+          diskUsage
+          primaryLanguage {
+            name
+            color
+          }
+          parent {
+            nameWithOwner
+            defaultBranchRef {
+              target {
+                ... on Commit {
+                  history(first: 0) {
+                    totalCount
+                  }
+                }
+              }
+            }
+          }
+          defaultBranchRef {
+            name
+            target {
+              ... on Commit {
+                history(first: 0) {
+                  totalCount
+                }
+              }
+            }
+          }
+        }
+      `,
+      data: repository
+    });
   } catch {}
 }
 
