@@ -252,7 +252,7 @@ Legend:
     - Prefer `clipboardy` dependency; fallback to OS commands: macOS `pbcopy`, Windows `clip`, Linux `xclip`/`xsel`/`wl-copy`
     - Silent no‑op if clipboard utility absent and `clipboardy` unavailable, but show error toast
 
-- [ ] OAuth login flow (alternative to token)
+- [x] OAuth login flow (alternative to token)
   - GitHub OAuth App authentication as alternative to Personal Access Token
   - Implementation approach:
     - Register OAuth app with GitHub (client ID/secret)

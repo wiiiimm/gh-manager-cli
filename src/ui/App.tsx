@@ -1,14 +1,16 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { Box, Text, useApp, useStdout, useInput } from 'ink';
 import TextInput from 'ink-text-input';
-import { getStoredToken, storeToken, getTokenFromEnv, clearStoredToken, OwnerContext } from '../config';
+import { getStoredToken, storeToken, getTokenFromEnv, clearStoredToken, OwnerContext, getTokenSource, TokenSource } from '../config';
 import { makeClient, getViewerLogin } from '../github';
+import { startOAuthFlow } from '../oauth';
 import RepoList from './RepoList';
+import { AuthMethodSelector, AuthMethod, OAuthProgress, OAuthStatus } from './components/auth';
 
 // Import version from package.json
 const packageJson = require('../../package.json');
 
-type Mode = 'checking' | 'prompt' | 'validating' | 'ready' | 'error' | 'rate_limited';
+type Mode = 'checking' | 'auth_method_selection' | 'prompt' | 'validating' | 'oauth_flow' | 'ready' | 'error' | 'rate_limited';
 
 export default function App() {
   const { exit } = useApp();
@@ -20,6 +22,9 @@ export default function App() {
   const [viewer, setViewer] = useState<string | null>(null);
   const [rateLimitReset, setRateLimitReset] = useState<string | null>(null);
   const [orgContext, setOrgContext] = useState<OwnerContext>('personal');
+  const [authMethod, setAuthMethod] = useState<AuthMethod>('pat');
+  const [oauthStatus, setOAuthStatus] = useState<OAuthStatus>('initializing');
+  const [tokenSource, setTokenSource] = useState<TokenSource>('pat');
   const [dims, setDims] = useState(() => {
     const cols = stdout?.columns ?? 100;
     const rows = stdout?.rows ?? 30;
@@ -42,6 +47,10 @@ export default function App() {
   useEffect(() => {
     const env = getTokenFromEnv();
     const stored = getStoredToken();
+    const source = getTokenSource();
+    
+    setTokenSource(source);
+    
     if (env) {
       setToken(env);
       setMode('validating');
@@ -49,9 +58,72 @@ export default function App() {
       setToken(stored);
       setMode('validating');
     } else {
-      setMode('prompt');
+      setMode('auth_method_selection');
     }
   }, []);
+
+  // Handle OAuth flow
+  useEffect(() => {
+    if (mode !== 'oauth_flow') return;
+    
+    (async () => {
+      try {
+        setOAuthStatus('initializing');
+        
+        // Start the OAuth flow
+        setOAuthStatus('server_starting');
+        
+        // Small delay to ensure UI updates
+        await new Promise(resolve => setTimeout(resolve, 500));
+        
+        setOAuthStatus('browser_opening');
+        
+        // Small delay to ensure UI updates
+        await new Promise(resolve => setTimeout(resolve, 500));
+        
+        // Start the actual OAuth flow
+        setOAuthStatus('waiting_for_browser');
+        const result = await startOAuthFlow();
+        
+        if (result.success && result.token) {
+          setOAuthStatus('validating_token');
+          
+          // Store the token
+          storeToken(result.token, 'oauth');
+          setToken(result.token);
+          setTokenSource('oauth');
+          
+          if (result.login) {
+            setViewer(result.login);
+            setOAuthStatus('success');
+            
+            // Small delay to show success message
+            await new Promise(resolve => setTimeout(resolve, 1000));
+            
+            setMode('ready');
+          } else {
+            // This shouldn't happen as the token is already validated in startOAuthFlow
+            throw new Error('Failed to get user login from token');
+          }
+        } else {
+          throw new Error(result.error || 'Unknown error during OAuth flow');
+        }
+      } catch (error: any) {
+        setOAuthStatus('error');
+        setError(error.message);
+      }
+    })();
+  }, [mode]);
+
+  // Handle authentication method selection
+  const handleAuthMethodSelect = (method: AuthMethod) => {
+    setAuthMethod(method);
+    if (method === 'pat') {
+      setMode('prompt');
+    } else if (method === 'oauth') {
+      setMode('oauth_flow');
+    }
+  };
 
   useEffect(() => {
     (async () => {
@@ -60,7 +132,7 @@ export default function App() {
       // Add timeout for validation to prevent getting stuck
       const timeoutId = setTimeout(() => {
         setError('Token validation timed out. Please check your network connection.');
-        setMode('prompt');
+        setMode('auth_method_selection');
         setToken(null);
       }, 15000); // 15 second timeout
       
@@ -132,7 +204,7 @@ export default function App() {
           setMode('rate_limited');
         } else {
           setError(errorMessage);
-          setMode('prompt');
+          setMode('auth_method_selection');
         }
         setToken(null);
       }
@@ -142,6 +214,7 @@ export default function App() {
   const onSubmitToken = async () => {
     if (!input.trim()) return;
     setToken(input.trim());
+    setTokenSource('pat');
     setError(null);
     setMode('validating');
   };
@@ -152,13 +225,20 @@ export default function App() {
     setToken(null);
     setViewer(null);
     setInput(''); // Clear the token input field
-    setMode('prompt');
+    setTokenSource('pat');
+    setMode('auth_method_selection');
   };
 
   // Handle keyboard input for different modes
   useInput((input, key) => {
-    if (mode === 'prompt' && key.escape) {
+    if ((mode === 'prompt' || mode === 'auth_method_selection') && key.escape) {
       exit();
+    }
+    
+    if (mode === 'oauth_flow' && key.escape && oauthStatus === 'error') {
+      // Allow going back to auth method selection if OAuth fails
+      setMode('auth_method_selection');
+      setError(null);
     }
     
     if (mode === 'rate_limited') {
@@ -172,16 +252,16 @@ export default function App() {
         setToken(null);
         setInput('');
         setRateLimitReset(null);
-        setMode('prompt');
+        setMode('auth_method_selection');
       }
     }
     
     if (mode === 'validating' && key.escape) {
-      // Allow canceling validation and go back to rate limit or prompt
+      // Allow canceling validation and go back to rate limit or auth method selection
       if (rateLimitReset) {
         setMode('rate_limited');
       } else {
-        setMode('prompt');
+        setMode('auth_method_selection');
         setToken(null);
       }
     }
@@ -277,6 +357,33 @@ export default function App() {
     );
   }
 
+  if (mode === 'auth_method_selection') {
+    return (
+      <Box flexDirection="column" height={dims.rows} paddingX={2} paddingTop={verticalPadding} paddingBottom={verticalPadding}>
+        {header}
+        <Box flexGrow={1} justifyContent="center" alignItems="center">
+          <Box flexDirection="column" alignItems="center">
+            <AuthMethodSelector onSelect={handleAuthMethodSelect} />
+            {error && (
+              <Text color="red" marginTop={1}>{error}</Text>
+            )}
+          </Box>
+        </Box>
+      </Box>
+    );
+  }
+
+  if (mode === 'oauth_flow') {
+    return (
+      <Box flexDirection="column" height={dims.rows} paddingX={2} paddingTop={verticalPadding} paddingBottom={verticalPadding}>
+        {header}
+        <Box flexGrow={1} justifyContent="center" alignItems="center">
+          <OAuthProgress status={oauthStatus} error={error || undefined} />
+        </Box>
+      </Box>
+    );
+  }
+
   if (mode === 'prompt') {
     return (
       <Box flexDirection="column" height={dims.rows} paddingX={2} paddingTop={verticalPadding} paddingBottom={verticalPadding}>
@@ -303,7 +410,7 @@ export default function App() {
               The token will be stored securely in your local config
             </Text>
             <Text color="gray" dimColor marginTop={1}>
-              Press Esc to quit
+              Press Esc to go back
             </Text>
           </Box>
         </Box>

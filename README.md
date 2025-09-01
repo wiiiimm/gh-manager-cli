@@ -125,18 +125,37 @@ pnpm link
 gh-manager-cli
 ```
 
-## Token & Security
+## Authentication
 
-The app needs a GitHub token to read your repositories.
+The app supports two authentication methods:
+
+### 1. GitHub OAuth (Recommended)
+
+- Browser-based authentication flow
+- No need to manually create or manage tokens
+- Automatically requests appropriate scopes
+- More user-friendly experience
+- Securely stores the OAuth token with the same security as PAT
+
+When you first run the app, select "GitHub OAuth" from the authentication options. The app will:
+1. Open your default browser to GitHub's authorization page
+2. Start a local server to receive the callback
+3. Exchange the authorization code for an access token
+4. Store the token securely for future use
+
+### 2. Personal Access Token (PAT)
 
 - Provide via env var: `GITHUB_TOKEN` or `GH_TOKEN`, or enter when prompted on first run.
 - Recommended: classic PAT with `repo` scope for listing both public and private repos (read is sufficient).
 - Validation: a minimal `viewer { login }` request verifies the token.
-- Storage: token is saved as JSON in your OS user config directory with POSIX perms `0600`.
+
+### Token Storage & Security
+
+- Storage: tokens are saved as JSON in your OS user config directory with POSIX perms `0600`.
   - macOS: `~/Library/Preferences/gh-manager-cli/config.json`
   - Linux: `~/.config/gh-manager-cli/config.json`
   - Windows: `%APPDATA%\gh-manager-cli\config.json`
-- Revocation: you can revoke the PAT at any time in your GitHub settings.
+- Revocation: you can revoke tokens at any time in your GitHub settings.
 
 Note: Tokens are stored in plaintext on disk with restricted permissions. Future work may add OS keychain support.
 
@@ -314,6 +333,7 @@ REPOS_PER_FETCH=5 GH_MANAGER_DEBUG=1 npx gh-manager-cli-cli
 For the up-to-date task board, see [TODOs.md](./TODOs.md).
 
 Recently implemented:
+- ✅ OAuth login flow as an alternative to Personal Access Token
 - ✅ Density toggle for row spacing (compact/cozy/comfy)
 - ✅ Repo actions (archive/unarchive, delete) with confirmations
 - ✅ Organization support and switching (press `W`)

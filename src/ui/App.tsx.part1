@@ -1,0 +1,63 @@
+  // Handle OAuth flow
+  useEffect(() => {
+    if (mode !== 'oauth_flow') return;
+    
+    (async () => {
+      try {
+        setOAuthStatus('initializing');
+        
+        // Start the OAuth flow
+        setOAuthStatus('server_starting');
+        
+        // Small delay to ensure UI updates
+        await new Promise(resolve => setTimeout(resolve, 500));
+        
+        setOAuthStatus('browser_opening');
+        
+        // Small delay to ensure UI updates
+        await new Promise(resolve => setTimeout(resolve, 500));
+        
+        // Start the actual OAuth flow
+        setOAuthStatus('waiting_for_browser');
+        const result = await startOAuthFlow();
+        
+        if (result.success && result.token) {
+          setOAuthStatus('validating_token');
+          
+          // Store the token
+          storeToken(result.token, 'oauth');
+          setToken(result.token);
+          setTokenSource('oauth');
+          
+          if (result.login) {
+            setViewer(result.login);
+            setOAuthStatus('success');
+            
+            // Small delay to show success message
+            await new Promise(resolve => setTimeout(resolve, 1000));
+            
+            setMode('ready');
+          } else {
+            // This shouldn't happen as the token is already validated in startOAuthFlow
+            throw new Error('Failed to get user login from token');
+          }
+        } else {
+          throw new Error(result.error || 'Unknown error during OAuth flow');
+        }
+      } catch (error: any) {
+        setOAuthStatus('error');
+        setError(error.message);
+      }
+    })();
+  }, [mode]);
+
+  // Handle authentication method selection
+  const handleAuthMethodSelect = (method: AuthMethod) => {
+    setAuthMethod(method);
+    if (method === 'pat') {
+      setMode('prompt');
+    } else if (method === 'oauth') {
+      setMode('oauth_flow');
+    }
+  };
+
