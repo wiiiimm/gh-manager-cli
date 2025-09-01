@@ -247,8 +247,9 @@ export default function RepoList({ token, maxVisibleRows, onLogout, viewerLogin,
       // Update Apollo cache
       await updateCacheAfterVisibilityChange(token, id, newVisibility as 'PUBLIC' | 'PRIVATE');
       
-      // Update both regular items and search items
-      const updateRepo = (r: any) => (r.id === id ? { ...r, visibility: newVisibility } : r);
+      // Update both regular items and search items with both visibility and isPrivate
+      const isPrivate = newVisibility === 'PRIVATE';
+      const updateRepo = (r: any) => (r.id === id ? { ...r, visibility: newVisibility, isPrivate } : r);
       setItems(prev => prev.map(updateRepo));
       setSearchItems(prev => prev.map(updateRepo));
       

@@ -892,11 +892,13 @@ export async function updateCacheAfterVisibilityChange(token: string, repository
     const ap = await makeApolloClient(token);
     if (!ap || !ap.client) return;
     
-    // Update the visibility field in cache
+    // Update both visibility and isPrivate fields in cache
+    const isPrivate = visibility === 'PRIVATE';
     ap.client.cache.modify({
       id: `Repository:${repositoryId}`,
       fields: {
-        visibility: () => visibility
+        visibility: () => visibility,
+        isPrivate: () => isPrivate
       }
     });
   } catch {}
