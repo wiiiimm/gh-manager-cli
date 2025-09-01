@@ -206,10 +206,10 @@ jobs:
           fi
           echo "SHA256: $SHA256"
           
-          # Clone the tap repository
+          # Clone the tap repository with authentication
           git config --global user.name "github-actions[bot]"
           git config --global user.email "github-actions[bot]@users.noreply.github.com"
-          git clone https://github.com/wiiiimm/homebrew-tap.git tap-repo
+          git clone https://x-access-token:${GITHUB_TOKEN}@github.com/wiiiimm/homebrew-tap.git tap-repo
           
           # Update the formula
           FORMULA="tap-repo/Formula/gh-manager-cli.rb"
