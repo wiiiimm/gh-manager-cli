@@ -1,3 +1,10 @@
+# [1.9.0](https://github.com/wiiiimm/gh-manager-cli/compare/v1.8.2...v1.9.0) (2025-09-01)
+
+
+### Features
+
+* refetch repository data after sync to update timestamps ([b26468d](https://github.com/wiiiimm/gh-manager-cli/commit/b26468de5c3c12e04199f13de1958acd725fd239))
+
 ## [1.8.2](https://github.com/wiiiimm/gh-manager-cli/compare/v1.8.1...v1.8.2) (2025-09-01)
 
 
