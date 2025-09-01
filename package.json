@@ -34,7 +34,9 @@
     "prepublishOnly": "pnpm run build",
     "test": "vitest run",
     "test:watch": "vitest",
-    "test:coverage": "vitest run --coverage"
+    "test:coverage": "vitest run --coverage",
+    "brew:sha": "bash scripts/brew-sha.sh",
+    "brew:formula": "node scripts/render-formula.mjs > docs/formula/gh-manager-cli.rb"
   },
   "engines": {
     "node": ">=18"
