@@ -203,7 +203,7 @@ Launch the app, then use the keys below:
 
 ### Repository Actions
 - **Repository info**: `I` to view detailed metadata (size, language, timestamps)
-- **Cache info**: `Ctrl+I` to inspect Apollo cache status
+- **Cache info**: `C` to inspect Apollo cache status
 - **Archive/Unarchive**: `Ctrl+A` with confirmation prompt
 - **Delete repository**: `Del` or `Backspace` (with two-step confirmation modal)
   - Type confirmation code → confirm (Y/Enter)
@@ -287,7 +287,7 @@ Debug mode provides:
 
 2. **API Credits**: Monitor the API counter in the header - it should remain stable when navigating previously loaded data
 
-3. **Cache Inspection**: Press `Ctrl+I` (available anytime) to see:
+3. **Cache Inspection**: Press `C` (available anytime) to see:
    - Cache file location and size
    - Recent cache entries with timestamps
    - Cache age for each query type

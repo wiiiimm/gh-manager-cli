@@ -375,7 +375,7 @@ Legend:
   - Shows detailed repository metadata
   - Displays size, language, timestamps, visibility
   - Modal overlay with ESC to close
-- [x] Cache inspection (`Ctrl+I`)
+- [x] Cache inspection (`C`)
   - Inspects Apollo cache status
   - Shows cache statistics and health
 - [x] Cache purging on refresh (`R` key)
