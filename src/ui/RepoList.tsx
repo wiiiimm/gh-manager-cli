@@ -93,6 +93,7 @@ export default function RepoList({ token, maxVisibleRows, onLogout, viewerLogin,
   const [syncing, setSyncing] = useState(false);
   const [syncError, setSyncError] = useState<string | null>(null);
   const [syncFocus, setSyncFocus] = useState<'confirm' | 'cancel'>('confirm');
+  const [syncTrigger, setSyncTrigger] = useState(false); // Trigger to initiate sync
 
   // Info (hidden) modal state
   const [infoMode, setInfoMode] = useState(false);
@@ -117,6 +118,57 @@ export default function RepoList({ token, maxVisibleRows, onLogout, viewerLogin,
     setSyncing(false);
     setSyncError(null);
     setSyncFocus('confirm');
+    setSyncTrigger(false);
+  }
+  
+  // Single sync execution function to prevent duplicate operations
+  async function executeSync() {
+    if (!syncTarget || syncing) return;
+    
+    try {
+      setSyncing(true);
+      const [owner, repo] = syncTarget.nameWithOwner.split('/');
+      const branchName = syncTarget.defaultBranchRef?.name || 'main';
+      const result = await syncForkWithUpstream(token, owner, repo, branchName);
+      
+      // After successful sync, update locally without fetching from GitHub
+      // GitHub sets updatedAt to current time when syncing, and commits behind becomes 0
+      const updatedRepo = {
+        ...syncTarget,
+        updatedAt: new Date().toISOString(),
+        // If we're tracking fork commits and this is a fork with parent data, set commits to be in sync
+        ...(forkTracking && syncTarget.isFork && syncTarget.parent && syncTarget.defaultBranchRef?.target?.history && syncTarget.parent.defaultBranchRef?.target?.history ? {
+          defaultBranchRef: {
+            ...syncTarget.defaultBranchRef,
+            target: {
+              ...syncTarget.defaultBranchRef.target,
+              history: {
+                // Set fork's commit count equal to parent's (0 commits behind)
+                totalCount: syncTarget.parent.defaultBranchRef.target.history.totalCount
+              }
+            }
+          }
+        } : {})
+      };
+      
+      // Update Apollo cache with the locally updated data
+      await updateCacheWithRepository(token, updatedRepo);
+      
+      // Update both regular and search items with the locally updated data
+      const updateSyncedRepo = (r: any) => {
+        if (r.id === (syncTarget as any).id) {
+          return updatedRepo;
+        }
+        return r;
+      };
+      setItems(prev => prev.map(updateSyncedRepo));
+      setSearchItems(prev => prev.map(updateSyncedRepo));
+      closeSyncModal();
+    } catch (e: any) {
+      setSyncing(false);
+      setSyncError(e.message || 'Failed to sync fork. Check permissions and network.');
+      // Keep modal open on error so user can see the error message
+    }
   }
   
   function handleOrgContextChange(newContext: OwnerContext) {
@@ -567,62 +619,19 @@ export default function RepoList({ token, maxVisibleRows, onLogout, viewerLogin,
         setSyncFocus('cancel');
         return;
       }
-      if (key.return || (input && input.toUpperCase() === 'Y')) {
+      // Handle Y key for sync confirmation
+      if (input && input.toUpperCase() === 'Y') {
         if (syncFocus === 'cancel') {
           closeSyncModal();
-          return;
+        } else {
+          executeSync();
         }
-        if (!syncTarget) return;
-        (async () => {
-          try {
-            setSyncing(true);
-            const [owner, repo] = syncTarget.nameWithOwner.split('/');
-            const branchName = syncTarget.defaultBranchRef?.name || 'main';
-            const result = await syncForkWithUpstream(token, owner, repo, branchName);
-            
-            // After successful sync, update locally without fetching from GitHub
-            // GitHub sets updatedAt to current time when syncing, and commits behind becomes 0
-            const updatedRepo = {
-              ...syncTarget,
-              updatedAt: new Date().toISOString(),
-              // If we're tracking fork commits and this is a fork with parent data, set commits to be in sync
-              ...(forkTracking && syncTarget.isFork && syncTarget.parent && syncTarget.defaultBranchRef?.target?.history && syncTarget.parent.defaultBranchRef?.target?.history ? {
-                defaultBranchRef: {
-                  ...syncTarget.defaultBranchRef,
-                  target: {
-                    ...syncTarget.defaultBranchRef.target,
-                    history: {
-                      // Set fork's commit count equal to parent's (0 commits behind)
-                      totalCount: syncTarget.parent.defaultBranchRef.target.history.totalCount
-                    }
-                  }
-                }
-              } : {})
-            };
-            
-            // Update Apollo cache with the locally updated data
-            await updateCacheWithRepository(token, updatedRepo);
-            
-            // Update both regular and search items with the locally updated data
-            const updateSyncedRepo = (r: any) => {
-              if (r.id === (syncTarget as any).id) {
-                return updatedRepo;
-              }
-              return r;
-            };
-            setItems(prev => prev.map(updateSyncedRepo));
-            setSearchItems(prev => prev.map(updateSyncedRepo));
-            closeSyncModal();
-          } catch (e: any) {
-            setSyncing(false);
-            setSyncError(e.message || 'Failed to sync fork. Check permissions and network.');
-            // Keep modal open on error so user can see the error message
-          }
-        })();
         return;
       }
-      // Trap everything else
-      return;
+      // Trap everything else except Enter (let TextInput handle it)
+      if (!key.return) {
+        return;
+      }
     }
 
     // When in logout mode, trap inputs for modal
@@ -1398,52 +1407,7 @@ export default function RepoList({ token, maxVisibleRows, onLogout, viewerLogin,
                   onChange={() => { /* noop */ }}
                   onSubmit={() => {
                     if (syncFocus === 'confirm') {
-                      (async () => {
-                        try {
-                          setSyncing(true);
-                          const [owner, repo] = syncTarget.nameWithOwner.split('/');
-                          const branchName = syncTarget.defaultBranchRef?.name || 'main';
-                          const result = await syncForkWithUpstream(token, owner, repo, branchName);
-                          
-                          // After successful sync, update locally without fetching from GitHub
-                          // GitHub sets updatedAt to current time when syncing, and commits behind becomes 0
-                          const updatedRepo = {
-                            ...syncTarget,
-                            updatedAt: new Date().toISOString(),
-                            // If we're tracking fork commits and this is a fork with parent data, set commits to be in sync
-                            ...(forkTracking && syncTarget.isFork && syncTarget.parent && syncTarget.defaultBranchRef?.target?.history && syncTarget.parent.defaultBranchRef?.target?.history ? {
-                              defaultBranchRef: {
-                                ...syncTarget.defaultBranchRef,
-                                target: {
-                                  ...syncTarget.defaultBranchRef.target,
-                                  history: {
-                                    // Set fork's commit count equal to parent's (0 commits behind)
-                                    totalCount: syncTarget.parent.defaultBranchRef.target.history.totalCount
-                                  }
-                                }
-                              }
-                            } : {})
-                          };
-                          
-                          // Update Apollo cache with the locally updated data
-                          await updateCacheWithRepository(token, updatedRepo);
-                          
-                          // Update both regular and search items with the locally updated data
-                          const updateSyncedRepo = (r: any) => {
-                            if (r.id === (syncTarget as any).id) {
-                              return updatedRepo;
-                            }
-                            return r;
-                          };
-                          setItems(prev => prev.map(updateSyncedRepo));
-                          setSearchItems(prev => prev.map(updateSyncedRepo));
-                          closeSyncModal();
-                        } catch (e: any) {
-                          setSyncing(false);
-                          setSyncError(e.message || 'Failed to sync fork. Check permissions and network.');
-                          // Keep modal open on error so user can see the error message
-                        }
-                      })();
+                      executeSync();
                     } else {
                       closeSyncModal();
                     }
