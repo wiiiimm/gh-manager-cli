@@ -8,101 +8,12 @@ import { makeApolloKey, makeSearchKey, isFresh, markFetched } from '../apolloMet
 import type { RepoNode, RateLimitInfo } from '../types';
 import { exec } from 'child_process';
 import OrgSwitcher from './OrgSwitcher';
+import { DeleteModal, ArchiveModal, SyncModal, InfoModal, LogoutModal } from './components/modals';
+import { RepoRow, FilterInput, RepoListHeader } from './components/repo';
+import { SlowSpinner } from './components/common';
+import { truncate, formatDate } from '../utils';
 
 const PAGE_SIZE = (process.env.GH_MANAGER_DEV === '1' || process.env.NODE_ENV === 'development') ? 5 : 15;
-
-// Custom slow spinner that updates every 0.5 seconds
-function SlowSpinner() {
-  const frames = ['⠋', '⠙', '⠹', '⠸', '⠼', '⠴', '⠦', '⠧', '⠇', '⠏'];
-  const [frame, setFrame] = useState(0);
-  
-  useEffect(() => {
-    const timer = setInterval(() => {
-      setFrame(f => (f + 1) % frames.length);
-    }, 500); // 0.5 seconds per frame
-    
-    return () => clearInterval(timer);
-  }, [frames.length]);
-  
-  return <Text>{frames[frame]}</Text>;
-}
-
-function truncate(str: string, max = 80) {
-  if (str.length <= max) return str;
-  return str.slice(0, Math.max(0, max - 1)) + '…';
-}
-
-function formatDate(dateStr: string): string {
-  const date = new Date(dateStr);
-  const now = new Date();
-  const diffMs = now.getTime() - date.getTime();
-  const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
-  
-  if (diffDays === 0) return 'today';
-  if (diffDays === 1) return 'yesterday';
-  if (diffDays < 7) return `${diffDays} days ago`;
-  if (diffDays < 30) return `${Math.floor(diffDays / 7)} weeks ago`;
-  if (diffDays < 365) return `${Math.floor(diffDays / 30)} months ago`;
-  return `${Math.floor(diffDays / 365)} years ago`;
-}
-
-function RepoRow({ repo, selected, index, maxWidth, spacingLines, dim, forkTracking }: { repo: RepoNode; selected: boolean; index: number; maxWidth: number; spacingLines: number; dim?: boolean; forkTracking: boolean }) {
-  const langName = repo.primaryLanguage?.name || '';
-  const langColor = repo.primaryLanguage?.color || '#666666';
-  
-  // Calculate commits behind for forks - only show if tracking is enabled AND data is available
-  const hasCommitData = repo.isFork && repo.parent && repo.defaultBranchRef && repo.parent.defaultBranchRef
-    && repo.parent.defaultBranchRef.target?.history && repo.defaultBranchRef.target?.history;
-  
-  const commitsBehind = hasCommitData
-    ? (repo.parent.defaultBranchRef.target.history.totalCount - repo.defaultBranchRef.target.history.totalCount)
-    : 0;
-  
-  const showCommitsBehind = forkTracking && hasCommitData;
-  
-  // Build colored line 1
-  let line1 = '';
-  const numColor = selected ? chalk.cyan : chalk.gray;
-  const nameColor = selected ? chalk.cyan.bold : chalk.white;
-  line1 += numColor(`${String(index).padStart(3, ' ')}.`);
-  line1 += nameColor(` ${repo.nameWithOwner}`);
-  if (repo.isPrivate) line1 += chalk.yellow(' Private');
-  if (repo.isArchived) line1 += ' ' + chalk.bgGray.whiteBright(' Archived ') + ' ';
-  if (repo.isFork && repo.parent) {
-    line1 += chalk.blue(` Fork of ${repo.parent.nameWithOwner}`);
-    if (showCommitsBehind) {
-      if (commitsBehind > 0) {
-        line1 += chalk.yellow(` (${commitsBehind} behind)`);
-      } else {
-        line1 += chalk.green(` (0 behind)`);
-      }
-    }
-  }
-  
-  // Build colored line 2
-  let line2 = '     ';
-  const metaColor = selected ? chalk.white : chalk.gray;
-  if (langName) line2 += chalk.hex(langColor)('● ') + metaColor(`${langName}  `);
-  line2 += metaColor(`★ ${repo.stargazerCount}  ⑂ ${repo.forkCount}  Updated ${formatDate(repo.updatedAt)}`);
-  
-  // Build line 3
-  const line3 = repo.description ? `     ${truncate(repo.description, Math.max(30, maxWidth - 10))}` : null;
-  
-  // Combine all lines with newlines
-  let fullText = line1 + '\n' + line2;
-  if (line3) fullText += '\n' + metaColor(line3);
-  
-  return (
-    <Box flexDirection="column" backgroundColor={selected ? 'gray' : undefined}>
-      <Text>{dim ? chalk.dim(fullText) : fullText}</Text>
-      {spacingLines > 0 && (
-        <Box height={spacingLines}>
-          <Text> </Text>
-        </Box>
-      )}
-    </Box>
-  );
-}
 
 export default function RepoList({ token, maxVisibleRows, onLogout, viewerLogin, onOrgContextChange }: { 
   token: string; 
@@ -1073,9 +984,31 @@ export default function RepoList({ token, maxVisibleRows, onLogout, viewerLogin,
 
   if (error) {
     return (
-      <Box flexDirection="column" alignItems="center" justifyContent="center" flexGrow={1}>
-        <Text color="red">{error}</Text>
-        <Text color="gray" dimColor>Press 'r' to retry or 'q' to quit</Text>
+      <Box flexDirection="column" height={availableHeight}>
+        {/* Header bar */}
+        <Box flexDirection="row" justifyContent="space-between" height={1} marginBottom={1}>
+          <Box flexDirection="row" gap={1}>
+            <Text bold>  Repositories</Text>
+            <Text color="red">(Error)</Text>
+          </Box>
+        </Box>
+
+        {/* Main content container with border - fixed height */}
+        <Box borderStyle="single" borderColor="red" paddingX={1} paddingY={1} marginX={1} height={contentHeight + containerPadding + 2} flexDirection="column">
+          <Box height={contentHeight} justifyContent="center" alignItems="center">
+            <Box flexDirection="column" alignItems="center">
+              <Text color="red">{error}</Text>
+              <Box marginTop={1}>
+                <Text color="gray" dimColor>Press 'r' to retry or 'q' to quit</Text>
+              </Box>
+            </Box>
+          </Box>
+        </Box>
+
+        {/* Help footer */}
+        <Box marginTop={1} paddingX={1}>
+          <Text color="gray">Press 'r' to retry • 'q' to quit</Text>
+        </Box>
       </Box>
     );
   }
