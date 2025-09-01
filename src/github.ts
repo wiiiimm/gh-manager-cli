@@ -607,6 +607,67 @@ export async function unarchiveRepositoryById(
   await client(mutation, { repositoryId });
 }
 
+export async function fetchRepositoryById(
+  client: ReturnType<typeof makeClient>,
+  repositoryId: string,
+  includeForkTracking: boolean = true
+): Promise<RepoNode | null> {
+  const query = /* GraphQL */ `
+    query GetRepository($id: ID!, $includeForkTracking: Boolean!) {
+      node(id: $id) {
+        ... on Repository {
+          id
+          name
+          nameWithOwner
+          description
+          url
+          pushedAt
+          updatedAt
+          isPrivate
+          isArchived
+          isFork
+          stargazerCount
+          forkCount
+          diskUsage
+          primaryLanguage {
+            name
+            color
+          }
+          parent @include(if: $includeForkTracking) {
+            nameWithOwner
+            defaultBranchRef {
+              target {
+                ... on Commit {
+                  history(first: 0) {
+                    totalCount
+                  }
+                }
+              }
+            }
+          }
+          defaultBranchRef @include(if: $includeForkTracking) {
+            name
+            target {
+              ... on Commit {
+                history(first: 0) {
+                  totalCount
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  `;
+  
+  const result: any = await client(query, { 
+    id: repositoryId,
+    includeForkTracking 
+  });
+  
+  return result.node;
+}
+
 export async function syncForkWithUpstream(
   token: string,
   owner: string,

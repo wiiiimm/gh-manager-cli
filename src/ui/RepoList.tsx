@@ -2,7 +2,7 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { Box, Text, useApp, useInput, useStdout, Spacer, Newline } from 'ink';
 import TextInput from 'ink-text-input';
 import chalk from 'chalk';
-import { makeClient, fetchViewerReposPageUnified, searchRepositoriesUnified, deleteRepositoryRest, archiveRepositoryById, unarchiveRepositoryById, syncForkWithUpstream, purgeApolloCacheFiles, inspectCacheStatus, OwnerAffiliation } from '../github';
+import { makeClient, fetchViewerReposPageUnified, searchRepositoriesUnified, deleteRepositoryRest, archiveRepositoryById, unarchiveRepositoryById, syncForkWithUpstream, fetchRepositoryById, purgeApolloCacheFiles, inspectCacheStatus, OwnerAffiliation } from '../github';
 import { getUIPrefs, storeUIPrefs, OwnerContext } from '../config';
 import { makeApolloKey, makeSearchKey, isFresh, markFetched } from '../apolloMeta';
 import type { RepoNode, RateLimitInfo } from '../types';
@@ -571,26 +571,41 @@ export default function RepoList({ token, maxVisibleRows, onLogout, viewerLogin,
             const branchName = syncTarget.defaultBranchRef?.name || 'main';
             const result = await syncForkWithUpstream(token, owner, repo, branchName);
             
-            // Update the repository state to show 0 behind in both regular and search items
-            const updateSyncedRepo = (r: any) => {
-              if (r.id === (syncTarget as any).id && r.parent && r.defaultBranchRef?.target?.history && r.parent.defaultBranchRef?.target?.history) {
-                return {
-                  ...r,
-                  defaultBranchRef: {
-                    ...r.defaultBranchRef,
-                    target: {
-                      ...r.defaultBranchRef.target,
-                      history: {
-                        totalCount: r.parent.defaultBranchRef.target.history.totalCount
+            // Fetch updated repository data from GitHub
+            const updatedRepo = await fetchRepositoryById(client, (syncTarget as any).id, forkTracking);
+            
+            if (updatedRepo) {
+              // Update both regular and search items with fresh data
+              const updateSyncedRepo = (r: any) => {
+                if (r.id === (syncTarget as any).id) {
+                  return updatedRepo;
+                }
+                return r;
+              };
+              setItems(prev => prev.map(updateSyncedRepo));
+              setSearchItems(prev => prev.map(updateSyncedRepo));
+            } else {
+              // Fallback to local update if fetch fails
+              const updateSyncedRepo = (r: any) => {
+                if (r.id === (syncTarget as any).id && r.parent && r.defaultBranchRef?.target?.history && r.parent.defaultBranchRef?.target?.history) {
+                  return {
+                    ...r,
+                    defaultBranchRef: {
+                      ...r.defaultBranchRef,
+                      target: {
+                        ...r.defaultBranchRef.target,
+                        history: {
+                          totalCount: r.parent.defaultBranchRef.target.history.totalCount
+                        }
                       }
                     }
-                  }
-                };
-              }
-              return r;
-            };
-            setItems(prev => prev.map(updateSyncedRepo));
-            setSearchItems(prev => prev.map(updateSyncedRepo));
+                  };
+                }
+                return r;
+              };
+              setItems(prev => prev.map(updateSyncedRepo));
+              setSearchItems(prev => prev.map(updateSyncedRepo));
+            }
             closeSyncModal();
           } catch (e: any) {
             setSyncing(false);
@@ -1364,28 +1379,44 @@ export default function RepoList({ token, maxVisibleRows, onLogout, viewerLogin,
                         try {
                           setSyncing(true);
                           const [owner, repo] = syncTarget.nameWithOwner.split('/');
-                          const result = await syncForkWithUpstream(token, owner, repo);
+                          const branchName = syncTarget.defaultBranchRef?.name || 'main';
+                          const result = await syncForkWithUpstream(token, owner, repo, branchName);
                           
-                          // Update the repository state to show 0 behind in both regular and search items
-                          const updateSyncedRepo = (r: any) => {
-                            if (r.id === (syncTarget as any).id && r.parent && r.defaultBranchRef?.target?.history && r.parent.defaultBranchRef?.target?.history) {
-                              return {
-                                ...r,
-                                defaultBranchRef: {
-                                  ...r.defaultBranchRef,
-                                  target: {
-                                    ...r.defaultBranchRef.target,
-                                    history: {
-                                      totalCount: r.parent.defaultBranchRef.target.history.totalCount
+                          // Fetch updated repository data from GitHub
+                          const updatedRepo = await fetchRepositoryById(client, (syncTarget as any).id, forkTracking);
+                          
+                          if (updatedRepo) {
+                            // Update both regular and search items with fresh data
+                            const updateSyncedRepo = (r: any) => {
+                              if (r.id === (syncTarget as any).id) {
+                                return updatedRepo;
+                              }
+                              return r;
+                            };
+                            setItems(prev => prev.map(updateSyncedRepo));
+                            setSearchItems(prev => prev.map(updateSyncedRepo));
+                          } else {
+                            // Fallback to local update if fetch fails
+                            const updateSyncedRepo = (r: any) => {
+                              if (r.id === (syncTarget as any).id && r.parent && r.defaultBranchRef?.target?.history && r.parent.defaultBranchRef?.target?.history) {
+                                return {
+                                  ...r,
+                                  defaultBranchRef: {
+                                    ...r.defaultBranchRef,
+                                    target: {
+                                      ...r.defaultBranchRef.target,
+                                      history: {
+                                        totalCount: r.parent.defaultBranchRef.target.history.totalCount
+                                      }
                                     }
                                   }
-                                }
-                              };
-                            }
-                            return r;
-                          };
-                          setItems(prev => prev.map(updateSyncedRepo));
-                          setSearchItems(prev => prev.map(updateSyncedRepo));
+                                };
+                              }
+                              return r;
+                            };
+                            setItems(prev => prev.map(updateSyncedRepo));
+                            setSearchItems(prev => prev.map(updateSyncedRepo));
+                          }
                           closeSyncModal();
                         } catch (e: any) {
                           setSyncing(false);
