@@ -81,6 +81,44 @@ Legend:
     - Success: close modal and update the repo in local list (name and nameWithOwner); re-run local sorting if applicable; no server refetch required
     - Failure: show error message in the modal; allow retry or cancel
 
+- [~] Add automated test suite
+  - [x] Test infrastructure setup (Vitest with TypeScript support)
+  - [x] Added `pnpm test` script for running tests
+  - [ ] Integrate into CI (GitHub Actions)
+  
+  **Unit Tests:**
+  - [x] `utils.ts` - truncate and formatDate functions (13 tests)
+  - [x] `apolloMeta.ts` - cache key generation and TTL logic (2 tests)
+  - [ ] `config.ts` - configuration loading and saving
+  - [ ] `github.ts` - API interaction helpers
+  - [ ] State management and reducers in RepoList
+  
+  **Component Tests:**
+  - [x] `RepoRow` - Basic rendering test (1 test)
+  - [x] `DeleteModal` - Logic tests for verification code (4 tests)
+  - [ ] `RepoListHeader` - Header rendering and stats display
+  - [ ] `FilterInput` - Input handling and filter logic
+  - [ ] `SlowSpinner` - Animation component
+  - [ ] `ArchiveModal` - Archive/unarchive confirmation flow
+  - [ ] `SyncModal` - Fork sync confirmation flow
+  - [ ] `LogoutModal` - Logout confirmation flow
+  - [ ] `InfoModal` - Repository information display
+  - [ ] `RepoList` - Main component integration tests
+  - [ ] `OrgSwitcher` - Organization switching logic
+  
+  **Integration Tests:**
+  - [ ] Modal flow tests with simulated keyboard input
+  - [ ] Infinite scroll behavior
+  - [ ] Search functionality
+  - [ ] Sorting and filtering combinations
+  - [ ] Rate limit handling
+  
+  **Current Progress:**
+  - Total test files: 4
+  - Total tests passing: 20
+  - Components with tests: 3/11 (27%)
+  - Utilities with tests: 2/4 (50%)
+
 - [x] Organization support
   - Switch between personal and organizations
   - List orgs (viewer.organizations) and browse their repos
