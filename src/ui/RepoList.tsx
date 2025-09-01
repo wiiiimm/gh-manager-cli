@@ -1679,8 +1679,11 @@ export default function RepoList({ token, maxVisibleRows, onLogout, viewerLogin,
               isOpen={changeVisibilityMode}
               repoName={changeVisibilityTarget.nameWithOwner}
               currentVisibility={changeVisibilityTarget.visibility}
+              isFork={changeVisibilityTarget.isFork}
               onVisibilityChange={handleVisibilityChange}
               onClose={closeChangeVisibilityModal}
+              changing={changingVisibility}
+              error={changeVisibilityError}
             />
           </Box>
         ) : (
