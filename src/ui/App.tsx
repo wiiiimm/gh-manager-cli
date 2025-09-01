@@ -128,13 +128,15 @@ export default function App() {
         }
         
         if (isRateLimit) {
+          // Keep token in memory so Retry can revalidate immediately
           setRateLimitReset(resetTime);
           setMode('rate_limited');
         } else {
+          // Invalid token or other error: clear token and return to prompt
           setError(errorMessage);
           setMode('prompt');
+          setToken(null);
         }
-        setToken(null);
       }
     })();
   }, [mode, token]);
