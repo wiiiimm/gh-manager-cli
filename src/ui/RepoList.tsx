@@ -888,8 +888,8 @@ export default function RepoList({ token, maxVisibleRows, onLogout, viewerLogin,
       return;
     }
     
-    // Cache inspection (Ctrl+I)
-    if (key.ctrl && (input === 'i' || input === 'I')) {
+    // Cache inspection (Ctrl+I). Note: many terminals send Tab for Ctrl+I.
+    if ((key.ctrl && (input === 'i' || input === 'I')) || input === "\t") {
       (async () => {
         try {
           await inspectCacheStatus();
@@ -1743,7 +1743,7 @@ export default function RepoList({ token, maxVisibleRows, onLogout, viewerLogin,
         {/* Line 3: Action controls */}
         <Box width={terminalWidth} justifyContent="center">
           <Text color="gray" dimColor={modalOpen ? true : undefined}>
-            I Info • Ctrl+I Cache Info • Ctrl+A Un/Archive • Del/Backspace Delete • Ctrl+S Sync Fork
+            I Info • Ctrl+I/Tab Cache Info • Ctrl+A Un/Archive • Del/Backspace Delete • Ctrl+S Sync Fork
           </Text>
         </Box>
       </Box>
