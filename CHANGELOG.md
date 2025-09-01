@@ -1,3 +1,10 @@
+## [1.13.1](https://github.com/wiiiimm/gh-manager-cli/compare/v1.13.0...v1.13.1) (2025-09-01)
+
+
+### Bug Fixes
+
+* **auth,keyboard,ux:** retry + cancel flow on rate-limit; shared logout; cache info key = K ([#11](https://github.com/wiiiimm/gh-manager-cli/issues/11)) ([bcbd2fc](https://github.com/wiiiimm/gh-manager-cli/commit/bcbd2fcdb929a9354e3e307f960da4ae06fbbe61))
+
 # [1.13.0](https://github.com/wiiiimm/gh-manager-cli/compare/v1.12.0...v1.13.0) (2025-09-01)
 
 
