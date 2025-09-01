@@ -1,3 +1,10 @@
+# [1.10.0](https://github.com/wiiiimm/gh-manager-cli/compare/v1.9.0...v1.10.0) (2025-09-01)
+
+
+### Features
+
+* sync repository actions with Apollo cache and improve info view ([563d04a](https://github.com/wiiiimm/gh-manager-cli/commit/563d04a4ec931c27dff204d3b5e6e770e4b482e6))
+
 # [1.9.0](https://github.com/wiiiimm/gh-manager-cli/compare/v1.8.2...v1.9.0) (2025-09-01)
 
 
