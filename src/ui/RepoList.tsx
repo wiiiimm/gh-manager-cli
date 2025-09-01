@@ -182,6 +182,7 @@ export default function RepoList({ token, maxVisibleRows, onLogout, viewerLogin,
     } catch (e: any) {
       setDeleting(false);
       setDeleteError('Failed to delete repository. Ensure delete_repo scope and admin permissions.');
+      // Keep modal open on error so user can see the error message
     }
   }
 
@@ -621,6 +622,7 @@ export default function RepoList({ token, maxVisibleRows, onLogout, viewerLogin,
           } catch (e: any) {
             setSyncing(false);
             setSyncError(e.message || 'Failed to sync fork. Check permissions and network.');
+            // Keep modal open on error so user can see the error message
           }
         })();
         return;
