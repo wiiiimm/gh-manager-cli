@@ -1,3 +1,10 @@
+# [1.12.0](https://github.com/wiiiimm/gh-manager-cli/compare/v1.11.1...v1.12.0) (2025-09-01)
+
+
+### Features
+
+* **homebrew:** packaging plan for submission to homebrew-core ([#9](https://github.com/wiiiimm/gh-manager-cli/issues/9)) ([f1d306a](https://github.com/wiiiimm/gh-manager-cli/commit/f1d306a321ba577cf8f3ea7c1a2090dbf8c8dfc4))
+
 ## [1.11.1](https://github.com/wiiiimm/gh-manager-cli/compare/v1.11.0...v1.11.1) (2025-09-01)
 
 
