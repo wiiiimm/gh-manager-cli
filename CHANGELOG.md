@@ -1,3 +1,10 @@
+## [1.10.1](https://github.com/wiiiimm/gh-manager-cli/compare/v1.10.0...v1.10.1) (2025-09-01)
+
+
+### Bug Fixes
+
+* keep sync and delete modals open on error for better UX ([1823076](https://github.com/wiiiimm/gh-manager-cli/commit/1823076bdd74c2cb50591d9133eabe4a96927cea))
+
 # [1.10.0](https://github.com/wiiiimm/gh-manager-cli/compare/v1.9.0...v1.10.0) (2025-09-01)
 
 
