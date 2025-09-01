@@ -1,3 +1,10 @@
+## [1.10.4](https://github.com/wiiiimm/gh-manager-cli/compare/v1.10.3...v1.10.4) (2025-09-01)
+
+
+### Bug Fixes
+
+* eliminate duplicate sync handler to prevent double execution ([bf838b6](https://github.com/wiiiimm/gh-manager-cli/commit/bf838b66f5c8b7def294d3835278cd32254bce1f))
+
 ## [1.10.3](https://github.com/wiiiimm/gh-manager-cli/compare/v1.10.2...v1.10.3) (2025-09-01)
 
 
