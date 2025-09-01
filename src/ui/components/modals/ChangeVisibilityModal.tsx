@@ -8,6 +8,7 @@ interface ChangeVisibilityModalProps {
   repoName: string;
   currentVisibility: string;
   isFork?: boolean;
+  isEnterprise?: boolean;
   onVisibilityChange: (newVisibility: string) => void;
   onClose: () => void;
   changing?: boolean;
@@ -19,12 +20,27 @@ export const ChangeVisibilityModal: React.FC<ChangeVisibilityModalProps> = ({
   repoName,
   currentVisibility,
   isFork = false,
+  isEnterprise = false,
   onVisibilityChange,
   onClose,
   changing: externalChanging,
   error: externalError,
 }) => {
-  const [focusedOption, setFocusedOption] = useState<'change' | 'cancel'>(isFork ? 'cancel' : 'change');
+  // Determine available visibility options based on current visibility and enterprise status
+  const getAvailableOptions = () => {
+    if (currentVisibility === 'PUBLIC') {
+      return isEnterprise ? ['PRIVATE', 'INTERNAL'] : ['PRIVATE'];
+    } else if (currentVisibility === 'PRIVATE') {
+      return isEnterprise ? ['PUBLIC', 'INTERNAL'] : ['PUBLIC'];
+    } else if (currentVisibility === 'INTERNAL') {
+      return ['PUBLIC', 'PRIVATE'];
+    }
+    return ['PUBLIC'];
+  };
+
+  const availableOptions = getAvailableOptions();
+  const [selectedOptionIndex, setSelectedOptionIndex] = useState(0);
+  const [focusedButton, setFocusedButton] = useState<'option' | 'cancel'>(isFork ? 'cancel' : 'option');
   
   // Use external props if provided, otherwise use defaults
   const changing = externalChanging ?? false;
@@ -32,7 +48,8 @@ export const ChangeVisibilityModal: React.FC<ChangeVisibilityModalProps> = ({
 
   useEffect(() => {
     if (isOpen) {
-      setFocusedOption(isFork ? 'cancel' : 'change');
+      setSelectedOptionIndex(0);
+      setFocusedButton(isFork ? 'cancel' : 'option');
     }
   }, [isOpen, isFork]);
 
@@ -47,18 +64,35 @@ export const ChangeVisibilityModal: React.FC<ChangeVisibilityModalProps> = ({
     // Only allow navigation if not a fork
     if (!isFork) {
       if (key.leftArrow) {
-        setFocusedOption('change');
+        if (focusedButton === 'cancel') {
+          setFocusedButton('option');
+        } else if (availableOptions.length > 1 && selectedOptionIndex > 0) {
+          setSelectedOptionIndex(selectedOptionIndex - 1);
+        }
         return;
       }
       
       if (key.rightArrow) {
-        setFocusedOption('cancel');
+        if (focusedButton === 'option') {
+          if (selectedOptionIndex < availableOptions.length - 1) {
+            setSelectedOptionIndex(selectedOptionIndex + 1);
+          } else {
+            setFocusedButton('cancel');
+          }
+        }
+        return;
+      }
+
+      if (key.upArrow || key.downArrow) {
+        if (focusedButton === 'option' && availableOptions.length > 1) {
+          setSelectedOptionIndex((selectedOptionIndex + 1) % availableOptions.length);
+        }
         return;
       }
 
       // Quick action with Y key
       if (input?.toLowerCase() === 'y') {
-        if (focusedOption === 'cancel') {
+        if (focusedButton === 'cancel') {
           onClose();
           return;
         }
@@ -70,14 +104,31 @@ export const ChangeVisibilityModal: React.FC<ChangeVisibilityModalProps> = ({
 
   const handleChange = () => {
     if (isFork) return;
-    const newVisibility = currentVisibility === 'PUBLIC' ? 'PRIVATE' : 'PUBLIC';
+    const newVisibility = availableOptions[selectedOptionIndex];
     onVisibilityChange(newVisibility);
   };
 
   if (!isOpen) return null;
 
-  const targetVisibility = currentVisibility === 'PUBLIC' ? 'Private' : 'Public';
-  const borderColor = isFork ? 'red' : (currentVisibility === 'PUBLIC' ? 'yellow' : 'green');
+  const getVisibilityLabel = (vis: string) => {
+    switch (vis) {
+      case 'PUBLIC': return 'Public';
+      case 'PRIVATE': return 'Private';
+      case 'INTERNAL': return 'Internal';
+      default: return vis;
+    }
+  };
+
+  const getVisibilityColor = (vis: string) => {
+    switch (vis) {
+      case 'PUBLIC': return 'green';
+      case 'PRIVATE': return 'yellow';
+      case 'INTERNAL': return 'cyan';
+      default: return 'white';
+    }
+  };
+
+  const borderColor = isFork ? 'red' : getVisibilityColor(currentVisibility);
 
   return (
     <Box
@@ -131,44 +182,50 @@ export const ChangeVisibilityModal: React.FC<ChangeVisibilityModalProps> = ({
           <Text>{repoName}</Text>
           <Box marginTop={1}>
             <Text>
-              This will change the repository from{' '}
-              <Text color={currentVisibility === 'PUBLIC' ? 'green' : 'yellow'}>
-                {currentVisibility === 'PUBLIC' ? 'Public' : 'Private'}
-              </Text>{' '}
-              to{' '}
-              <Text color={currentVisibility === 'PUBLIC' ? 'yellow' : 'green'}>
-                {targetVisibility}
-              </Text>.
+              Current visibility:{' '}
+              <Text color={getVisibilityColor(currentVisibility)}>
+                {getVisibilityLabel(currentVisibility)}
+              </Text>
             </Text>
           </Box>
-          <Box marginTop={1} flexDirection="row" justifyContent="center" gap={6}>
-            <Box
-              borderStyle="round"
-              borderColor={borderColor}
-              height={3}
-              width={20}
-              alignItems="center"
-              justifyContent="center"
-              flexDirection="column"
-            >
-              <Text>
-                {focusedOption === 'change' ? 
-                  chalk.bgYellow.black.bold(` Make ${targetVisibility} `) : 
-                  chalk.bold[borderColor](`Make ${targetVisibility}`)
+          <Box marginTop={1}>
+            <Text>Change to:</Text>
+          </Box>
+          <Box marginTop={1} flexDirection="row" justifyContent="center" gap={3}>
+            {availableOptions.map((option, index) => (
+              <Box
+                key={option}
+                borderStyle="round"
+                borderColor={
+                  focusedButton === 'option' && selectedOptionIndex === index
+                    ? getVisibilityColor(option)
+                    : 'gray'
                 }
-              </Text>
-            </Box>
+                height={3}
+                width={18}
+                alignItems="center"
+                justifyContent="center"
+                flexDirection="column"
+              >
+                <Text>
+                  {focusedButton === 'option' && selectedOptionIndex === index ? 
+                    chalk[`bg${getVisibilityLabel(option) === 'Public' ? 'Green' : getVisibilityLabel(option) === 'Private' ? 'Yellow' : 'Cyan'}`].black.bold(` ${getVisibilityLabel(option)} `) : 
+                    chalk[getVisibilityColor(option)](getVisibilityLabel(option))
+                  }
+                </Text>
+              </Box>
+            ))}
             <Box
               borderStyle="round"
-              borderColor={focusedOption === 'cancel' ? 'white' : 'gray'}
+              borderColor={focusedButton === 'cancel' ? 'white' : 'gray'}
               height={3}
-              width={20}
+              width={18}
               alignItems="center"
               justifyContent="center"
               flexDirection="column"
             >
               <Text>
-                {focusedOption === 'cancel' ? 
+                {focusedButton === 'cancel' ? 
                   chalk.bgGray.white.bold(' Cancel ') : 
                   chalk.gray.bold('Cancel')
                 }
@@ -177,7 +234,8 @@ export const ChangeVisibilityModal: React.FC<ChangeVisibilityModalProps> = ({
           </Box>
           <Box marginTop={1} flexDirection="row" justifyContent="center">
             <Text color="gray">
-              Press Enter to {focusedOption === 'change' ? `Make ${targetVisibility}` : 'Cancel'} | Y to Make {targetVisibility} | C to Cancel
+              {availableOptions.length > 1 ? '↑↓ Select Option • ' : ''}
+              ← → Navigate • Enter to Confirm • C/Esc to Cancel
             </Text>
           </Box>
         </>
@@ -188,7 +246,7 @@ export const ChangeVisibilityModal: React.FC<ChangeVisibilityModalProps> = ({
           value=""
           onChange={() => { /* noop */ }}
           onSubmit={() => {
-            if (isFork || focusedOption === 'cancel') {
+            if (isFork || focusedButton === 'cancel') {
               onClose();
             } else {
               handleChange();

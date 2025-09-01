@@ -627,7 +627,7 @@ export async function unarchiveRepositoryById(
 export async function changeRepositoryVisibility(
   client: ReturnType<typeof makeClient>,
   repositoryId: string,
-  visibility: 'PUBLIC' | 'PRIVATE',
+  visibility: 'PUBLIC' | 'PRIVATE' | 'INTERNAL',
   token: string
 ): Promise<{ nameWithOwner: string }> {
   // First, get the repository details to get the owner and name
@@ -655,6 +655,7 @@ export async function changeRepositoryVisibility(
   const [owner, name] = repo.nameWithOwner.split('/');
   
   // Use REST API to change visibility since GraphQL doesn't support it
+  // Use the visibility field directly (supports public, private, internal)
   const response = await fetch(`https://api.github.com/repos/${owner}/${name}`, {
     method: 'PATCH',
     headers: {
@@ -664,7 +665,7 @@ export async function changeRepositoryVisibility(
       'User-Agent': 'gh-manager-cli'
     },
     body: JSON.stringify({
-      private: visibility === 'PRIVATE'
+      visibility: visibility.toLowerCase() // API expects lowercase
     })
   });
   
@@ -887,12 +888,13 @@ export async function updateCacheAfterArchive(token: string, repositoryId: strin
   } catch {}
 }
 
-export async function updateCacheAfterVisibilityChange(token: string, repositoryId: string, visibility: 'PUBLIC' | 'PRIVATE'): Promise<void> {
+export async function updateCacheAfterVisibilityChange(token: string, repositoryId: string, visibility: 'PUBLIC' | 'PRIVATE' | 'INTERNAL'): Promise<void> {
   try {
     const ap = await makeApolloClient(token);
     if (!ap || !ap.client) return;
     
     // Update both visibility and isPrivate fields in cache
+    // Note: Internal repos are not private in the traditional sense
     const isPrivate = visibility === 'PRIVATE';
     ap.client.cache.modify({
       id: `Repository:${repositoryId}`,
