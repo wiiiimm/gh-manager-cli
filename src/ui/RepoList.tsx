@@ -1453,6 +1453,7 @@ export default function RepoList({ token, maxVisibleRows, onLogout, viewerLogin,
                         } catch (e: any) {
                           setSyncing(false);
                           setSyncError(e.message || 'Failed to sync fork. Check permissions and network.');
+                          // Keep modal open on error so user can see the error message
                         }
                       })();
                     } else {
