@@ -1,3 +1,10 @@
+## [1.10.3](https://github.com/wiiiimm/gh-manager-cli/compare/v1.10.2...v1.10.3) (2025-09-01)
+
+
+### Performance Improvements
+
+* optimize sync operation to update locally without API call ([b851c85](https://github.com/wiiiimm/gh-manager-cli/commit/b851c854a277b53f908e92d330622c4513642600))
+
 ## [1.10.2](https://github.com/wiiiimm/gh-manager-cli/compare/v1.10.1...v1.10.2) (2025-09-01)
 
 
