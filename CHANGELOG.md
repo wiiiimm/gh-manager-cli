@@ -1,3 +1,10 @@
+## [1.8.2](https://github.com/wiiiimm/gh-manager-cli/compare/v1.8.1...v1.8.2) (2025-09-01)
+
+
+### Bug Fixes
+
+* update search results when performing repository actions ([f4edb65](https://github.com/wiiiimm/gh-manager-cli/commit/f4edb65d84501f894dcc012bc6bf6b7495ec0902))
+
 ## [1.8.1](https://github.com/wiiiimm/gh-manager-cli/compare/v1.8.0...v1.8.1) (2025-09-01)
 
 
