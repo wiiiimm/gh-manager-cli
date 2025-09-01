@@ -89,35 +89,42 @@ Legend:
   **Unit Tests:**
   - [x] `utils.ts` - truncate and formatDate functions (13 tests)
   - [x] `apolloMeta.ts` - cache key generation and TTL logic (2 tests)
-  - [ ] `config.ts` - configuration loading and saving
-  - [ ] `github.ts` - API interaction helpers
+  - [x] `config.ts` - configuration loading and saving (23 tests)
+  - [x] `github.ts` - API interaction helpers (8 tests)
   - [ ] State management and reducers in RepoList
   
   **Component Tests:**
   - [x] `RepoRow` - Basic rendering test (1 test)
   - [x] `DeleteModal` - Logic tests for verification code (4 tests)
-  - [ ] `RepoListHeader` - Header rendering and stats display
-  - [ ] `FilterInput` - Input handling and filter logic
-  - [ ] `SlowSpinner` - Animation component
-  - [ ] `ArchiveModal` - Archive/unarchive confirmation flow
-  - [ ] `SyncModal` - Fork sync confirmation flow
-  - [ ] `LogoutModal` - Logout confirmation flow
-  - [ ] `InfoModal` - Repository information display
+  - [x] `RepoListHeader` - Header rendering and stats display (8 tests)
+  - [x] `FilterInput` - Input handling and filter logic (6 tests - mocked TextInput)
+  - [x] `SlowSpinner` - Animation component (5 tests)
+  - [x] `ArchiveModal` - Archive/unarchive confirmation flow (6 tests - mocked useInput)
+  - [~] `SyncModal` - Fork sync confirmation flow (not implemented)
+  - [x] `LogoutModal` - Logout confirmation flow (6 tests - mocked useInput)
+  - [~] `InfoModal` - Repository information display (not implemented)
   - [ ] `RepoList` - Main component integration tests
   - [ ] `OrgSwitcher` - Organization switching logic
   
   **Integration Tests:**
-  - [ ] Modal flow tests with simulated keyboard input
+  - [ ] Modal flow tests with simulated keyboard input (limited by testing framework)
   - [ ] Infinite scroll behavior
   - [ ] Search functionality
   - [ ] Sorting and filtering combinations
   - [ ] Rate limit handling
   
   **Current Progress:**
-  - Total test files: 4
-  - Total tests passing: 20
-  - Components with tests: 3/11 (27%)
-  - Utilities with tests: 2/4 (50%)
+  - Total test files: 11
+  - Total tests passing: 82
+  - Components with tests: 7/11 (64%)
+  - Utilities with tests: 4/4 (100%)
+  
+  **Testing Approach for useInput Components:**
+  Successfully implemented mocking strategy for components using `useInput` hook:
+  - Mock the `ink` module's `useInput` function directly
+  - Use dynamic imports to avoid ESM/CommonJS issues
+  - Test rendering and basic UI display
+  - Note: Interactive keyboard behavior tests are limited but UI rendering tests work well
 
 - [x] Organization support
   - Switch between personal and organizations
