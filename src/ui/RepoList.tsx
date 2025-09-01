@@ -2,13 +2,13 @@ import React, { useEffect, useMemo, useState, useRef } from 'react';
 import { Box, Text, useApp, useInput, useStdout, Spacer, Newline } from 'ink';
 import TextInput from 'ink-text-input';
 import chalk from 'chalk';
-import { makeClient, fetchViewerReposPageUnified, searchRepositoriesUnified, deleteRepositoryRest, archiveRepositoryById, unarchiveRepositoryById, syncForkWithUpstream, getRepositoryFromCache, purgeApolloCacheFiles, inspectCacheStatus, updateCacheAfterDelete, updateCacheAfterArchive, updateCacheWithRepository, OwnerAffiliation } from '../github';
+import { makeClient, fetchViewerReposPageUnified, searchRepositoriesUnified, deleteRepositoryRest, archiveRepositoryById, unarchiveRepositoryById, changeRepositoryVisibility, syncForkWithUpstream, getRepositoryFromCache, purgeApolloCacheFiles, inspectCacheStatus, updateCacheAfterDelete, updateCacheAfterArchive, updateCacheAfterVisibilityChange, updateCacheWithRepository, OwnerAffiliation } from '../github';
 import { getUIPrefs, storeUIPrefs, OwnerContext } from '../config';
 import { makeApolloKey, makeSearchKey, isFresh, markFetched } from '../apolloMeta';
 import type { RepoNode, RateLimitInfo } from '../types';
 import { exec } from 'child_process';
 import OrgSwitcher from './OrgSwitcher';
-import { DeleteModal, ArchiveModal, SyncModal, InfoModal, LogoutModal, VisibilityModal, SortModal } from './components/modals';
+import { DeleteModal, ArchiveModal, SyncModal, InfoModal, LogoutModal, VisibilityModal, SortModal, ChangeVisibilityModal } from './components/modals';
 import { RepoRow, FilterInput, RepoListHeader } from './components/repo';
 import { SlowSpinner } from './components/common';
 import { truncate, formatDate } from '../utils';
@@ -120,6 +120,12 @@ export default function RepoList({ token, maxVisibleRows, onLogout, viewerLogin,
   const [visibilityMode, setVisibilityMode] = useState(false);
   const [hasInternalRepos, setHasInternalRepos] = useState(false);
   
+  // Change visibility modal state
+  const [changeVisibilityMode, setChangeVisibilityMode] = useState(false);
+  const [changeVisibilityTarget, setChangeVisibilityTarget] = useState<RepoNode | null>(null);
+  const [changingVisibility, setChangingVisibility] = useState(false);
+  const [changeVisibilityError, setChangeVisibilityError] = useState<string | null>(null);
+  
   // Sort modal state
   const [sortMode, setSortMode] = useState(false);
 
@@ -129,6 +135,13 @@ export default function RepoList({ token, maxVisibleRows, onLogout, viewerLogin,
     setArchiving(false);
     setArchiveError(null);
     setArchiveFocus('confirm');
+  }
+  
+  function closeChangeVisibilityModal() {
+    setChangeVisibilityMode(false);
+    setChangeVisibilityTarget(null);
+    setChangingVisibility(false);
+    setChangeVisibilityError(null);
   }
 
   function closeSyncModal() {
@@ -217,6 +230,32 @@ export default function RepoList({ token, maxVisibleRows, onLogout, viewerLogin,
     } catch (e) {
       setArchiving(false);
       setArchiveError('Failed to update archive state. Check permissions.');
+      // Keep modal open on error
+    }
+  }
+  
+  // Handler for changing visibility
+  async function handleVisibilityChange(newVisibility: string) {
+    if (!changeVisibilityTarget || changingVisibility) return;
+    
+    try {
+      setChangingVisibility(true);
+      const id = (changeVisibilityTarget as any).id;
+      
+      await changeRepositoryVisibility(client, id, newVisibility as 'PUBLIC' | 'PRIVATE');
+      
+      // Update Apollo cache
+      await updateCacheAfterVisibilityChange(token, id, newVisibility as 'PUBLIC' | 'PRIVATE');
+      
+      // Update both regular items and search items
+      const updateRepo = (r: any) => (r.id === id ? { ...r, visibility: newVisibility } : r);
+      setItems(prev => prev.map(updateRepo));
+      setSearchItems(prev => prev.map(updateRepo));
+      
+      closeChangeVisibilityModal();
+    } catch (e: any) {
+      setChangingVisibility(false);
+      setChangeVisibilityError(e.message || 'Failed to change visibility. Check permissions.');
       // Keep modal open on error
     }
   }
@@ -743,6 +782,11 @@ export default function RepoList({ token, maxVisibleRows, onLogout, viewerLogin,
       return; // VisibilityModal component handles its own keyboard input
     }
     
+    // When change visibility modal is open, trap inputs for modal
+    if (changeVisibilityMode) {
+      return; // ChangeVisibilityModal component handles its own keyboard input
+    }
+    
     // When sort modal is open, trap inputs for modal
     if (sortMode) {
       return; // SortModal component handles its own keyboard input
@@ -856,6 +900,16 @@ export default function RepoList({ token, maxVisibleRows, onLogout, viewerLogin,
         setArchiveError(null);
         setArchiving(false);
         setArchiveFocus('confirm');
+      }
+      return;
+    }
+
+    // Change visibility modal (Ctrl+V)
+    if (key.ctrl && (input === 'v' || input === 'V')) {
+      const repo = visibleItems[cursor];
+      if (repo) {
+        setChangeVisibilityTarget(repo);
+        setChangeVisibilityMode(true);
       }
       return;
     }
@@ -1619,6 +1673,16 @@ export default function RepoList({ token, maxVisibleRows, onLogout, viewerLogin,
               onCancel={() => setSortMode(false)}
             />
           </Box>
+        ) : changeVisibilityMode && changeVisibilityTarget ? (
+          <Box height={contentHeight} alignItems="center" justifyContent="center">
+            <ChangeVisibilityModal
+              isOpen={changeVisibilityMode}
+              repoName={changeVisibilityTarget.nameWithOwner}
+              currentVisibility={changeVisibilityTarget.visibility}
+              onVisibilityChange={handleVisibilityChange}
+              onClose={closeChangeVisibilityModal}
+            />
+          </Box>
         ) : (
           <>
             {/* Context/Filter/sort status */}
@@ -1743,7 +1807,7 @@ export default function RepoList({ token, maxVisibleRows, onLogout, viewerLogin,
         {/* Line 3: Action controls */}
         <Box width={terminalWidth} justifyContent="center">
           <Text color="gray" dimColor={modalOpen ? true : undefined}>
-            I Info • K Cache Info • Ctrl+A Un/Archive • Del/Backspace Delete • Ctrl+S Sync Fork
+            I Info • K Cache Info • Ctrl+A Un/Archive • Ctrl+V Change Visibility • Del/Backspace Delete • Ctrl+S Sync Fork
           </Text>
         </Box>
       </Box>

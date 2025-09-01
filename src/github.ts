@@ -624,6 +624,21 @@ export async function unarchiveRepositoryById(
   await client(mutation, { repositoryId });
 }
 
+export async function changeRepositoryVisibility(
+  client: ReturnType<typeof makeClient>,
+  repositoryId: string,
+  visibility: 'PUBLIC' | 'PRIVATE'
+): Promise<void> {
+  const mutation = /* GraphQL */ `
+    mutation ChangeRepoVisibility($repositoryId: ID!, $visibility: RepositoryVisibility!) {
+      updateRepository(input: { repositoryId: $repositoryId, visibility: $visibility }) {
+        clientMutationId
+      }
+    }
+  `;
+  await client(mutation, { repositoryId, visibility });
+}
+
 // Try to get repository from cache first
 export async function getRepositoryFromCache(token: string, repositoryId: string): Promise<RepoNode | null> {
   try {
@@ -830,6 +845,21 @@ export async function updateCacheAfterArchive(token: string, repositoryId: strin
       id: `Repository:${repositoryId}`,
       fields: {
         isArchived: () => isArchived
+      }
+    });
+  } catch {}
+}
+
+export async function updateCacheAfterVisibilityChange(token: string, repositoryId: string, visibility: 'PUBLIC' | 'PRIVATE'): Promise<void> {
+  try {
+    const ap = await makeApolloClient(token);
+    if (!ap || !ap.client) return;
+    
+    // Update the visibility field in cache
+    ap.client.cache.modify({
+      id: `Repository:${repositoryId}`,
+      fields: {
+        visibility: () => visibility
       }
     });
   } catch {}
