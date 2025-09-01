@@ -137,8 +137,9 @@ export default function App() {
           setWasRateLimited(true);
           setMode('rate_limited');
         } else {
-          // Invalid token or other error: clear token and return to prompt
+          // Invalid token or other error: clear token input and return to prompt
           setError(errorMessage);
+          setInput('');
           setMode('prompt');
           setToken(null);
         }
@@ -187,8 +188,10 @@ export default function App() {
       if (wasRateLimited) {
         setMode('rate_limited');
       } else {
+        // Return to prompt; ensure input box is cleared
         setMode('prompt');
         setToken(null);
+        setInput('');
       }
     }
   });
