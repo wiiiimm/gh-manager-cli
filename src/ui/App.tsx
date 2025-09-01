@@ -19,6 +19,7 @@ export default function App() {
   const [error, setError] = useState<string | null>(null);
   const [viewer, setViewer] = useState<string | null>(null);
   const [rateLimitReset, setRateLimitReset] = useState<string | null>(null);
+  const [wasRateLimited, setWasRateLimited] = useState(false);
   const [orgContext, setOrgContext] = useState<OwnerContext>('personal');
   const [dims, setDims] = useState(() => {
     const cols = stdout?.columns ?? 100;
@@ -69,6 +70,9 @@ export default function App() {
         const login = await getViewerLogin(client);
         clearTimeout(timeoutId);
         setViewer(login);
+        // On successful validation, clear any previous rate-limit context
+        setWasRateLimited(false);
+        setRateLimitReset(null);
         // If token came from prompt, it will be in input and not yet stored
         if (!getStoredToken()) {
           storeToken(token);
@@ -128,8 +132,9 @@ export default function App() {
         }
         
         if (isRateLimit) {
-          // Keep token in memory so Retry can revalidate immediately
+          // Keep token so Retry can revalidate; remember we came from rate-limit
           setRateLimitReset(resetTime);
+          setWasRateLimited(true);
           setMode('rate_limited');
         } else {
           // Invalid token or other error: clear token and return to prompt
@@ -178,8 +183,8 @@ export default function App() {
     }
     
     if (mode === 'validating' && key.escape) {
-      // Allow canceling validation and go back to rate limit or prompt
-      if (rateLimitReset) {
+      // Cancel validation: return to previous state
+      if (wasRateLimited) {
         setMode('rate_limited');
       } else {
         setMode('prompt');
