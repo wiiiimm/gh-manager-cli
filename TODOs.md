@@ -9,6 +9,17 @@ Legend:
 
 ## Now
 
+- [x] Code refactoring (completed)
+  - [x] Extract modal components to separate files
+  - [x] Organize components in structured directories
+  - [x] Create reusable utility functions
+  - [x] Improve component separation of concerns
+  - Components extracted:
+    - `src/ui/components/modals/` - All modal dialogs
+    - `src/ui/components/repo/` - Repository list components  
+    - `src/ui/components/common/` - Shared UI elements
+    - `src/utils.ts` - Utility functions
+
 - [x] Density toggle (row spacing)
   - Key `t` cycles: Compact (0), Cozy (1), Comfy (2) blank lines
   - Update virtualization math to reflect spacing

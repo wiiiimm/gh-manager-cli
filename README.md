@@ -169,7 +169,7 @@ Status bar shows loaded count vs total. A rate-limit line displays `remaining/li
 
 Stack:
 - UI: `ink`, `ink-text-input`, `ink-spinner`
-- API: `@octokit/graphql`
+- API: `@octokit/graphql`, Apollo Client
 - Config paths: `env-paths`
 - Language: TypeScript
 - Build: `tsup` (CJS output with shebang)
@@ -189,10 +189,17 @@ Notes:
 Project layout:
 - `src/index.tsx` — CLI entry and error handling
 - `src/ui/App.tsx` — token bootstrap, renders `RepoList`
-- `src/ui/RepoList.tsx` — list UI, keys, search, sorting, infinite scroll
+- `src/ui/RepoList.tsx` — main list UI with modal management
+- `src/ui/components/` — modular components (modals, repo, common)
+  - `modals/` — DeleteModal, ArchiveModal, SyncModal, InfoModal, LogoutModal
+  - `repo/` — RepoRow, FilterInput, RepoListHeader
+  - `common/` — SlowSpinner and shared UI elements
+- `src/ui/OrgSwitcher.tsx` — organization switching component
 - `src/github.ts` — GraphQL client and queries (repos + rateLimit)
-- `src/config.ts` — token read/write and file perms
+- `src/config.ts` — token read/write and UI preferences
 - `src/types.ts` — shared types
+- `src/utils.ts` — utility functions (truncate, formatDate)
+- `src/apolloMeta.ts` — Apollo cache management
 
 ## Apollo Cache (Performance)
 
