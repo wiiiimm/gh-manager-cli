@@ -262,9 +262,9 @@ export default function App() {
             <Box marginTop={2} flexDirection="column" gap={1}>
               <Text bold>What would you like to do?</Text>
               <Box flexDirection="column" paddingLeft={2}>
-                <Text><Text color="cyan" bold>r</Text> - Retry now {rateLimitReset && formatResetTime(rateLimitReset) !== 'Now (should be reset)' ? '(likely to fail until reset)' : '(should work now)'}</Text>
-                <Text><Text color="cyan" bold>l</Text> - Logout and use a different token</Text>
-                <Text><Text color="gray" bold>q/Esc</Text> - Quit application</Text>
+                <Text><Text color="cyan" bold>R</Text> - Retry now {rateLimitReset && formatResetTime(rateLimitReset) !== 'Now (should be reset)' ? '(likely to fail until reset)' : '(should work now)'}</Text>
+                <Text><Text color="cyan" bold>L</Text> - Logout and use a different token</Text>
+                <Text><Text color="gray" bold>Q/Esc</Text> - Quit application</Text>
               </Box>
             </Box>
             

@@ -888,8 +888,8 @@ export default function RepoList({ token, maxVisibleRows, onLogout, viewerLogin,
       return;
     }
     
-    // Cache inspection (C)
-    if (input && input.toUpperCase() === 'C') {
+    // Cache inspection (K)
+    if (input && input.toUpperCase() === 'K') {
       (async () => {
         try {
           await inspectCacheStatus();
@@ -1743,7 +1743,7 @@ export default function RepoList({ token, maxVisibleRows, onLogout, viewerLogin,
         {/* Line 3: Action controls */}
         <Box width={terminalWidth} justifyContent="center">
           <Text color="gray" dimColor={modalOpen ? true : undefined}>
-            I Info • C Cache Info • Ctrl+A Un/Archive • Del/Backspace Delete • Ctrl+S Sync Fork
+            I Info • K Cache Info • Ctrl+A Un/Archive • Del/Backspace Delete • Ctrl+S Sync Fork
           </Text>
         </Box>
       </Box>
