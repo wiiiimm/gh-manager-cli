@@ -1,3 +1,10 @@
+## [1.10.6](https://github.com/wiiiimm/gh-manager-cli/compare/v1.10.5...v1.10.6) (2025-09-01)
+
+
+### Bug Fixes
+
+* clear token input field after logout and successful login ([243d963](https://github.com/wiiiimm/gh-manager-cli/commit/243d963a8603580c921d01c8380a23c0e511c113))
+
 ## [1.10.5](https://github.com/wiiiimm/gh-manager-cli/compare/v1.10.4...v1.10.5) (2025-09-01)
 
 
