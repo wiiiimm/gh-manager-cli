@@ -627,16 +627,53 @@ export async function unarchiveRepositoryById(
 export async function changeRepositoryVisibility(
   client: ReturnType<typeof makeClient>,
   repositoryId: string,
-  visibility: 'PUBLIC' | 'PRIVATE'
-): Promise<void> {
-  const mutation = /* GraphQL */ `
-    mutation ChangeRepoVisibility($repositoryId: ID!, $visibility: RepositoryVisibility!) {
-      updateRepository(input: { repositoryId: $repositoryId, visibility: $visibility }) {
-        clientMutationId
+  visibility: 'PUBLIC' | 'PRIVATE',
+  token: string
+): Promise<{ nameWithOwner: string }> {
+  // First, get the repository details to get the owner and name
+  const query = /* GraphQL */ `
+    query GetRepoDetails($id: ID!) {
+      node(id: $id) {
+        ... on Repository {
+          nameWithOwner
+          owner {
+            login
+          }
+          name
+        }
       }
     }
   `;
-  await client(mutation, { repositoryId, visibility });
+  
+  const result = await client(query, { id: repositoryId });
+  const repo = result.node;
+  
+  if (!repo || !repo.nameWithOwner) {
+    throw new Error('Repository not found');
+  }
+  
+  const [owner, name] = repo.nameWithOwner.split('/');
+  
+  // Use REST API to change visibility since GraphQL doesn't support it
+  const response = await fetch(`https://api.github.com/repos/${owner}/${name}`, {
+    method: 'PATCH',
+    headers: {
+      'Authorization': `token ${token}`,
+      'Accept': 'application/vnd.github+json',
+      'Content-Type': 'application/json',
+      'User-Agent': 'gh-manager-cli'
+    },
+    body: JSON.stringify({
+      private: visibility === 'PRIVATE'
+    })
+  });
+  
+  if (!response.ok) {
+    const error = await response.text();
+    throw new Error(`Failed to change visibility: ${error}`);
+  }
+  
+  return { nameWithOwner: repo.nameWithOwner };
 }
 
 // Try to get repository from cache first

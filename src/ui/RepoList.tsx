@@ -242,7 +242,7 @@ export default function RepoList({ token, maxVisibleRows, onLogout, viewerLogin,
       setChangingVisibility(true);
       const id = (changeVisibilityTarget as any).id;
       
-      await changeRepositoryVisibility(client, id, newVisibility as 'PUBLIC' | 'PRIVATE');
+      await changeRepositoryVisibility(client, id, newVisibility as 'PUBLIC' | 'PRIVATE', token);
       
       // Update Apollo cache
       await updateCacheAfterVisibilityChange(token, id, newVisibility as 'PUBLIC' | 'PRIVATE');
