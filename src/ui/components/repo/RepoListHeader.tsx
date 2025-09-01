@@ -11,6 +11,7 @@ interface RepoListHeaderProps {
   filter: string;
   searchActive: boolean;
   searchLoading: boolean;
+  visibilityFilter?: 'all' | 'public' | 'private' | 'internal';
 }
 
 export default function RepoListHeader({
@@ -20,7 +21,8 @@ export default function RepoListHeader({
   forkTracking,
   filter,
   searchActive,
-  searchLoading
+  searchLoading,
+  visibilityFilter = 'all'
 }: RepoListHeaderProps) {
   return (
     <Box flexDirection="row" gap={2} marginBottom={1}>
@@ -33,8 +35,15 @@ export default function RepoListHeader({
         Sort: {sortKey} {sortDir === 'asc' ? '↑' : '↓'}
       </Text>
       <Text color="gray" dimColor>
-        Forks - Commits Behind: {forkTracking ? 'ON' : 'OFF'}
+        Fork Status - Commits Behind: {forkTracking ? 'ON' : 'OFF'}
       </Text>
+      {visibilityFilter !== 'all' && (
+        <Text color="yellow">
+          Visibility: {visibilityFilter === 'public' ? 'Public' : 
+                      visibilityFilter === 'private' ? 'Private' : 
+                      'Internal'}
+        </Text>
+      )}
       {filter && !searchActive && (
         <Text color="cyan">Filter: "{filter}"</Text>
       )}

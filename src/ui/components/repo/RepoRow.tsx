@@ -68,11 +68,20 @@ export default function RepoRow({
   let fullText = line1 + '\n' + line2;
   if (line3) fullText += '\n' + metaColor(line3);
   
+  // Calculate spacing for above and below
+  const spacingAbove = Math.floor(spacingLines / 2);
+  const spacingBelow = spacingLines - spacingAbove;
+  
   return (
     <Box flexDirection="column" backgroundColor={selected ? 'gray' : undefined}>
+      {spacingAbove > 0 && (
+        <Box height={spacingAbove}>
+          <Text> </Text>
+        </Box>
+      )}
       <Text>{dim ? chalk.dim(fullText) : fullText}</Text>
-      {spacingLines > 0 && (
-        <Box height={spacingLines}>
+      {spacingBelow > 0 && (
+        <Box height={spacingBelow}>
           <Text> </Text>
         </Box>
       )}

@@ -20,7 +20,7 @@ describe('RepoListHeader', () => {
     const output = lastFrame() || '';
     expect(output).toContain('Personal Account');
     expect(output).toContain('Sort: updated ↓');
-    expect(output).toContain('Forks - Commits Behind: ON');
+    expect(output).toContain('Fork Status - Commits Behind: ON');
     unmount();
   });
 
@@ -40,7 +40,7 @@ describe('RepoListHeader', () => {
     const output = lastFrame() || '';
     expect(output).toContain('Organization: My Organization');
     expect(output).toContain('Sort: name ↑');
-    expect(output).toContain('Forks - Commits Behind: OFF');
+    expect(output).toContain('Fork Status - Commits Behind: OFF');
     unmount();
   });
 

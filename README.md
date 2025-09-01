@@ -41,28 +41,34 @@ On first run, you'll be prompted for a GitHub Personal Access Token.
 - **Token Authentication**: Secure PAT storage with validation and persistence
 - **Repository Listing**: Browse all your personal repositories with metadata (stars, forks, language, etc.)
 - **Live Pagination**: Infinite scroll with automatic page prefetching
-- **Real-time Sorting**: Server-side sorting by updated, pushed, name, or stars (with direction toggle)
+- **Interactive Sorting**: Modal-based sort selection (updated, pushed, name, stars) with direction toggle
 - **Smart Search**: Server-side search through repository names and descriptions (3+ characters)
+- **Visibility Filtering**: Modal-based visibility filter (All, Public, Private, Internal for enterprise) with server-side filtering
+- **Fork Status Tracking**: Toggle display of commits behind upstream for forked repositories
 - **Repository Actions**:
   - View detailed info (`I`) - Shows repository metadata, language, size, and timestamps
   - Open in browser (Enter/`O`)
-  - Delete repository (`Del` or `Ctrl+Backspace`) with secure two-step confirmation
+  - Delete repository (`Del` or `Backspace`) with secure two-step confirmation
   - Archive/unarchive repositories (`Ctrl+A`) with confirmation prompts
   - Sync forks with upstream (`Ctrl+S`) with automatic conflict detection
 
 ### User Interface & Experience
 - **Keyboard Navigation**: Full keyboard control (arrow keys, PageUp/Down, `Ctrl+G`/`G`)
 - **Display Density**: Toggle between compact/cozy/comfy spacing (`T`)
-- **Visual Indicators**: Fork status, private/archived badges, language colors
+- **Visual Indicators**: Fork status, private/archived badges, language colors, visibility status
+- **Interactive Modals**: Sort selection, visibility filtering, and organization switching via modal dialogs
+- **Balanced Layout**: Repository items with spacing above and below for better visual hierarchy
 - **Loading States**: Contextual loading screens for sorting and refreshing operations
 - **Rate Limit Monitoring**: Live API usage display with visual warnings
+- **Improved Layout**: Balanced spacing above and below repository items for better visual hierarchy
 
 ### Technical Features
-- **Preference Persistence**: UI settings (sort, density) saved between sessions
+- **Preference Persistence**: UI settings (sort, density, visibility filter, fork tracking) saved between sessions
+- **Server-side Filtering**: Visibility filtering performed at GitHub API level for accurate pagination
 - **Cross-platform**: Works on macOS, Linux, and Windows
 - **Secure Storage**: Token stored with proper file permissions (0600)
 - **Error Handling**: Graceful error recovery with retry mechanisms
-- **Performance**: Efficient GraphQL queries with virtualized rendering
+- **Performance**: Efficient GraphQL queries with virtualized rendering and server-side filtering
 
 ## Installation
 
@@ -157,27 +163,42 @@ Notes:
 
 Launch the app, then use the keys below:
 
-- Navigation: Up/Down, PageUp/PageDown, `Ctrl+G` (top), `G` (bottom)
-- Refresh: `R`
-- Search: `/` to enter search mode, type 3+ characters for server-side search
+### Navigation & View Controls
+- **Top/Bottom**: `Ctrl+G` (top), `G` (bottom)
+- **Page Navigation**: ↑↓ Arrow keys, PageUp/PageDown
+- **Search**: `/` to enter search mode, type 3+ characters for server-side search
   - Down arrow or Enter: Start browsing search results
   - Esc: Clear search and return to full repository list
-- Sorting: `S` to cycle field (updated → pushed → name → stars → forks), `D` to toggle direction
-- Display density: `T` to toggle compact/cozy/comfy
-- Workspace switcher: `W` to switch between personal account and organizations
-- Repository info: `I` to view detailed metadata (size, language, timestamps)
-- Open in browser: Enter or `O`
-- Delete repository: `Del` or `Ctrl+Backspace` (with confirmation modal)
-  - Uses GitHub REST API (requires `delete_repo` scope and admin rights)
-  - Two-step confirm: type code → confirm (Y/Enter)
-  - Confirm: press `Y` or Enter
+- **Sort**: `S` opens sort modal with options:
+  - Updated: When the repository was last modified
+  - Pushed: When code was last pushed
+  - Name: Alphabetical by repository name
+  - Stars: Number of stars
+- **Sort Direction**: `D` to toggle ascending/descending
+- **Display Density**: `T` to toggle compact/cozy/comfy
+- **Fork Status**: `F` to toggle showing commits behind upstream
+- **Visibility Filter**: `V` opens modal (All, Public, Private, Internal for enterprise)
+
+### Navigation & Account
+- **Open in browser**: Enter or `O`
+- **Refresh**: `R`
+- **Organization switcher**: `W` to switch between personal account and organizations
+- **Logout**: `Ctrl+L`
+- **Quit**: `Q`
+
+### Repository Actions
+- **Repository info**: `I` to view detailed metadata (size, language, timestamps)
+- **Cache info**: `Ctrl+I` to inspect Apollo cache status
+- **Archive/Unarchive**: `Ctrl+A` with confirmation prompt
+- **Delete repository**: `Del` or `Backspace` (with two-step confirmation modal)
+  - Type confirmation code → confirm (Y/Enter)
   - Cancel: press `C` or Esc
-- Archive/Unarchive: `Ctrl+A`
-- Sync fork with upstream: `Ctrl+S` (for forks only, shows commit status and handles conflicts)
-- Logout: `Ctrl+L`
-- Toggle fork metrics: `F`
-- Quit: `Q`
-- Esc: cancels modals, clears search, or returns to normal listing (does not quit)
+- **Sync fork**: `Ctrl+S` (for forks only, shows commit status and handles conflicts)
+
+### General
+- **Esc**: Cancels modals, clears search, or returns to normal listing (does not quit)
+
+The header displays the current owner context (Personal Account or Organization name), active sort and direction, fork status tracking state, and active search/filter.
 
 Status bar shows loaded count vs total. A rate-limit line displays `remaining/limit` and the reset time; it turns yellow when remaining ≤ 10% of the limit.
 
@@ -298,6 +319,8 @@ Recently implemented:
 - ✅ Organization support and switching (press `W`)
 - ✅ Enhanced server-side search with improved UX
 - ✅ Smart infinite scroll with 80% prefetch trigger
+- ✅ Modal-based sort and visibility filtering
+- ✅ Server-side visibility filtering for accurate pagination
 
 Highlights on deck:
 - Optional OS keychain storage via `keytar`
