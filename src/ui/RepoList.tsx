@@ -155,9 +155,17 @@ export default function RepoList({ token, maxVisibleRows, onLogout, viewerLogin,
       // REST: requires owner/repo and a token with delete_repo scope
       const [owner, repo] = (deleteTarget.nameWithOwner || '').split('/');
       await deleteRepositoryRest(token, owner, repo);
-      // Remove from items and update counts
-      setItems((prev) => prev.filter((r: any) => r.id !== (deleteTarget as any).id));
+      // Remove from both regular items and search items
+      const targetId = (deleteTarget as any).id;
+      setItems((prev) => prev.filter((r: any) => r.id !== targetId));
+      setSearchItems((prev) => prev.filter((r: any) => r.id !== targetId));
+      
+      // Update counts
       setTotalCount((c) => Math.max(0, c - 1));
+      if (searchActive) {
+        setSearchTotalCount((c) => Math.max(0, c - 1));
+      }
+      
       setDeleteMode(false);
       setDeleteTarget(null);
       setTypedCode('');
@@ -518,7 +526,12 @@ export default function RepoList({ token, maxVisibleRows, onLogout, viewerLogin,
             const id = (archiveTarget as any).id;
             if (isArchived) await unarchiveRepositoryById(client, id);
             else await archiveRepositoryById(client, id);
-              setItems(prev => prev.map(r => (r.id === (archiveTarget as any).id ? { ...r, isArchived: !isArchived } : r)));
+            
+            // Update both regular items and search items
+            const updateRepo = (r: any) => (r.id === id ? { ...r, isArchived: !isArchived } : r);
+            setItems(prev => prev.map(updateRepo));
+            setSearchItems(prev => prev.map(updateRepo));
+            
             closeArchiveModal();
           } catch (e) {
             setArchiving(false);
@@ -558,8 +571,8 @@ export default function RepoList({ token, maxVisibleRows, onLogout, viewerLogin,
             const branchName = syncTarget.defaultBranchRef?.name || 'main';
             const result = await syncForkWithUpstream(token, owner, repo, branchName);
             
-            // Update the repository state to show 0 behind
-            setItems(prev => prev.map(r => {
+            // Update the repository state to show 0 behind in both regular and search items
+            const updateSyncedRepo = (r: any) => {
               if (r.id === (syncTarget as any).id && r.parent && r.defaultBranchRef?.target?.history && r.parent.defaultBranchRef?.target?.history) {
                 return {
                   ...r,
@@ -575,7 +588,9 @@ export default function RepoList({ token, maxVisibleRows, onLogout, viewerLogin,
                 };
               }
               return r;
-            }));
+            };
+            setItems(prev => prev.map(updateSyncedRepo));
+            setSearchItems(prev => prev.map(updateSyncedRepo));
             closeSyncModal();
           } catch (e: any) {
             setSyncing(false);
@@ -1257,7 +1272,12 @@ export default function RepoList({ token, maxVisibleRows, onLogout, viewerLogin,
                           const id = (archiveTarget as any).id;
                           if (isArchived) await unarchiveRepositoryById(client, id);
                           else await archiveRepositoryById(client, id);
-                          setItems(prev => prev.map(r => (r.id === (archiveTarget as any).id ? { ...r, isArchived: !isArchived } : r)));
+                          
+                          // Update both regular items and search items
+                          const updateRepo = (r: any) => (r.id === id ? { ...r, isArchived: !isArchived } : r);
+                          setItems(prev => prev.map(updateRepo));
+                          setSearchItems(prev => prev.map(updateRepo));
+                          
                           closeArchiveModal();
                         } catch (e) {
                           setArchiving(false);
@@ -1346,8 +1366,8 @@ export default function RepoList({ token, maxVisibleRows, onLogout, viewerLogin,
                           const [owner, repo] = syncTarget.nameWithOwner.split('/');
                           const result = await syncForkWithUpstream(token, owner, repo);
                           
-                          // Update the repository state to show 0 behind
-                          setItems(prev => prev.map(r => {
+                          // Update the repository state to show 0 behind in both regular and search items
+                          const updateSyncedRepo = (r: any) => {
                             if (r.id === (syncTarget as any).id && r.parent && r.defaultBranchRef?.target?.history && r.parent.defaultBranchRef?.target?.history) {
                               return {
                                 ...r,
@@ -1363,7 +1383,9 @@ export default function RepoList({ token, maxVisibleRows, onLogout, viewerLogin,
                               };
                             }
                             return r;
-                          }));
+                          };
+                          setItems(prev => prev.map(updateSyncedRepo));
+                          setSearchItems(prev => prev.map(updateSyncedRepo));
                           closeSyncModal();
                         } catch (e: any) {
                           setSyncing(false);
