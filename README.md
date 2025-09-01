@@ -22,7 +22,7 @@ Interactive terminal app to browse and manage your personal GitHub repositories.
 |-----------------|----------|-------------|
 | [📥 Installation](wiki/Installation.md) | [🔍 Features Overview](wiki/Features.md) | [🛠️ Development Guide](wiki/Development.md) |
 | [🔑 Token & Security](wiki/Token-and-Security.md) | [⌨️ Usage & Controls](wiki/Usage.md) | [🧪 Testing](wiki/Testing.md) |
-| [❓ Troubleshooting](wiki/Troubleshooting.md) | [🗺️ Roadmap](wiki/Roadmap.md) | [🏠 Wiki Home](wiki/Home.md) |
+| [❓ Troubleshooting](wiki/Troubleshooting.md) | [🗺️ Roadmap](wiki/Roadmap.md) | [🏠 Wiki Home](wiki/README.md) |
 
 ## Screenshots
 
