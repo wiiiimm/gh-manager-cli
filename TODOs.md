@@ -94,15 +94,18 @@ Legend:
   - [ ] State management and reducers in RepoList
   
   **Component Tests:**
-  - [x] `RepoRow` - Basic rendering test (1 test)
+  - [x] `RepoRow` - Basic rendering test (1 test) - Updated spacing logic tested
   - [x] `DeleteModal` - Logic tests for verification code (4 tests)
   - [x] `RepoListHeader` - Header rendering and stats display (8 tests)
+  - [x] `RepoListHeaderVisibility` - Visibility filter display tests (new test file)
   - [x] `FilterInput` - Input handling and filter logic (6 tests - mocked TextInput)
   - [x] `SlowSpinner` - Animation component (5 tests)
   - [x] `ArchiveModal` - Archive/unarchive confirmation flow (6 tests - mocked useInput)
   - [~] `SyncModal` - Fork sync confirmation flow (not implemented)
   - [x] `LogoutModal` - Logout confirmation flow (6 tests - mocked useInput)
   - [~] `InfoModal` - Repository information display (not implemented)
+  - [ ] `SortModal` - Sort selection modal (needs tests)
+  - [ ] `VisibilityModal` - Visibility filter modal (needs tests)
   - [ ] `RepoList` - Main component integration tests
   - [ ] `OrgSwitcher` - Organization switching logic
   
@@ -114,9 +117,9 @@ Legend:
   - [ ] Rate limit handling
   
   **Current Progress:**
-  - Total test files: 11
-  - Total tests passing: 82
-  - Components with tests: 7/11 (64%)
+  - Total test files: 12 (added RepoListHeaderVisibility.test.tsx)
+  - Total tests passing: 82+
+  - Components with tests: 8/13 (62%) - Added 2 new modals needing tests
   - Utilities with tests: 4/4 (100%)
   
   **Testing Approach for useInput Components:**
@@ -170,6 +173,15 @@ Legend:
     - Smoother infinite scroll experience with earlier prefetching
     - Added debug messages to track when prefetching occurs
 
+- [x] Footer reorganization and UI improvements
+  - [x] Reorganized footer into 3 logical lines for better organization
+    - Line 1: Navigation controls (Refresh, Org Switch, Logout, Quit)
+    - Line 2: View/Filter controls (Top, Bottom, Search, Sort, Direction, Density, Fork Status, Visibility)
+    - Line 3: Repository actions (Info, Cache Info, Archive, Delete, Sync Fork)
+  - [x] Updated Delete key binding to Del/Backspace (no Ctrl required)
+  - [x] Renamed "Forks - Commits Behind" to "Fork Status - Commits Behind"
+  - [x] Balanced repository item spacing (1 line above, 1 line below)
+
 - [x] Server‑side search  
   - Support GitHub search for repos (beyond loaded pages)
   - Integrate with `/` filter bar; show mode indicator
@@ -184,14 +196,21 @@ Legend:
 
 - [x] Sorting enhancements  
   - [x] Persist sort field + direction in config (implemented in UI preferences)
+  - [x] Sort modal interface with descriptive options (updated, pushed, name, stars)
   - [ ] Additional fields (created, size)
 
-- [ ] Packaging for Homebrew
-  - Create a Homebrew Tap (e.g., `wiiiimm/homebrew-tap`) or submit to `homebrew-core`
-  - Provide tarball URLs and SHA256 for each release (from GitHub Releases)
-  - Write a formula that installs the npm package or bundled binary
-  - Add CI job to update formula on new tags (semantic-release hook)
-  - Test install on macOS (Intel/ARM) and verify `gh-manager` runs
+- [ ] Packaging for Homebrew (homebrew-core)
+  - Formula name: `gh-manager-cli` (NOT `gh-manager`)
+  - Target: submit to `homebrew-core` (no custom tap)
+  - Install strategy: use `Language::Node.std_npm_args` to install from npm tarball
+    - URL: `https://registry.npmjs.org/gh-manager-cli/-/gh-manager-cli-<version>.tgz`
+    - `depends_on "node"`
+    - `bin.install_symlink Dir["#{libexec}/bin/*"]`
+  - Ensure package.json exports a `bin` entry named `gh-manager-cli` (keep `gh-manager` shim optionally)
+  - Add a lightweight `--version` flag for `brew test do` block (avoid network)
+  - Compute/verify `sha256` for each release tarball
+  - CI: on release, open a PR to `homebrew-core` with formula bump
+  - QA: test install on macOS Intel/ARM; run `gh-manager-cli --version`
 
 - [ ] Smart repository data caching system
   - **Challenge**: Each sort/direction combination changes server-side ordering, requiring separate cache entries
@@ -278,30 +297,15 @@ Legend:
     - Show success toast (e.g., "Logged out. Token cleared.")
   - Handle errors gracefully and keep user in current state on failure
 
-- [ ] Toggle repository visibility
-  - Assign key: `V` to trigger visibility change modal
-  - Detection and capabilities:
-    - Check if user has enterprise account (supports "internal" visibility)
-    - Use GraphQL to detect current visibility state
-    - Note: GraphQL `isPrivate` returns true for both private and internal repos
-  - Modal UI:
-    - Show current visibility status prominently
-    - Offer options based on account capabilities:
-      - Standard accounts: Public / Private
-      - Enterprise accounts: Public / Private / Internal
-    - Left/Right arrow keys to select option
-    - Enter to confirm, Esc to cancel
-  - Implementation:
-    - Use GraphQL `updateRepository` mutation if supported
-    - Fallback to REST API PATCH /repos/{owner}/{repo} for visibility changes
-    - Validate user has admin permissions (required for visibility changes)
-  - On success:
-    - Update local state (visibility/isPrivate fields)
-    - Show success message with new visibility status
-    - No need to refetch entire list
-  - On failure:
-    - Show error explaining why (permissions, enterprise-only, etc.)
-    - Keep modal open for retry or cancel
+- [x] Visibility filtering with modal interface
+  - Assigned key: `V` to open visibility filter modal
+  - Modal shows options: All, Public, Private, Internal (for enterprise)
+  - Detection of enterprise accounts for showing Internal option
+  - Server-side filtering using GitHub's `privacy` parameter
+  - Persistence of visibility filter preference in config
+  - Modal navigation with arrow keys, Enter to select, Esc to cancel
+  - Fixed issue with private repository filtering not working
+  - Refactored to use RepoListHeader component consistently
 
 ## Later
 
@@ -382,6 +386,17 @@ Legend:
   - Smarter prefetch at 80% threshold instead of 5 items from end
   - Smoother scrolling experience with earlier data loading
 - [x] Packaging (npm)
-  - Published to npm with executable `gh-manager`
+  - Published to npm with executable `gh-manager-cli`
   - Verified bin field and shebang
   - Release notes automated via semantic-release
+- [x] Visibility filtering with modal interface
+  - Modal-based visibility filter (All, Public, Private, Internal)
+  - Server-side filtering for accurate pagination
+  - Persistence in config
+- [x] Sort modal interface
+  - Modal-based sort selection with descriptions
+  - Better UX than cycling through options
+- [x] Footer and layout improvements
+  - Reorganized footer into 3 logical lines
+  - Balanced repository item spacing
+  - Updated keyboard shortcuts
