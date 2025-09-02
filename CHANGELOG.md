@@ -1,3 +1,10 @@
+## [1.15.1](https://github.com/wiiiimm/gh-manager-cli/compare/v1.15.0...v1.15.1) (2025-09-02)
+
+
+### Bug Fixes
+
+* standardise keyboard shortcut capitalisation in error messages ([44d7998](https://github.com/wiiiimm/gh-manager-cli/commit/44d7998f3bad752a18c2a54c0adef18b69f9ecca))
+
 # [1.15.0](https://github.com/wiiiimm/gh-manager-cli/compare/v1.14.0...v1.15.0) (2025-09-02)
 
 
