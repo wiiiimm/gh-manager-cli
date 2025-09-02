@@ -1087,7 +1087,7 @@ export default function RepoList({ token, maxVisibleRows, onLogout, viewerLogin,
     return (
       <Box flexDirection="column" alignItems="center" justifyContent="center" flexGrow={1}>
         <Text color="red">{error}</Text>
-        <Text color="gray" dimColor>Press 'r' to retry or 'q' to quit</Text>
+        <Text color="gray" dimColor>Press R to retry or Q to quit</Text>
       </Box>
     );
   }

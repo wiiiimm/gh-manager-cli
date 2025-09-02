@@ -1293,7 +1293,7 @@ export default function RepoList({ token, maxVisibleRows, onLogout, viewerLogin,
             <Box flexDirection="column" alignItems="center">
               <Text color="red">{error}</Text>
               <Box marginTop={1}>
-                <Text color="gray" dimColor>Press 'r' to retry or 'q' to quit</Text>
+                <Text color="gray" dimColor>Press R to retry or Q to quit</Text>
               </Box>
             </Box>
           </Box>
@@ -1301,7 +1301,7 @@ export default function RepoList({ token, maxVisibleRows, onLogout, viewerLogin,
 
         {/* Help footer */}
         <Box marginTop={1} paddingX={1}>
-          <Text color="gray">Press 'r' to retry • 'q' to quit</Text>
+          <Text color="gray">Press R to retry • Q to quit</Text>
         </Box>
       </Box>
     );
