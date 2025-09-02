@@ -35,7 +35,8 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "test:coverage": "vitest run --coverage",
-    "brew:sha": "bash scripts/brew-sha.sh"
+    "brew:sha": "bash scripts/brew-sha.sh",
+    "assets:png": "bash scripts/convert-svg-to-png.sh"
   },
   "engines": {
     "node": ">=18"
