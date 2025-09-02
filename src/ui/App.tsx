@@ -13,6 +13,8 @@ const packageJson = require('../../package.json');
 
 type Mode = 'checking' | 'auth_method_selection' | 'prompt' | 'validating' | 'oauth_flow' | 'ready' | 'error' | 'rate_limited';
 
+type SessionTokenOrigin = 'cli' | 'env' | 'stored' | 'oauth' | 'prompt';
+
 export default function App({ initialOrgSlug, inlineToken, inlineTokenEphemeral }: { initialOrgSlug?: string; inlineToken?: string; inlineTokenEphemeral?: boolean }) {
   const { exit } = useApp();
   const { stdout } = useStdout();
@@ -27,6 +29,7 @@ export default function App({ initialOrgSlug, inlineToken, inlineTokenEphemeral 
   const [authMethod, setAuthMethod] = useState<AuthMethod>('pat');
   const [oauthStatus, setOAuthStatus] = useState<OAuthStatus>('initializing');
   const [tokenSource, setTokenSource] = useState<TokenSource>('pat');
+  const [sessionTokenOrigin, setSessionTokenOrigin] = useState<SessionTokenOrigin>('stored');
   const [deviceCodeResponse, setDeviceCodeResponse] = useState<DeviceCodeResponse | null>(null);
   const [oauthDeviceCode, setOauthDeviceCode] = useState<{user_code: string; verification_uri: string} | null>(null);
   const [dims, setDims] = useState(() => {
@@ -53,19 +56,26 @@ export default function App({ initialOrgSlug, inlineToken, inlineTokenEphemeral 
     const stored = getStoredToken();
     const source = getTokenSource();
 
+    // Baseline from stored config
     setTokenSource(source);
 
     if (inlineToken) {
       // Highest precedence: inline token from CLI flag; do not persist
       setToken(inlineToken);
+      setSessionTokenOrigin('cli');
+      setTokenSource('pat');
       setMode('validating');
     } else if (env) {
       setToken(env);
+      setSessionTokenOrigin('env');
+      setTokenSource('pat');
       setMode('validating');
     } else if (stored) {
       setToken(stored);
+      setSessionTokenOrigin('stored');
       setMode('validating');
     } else {
+      setSessionTokenOrigin('prompt');
       setMode('auth_method_selection');
     }
   }, [inlineToken]);
@@ -118,6 +128,7 @@ export default function App({ initialOrgSlug, inlineToken, inlineTokenEphemeral 
           storeToken(tokenResult.token, 'oauth');
           setToken(tokenResult.token);
           setTokenSource('oauth');
+          setSessionTokenOrigin('oauth');
           
           if (tokenResult.login) {
             setViewer(tokenResult.login);
@@ -167,12 +178,6 @@ export default function App({ initialOrgSlug, inlineToken, inlineTokenEphemeral 
         clearTimeout(timeoutId);
         setViewer(login);
         
-        logger.info('User authenticated successfully', { 
-          user: login,
-          tokenSource,
-          tokenStored: !getStoredToken()
-        });
-        
         // On successful validation, clear any previous rate-limit context
         setWasRateLimited(false);
         setRateLimitReset(null);
@@ -187,6 +192,11 @@ export default function App({ initialOrgSlug, inlineToken, inlineTokenEphemeral 
         if (shouldPersist) {
           storeToken(token);
         }
+        logger.info('User authenticated successfully', {
+          user: login,
+          tokenOrigin: sessionTokenOrigin,
+          willPersist: shouldPersist,
+        });
         setInput(''); // Clear the input after successful authentication
         setMode('ready');
       } catch (e: any) {
@@ -263,6 +273,7 @@ export default function App({ initialOrgSlug, inlineToken, inlineTokenEphemeral 
     if (!input.trim()) return;
     setToken(input.trim());
     setTokenSource('pat');
+    setSessionTokenOrigin('prompt');
     setError(null);
     setMode('validating');
   };
@@ -271,7 +282,7 @@ export default function App({ initialOrgSlug, inlineToken, inlineTokenEphemeral 
   const handleLogout = () => {
     logger.info('User logged out', { 
       previousUser: viewer,
-      tokenSource 
+      tokenOrigin: sessionTokenOrigin,
     });
     try { clearStoredToken(); } catch {}
     setRateLimitReset(null);
