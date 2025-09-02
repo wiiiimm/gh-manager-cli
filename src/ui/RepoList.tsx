@@ -164,7 +164,7 @@ export default function RepoList({ token, maxVisibleRows, onLogout, viewerLogin,
         addDebugMessage(`[--org] Failed to apply org flag: ${e.message || e}`);
       }
     })();
-  }, [initialOrgSlug, token, prefsLoaded]);
+  }, [initialOrgSlug, token, prefsLoaded, client, handleOrgContextChange, addDebugMessage, onOrgContextChange]);
 
   function closeArchiveModal() {
     setArchiveMode(false);
