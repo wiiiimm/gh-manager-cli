@@ -1,3 +1,11 @@
+## [1.17.1](https://github.com/wiiiimm/gh-manager-cli/compare/v1.17.0...v1.17.1) (2025-09-02)
+
+
+### Bug Fixes
+
+* correct workflow syntax for GH_TOKEN check ([e9980a6](https://github.com/wiiiimm/gh-manager-cli/commit/e9980a69e15d1b74831cf95fe01985e052996489))
+* make Homebrew tap update conditional on GH_TOKEN availability ([cbbe500](https://github.com/wiiiimm/gh-manager-cli/commit/cbbe5005d767ecbe1139f7ac1b603b41d157a060))
+
 # [1.17.0](https://github.com/wiiiimm/gh-manager-cli/compare/v1.16.1...v1.17.0) (2025-09-02)
 
 
