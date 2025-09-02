@@ -2,11 +2,11 @@
 
 # Get the log directory based on platform
 if [[ "$OSTYPE" == "darwin"* ]]; then
-    LOG_DIR="$HOME/Library/Logs/gh-manager-cli"
+    LOG_DIR="$HOME/Library/Logs/gh-manager-cli-nodejs"
 elif [[ "$OSTYPE" == "linux-gnu"* ]]; then
-    LOG_DIR="$HOME/.local/state/gh-manager-cli"
+    LOG_DIR="$HOME/.local/state/gh-manager-cli-nodejs"
 else
-    LOG_DIR="$APPDATA/gh-manager-cli/Logs"
+    LOG_DIR="$APPDATA/gh-manager-cli-nodejs/Logs"
 fi
 
 LOG_FILE="$LOG_DIR/gh-manager-cli.log"

@@ -8,6 +8,7 @@ import { makeApolloKey, makeSearchKey, isFresh, markFetched } from '../apolloMet
 import type { RepoNode, RateLimitInfo } from '../types';
 import { exec } from 'child_process';
 import OrgSwitcher from './OrgSwitcher';
+import { logger } from '../logger';
 import { DeleteModal, ArchiveModal, SyncModal, InfoModal, LogoutModal, VisibilityModal, SortModal, ChangeVisibilityModal } from './components/modals';
 import { RepoRow, FilterInput, RepoListHeader } from './components/repo';
 import { SlowSpinner } from './components/common';
@@ -49,6 +50,13 @@ export default function RepoList({ token, maxVisibleRows, onLogout, viewerLogin,
   // Log on component mount
   React.useEffect(() => {
     addDebugMessage(`[RepoList] Component mounted`);
+    logger.info('RepoList component mounted', {
+      token: token ? 'present' : 'missing',
+      tokenLength: token?.length,
+      viewerLogin,
+      ownerContext,
+      prefsLoaded
+    });
   }, []);
   
   // Get terminal width for dynamic description truncation
@@ -400,6 +408,16 @@ export default function RepoList({ token, maxVisibleRows, onLogout, viewerLogin,
     overrideForkTracking?: boolean,
     policy?: 'cache-first' | 'network-only'
   ) => {
+    logger.info('fetchPage called', {
+      after,
+      reset,
+      isSortChange,
+      policy,
+      token: token ? 'present' : 'missing',
+      viewerLogin,
+      ownerContext
+    });
+    
     if (isSortChange) {
       setSortingLoading(true);
     } else if (after && !reset) {
@@ -476,6 +494,14 @@ export default function RepoList({ token, maxVisibleRows, onLogout, viewerLogin,
       setRateLimit(page.rateLimit);
       setError(null);
     } catch (e: any) {
+      logger.error('Failed to fetch repositories in RepoList', {
+        error: e.message,
+        stack: e.stack,
+        graphQLErrors: e.graphQLErrors,
+        networkError: e.networkError,
+        statusCode: e.statusCode,
+        response: e.response
+      });
       setError('Failed to load repositories. Check network or token.');
     } finally {
       setLoading(false);
