@@ -1,3 +1,10 @@
+# [1.16.0](https://github.com/wiiiimm/gh-manager-cli/compare/v1.15.1...v1.16.0) (2025-09-02)
+
+
+### Features
+
+* add Ctrl+L logout option to error state ([#14](https://github.com/wiiiimm/gh-manager-cli/issues/14)) ([1a15028](https://github.com/wiiiimm/gh-manager-cli/commit/1a15028cc8f1a2bf39054f65b09d0ade7be1de0f))
+
 ## [1.15.1](https://github.com/wiiiimm/gh-manager-cli/compare/v1.15.0...v1.15.1) (2025-09-02)
 
 
