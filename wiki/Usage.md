@@ -2,6 +2,12 @@
 
 Launch the app, then use the keys below to navigate and interact with your repositories.
 
+## CLI Flags
+
+- `--org <slug>`: Start in a specific organisation context (if accessible). If the slug isn’t an organisation you belong to, the flag is ignored and the app opens in your personal context.
+  - Examples: `gh-manager-cli --org acme`, `npx gh-manager-cli --org=@acme`
+  - Leading `@` is optional. Personal usernames are not supported by `--org` (use default personal context).
+
 ## Navigation & View Controls
 
 - **Top/Bottom**: `Ctrl+G` (top), `G` (bottom)
@@ -64,4 +70,3 @@ Launch the app, then use the keys below to navigate and interact with your repos
 - [Features](Features.md) - Detailed feature list
 - [Token & Security](Token-and-Security.md) - Authentication details
 - [Troubleshooting](Troubleshooting.md) - Common issues and solutions
-
