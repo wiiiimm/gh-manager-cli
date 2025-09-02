@@ -1,3 +1,10 @@
+## [1.18.1](https://github.com/wiiiimm/gh-manager-cli/compare/v1.18.0...v1.18.1) (2025-09-02)
+
+
+### Bug Fixes
+
+* handle both CommonJS and ES module contexts in normalize-pr-title.js ([b547877](https://github.com/wiiiimm/gh-manager-cli/commit/b547877c254fbfa0f644b271fa2f367b668838d4))
+
 # [1.18.0](https://github.com/wiiiimm/gh-manager-cli/compare/v1.17.1...v1.18.0) (2025-09-02)
 
 
