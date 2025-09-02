@@ -50,8 +50,8 @@ class Logger {
     this.maxFileSize = config.maxFileSize ?? (5 * 1024 * 1024); // 5MB default
     this.maxFiles = config.maxFiles ?? 5;
     
-    // Set up log directory
-    const paths = envPaths('gh-manager-cli');
+    // Set up log directory - pass empty suffix to avoid '-nodejs' being appended
+    const paths = envPaths('gh-manager-cli', { suffix: '' });
     this.logDir = config.logDir ?? paths.log;
     
     // Ensure log directory exists
