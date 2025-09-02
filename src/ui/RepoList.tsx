@@ -119,6 +119,7 @@ export default function RepoList({ token, maxVisibleRows, onLogout, viewerLogin,
   // Visibility modal state
   const [visibilityMode, setVisibilityMode] = useState(false);
   const [isEnterpriseOrg, setIsEnterpriseOrg] = useState(false);
+  const [hasInternalRepos, setHasInternalRepos] = useState(false);
   
   // Change visibility modal state
   const [changeVisibilityMode, setChangeVisibilityMode] = useState(false);
