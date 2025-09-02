@@ -1,3 +1,10 @@
+## [1.16.1](https://github.com/wiiiimm/gh-manager-cli/compare/v1.16.0...v1.16.1) (2025-09-02)
+
+
+### Bug Fixes
+
+* add missing hasInternalRepos state variable ([#16](https://github.com/wiiiimm/gh-manager-cli/issues/16)) ([e3bcc84](https://github.com/wiiiimm/gh-manager-cli/commit/e3bcc843b82259bafbac34726fda2113c66f874c))
+
 # [1.16.0](https://github.com/wiiiimm/gh-manager-cli/compare/v1.15.1...v1.16.0) (2025-09-02)
 
 
