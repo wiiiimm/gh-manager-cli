@@ -1,0 +1,40 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg width="128" height="128" viewBox="0 0 128 128" xmlns="http://www.w3.org/2000/svg">
+  <title>gh-manager-cli Terminal Variant</title>
+  
+  <!-- Terminal window -->
+  <rect x="8" y="8" width="112" height="112" rx="12" fill="#0d1117" stroke="#21262d" stroke-width="2"/>
+  
+  <!-- Terminal header -->
+  <rect x="8" y="8" width="112" height="24" rx="12" fill="#161b22"/>
+  <rect x="8" y="28" width="112" height="4" fill="#161b22"/>
+  
+  <!-- Traffic lights -->
+  <circle cx="20" cy="20" r="3" fill="#ff5f56"/>
+  <circle cx="32" cy="20" r="3" fill="#ffbd2e"/>
+  <circle cx="44" cy="20" r="3" fill="#27ca3f"/>
+  
+  <!-- Terminal content -->
+  <text x="16" y="48" font-family="Monaco, 'SF Mono', monospace" font-size="8" fill="#58a6ff">$</text>
+  <text x="24" y="48" font-family="Monaco, 'SF Mono', monospace" font-size="8" fill="#f0f6fc">gh-manager-cli</text>
+  
+  <!-- Repository grid -->
+  <g transform="translate(16, 56)">
+    <rect x="0" y="0" width="12" height="12" rx="2" fill="#1f6feb"/>
+    <rect x="16" y="0" width="12" height="12" rx="2" fill="#238636"/>
+    <rect x="32" y="0" width="12" height="12" rx="2" fill="#da3633"/>
+    <rect x="48" y="0" width="12" height="12" rx="2" fill="#fb8500"/>
+    
+    <rect x="0" y="16" width="12" height="12" rx="2" fill="#8b5cf6"/>
+    <rect x="16" y="16" width="12" height="12" rx="2" fill="#db2777"/>
+    <rect x="32" y="16" width="12" height="12" rx="2" fill="#0891b2"/>
+    <rect x="48" y="16" width="12" height="12" rx="2" fill="#65a30d"/>
+  </g>
+  
+  <!-- Status line -->
+  <rect x="16" y="96" width="80" height="2" fill="#21262d"/>
+  <rect x="16" y="96" width="32" height="2" fill="#58a6ff"/>
+  
+  <!-- Prompt cursor -->
+  <rect x="100" y="104" width="8" height="8" fill="#58a6ff" opacity="0.8"/>
+</svg>

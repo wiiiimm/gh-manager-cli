@@ -8,6 +8,16 @@ This directory contains the official logo assets for gh-manager-cli.
 - **`logo-main.svg`** - Primary logo with terminal window design (200x120px)
 - **`logo-icon.svg`** - Square icon version for avatars/favicons (64x64px)
 - **`logo-banner.svg`** - Horizontal banner with text (400x100px)
+- **`logo-mark.svg`** - Professional square mark with terminal UI and GitHub symbols (256x256px)
+- **`logo-horizontal.svg`** - Horizontal layout with mark and wordmark (640x160px)
+
+### Logo Variants
+- **`logo-variant-terminal.svg`** - Clean terminal window with repo grid (128x128px)
+- **`logo-variant-minimal.svg`** - Minimal circular design with prompt and dots (96x96px)
+- **`logo-variant-geometric.svg`** - Geometric structured layout (120x120px)
+- **`logo-variant-modern.svg`** - Modern gradient design with matrix layout (140x140px)
+- **`logo-variant-retro.svg`** - Retro green terminal CRT style (128x128px)
+- **`logo-variant-badge.svg`** - Horizontal badge format (200x40px)
 
 ### ASCII Art
 - **`logo-ascii.txt`** - Text-based logos for terminal/console use
