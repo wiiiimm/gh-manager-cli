@@ -5,6 +5,7 @@ import fs from 'fs';
 import path from 'path';
 import envPaths from 'env-paths';
 import type { RepoNode, RateLimitInfo } from './types';
+import { logger } from './logger';
 
 export function makeClient(token: string) {
   return makeGraphQL.defaults({
@@ -69,6 +70,10 @@ async function makeApolloClient(token: string): Promise<any> {
     apolloClientInstance = { client, gql };
     return apolloClientInstance;
   } catch (error: any) {
+    logger.error('Failed to initialize Apollo Client', { 
+      error: error.message, 
+      stack: error.stack 
+    });
     const debug = process.env.GH_MANAGER_DEBUG === '1';
     if (debug) {
       process.stderr.write(`\n❌ Failed to initialize Apollo Client: ${error.message}\n`);
@@ -90,8 +95,15 @@ export async function getViewerLogin(
       }
     }
   `;
-  const res: any = await client(query);
-  return res.viewer.login as string;
+  try {
+    logger.debug('Fetching viewer login');
+    const res: any = await client(query);
+    logger.info(`Successfully fetched viewer login: ${res.viewer.login}`);
+    return res.viewer.login as string;
+  } catch (error: any) {
+    logger.error('Failed to fetch viewer login', { error: error.message, stack: error.stack });
+    throw error;
+  }
 }
 
 export interface Organization {
@@ -171,6 +183,12 @@ export async function fetchViewerReposPage(
   organizationLogin?: string,
   privacy?: 'PUBLIC' | 'PRIVATE'
 ): Promise<ReposPageResult> {
+  logger.debug('Using Octokit client for fetching repos', { 
+    first, 
+    after, 
+    organizationLogin, 
+    privacy 
+  });
   // Default to UPDATED_AT DESC if not specified
   const sortField = orderBy?.field || 'UPDATED_AT';
   const sortDirection = orderBy?.direction || 'DESC';
@@ -359,23 +377,34 @@ export async function fetchViewerReposPage(
     }
   `;
   
-  const res: any = await client(query, {
-    first,
-    after: after ?? null,
-    sortField,
-    sortDirection,
-    affiliations: ownerAffiliations,
-    privacy: privacy ?? null,
-  });
-  
-  const data = res.viewer.repositories;
-  return {
-    nodes: data.nodes as RepoNode[],
-    endCursor: data.pageInfo.endCursor,
-    hasNextPage: data.pageInfo.hasNextPage,
-    totalCount: data.totalCount,
-    rateLimit: res.rateLimit as RateLimitInfo,
-  };
+  try {
+    const res: any = await client(query, {
+      first,
+      after: after ?? null,
+      sortField,
+      sortDirection,
+      affiliations: ownerAffiliations,
+      privacy: privacy ?? null,
+    });
+    
+    const data = res.viewer.repositories;
+    logger.info(`Octokit successfully fetched ${data.nodes.length} repositories`);
+    return {
+      nodes: data.nodes as RepoNode[],
+      endCursor: data.pageInfo.endCursor,
+      hasNextPage: data.pageInfo.hasNextPage,
+      totalCount: data.totalCount,
+      rateLimit: res.rateLimit as RateLimitInfo,
+    };
+  } catch (error: any) {
+    logger.error('Octokit query failed', {
+      error: error.message,
+      stack: error.stack,
+      status: error.status,
+      response: error.response
+    });
+    throw error;
+  }
 }
 
 // Unified entry point - Apollo Client is the default with Octokit fallback
@@ -394,6 +423,16 @@ export async function fetchViewerReposPageUnified(
   const debug = process.env.GH_MANAGER_DEBUG === '1';
   const isOrgContext = !!organizationLogin;
   
+  logger.info('Fetching repositories', {
+    fetchPolicy,
+    isOrgContext,
+    organizationLogin,
+    first,
+    after,
+    privacy,
+    ownerAffiliations
+  });
+  
   if (debug) {
     console.log(`🔍 Apollo enabled: ${isApolloEnabled}, Policy: ${fetchPolicy}, After: ${after || 'null'}, Context: ${isOrgContext ? 'Organization' : 'Personal'}`);
   }
@@ -401,6 +440,7 @@ export async function fetchViewerReposPageUnified(
   try {
     if (isApolloEnabled) {
       if (debug) console.log('🚀 Attempting Apollo Client...');
+      logger.debug('Attempting to use Apollo Client');
       const ap = await makeApolloClient(token);
       const sortField = (orderBy?.field || 'UPDATED_AT');
       const sortDirection = (orderBy?.direction || 'DESC');
@@ -482,12 +522,19 @@ export async function fetchViewerReposPageUnified(
       }
       
       const startTime = Date.now();
+      logger.debug('Executing Apollo query', { variables });
       const res = await ap.client.query({
         query: q,
         variables,
         fetchPolicy,
       });
       const duration = Date.now() - startTime;
+      
+      logger.info(`Apollo query completed in ${duration}ms`, {
+        duration,
+        fromCache: res.loading === false && duration < 50,
+        networkStatus: res.networkStatus
+      });
       
       if (debug) {
         console.log(`⚡ Apollo query completed in ${duration}ms`);
@@ -500,6 +547,11 @@ export async function fetchViewerReposPageUnified(
         ? res.data.organization.repositories 
         : res.data.viewer.repositories;
         
+      logger.info(`Successfully fetched ${data.nodes.length} repositories`, {
+        totalCount: data.totalCount,
+        hasNextPage: data.pageInfo.hasNextPage
+      });
+        
       return {
         nodes: data.nodes as RepoNode[],
         endCursor: data.pageInfo.endCursor,
@@ -508,11 +560,18 @@ export async function fetchViewerReposPageUnified(
         rateLimit: res.data.rateLimit as RateLimitInfo,
       };
     }
-  } catch (e) {
+  } catch (e: any) {
+    logger.error('Apollo query failed', { 
+      error: e.message, 
+      stack: e.stack,
+      graphQLErrors: e.graphQLErrors,
+      networkError: e.networkError
+    });
     if (debug) console.log(`❌ Apollo failed, falling back to Octokit:`, e.message);
     // Fallback to Octokit path if Apollo not available
   }
   
+  logger.warn('Falling back to Octokit client');
   if (debug) console.log('📡 Using Octokit fallback...');
   const octo = makeClient(token);
   return fetchViewerReposPage(octo, first, after, orderBy, includeForkTracking, ownerAffiliations, organizationLogin, privacy);
