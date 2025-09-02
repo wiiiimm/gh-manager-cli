@@ -51,6 +51,7 @@ if (argv.includes('--help') || argv.includes('-h')) {
     `Usage:\n` +
     `  gh-manager-cli                     Launch the TUI\n` +
     `  gh-manager-cli --org, -o <slug>    Start in an organisation context (if accessible)\n` +
+    `  gh-manager-cli --token, -t <pat>   Use a token just for this run (not persisted)\n` +
     `  gh-manager-cli --version           Print version\n` +
     `  gh-manager-cli --help              Show help\n\n` +
     `Env:\n` +
@@ -101,7 +102,7 @@ process.on('unhandledRejection', (reason: any) => {
   process.exit(1);
 });
 
-// Parse optional org flag
+// Parse optional flags
 const initialOrgSlug = (() => {
   const v = getFlagValue('org') ?? getShortFlagValue('o');
   if (!v) return undefined;
@@ -109,10 +110,16 @@ const initialOrgSlug = (() => {
   return v.replace(/^@/, '');
 })();
 
+const inlineToken = (() => {
+  const v = getFlagValue('token') ?? getShortFlagValue('t');
+  if (!v) return undefined;
+  return v.trim();
+})();
+
 logger.debug('Rendering UI');
 const { unmount } = render(
   <Box flexDirection="column">
-    <App initialOrgSlug={initialOrgSlug} />
+    <App initialOrgSlug={initialOrgSlug} inlineToken={inlineToken} inlineTokenEphemeral={Boolean(inlineToken)} />
     <Text color="gray"></Text>
   </Box>
 );
