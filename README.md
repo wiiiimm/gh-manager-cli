@@ -210,13 +210,19 @@ Launch the app, then use the keys below:
 
 ### CLI Flags
 
-- `--org <slug>`: Start in a specific organisation context (if accessible). Ignores the flag if you don’t have access or if the slug isn’t an organisation.
+- `--org, -o <slug>`: Start in a specific organisation context (if accessible). Ignores the flag if you don’t have access or if the slug isn’t an organisation.
   - Examples:
     - `gh-manager-cli --org acme`
+    - `gh-manager-cli -o acme`
     - `npx gh-manager-cli --org=@acme`
+    - `npx gh-manager-cli -o=@acme`
   - Notes:
     - Leading `@` is optional.
-    - Personal usernames are not supported by `--org` (use default personal context).
+    - Personal usernames are not supported by `--org`/`-o` (use default personal context).
+
+- `--help, -h`: Show usage information and exit.
+
+- `--version, -v`: Print the current version and exit.
 
 ### Navigation & View Controls
 - **Top/Bottom**: `Ctrl+G` (top), `G` (bottom)

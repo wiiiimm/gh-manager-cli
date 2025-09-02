@@ -344,6 +344,10 @@ Legend:
   - [x] `--org` to start with specific organization
     - Launch with `--org <slug>` to jump to that organisation context if accessible; otherwise ignored
     - Works with already authenticated session; overrides persisted context for the run
+  - [ ] `--token` / `-t` to provide a token for this run
+    - Accepts `--token <pat>` and `--token=<pat>` (and `-t` forms)
+    - Overrides env/config for the current process only; does not persist
+    - Show a brief security note about shell history; prefer env var or interactive prompt
   - [ ] `--sort` to set initial sort field
   - [ ] `--filter` to set initial filter
   - [ ] `--page-size` to override default page size
