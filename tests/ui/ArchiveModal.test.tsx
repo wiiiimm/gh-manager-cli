@@ -298,36 +298,22 @@ describe('ArchiveModal', () => {
     const onArchive = vi.fn(() => new Promise(resolve => setTimeout(resolve, 100)));
     const onCancel = vi.fn();
     let inputCallback: any;
-    let isArchiving = false;
-    
-    mockUseInput.mockImplementation((callback: any) => {
-      inputCallback = (input: string, key: any) => {
-        // The component ignores input while archiving
-        // We simulate this by not calling onCancel after archiving starts
-        if (!isArchiving) {
-          callback(input, key);
-          // If we just triggered archive, set the flag
-          if (input.toLowerCase() === 'y') {
-            isArchiving = true;
-          }
-        }
-      };
-    });
-    
+    mockUseInput.mockImplementation((callback: any) => { inputCallback = callback; });
+
     const { unmount } = render(
       <ArchiveModal repo={mockRepo} onArchive={onArchive} onCancel={onCancel} />
     );
 
     // Trigger archive
     inputCallback('y', {});
-    
-    // Try to cancel while archiving - should be ignored
+
+    // Try to cancel while archiving - should be ignored by component logic
     inputCallback('c', {});
     inputCallback('', { escape: true });
-    
+
     expect(onCancel).not.toHaveBeenCalled();
     expect(onArchive).toHaveBeenCalledTimes(1);
-    
+
     unmount();
   });
 
