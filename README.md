@@ -347,6 +347,18 @@ Highlights on deck:
 - Bulk selection and actions
 - Repository renaming
 
+## Support & Sponsorship
+
+If you find gh-manager-cli useful, consider supporting its development:
+
+- 💖 **[GitHub Sponsors](https://github.com/sponsors/wiiiimm)** - Recurring monthly support
+- ☕ **[Ko-fi](https://ko-fi.com/wiiiimm)** - Buy me a coffee (one-time donations)
+- 🎨 **[Buy Me a Coffee](https://buymeacoffee.com/wiiiimm)** - Support with coffee donations
+
+Your support helps maintain and improve this project. Thank you! 🙏
+
+For a complete list of supported sponsorship platforms, see [docs/SPONSORSHIP_PLATFORMS.md](docs/SPONSORSHIP_PLATFORMS.md).
+
 ## License
 
 MIT
