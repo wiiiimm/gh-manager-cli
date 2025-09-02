@@ -1,3 +1,10 @@
+# [1.15.0](https://github.com/wiiiimm/gh-manager-cli/compare/v1.14.0...v1.15.0) (2025-09-02)
+
+
+### Features
+
+* implement GitHub Device Authorization Grant flow ([#13](https://github.com/wiiiimm/gh-manager-cli/issues/13)) ([d259534](https://github.com/wiiiimm/gh-manager-cli/commit/d259534a8a0e5c21270da17df4256aec6b0b216c))
+
 # [1.14.0](https://github.com/wiiiimm/gh-manager-cli/compare/v1.13.2...v1.14.0) (2025-09-02)
 
 
