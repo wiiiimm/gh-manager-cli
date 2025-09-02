@@ -763,6 +763,7 @@ export default function RepoList({ token, maxVisibleRows, onLogout, viewerLogin,
     if (viewerLogin && searchActive && !searchLoading && searchItems.length === 0) {
       let policy: 'cache-first' | 'network-only' = 'cache-first';
       try {
+        const orgLogin = ownerContext !== 'personal' ? ownerContext.login : undefined;
         const key = makeSearchKey({
           viewer: viewerLogin || 'unknown',
           q: filter.trim(),
