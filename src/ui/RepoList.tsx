@@ -49,10 +49,10 @@ export default function RepoList({ token, maxVisibleRows, onLogout, viewerLogin,
   }, []);
 
   // Stable reference to org context change handler to avoid unstable deps in effects
-  const handleOrgContextChangeRef = useRef(handleOrgContextChange);
+  const handleOrgContextChangeRef = useRef(onOrgContextChange);
   useEffect(() => {
-    handleOrgContextChangeRef.current = handleOrgContextChange;
-  }, [handleOrgContextChange]);
+    handleOrgContextChangeRef.current = onOrgContextChange;
+  }, [onOrgContextChange]);
   
   // Log on component mount
   React.useEffect(() => {
@@ -162,7 +162,7 @@ export default function RepoList({ token, maxVisibleRows, onLogout, viewerLogin,
         const slug = initialOrgSlug.replace(/^@/, '');
         const match = orgs.find(o => o.login.toLowerCase() === slug.toLowerCase());
         if (match) {
-          await handleOrgContextChangeRef.current({
+          await handleOrgContextChangeRef.current?.({
             type: 'organization',
             login: match.login,
             name: match.name || undefined,
@@ -364,7 +364,7 @@ export default function RepoList({ token, maxVisibleRows, onLogout, viewerLogin,
     
     // Notify parent component of the change
     if (onOrgContextChange) {
-      onOrgContextChange(newContext);
+      handleOrgContextChangeRef.current?.(newContext);
     }
   }
 
@@ -638,7 +638,7 @@ export default function RepoList({ token, maxVisibleRows, onLogout, viewerLogin,
       setOwnerContext(ui.ownerContext);
       // Notify parent of loaded context
       if (onOrgContextChange) {
-        onOrgContextChange(ui.ownerContext);
+        handleOrgContextChangeRef.current?.(ui.ownerContext);
       }
       
       // Check if organization is enterprise
