@@ -15,9 +15,13 @@ export type OAuthStatus =
 interface OAuthProgressProps {
   status: OAuthStatus;
   error?: string;
+  deviceCode?: {
+    user_code: string;
+    verification_uri: string;
+  };
 }
 
-export default function OAuthProgress({ status, error }: OAuthProgressProps) {
+export default function OAuthProgress({ status, error, deviceCode }: OAuthProgressProps) {
   const statusMessages: Record<OAuthStatus, { message: string; showSpinner: boolean }> = {
     initializing: {
       message: 'Initializing GitHub Device Flow...',
@@ -76,17 +80,42 @@ export default function OAuthProgress({ status, error }: OAuthProgressProps) {
         )}
       </Box>
       
-      {status === 'waiting_for_authorization' && (
+      {(status === 'waiting_for_authorization' || status === 'polling_for_token') && deviceCode && (
         <Box marginY={1} flexDirection="column">
-          <Text color="gray">
-            Your browser should open automatically.
+          <Text bold color="cyan" marginBottom={1}>
+            📋 Please complete these steps:
           </Text>
-          <Text color="gray">
-            Please complete the authentication in your browser.
-          </Text>
-          <Text color="gray">
-            You'll need to enter the device code shown earlier.
-          </Text>
+          
+          <Box marginBottom={1}>
+            <Text>1. Visit: </Text>
+            <Text bold color="blue">{deviceCode.verification_uri}</Text>
+          </Box>
+          
+          <Box marginBottom={1} flexDirection="column">
+            <Text>2. Enter this code:</Text>
+            <Box borderStyle="single" borderColor="yellow" paddingX={2} paddingY={1} marginTop={1}>
+              <Text bold color="yellow">
+                {deviceCode.user_code}
+              </Text>
+            </Box>
+          </Box>
+          
+          {status === 'waiting_for_authorization' && (
+            <Text color="gray" marginTop={1}>
+              Your browser should open automatically.
+            </Text>
+          )}
+          
+          {status === 'polling_for_token' && (
+            <Box flexDirection="column" marginTop={1}>
+              <Text color="gray">
+                Waiting for you to complete authorization in your browser...
+              </Text>
+              <Text color="gray" dimColor marginTop={1}>
+                This will timeout in 15 minutes. Press Esc to cancel.
+              </Text>
+            </Box>
+          )}
         </Box>
       )}
       

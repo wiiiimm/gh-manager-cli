@@ -8,6 +8,10 @@ export interface OAuthResult {
   token?: string;
   error?: string;
   login?: string;
+  deviceCode?: {
+    user_code: string;
+    verification_uri: string;
+  };
 }
 
 export interface DeviceCodeResponse {
@@ -26,13 +30,30 @@ export async function startOAuthFlow(): Promise<OAuthResult> {
     // Step 1: Request a device code from GitHub
     const deviceCodeResponse = await requestDeviceCode();
     
-    // Step 2: Display the user code and open the verification URL
-    console.log(`\nPlease visit: ${deviceCodeResponse.verification_uri}`);
-    console.log(`And enter the code: ${deviceCodeResponse.user_code}\n`);
-    
-    // Open the verification URL in the browser
+    // Step 2: Open the verification URL in the browser
     await open(deviceCodeResponse.verification_uri);
     
+    // Return the device code info for UI display
+    return {
+      success: true,
+      deviceCode: {
+        user_code: deviceCodeResponse.user_code,
+        verification_uri: deviceCodeResponse.verification_uri
+      }
+    };
+  } catch (error: any) {
+    return {
+      success: false,
+      error: `OAuth flow failed: ${error.message}`
+    };
+  }
+}
+
+/**
+ * Polls for the access token after device code is obtained
+ */
+export async function pollForAccessToken(deviceCodeResponse: DeviceCodeResponse): Promise<OAuthResult> {
+  try {
     // Step 3: Poll for the access token
     const token = await pollForToken(deviceCodeResponse);
     
@@ -61,7 +82,7 @@ export async function startOAuthFlow(): Promise<OAuthResult> {
   } catch (error: any) {
     return {
       success: false,
-      error: `OAuth flow failed: ${error.message}`
+      error: `Polling failed: ${error.message}`
     };
   }
 }
@@ -69,7 +90,7 @@ export async function startOAuthFlow(): Promise<OAuthResult> {
 /**
  * Requests a device code from GitHub
  */
-async function requestDeviceCode(): Promise<DeviceCodeResponse> {
+export async function requestDeviceCode(): Promise<DeviceCodeResponse> {
   const response = await fetch(OAUTH_CONFIG.DEVICE_CODE_URL, {
     method: 'POST',
     headers: {
@@ -103,12 +124,19 @@ async function pollForToken(deviceCodeResponse: DeviceCodeResponse): Promise<str
   const timeout = OAUTH_CONFIG.DEVICE_FLOW_TIMEOUT_MS;
   const interval = Math.max(deviceCodeResponse.interval || 5, 5) * 1000; // Use server interval or default to 5s
   
-  console.log('Waiting for authorization...');
+  // Debug logging
+  if (process.env.GH_MANAGER_DEBUG) {
+    console.log(`🔄 Starting polling with interval ${interval}ms, timeout ${timeout}ms`);
+  }
   
   while (Date.now() - startTime < timeout) {
     await sleep(interval);
     
     try {
+      if (process.env.GH_MANAGER_DEBUG) {
+        console.log('🔄 Polling GitHub for access token...');
+      }
+      
       const response = await fetch(OAUTH_CONFIG.TOKEN_URL, {
         method: 'POST',
         headers: {
@@ -123,24 +151,40 @@ async function pollForToken(deviceCodeResponse: DeviceCodeResponse): Promise<str
       });
 
       if (!response.ok) {
-        throw new Error(`HTTP error ${response.status}: ${await response.text()}`);
+        const errorText = await response.text();
+        if (process.env.GH_MANAGER_DEBUG) {
+          console.log(`❌ HTTP error ${response.status}: ${errorText}`);
+        }
+        throw new Error(`HTTP error ${response.status}: ${errorText}`);
       }
 
       const data = await response.json();
       
+      if (process.env.GH_MANAGER_DEBUG) {
+        console.log('📨 GitHub response:', JSON.stringify(data, null, 2));
+      }
+      
       if (data.access_token) {
-        console.log('✓ Authorization successful!');
+        if (process.env.GH_MANAGER_DEBUG) {
+          console.log('✅ Authorization successful! Token received.');
+        }
         return data.access_token;
       }
       
       if (data.error) {
+        if (process.env.GH_MANAGER_DEBUG) {
+          console.log(`⚠️ GitHub error: ${data.error}`);
+        }
+        
         switch (data.error) {
           case 'authorization_pending':
-            // Continue polling
-            process.stdout.write('.');
+            // Continue polling - user hasn't authorized yet
             continue;
           case 'slow_down':
-            // Increase polling interval
+            // GitHub wants us to slow down
+            if (process.env.GH_MANAGER_DEBUG) {
+              console.log('🐌 GitHub requested slow down, waiting extra 5 seconds');
+            }
             await sleep(5000);
             continue;
           case 'expired_token':
@@ -151,8 +195,26 @@ async function pollForToken(deviceCodeResponse: DeviceCodeResponse): Promise<str
             throw new Error(`${data.error}: ${data.error_description || 'Unknown error'}`);
         }
       }
+      
+      // If we get here, something unexpected happened
+      if (process.env.GH_MANAGER_DEBUG) {
+        console.log('🤔 Unexpected response format, continuing to poll...');
+      }
+      
     } catch (error: any) {
-      throw new Error(`Polling failed: ${error.message}`);
+      if (process.env.GH_MANAGER_DEBUG) {
+        console.log('❌ Polling error:', error.message);
+      }
+      
+      // Only throw error if it's not a network/temporary issue
+      if (error.message.includes('access_denied') || error.message.includes('expired_token')) {
+        throw error;
+      }
+      
+      // For other errors, continue polling (might be temporary network issues)
+      if (process.env.GH_MANAGER_DEBUG) {
+        console.log('🔄 Continuing to poll despite error...');
+      }
     }
   }
   
@@ -164,5 +226,31 @@ async function pollForToken(deviceCodeResponse: DeviceCodeResponse): Promise<str
  */
 function sleep(ms: number): Promise<void> {
   return new Promise(resolve => setTimeout(resolve, ms));
+}
+
+/**
+ * Opens GitHub's OAuth app authorisation page for managing/upgrading permissions
+ * This allows users to grant access to additional organisations or update scopes
+ */
+export async function openGitHubAuthorizationPage(): Promise<void> {
+  const authUrl = `https://github.com/settings/connections/applications/${OAUTH_CONFIG.CLIENT_ID}`;
+  await open(authUrl);
+}
+
+/**
+ * Initiates a reauthorisation flow to grant access to additional organisations
+ * This uses the same device flow but forces a new authorisation
+ */
+export async function reauthorizeForOrganizations(): Promise<OAuthResult> {
+  try {
+    // Use the same device flow as initial auth
+    // GitHub will recognise the app and show which orgs need authorisation
+    return await startOAuthFlow();
+  } catch (error: any) {
+    return {
+      success: false,
+      error: `Reauthorisation failed: ${error.message}`
+    };
+  }
 }
 

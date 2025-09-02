@@ -1,3 +1,7 @@
+<p align="center">
+  <img src="docs/assets/logo-horizontal.png" alt="gh-manager-cli logo" width="400" />
+</p>
+
 # gh-manager-cli
 
 [![npm version](https://img.shields.io/npm/v/gh-manager-cli.svg)](https://www.npmjs.com/package/gh-manager-cli)
@@ -41,12 +45,12 @@ Interactive terminal app to browse and manage your personal GitHub repositories.
 npx gh-manager-cli
 ```
 
-On first run, you'll be prompted for a GitHub Personal Access Token.
+On first run, you'll be prompted to authenticate with GitHub (OAuth recommended).
 
 ## Features
 
 ### Core Repository Management
-- **Token Authentication**: Secure PAT storage with validation and persistence
+- **Authentication**: GitHub OAuth (recommended) or Personal Access Token with secure storage
 - **Repository Listing**: Browse all your personal repositories with metadata (stars, forks, language, etc.)
 - **Live Pagination**: Infinite scroll with automatic page prefetching
 - **Interactive Sorting**: Modal-based sort selection (updated, pushed, name, stars) with direction toggle
@@ -146,24 +150,28 @@ gh-manager-cli
 
 The app supports two authentication methods:
 
-### 1. GitHub OAuth (Recommended)
+### 1. GitHub OAuth (Recommended) 🎯
 
-- Browser-based authentication flow
-- No need to manually create or manage tokens
-- Automatically requests appropriate scopes
-- More user-friendly experience
-- Securely stores the OAuth token with the same security as PAT
+The easiest and most secure way to authenticate:
 
-When you first run the app, select "GitHub OAuth" from the authentication options. The app will:
-1. Open your default browser to GitHub's authorization page
-2. Start a local server to receive the callback
-3. Exchange the authorization code for an access token
-4. Store the token securely for future use
+- **Device Flow**: No need to handle callback URLs - just enter a code on GitHub's website
+- **Browser-based**: Opens GitHub's authorization page automatically
+- **Secure**: No client secrets or sensitive data in the app
+- **Full Permissions**: Automatically requests all necessary scopes for complete functionality
+- **User-friendly**: No manual token management required
+
+When you first run the app, select **"GitHub OAuth (Recommended)"** from the authentication options. The app will:
+1. Display a device code for you to enter on GitHub
+2. Open your browser to GitHub's device authorization page
+3. Wait for you to authorize the app
+4. Securely store the OAuth token for future use
 
 ### 2. Personal Access Token (PAT)
 
+Alternative method for users who prefer manual token management:
+
 - Provide via env var: `GITHUB_TOKEN` or `GH_TOKEN`, or enter when prompted on first run.
-- Recommended: classic PAT with `repo` scope for listing both public and private repos (read is sufficient).
+- Recommended: classic PAT with `repo` scope for listing both public and private repos.
 - Validation: a minimal `viewer { login }` request verifies the token.
 
 ### Token Storage & Security

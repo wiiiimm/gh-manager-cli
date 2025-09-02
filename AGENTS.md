@@ -182,8 +182,9 @@ First run prompts for a PAT if not provided via env vars. The token is validated
 ### Code Standards
 - **TypeScript:** Strict mode with comprehensive type definitions
 - **React/Ink:** Functional components with hooks
-- **Terminal colors:** Use chalk for pre-coloring to avoid nested Text issues
+- **Terminal colours:** Use chalk for pre-colouring to avoid nested Text issues
 - **Error handling:** Try-catch blocks for API calls and network operations
+- **Language:** British English for all user-facing text (e.g., organisation, authorisation, colour)
 
 ### Testing Protocol
 1. **Terminal Testing:** Test in multiple terminals (iTerm2, Terminal.app, Termius)
