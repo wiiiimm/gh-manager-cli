@@ -177,8 +177,14 @@ export default function App({ initialOrgSlug, inlineToken, inlineTokenEphemeral 
         setWasRateLimited(false);
         setRateLimitReset(null);
         // If token came from prompt, it will be in input and not yet stored
-        if (!getStoredToken() && !inlineTokenEphemeral) {
-          // Persist only when not provided via ephemeral inline token
+        // Only persist if we haven't already stored a token, the token isn't inline-ephemeral,
+        // and it originated from either a PAT prompt or OAuth flow.
+        const hadStored = Boolean(getStoredToken());
+        const shouldPersist =
+          !hadStored &&
+          !inlineTokenEphemeral &&
+          (tokenSource === 'pat' || tokenSource === 'oauth');
+        if (shouldPersist) {
           storeToken(token);
         }
         setInput(''); // Clear the input after successful authentication
