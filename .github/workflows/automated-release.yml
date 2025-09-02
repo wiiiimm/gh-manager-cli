@@ -188,10 +188,18 @@ jobs:
           mv package-original.json package.json
 
       - name: Update Homebrew Tap
-        if: env.NEW_VERSION_CREATED == 'true' && secrets.GH_TOKEN != ''
+        if: env.NEW_VERSION_CREATED == 'true'
         env:
           GITHUB_TOKEN: ${{ secrets.GH_TOKEN }}
         run: |
+          # Check if GH_TOKEN is available
+          if [ -z "$GITHUB_TOKEN" ]; then
+            echo "⚠️ Homebrew tap update skipped: GH_TOKEN secret not configured"
+            echo "To enable automatic Homebrew tap updates, add a GH_TOKEN secret with repo write permissions"
+            echo "The GH_TOKEN needs 'contents: write' permission for wiiiimm/homebrew-tap"
+            exit 0
+          fi
+          
           echo "Updating Homebrew tap for version ${{ env.VERSION_AFTER }}..."
           
           # Create npm tarball locally
@@ -222,10 +230,3 @@ jobs:
           git add Formula/gh-manager-cli.rb
           git commit -m "Update gh-manager-cli to ${{ env.VERSION_AFTER }}"
           git push origin main
-      
-      - name: Homebrew Tap Update Skipped
-        if: env.NEW_VERSION_CREATED == 'true' && secrets.GH_TOKEN == ''
-        run: |
-          echo "⚠️ Homebrew tap update skipped: GH_TOKEN secret not configured"
-          echo "To enable automatic Homebrew tap updates, add a GH_TOKEN secret with repo write permissions"
-          echo "The GH_TOKEN needs 'repo' scope and write access to wiiiimm/homebrew-tap"
