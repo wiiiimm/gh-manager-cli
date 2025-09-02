@@ -225,6 +225,12 @@ export default function RepoList({ token, maxVisibleRows, onLogout, viewerLogin,
     setCursor(0);
     setOrgSwitcherOpen(false);
     
+    // Clear repository lists immediately when switching context
+    setItems([]);
+    setSearchItems([]);
+    setTotalCount(0);
+    setSearchTotalCount(0);
+    
     // Update affiliations based on context
     const newAffiliations = newContext === 'personal' 
       ? ['OWNER'] as OwnerAffiliation[]

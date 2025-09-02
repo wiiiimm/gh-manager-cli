@@ -336,6 +336,12 @@ export default function RepoList({ token, maxVisibleRows, onLogout, viewerLogin,
     setCursor(0);
     setOrgSwitcherOpen(false);
     
+    // Clear repository lists immediately when switching context
+    setItems([]);
+    setSearchItems([]);
+    setTotalCount(0);
+    setSearchTotalCount(0);
+    
     // Reset visibility filter to 'all' when switching organizations
     setVisibilityFilter('all');
     
