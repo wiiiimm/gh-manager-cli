@@ -1,3 +1,10 @@
+# [1.19.0](https://github.com/wiiiimm/gh-manager-cli/compare/v1.18.1...v1.19.0) (2025-09-02)
+
+
+### Features
+
+* **cli:** add org (-o) and token (-t) flags ([#18](https://github.com/wiiiimm/gh-manager-cli/issues/18)) ([029376e](https://github.com/wiiiimm/gh-manager-cli/commit/029376e1465eb9376850c6e19ef2b514020a4542))
+
 ## [1.18.1](https://github.com/wiiiimm/gh-manager-cli/compare/v1.18.0...v1.18.1) (2025-09-02)
 
 
