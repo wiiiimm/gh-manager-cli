@@ -195,41 +195,23 @@ describe('LogoutModal', () => {
     unmount();
   });
 
-  it('ensures cancel path is executed when focus is on cancel', () => {
+  it('executes cancel path when focus is on cancel', async () => {
     const onCancel = vi.fn();
     const onLogout = vi.fn();
-    
-    // Create two separate test runs to hit both branches
-    // First, we need a way to make the component think focus is on cancel
-    // We'll manipulate the callback sequence
-    
-    let callCount = 0;
-    mockUseInput.mockImplementation((callback: any) => {
-      // Simulate multiple interactions in sequence
-      process.nextTick(() => {
-        // First simulate switching to cancel
-        callback('', { rightArrow: true });
-        // Then immediately press Enter
-        // The component's state should now be 'cancel'
-        process.nextTick(() => {
-          callback('', { return: true });
-        });
-      });
-    });
-    
+    let cb: any;
+    mockUseInput.mockImplementation((fn: any) => { cb = fn; });
     const { unmount } = render(
       <LogoutModal onLogout={onLogout} onCancel={onCancel} />
     );
-
-    // Use process.nextTick to ensure async operations complete
-    process.nextTick(() => {
-      process.nextTick(() => {
-        // After both ticks, check that one of them was called
-        // We can't guarantee which due to React's state batching
-        expect(onCancel.mock.calls.length + onLogout.mock.calls.length).toBeGreaterThan(0);
-        unmount();
-      });
-    });
+    // Move focus to “Cancel”
+    cb('', { rightArrow: true });
+    // Wait a tick for state update
+    await new Promise(r => setTimeout(r, 0));
+    // Press Enter
+    cb('', { return: true });
+    expect(onCancel).toHaveBeenCalledTimes(1);
+    expect(onLogout).not.toHaveBeenCalled();
+    unmount();
   });
 
   it('handles logout errors gracefully', () => {
