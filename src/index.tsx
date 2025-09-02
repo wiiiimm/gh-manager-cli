@@ -40,6 +40,25 @@ logger.info('Starting gh-manager-cli', {
   node: process.version
 });
 
+// Graceful shutdown handlers
+const handleShutdown = (signal: string) => {
+  logger.info('Shutting down gh-manager-cli', { 
+    signal,
+    uptime: process.uptime()
+  });
+  process.exit(0);
+};
+
+// Register shutdown handlers
+process.on('SIGINT', () => handleShutdown('SIGINT'));  // Ctrl+C
+process.on('SIGTERM', () => handleShutdown('SIGTERM')); // Kill signal
+process.on('exit', (code) => {
+  logger.info('gh-manager-cli exited', { 
+    exitCode: code,
+    uptime: process.uptime()
+  });
+});
+
 process.on('uncaughtException', (err) => {
   // Make sure the user sees a clean error and non-zero exit
   logger.fatal('Uncaught exception', { error: err.message, stack: err.stack });
@@ -53,7 +72,7 @@ process.on('unhandledRejection', (reason: any) => {
 });
 
 logger.debug('Rendering UI');
-render(
+const { unmount } = render(
   <Box flexDirection="column">
     <App />
     <Text color="gray"></Text>
