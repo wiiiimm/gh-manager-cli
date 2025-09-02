@@ -220,6 +220,13 @@ Launch the app, then use the keys below:
     - Leading `@` is optional.
     - Personal usernames are not supported by `--org`/`-o` (use default personal context).
 
+- `--token, -t <pat>`: Use a Personal Access Token just for this run. Does not persist to config.
+  - Examples:
+    - `gh-manager-cli --token ghp_XXXXXXXXXXXXXXXXXXXXXXXXXXXX`
+    - `gh-manager-cli -t=ghp_XXXXXXXXXXXXXXXXXXXXXXXXXXXX`
+  - Precedence: CLI token > `GITHUB_TOKEN`/`GH_TOKEN` env vars > stored config.
+  - Security: Supplying tokens on the command line may be captured in shell history. Prefer env vars or the interactive prompt when possible.
+
 - `--help, -h`: Show usage information and exit.
 
 - `--version, -v`: Print the current version and exit.

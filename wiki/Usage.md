@@ -8,6 +8,11 @@ Launch the app, then use the keys below to navigate and interact with your repos
   - Examples: `gh-manager-cli --org acme`, `gh-manager-cli -o acme`, `npx gh-manager-cli --org=@acme`, `npx gh-manager-cli -o=@acme`
   - Leading `@` is optional. Personal usernames are not supported by `--org`/`-o` (use default personal context).
 
+- `--token, -t <pat>`: Provide a Personal Access Token just for this run (not persisted).
+  - Examples: `gh-manager-cli --token ghp_XXX`, `gh-manager-cli -t=ghp_XXX`
+  - Precedence: CLI token > env (`GITHUB_TOKEN`/`GH_TOKEN`) > stored config.
+  - Security: Passing tokens on the command line can appear in shell history. Prefer env vars or the interactive prompt.
+
 - `--help, -h`: Show usage information and exit.
 
 - `--version, -v`: Print the current version and exit.
