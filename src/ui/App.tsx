@@ -6,6 +6,7 @@ import { makeClient, getViewerLogin } from '../github';
 import { pollForAccessToken, requestDeviceCode, DeviceCodeResponse } from '../oauth';
 import RepoList from './RepoList';
 import { AuthMethodSelector, AuthMethod, OAuthProgress, OAuthStatus } from './components/auth';
+import { logger } from '../logger';
 
 // Import version from package.json
 const packageJson = require('../../package.json');
