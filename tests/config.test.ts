@@ -10,7 +10,8 @@ import {
   storeToken,
   clearStoredToken,
   getUIPrefs,
-  storeUIPrefs
+  storeUIPrefs,
+  getTokenSource
 } from '../src/config';
 
 // Mock fs and envPaths
@@ -322,6 +323,38 @@ describe('config', () => {
         }, null, 2),
         'utf8'
       );
+    });
+  });
+
+  describe('getTokenSource', () => {
+    it('returns tokenSource from config when present', () => {
+      const mockConfig = {
+        token: 'token',
+        tokenSource: 'oauth'
+      };
+      vi.mocked(fs.readFileSync).mockReturnValue(JSON.stringify(mockConfig));
+
+      const source = getTokenSource();
+      expect(source).toBe('oauth');
+    });
+
+    it('returns "pat" as default when tokenSource not in config', () => {
+      const mockConfig = {
+        token: 'token'
+      };
+      vi.mocked(fs.readFileSync).mockReturnValue(JSON.stringify(mockConfig));
+
+      const source = getTokenSource();
+      expect(source).toBe('pat');
+    });
+
+    it('returns "pat" when config file does not exist', () => {
+      vi.mocked(fs.readFileSync).mockImplementation(() => {
+        throw new Error('File not found');
+      });
+
+      const source = getTokenSource();
+      expect(source).toBe('pat');
     });
   });
 });
