@@ -260,8 +260,10 @@ export default function App({ initialOrgSlug, inlineToken, inlineTokenEphemeral 
           setError(errorMessage);
           setInput('');
           setToken(null);
-          // Clear stored token since it's invalid
-          clearStoredToken();
+          // Only clear stored token if the failed token originated from storage
+          if (sessionTokenOrigin === 'stored') {
+            try { clearStoredToken(); } catch {}
+          }
           setMode('auth_method_selection');
         }
       }
