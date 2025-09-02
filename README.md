@@ -83,6 +83,7 @@ On first run, you'll be prompted to authenticate with GitHub (OAuth recommended)
 - **Secure Storage**: Token stored with proper file permissions (0600)
 - **Error Handling**: Graceful error recovery with retry mechanisms
 - **Performance**: Efficient GraphQL queries with virtualized rendering and server-side filtering
+- **Comprehensive Logging**: Structured JSON logging with automatic rotation and configurable verbosity
 
 ## Installation
 
@@ -275,7 +276,7 @@ pnpm start:dev      # run with 5 repos per page and debug mode
 
 Environment variables:
 - `REPOS_PER_FETCH`: Number of repositories to fetch per page (1-50, default: 15)
-- `GH_MANAGER_DEBUG=1`: Enables debug mode with performance metrics and detailed errors
+- `GH_MANAGER_DEBUG=1`: Enables debug mode with performance metrics, detailed errors, and console logging
 
 Project layout:
 - `src/index.tsx` — CLI entry and error handling
@@ -288,9 +289,47 @@ Project layout:
 - `src/ui/OrgSwitcher.tsx` — organization switching component
 - `src/github.ts` — GraphQL client and queries (repos + rateLimit)
 - `src/config.ts` — token read/write and UI preferences
+- `src/logger.ts` — structured logging with rotation
 - `src/types.ts` — shared types
 - `src/utils.ts` — utility functions (truncate, formatDate)
 - `src/apolloMeta.ts` — Apollo cache management
+- `viewlogs.sh` — utility script for viewing logs
+
+## Logging
+
+gh-manager-cli includes comprehensive logging for debugging and monitoring purposes.
+
+### Log Location
+
+Logs are automatically written to your system's standard log directory:
+- **macOS**: `~/Library/Logs/gh-manager-cli/gh-manager-cli.log`
+- **Linux**: `~/.local/state/gh-manager-cli-log/gh-manager-cli.log`
+- **Windows**: `%LOCALAPPDATA%\gh-manager-cli\Log\gh-manager-cli.log`
+
+### Viewing Logs
+
+Use the included `viewlogs.sh` script to quickly view recent log entries:
+```bash
+./viewlogs.sh        # View last 50 lines
+./viewlogs.sh 100    # View last 100 lines
+./viewlogs.sh -f     # Follow log in real-time
+```
+
+### Log Features
+
+- **Structured JSON**: Each log entry includes timestamp, level, message, and contextual data
+- **Automatic Rotation**: Logs rotate at 5MB with up to 5 historical files kept
+- **Comprehensive Coverage**: Tracks app lifecycle, API calls, user actions, and errors
+- **Debug Mode**: Set `GH_MANAGER_DEBUG=1` to enable verbose logging to console
+
+### What's Logged
+
+- Application startup/shutdown with version info
+- Authentication events (login/logout)
+- Repository operations (fetch, delete, archive, visibility changes)
+- API performance metrics and rate limit status
+- Error details with stack traces
+- User interface component lifecycle
 
 ## Apollo Cache (Performance)
 
