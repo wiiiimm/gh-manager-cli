@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState, useRef } from 'react';
+import React, { useEffect, useMemo, useState, useRef, useCallback } from 'react';
 import { Box, Text, useApp, useInput, useStdout, Spacer, Newline } from 'ink';
 import TextInput from 'ink-text-input';
 import chalk from 'chalk';
@@ -42,11 +42,17 @@ export default function RepoList({ token, maxVisibleRows, onLogout, viewerLogin,
   
   // Debug messages state
   const [debugMessages, setDebugMessages] = useState<string[]>([]);
-  const addDebugMessage = (msg: string) => {
+  const addDebugMessage = useCallback((msg: string) => {
     if (process.env.GH_MANAGER_DEBUG === '1') {
       setDebugMessages(prev => [...prev.slice(-9), msg]); // Keep last 10 messages
     }
-  };
+  }, []);
+
+  // Stable reference to org context change handler to avoid unstable deps in effects
+  const handleOrgContextChangeRef = useRef(handleOrgContextChange);
+  useEffect(() => {
+    handleOrgContextChangeRef.current = handleOrgContextChange;
+  }, [handleOrgContextChange]);
   
   // Log on component mount
   React.useEffect(() => {
@@ -155,7 +161,7 @@ export default function RepoList({ token, maxVisibleRows, onLogout, viewerLogin,
         const orgs = await fetchViewerOrganizations(client);
         const match = orgs.find(o => o.login.toLowerCase() === initialOrgSlug.toLowerCase());
         if (match) {
-          await handleOrgContextChange({ type: 'organization', login: match.login, name: match.name || undefined });
+          await handleOrgContextChangeRef.current({ type: 'organization', login: match.login, name: match.name || undefined });
           addDebugMessage(`[--org] Switched context to @${match.login}`);
         } else {
           addDebugMessage(`[--org] No access to org @${initialOrgSlug}, ignoring flag`);
@@ -164,7 +170,7 @@ export default function RepoList({ token, maxVisibleRows, onLogout, viewerLogin,
         addDebugMessage(`[--org] Failed to apply org flag: ${e.message || e}`);
       }
     })();
-  }, [initialOrgSlug, token, prefsLoaded, client, handleOrgContextChange, addDebugMessage, onOrgContextChange]);
+  }, [initialOrgSlug, token, prefsLoaded, client, addDebugMessage]);
 
   function closeArchiveModal() {
     setArchiveMode(false);
