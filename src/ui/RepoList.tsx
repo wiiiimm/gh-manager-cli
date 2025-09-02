@@ -162,7 +162,7 @@ export default function RepoList({ token, maxVisibleRows, onLogout, viewerLogin,
         const slug = initialOrgSlug.replace(/^@/, '');
         const match = orgs.find(o => o.login.toLowerCase() === slug.toLowerCase());
         if (match) {
-          await handleOrgContextChangeRef.current?.({
+          await handleOrgContextChange({
             type: 'organization',
             login: match.login,
             name: match.name || undefined,
