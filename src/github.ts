@@ -5,6 +5,7 @@ import fs from 'fs';
 import path from 'path';
 import envPaths from 'env-paths';
 import type { RepoNode, RateLimitInfo } from './types';
+import { logger } from './logger';
 
 export function makeClient(token: string) {
   return makeGraphQL.defaults({
@@ -69,6 +70,10 @@ async function makeApolloClient(token: string): Promise<any> {
     apolloClientInstance = { client, gql };
     return apolloClientInstance;
   } catch (error: any) {
+    logger.error('Failed to initialize Apollo Client', { 
+      error: error.message, 
+      stack: error.stack 
+    });
     const debug = process.env.GH_MANAGER_DEBUG === '1';
     if (debug) {
       process.stderr.write(`\n❌ Failed to initialize Apollo Client: ${error.message}\n`);
@@ -90,8 +95,15 @@ export async function getViewerLogin(
       }
     }
   `;
-  const res: any = await client(query);
-  return res.viewer.login as string;
+  try {
+    logger.debug('Fetching viewer login');
+    const res: any = await client(query);
+    logger.info(`Successfully fetched viewer login: ${res.viewer.login}`);
+    return res.viewer.login as string;
+  } catch (error: any) {
+    logger.error('Failed to fetch viewer login', { error: error.message, stack: error.stack });
+    throw error;
+  }
 }
 
 export interface Organization {
@@ -128,6 +140,10 @@ export async function checkOrganizationIsEnterprise(
   client: ReturnType<typeof makeClient>,
   orgLogin: string
 ): Promise<boolean> {
+  logger.info('Checking if organization is enterprise', {
+    orgLogin
+  });
+  
   try {
     // The most reliable way to check if an org is enterprise is to check if it has enterpriseOwners
     // This field is only present and returns data for organizations that belong to an enterprise
@@ -144,7 +160,14 @@ export async function checkOrganizationIsEnterprise(
     
     // If the organization has enterprise owners, it's part of an enterprise
     // The field will return null or throw an error for non-enterprise orgs
-    return res.organization?.enterpriseOwners?.totalCount > 0;
+    const isEnterprise = res.organization?.enterpriseOwners?.totalCount > 0;
+    
+    logger.info('Organization enterprise status checked', {
+      orgLogin,
+      isEnterprise
+    });
+    
+    return isEnterprise;
   } catch (error) {
     // If the query fails, it's likely not an enterprise org
     return false;
@@ -171,6 +194,12 @@ export async function fetchViewerReposPage(
   organizationLogin?: string,
   privacy?: 'PUBLIC' | 'PRIVATE'
 ): Promise<ReposPageResult> {
+  logger.debug('Using Octokit client for fetching repos', { 
+    first, 
+    after, 
+    organizationLogin, 
+    privacy 
+  });
   // Default to UPDATED_AT DESC if not specified
   const sortField = orderBy?.field || 'UPDATED_AT';
   const sortDirection = orderBy?.direction || 'DESC';
@@ -359,23 +388,34 @@ export async function fetchViewerReposPage(
     }
   `;
   
-  const res: any = await client(query, {
-    first,
-    after: after ?? null,
-    sortField,
-    sortDirection,
-    affiliations: ownerAffiliations,
-    privacy: privacy ?? null,
-  });
-  
-  const data = res.viewer.repositories;
-  return {
-    nodes: data.nodes as RepoNode[],
-    endCursor: data.pageInfo.endCursor,
-    hasNextPage: data.pageInfo.hasNextPage,
-    totalCount: data.totalCount,
-    rateLimit: res.rateLimit as RateLimitInfo,
-  };
+  try {
+    const res: any = await client(query, {
+      first,
+      after: after ?? null,
+      sortField,
+      sortDirection,
+      affiliations: ownerAffiliations,
+      privacy: privacy ?? null,
+    });
+    
+    const data = res.viewer.repositories;
+    logger.info(`Octokit successfully fetched ${data.nodes.length} repositories`);
+    return {
+      nodes: data.nodes as RepoNode[],
+      endCursor: data.pageInfo.endCursor,
+      hasNextPage: data.pageInfo.hasNextPage,
+      totalCount: data.totalCount,
+      rateLimit: res.rateLimit as RateLimitInfo,
+    };
+  } catch (error: any) {
+    logger.error('Octokit query failed', {
+      error: error.message,
+      stack: error.stack,
+      status: error.status,
+      response: error.response
+    });
+    throw error;
+  }
 }
 
 // Unified entry point - Apollo Client is the default with Octokit fallback
@@ -394,6 +434,16 @@ export async function fetchViewerReposPageUnified(
   const debug = process.env.GH_MANAGER_DEBUG === '1';
   const isOrgContext = !!organizationLogin;
   
+  logger.info('Fetching repositories', {
+    fetchPolicy,
+    isOrgContext,
+    organizationLogin,
+    first,
+    after,
+    privacy,
+    ownerAffiliations
+  });
+  
   if (debug) {
     console.log(`🔍 Apollo enabled: ${isApolloEnabled}, Policy: ${fetchPolicy}, After: ${after || 'null'}, Context: ${isOrgContext ? 'Organization' : 'Personal'}`);
   }
@@ -401,6 +451,7 @@ export async function fetchViewerReposPageUnified(
   try {
     if (isApolloEnabled) {
       if (debug) console.log('🚀 Attempting Apollo Client...');
+      logger.debug('Attempting to use Apollo Client');
       const ap = await makeApolloClient(token);
       const sortField = (orderBy?.field || 'UPDATED_AT');
       const sortDirection = (orderBy?.direction || 'DESC');
@@ -482,12 +533,19 @@ export async function fetchViewerReposPageUnified(
       }
       
       const startTime = Date.now();
+      logger.debug('Executing Apollo query', { variables });
       const res = await ap.client.query({
         query: q,
         variables,
         fetchPolicy,
       });
       const duration = Date.now() - startTime;
+      
+      logger.info(`Apollo query completed in ${duration}ms`, {
+        duration,
+        fromCache: res.loading === false && duration < 50,
+        networkStatus: res.networkStatus
+      });
       
       if (debug) {
         console.log(`⚡ Apollo query completed in ${duration}ms`);
@@ -500,6 +558,11 @@ export async function fetchViewerReposPageUnified(
         ? res.data.organization.repositories 
         : res.data.viewer.repositories;
         
+      logger.info(`Successfully fetched ${data.nodes.length} repositories`, {
+        totalCount: data.totalCount,
+        hasNextPage: data.pageInfo.hasNextPage
+      });
+        
       return {
         nodes: data.nodes as RepoNode[],
         endCursor: data.pageInfo.endCursor,
@@ -508,11 +571,18 @@ export async function fetchViewerReposPageUnified(
         rateLimit: res.data.rateLimit as RateLimitInfo,
       };
     }
-  } catch (e) {
+  } catch (e: any) {
+    logger.error('Apollo query failed', { 
+      error: e.message, 
+      stack: e.stack,
+      graphQLErrors: e.graphQLErrors,
+      networkError: e.networkError
+    });
     if (debug) console.log(`❌ Apollo failed, falling back to Octokit:`, e.message);
     // Fallback to Octokit path if Apollo not available
   }
   
+  logger.warn('Falling back to Octokit client');
   if (debug) console.log('📡 Using Octokit fallback...');
   const octo = makeClient(token);
   return fetchViewerReposPage(octo, first, after, orderBy, includeForkTracking, ownerAffiliations, organizationLogin, privacy);
@@ -609,6 +679,13 @@ export async function deleteRepositoryRest(
   repo: string
 ): Promise<void> {
   const url = `https://api.github.com/repos/${owner}/${repo}`;
+  
+  logger.info('Deleting repository', {
+    owner,
+    repo,
+    url
+  });
+  
   const res = await fetch(url, {
     method: 'DELETE',
     headers: {
@@ -617,7 +694,16 @@ export async function deleteRepositoryRest(
       'User-Agent': 'gh-manager-cli'
     }
   } as any);
-  if (res.status === 204) return; // No Content = success
+  
+  if (res.status === 204) {
+    logger.info('Successfully deleted repository', {
+      owner,
+      repo,
+      status: res.status
+    });
+    return; // No Content = success
+  }
+  
   let msg = `GitHub REST delete failed (status ${res.status})`;
   try {
     const body = await res.json();
@@ -625,6 +711,14 @@ export async function deleteRepositoryRest(
   } catch {
     // ignore
   }
+  
+  logger.error('Failed to delete repository', {
+    status: res.status,
+    error: msg,
+    owner,
+    repo
+  });
+  
   throw new Error(msg);
 }
 
@@ -632,6 +726,10 @@ export async function archiveRepositoryById(
   client: ReturnType<typeof makeClient>,
   repositoryId: string
 ): Promise<void> {
+  logger.info('Archiving repository', {
+    repositoryId
+  });
+  
   const mutation = /* GraphQL */ `
     mutation ArchiveRepo($repositoryId: ID!) {
       archiveRepository(input: { repositoryId: $repositoryId }) {
@@ -639,13 +737,30 @@ export async function archiveRepositoryById(
       }
     }
   `;
-  await client(mutation, { repositoryId });
+  
+  try {
+    await client(mutation, { repositoryId });
+    logger.info('Successfully archived repository', {
+      repositoryId
+    });
+  } catch (error: any) {
+    logger.error('Failed to archive repository', {
+      repositoryId,
+      error: error.message,
+      stack: error.stack
+    });
+    throw error;
+  }
 }
 
 export async function unarchiveRepositoryById(
   client: ReturnType<typeof makeClient>,
   repositoryId: string
 ): Promise<void> {
+  logger.info('Unarchiving repository', {
+    repositoryId
+  });
+  
   const mutation = /* GraphQL */ `
     mutation UnarchiveRepo($repositoryId: ID!) {
       unarchiveRepository(input: { repositoryId: $repositoryId }) {
@@ -653,7 +768,20 @@ export async function unarchiveRepositoryById(
       }
     }
   `;
-  await client(mutation, { repositoryId });
+  
+  try {
+    await client(mutation, { repositoryId });
+    logger.info('Successfully unarchived repository', {
+      repositoryId
+    });
+  } catch (error: any) {
+    logger.error('Failed to unarchive repository', {
+      repositoryId,
+      error: error.message,
+      stack: error.stack
+    });
+    throw error;
+  }
 }
 
 export async function changeRepositoryVisibility(
@@ -703,8 +831,23 @@ export async function changeRepositoryVisibility(
   
   if (!response.ok) {
     const error = await response.text();
+    logger.error('Failed to change repository visibility', {
+      status: response.status,
+      statusText: response.statusText,
+      error,
+      owner,
+      name,
+      visibility
+    });
     throw new Error(`Failed to change visibility: ${error}`);
   }
+  
+  logger.info('Successfully changed repository visibility', {
+    owner,
+    name,
+    newVisibility: visibility,
+    nameWithOwner: repo.nameWithOwner
+  });
   
   return { nameWithOwner: repo.nameWithOwner };
 }
@@ -836,6 +979,14 @@ export async function syncForkWithUpstream(
   branch: string = 'main'
 ): Promise<{ message: string; merge_type: string; base_branch: string }> {
   const url = `https://api.github.com/repos/${owner}/${repo}/merge-upstream`;
+  
+  logger.info('Syncing fork with upstream', {
+    owner,
+    repo,
+    branch,
+    url
+  });
+  
   const res = await fetch(url, {
     method: 'POST',
     headers: {
@@ -848,11 +999,25 @@ export async function syncForkWithUpstream(
   
   if (res.status === 204) {
     // Already up to date
+    logger.info('Fork already up-to-date with upstream', {
+      owner,
+      repo,
+      branch,
+      status: res.status
+    });
     return { message: 'Already up-to-date', merge_type: 'none', base_branch: branch };
   }
   
   if (res.status === 200) {
     const body = await res.json();
+    logger.info('Successfully synced fork with upstream', {
+      owner,
+      repo,
+      branch,
+      status: res.status,
+      mergeType: body.merge_type,
+      message: body.message
+    });
     return body;
   }
   
@@ -871,6 +1036,15 @@ export async function syncForkWithUpstream(
   } catch {
     // ignore
   }
+  
+  logger.error('Failed to sync fork with upstream', {
+    status: res.status,
+    error: msg,
+    owner,
+    repo,
+    branch
+  });
+  
   throw new Error(msg);
 }
 
@@ -921,6 +1095,11 @@ export async function updateCacheAfterArchive(token: string, repositoryId: strin
 }
 
 export async function updateCacheAfterVisibilityChange(token: string, repositoryId: string, visibility: 'PUBLIC' | 'PRIVATE' | 'INTERNAL'): Promise<void> {
+  logger.info('Updating cache after repository visibility change', {
+    repositoryId,
+    visibility
+  });
+  
   try {
     const ap = await makeApolloClient(token);
     if (!ap || !ap.client) return;

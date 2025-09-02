@@ -5,6 +5,7 @@ import { render, Box, Text } from 'ink';
 import pkg from '../package.json';
 import 'dotenv/config';
 import App from './ui/App';
+import { logger } from './logger';
 
 // Basic CLI flags (handled before rendering Ink)
 const argv = process.argv.slice(2);
@@ -31,19 +32,47 @@ if (argv.includes('--help') || argv.includes('-h')) {
 // Debug: Check if environment variables are loaded
 if (process.env.GH_MANAGER_DEBUG === '1') {
   process.stderr.write('🐛 Debug mode enabled\n');
+  logger.debug('Debug mode enabled via GH_MANAGER_DEBUG');
 }
+
+logger.info('Starting gh-manager-cli', { 
+  version: (pkg as any)?.version || '0.0.0',
+  node: process.version
+});
+
+// Graceful shutdown handlers
+const handleShutdown = (signal: string) => {
+  logger.info('Shutting down gh-manager-cli', { 
+    signal,
+    uptime: process.uptime()
+  });
+  process.exit(0);
+};
+
+// Register shutdown handlers
+process.on('SIGINT', () => handleShutdown('SIGINT'));  // Ctrl+C
+process.on('SIGTERM', () => handleShutdown('SIGTERM')); // Kill signal
+process.on('exit', (code) => {
+  logger.info('gh-manager-cli exited', { 
+    exitCode: code,
+    uptime: process.uptime()
+  });
+});
 
 process.on('uncaughtException', (err) => {
   // Make sure the user sees a clean error and non-zero exit
+  logger.fatal('Uncaught exception', { error: err.message, stack: err.stack });
   console.error('Unhandled error:', err.message || err);
   process.exit(1);
 });
 process.on('unhandledRejection', (reason: any) => {
+  logger.fatal('Unhandled rejection', { error: reason?.message || reason, stack: reason?.stack });
   console.error('Unhandled rejection:', reason?.message || reason);
   process.exit(1);
 });
 
-render(
+logger.debug('Rendering UI');
+const { unmount } = render(
   <Box flexDirection="column">
     <App />
     <Text color="gray"></Text>

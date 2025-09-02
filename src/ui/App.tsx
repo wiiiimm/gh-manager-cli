@@ -6,6 +6,7 @@ import { makeClient, getViewerLogin } from '../github';
 import { pollForAccessToken, requestDeviceCode, DeviceCodeResponse } from '../oauth';
 import RepoList from './RepoList';
 import { AuthMethodSelector, AuthMethod, OAuthProgress, OAuthStatus } from './components/auth';
+import { logger } from '../logger';
 
 // Import version from package.json
 const packageJson = require('../../package.json');
@@ -161,6 +162,13 @@ export default function App() {
         const login = await getViewerLogin(client);
         clearTimeout(timeoutId);
         setViewer(login);
+        
+        logger.info('User authenticated successfully', { 
+          user: login,
+          tokenSource,
+          tokenStored: !getStoredToken()
+        });
+        
         // On successful validation, clear any previous rate-limit context
         setWasRateLimited(false);
         setRateLimitReset(null);
@@ -250,6 +258,10 @@ export default function App() {
 
   // Handle logout from child components
   const handleLogout = () => {
+    logger.info('User logged out', { 
+      previousUser: viewer,
+      tokenSource 
+    });
     try { clearStoredToken(); } catch {}
     setRateLimitReset(null);
     setToken(null);
