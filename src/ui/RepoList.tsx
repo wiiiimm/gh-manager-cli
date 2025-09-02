@@ -159,12 +159,17 @@ export default function RepoList({ token, maxVisibleRows, onLogout, viewerLogin,
       appliedInitialOrg.current = true;
       try {
         const orgs = await fetchViewerOrganizations(client);
-        const match = orgs.find(o => o.login.toLowerCase() === initialOrgSlug.toLowerCase());
+        const slug = initialOrgSlug.replace(/^@/, '');
+        const match = orgs.find(o => o.login.toLowerCase() === slug.toLowerCase());
         if (match) {
-          await handleOrgContextChangeRef.current({ type: 'organization', login: match.login, name: match.name || undefined });
+          await handleOrgContextChangeRef.current({
+            type: 'organization',
+            login: match.login,
+            name: match.name || undefined,
+          });
           addDebugMessage(`[--org] Switched context to @${match.login}`);
         } else {
-          addDebugMessage(`[--org] No access to org @${initialOrgSlug}, ignoring flag`);
+          addDebugMessage(`[--org] No access to org @${slug}, ignoring flag`);
         }
       } catch (e: any) {
         addDebugMessage(`[--org] Failed to apply org flag: ${e.message || e}`);
