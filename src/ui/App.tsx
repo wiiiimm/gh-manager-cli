@@ -13,7 +13,9 @@ const packageJson = require('../../package.json');
 
 type Mode = 'checking' | 'auth_method_selection' | 'prompt' | 'validating' | 'oauth_flow' | 'ready' | 'error' | 'rate_limited';
 
-export default function App() {
+type SessionTokenOrigin = 'cli' | 'env' | 'stored' | 'oauth' | 'prompt';
+
+export default function App({ initialOrgSlug, inlineToken, inlineTokenEphemeral }: { initialOrgSlug?: string; inlineToken?: string; inlineTokenEphemeral?: boolean }) {
   const { exit } = useApp();
   const { stdout } = useStdout();
   const [mode, setMode] = useState<Mode>('checking');
@@ -27,6 +29,7 @@ export default function App() {
   const [authMethod, setAuthMethod] = useState<AuthMethod>('pat');
   const [oauthStatus, setOAuthStatus] = useState<OAuthStatus>('initializing');
   const [tokenSource, setTokenSource] = useState<TokenSource>('pat');
+  const [sessionTokenOrigin, setSessionTokenOrigin] = useState<SessionTokenOrigin>('stored');
   const [deviceCodeResponse, setDeviceCodeResponse] = useState<DeviceCodeResponse | null>(null);
   const [oauthDeviceCode, setOauthDeviceCode] = useState<{user_code: string; verification_uri: string} | null>(null);
   const [dims, setDims] = useState(() => {
@@ -52,19 +55,30 @@ export default function App() {
     const env = getTokenFromEnv();
     const stored = getStoredToken();
     const source = getTokenSource();
-    
+
+    // Baseline from stored config
     setTokenSource(source);
-    
-    if (env) {
+
+    if (inlineToken) {
+      // Highest precedence: inline token from CLI flag; do not persist
+      setToken(inlineToken);
+      setSessionTokenOrigin('cli');
+      setTokenSource('pat');
+      setMode('validating');
+    } else if (env) {
       setToken(env);
+      setSessionTokenOrigin('env');
+      setTokenSource('pat');
       setMode('validating');
     } else if (stored) {
       setToken(stored);
+      setSessionTokenOrigin('stored');
       setMode('validating');
     } else {
+      setSessionTokenOrigin('prompt');
       setMode('auth_method_selection');
     }
-  }, []);
+  }, [inlineToken]);
 
   // Handle OAuth flow
   useEffect(() => {
@@ -114,6 +128,7 @@ export default function App() {
           storeToken(tokenResult.token, 'oauth');
           setToken(tokenResult.token);
           setTokenSource('oauth');
+          setSessionTokenOrigin('oauth');
           
           if (tokenResult.login) {
             setViewer(tokenResult.login);
@@ -163,19 +178,24 @@ export default function App() {
         clearTimeout(timeoutId);
         setViewer(login);
         
-        logger.info('User authenticated successfully', { 
-          user: login,
-          tokenSource,
-          tokenStored: !getStoredToken()
-        });
-        
         // On successful validation, clear any previous rate-limit context
         setWasRateLimited(false);
         setRateLimitReset(null);
-        // If token came from prompt, it will be in input and not yet stored
-        if (!getStoredToken()) {
+        // Only persist if we haven't already stored a token, the token isn't inline-ephemeral,
+        // and the token originated from an interactive prompt or OAuth flow.
+        const hadStored = Boolean(getStoredToken());
+        const shouldPersist =
+          !hadStored &&
+          !inlineTokenEphemeral &&
+          (sessionTokenOrigin === 'prompt' || sessionTokenOrigin === 'oauth');
+        if (shouldPersist) {
           storeToken(token);
         }
+        logger.info('User authenticated successfully', {
+          user: login,
+          tokenOrigin: sessionTokenOrigin,
+          willPersist: shouldPersist,
+        });
         setInput(''); // Clear the input after successful authentication
         setMode('ready');
       } catch (e: any) {
@@ -240,8 +260,10 @@ export default function App() {
           setError(errorMessage);
           setInput('');
           setToken(null);
-          // Clear stored token since it's invalid
-          clearStoredToken();
+          // Only clear stored token if the failed token originated from storage
+          if (sessionTokenOrigin === 'stored') {
+            try { clearStoredToken(); } catch {}
+          }
           setMode('auth_method_selection');
         }
       }
@@ -252,6 +274,7 @@ export default function App() {
     if (!input.trim()) return;
     setToken(input.trim());
     setTokenSource('pat');
+    setSessionTokenOrigin('prompt');
     setError(null);
     setMode('validating');
   };
@@ -260,7 +283,7 @@ export default function App() {
   const handleLogout = () => {
     logger.info('User logged out', { 
       previousUser: viewer,
-      tokenSource 
+      tokenOrigin: sessionTokenOrigin,
     });
     try { clearStoredToken(); } catch {}
     setRateLimitReset(null);
@@ -501,6 +524,7 @@ export default function App() {
         onLogout={handleLogout}
         viewerLogin={viewer ?? undefined}
         onOrgContextChange={setOrgContext}
+        initialOrgSlug={initialOrgSlug}
       />
     </Box>
   );

@@ -1,8 +1,8 @@
-import React, { useEffect, useMemo, useState, useRef } from 'react';
+import React, { useEffect, useMemo, useState, useRef, useCallback } from 'react';
 import { Box, Text, useApp, useInput, useStdout, Spacer, Newline } from 'ink';
 import TextInput from 'ink-text-input';
 import chalk from 'chalk';
-import { makeClient, fetchViewerReposPageUnified, searchRepositoriesUnified, deleteRepositoryRest, archiveRepositoryById, unarchiveRepositoryById, changeRepositoryVisibility, syncForkWithUpstream, getRepositoryFromCache, purgeApolloCacheFiles, inspectCacheStatus, updateCacheAfterDelete, updateCacheAfterArchive, updateCacheAfterVisibilityChange, updateCacheWithRepository, checkOrganizationIsEnterprise, OwnerAffiliation } from '../github';
+import { makeClient, fetchViewerReposPageUnified, searchRepositoriesUnified, deleteRepositoryRest, archiveRepositoryById, unarchiveRepositoryById, changeRepositoryVisibility, syncForkWithUpstream, getRepositoryFromCache, purgeApolloCacheFiles, inspectCacheStatus, updateCacheAfterDelete, updateCacheAfterArchive, updateCacheAfterVisibilityChange, updateCacheWithRepository, checkOrganizationIsEnterprise, OwnerAffiliation, fetchViewerOrganizations } from '../github';
 import { getUIPrefs, storeUIPrefs, OwnerContext } from '../config';
 import { makeApolloKey, makeSearchKey, isFresh, markFetched } from '../apolloMeta';
 import type { RepoNode, RateLimitInfo } from '../types';
@@ -28,12 +28,13 @@ const getPageSize = () => {
 
 const PAGE_SIZE = getPageSize();
 
-export default function RepoList({ token, maxVisibleRows, onLogout, viewerLogin, onOrgContextChange }: { 
+export default function RepoList({ token, maxVisibleRows, onLogout, viewerLogin, onOrgContextChange, initialOrgSlug }: { 
   token: string; 
   maxVisibleRows?: number; 
   onLogout?: () => void; 
   viewerLogin?: string;
   onOrgContextChange?: (context: OwnerContext) => void;
+  initialOrgSlug?: string;
 }) {
   const { exit } = useApp();
   const { stdout } = useStdout();
@@ -41,11 +42,17 @@ export default function RepoList({ token, maxVisibleRows, onLogout, viewerLogin,
   
   // Debug messages state
   const [debugMessages, setDebugMessages] = useState<string[]>([]);
-  const addDebugMessage = (msg: string) => {
+  const addDebugMessage = useCallback((msg: string) => {
     if (process.env.GH_MANAGER_DEBUG === '1') {
       setDebugMessages(prev => [...prev.slice(-9), msg]); // Keep last 10 messages
     }
-  };
+  }, []);
+
+  // Stable reference to org context change handler to avoid unstable deps in effects
+  const handleOrgContextChangeRef = useRef(onOrgContextChange);
+  useEffect(() => {
+    handleOrgContextChangeRef.current = onOrgContextChange;
+  }, [onOrgContextChange]);
   
   // Log on component mount
   React.useEffect(() => {
@@ -137,6 +144,38 @@ export default function RepoList({ token, maxVisibleRows, onLogout, viewerLogin,
   
   // Sort modal state
   const [sortMode, setSortMode] = useState(false);
+
+  // Apply initial --org flag once (if provided)
+  const appliedInitialOrg = useRef(false);
+  useEffect(() => {
+    (async () => {
+      if (appliedInitialOrg.current) return;
+      if (!initialOrgSlug) return;
+      if (!token) return;
+      if (!prefsLoaded) {
+        // Wait until preferences are loaded so CLI flag can override
+        return;
+      }
+      appliedInitialOrg.current = true;
+      try {
+        const orgs = await fetchViewerOrganizations(client);
+        const slug = initialOrgSlug.replace(/^@/, '');
+        const match = orgs.find(o => o.login.toLowerCase() === slug.toLowerCase());
+        if (match) {
+          await handleOrgContextChange({
+            type: 'organization',
+            login: match.login,
+            name: match.name || undefined,
+          });
+          addDebugMessage(`[--org] Switched context to @${match.login}`);
+        } else {
+          addDebugMessage(`[--org] No access to org @${slug}, ignoring flag`);
+        }
+      } catch (e: any) {
+        addDebugMessage(`[--org] Failed to apply org flag: ${e.message || e}`);
+      }
+    })();
+  }, [initialOrgSlug, token, prefsLoaded, client, addDebugMessage]);
 
   function closeArchiveModal() {
     setArchiveMode(false);
@@ -325,7 +364,7 @@ export default function RepoList({ token, maxVisibleRows, onLogout, viewerLogin,
     
     // Notify parent component of the change
     if (onOrgContextChange) {
-      onOrgContextChange(newContext);
+      handleOrgContextChangeRef.current?.(newContext);
     }
   }
 
@@ -599,7 +638,7 @@ export default function RepoList({ token, maxVisibleRows, onLogout, viewerLogin,
       setOwnerContext(ui.ownerContext);
       // Notify parent of loaded context
       if (onOrgContextChange) {
-        onOrgContextChange(ui.ownerContext);
+        handleOrgContextChangeRef.current?.(ui.ownerContext);
       }
       
       // Check if organization is enterprise
@@ -724,6 +763,7 @@ export default function RepoList({ token, maxVisibleRows, onLogout, viewerLogin,
     if (viewerLogin && searchActive && !searchLoading && searchItems.length === 0) {
       let policy: 'cache-first' | 'network-only' = 'cache-first';
       try {
+        const orgLogin = ownerContext !== 'personal' ? ownerContext.login : undefined;
         const key = makeSearchKey({
           viewer: viewerLogin || 'unknown',
           q: filter.trim(),

@@ -208,6 +208,29 @@ Notes:
 
 Launch the app, then use the keys below:
 
+### CLI Flags
+
+- `--org, -o <slug>`: Start in a specific organisation context (if accessible). Ignores the flag if you don’t have access or if the slug isn’t an organisation.
+  - Examples:
+    - `gh-manager-cli --org acme`
+    - `gh-manager-cli -o acme`
+    - `npx gh-manager-cli --org=@acme`
+    - `npx gh-manager-cli -o=@acme`
+  - Notes:
+    - Leading `@` is optional.
+    - Personal usernames are not supported by `--org`/`-o` (use default personal context).
+
+- `--token, -t <pat>`: Use a Personal Access Token just for this run. Does not persist to config.
+  - Examples:
+    - `gh-manager-cli --token ghp_XXXXXXXXXXXXXXXXXXXXXXXXXXXX`
+    - `gh-manager-cli -t=ghp_XXXXXXXXXXXXXXXXXXXXXXXXXXXX`
+  - Precedence: CLI token > `GITHUB_TOKEN`/`GH_TOKEN` env vars > stored config.
+  - Security: Supplying tokens on the command line may be captured in shell history. Prefer env vars or the interactive prompt when possible.
+
+- `--help, -h`: Show usage information and exit.
+
+- `--version, -v`: Print the current version and exit.
+
 ### Navigation & View Controls
 - **Top/Bottom**: `Ctrl+G` (top), `G` (bottom)
 - **Page Navigation**: ↑↓ Arrow keys, PageUp/PageDown

@@ -9,6 +9,35 @@ import { logger } from './logger';
 
 // Basic CLI flags (handled before rendering Ink)
 const argv = process.argv.slice(2);
+
+// Simple argv helpers
+const getFlagValue = (name: string): string | undefined => {
+  // Supports --name value and --name=value
+  const idx = argv.findIndex(a => a === `--${name}` || a.startsWith(`--${name}=`));
+  if (idx === -1) return undefined;
+  const at = argv[idx];
+  if (at.includes('=')) {
+    const [, v] = at.split('=');
+    return v?.trim() || undefined;
+  }
+  const next = argv[idx + 1];
+  if (next && !next.startsWith('-')) return next.trim();
+  return undefined;
+};
+const getShortFlagValue = (short: string): string | undefined => {
+  // Supports -x value and -x=value
+  const exact = `-${short}`;
+  const idx = argv.findIndex(a => a === exact || a.startsWith(`${exact}=`));
+  if (idx === -1) return undefined;
+  const at = argv[idx];
+  if (at.includes('=')) {
+    const [, v] = at.split('=');
+    return v?.trim() || undefined;
+  }
+  const next = argv[idx + 1];
+  if (next && !next.startsWith('-')) return next.trim();
+  return undefined;
+};
 if (argv.includes('--version') || argv.includes('-v')) {
   // Print semantic version without network
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -20,9 +49,11 @@ if (argv.includes('--help') || argv.includes('-h')) {
   process.stdout.write(`\n` +
     `gh-manager-cli — GitHub repo manager (Ink TUI)\n\n` +
     `Usage:\n` +
-    `  gh-manager-cli            Launch the TUI\n` +
-    `  gh-manager-cli --version  Print version\n` +
-    `  gh-manager-cli --help     Show help\n\n` +
+    `  gh-manager-cli                     Launch the TUI\n` +
+    `  gh-manager-cli --org, -o <slug>    Start in an organisation context (if accessible)\n` +
+    `  gh-manager-cli --token, -t <pat>   Use a token just for this run (not persisted)\n` +
+    `  gh-manager-cli --version           Print version\n` +
+    `  gh-manager-cli --help              Show help\n\n` +
     `Env:\n` +
     `  GITHUB_TOKEN / GH_TOKEN   Personal Access Token\n` +
     `  REPOS_PER_FETCH           Page size (1-50)\n`);
@@ -71,10 +102,24 @@ process.on('unhandledRejection', (reason: any) => {
   process.exit(1);
 });
 
+// Parse optional flags
+const initialOrgSlug = (() => {
+  const v = getFlagValue('org') ?? getShortFlagValue('o');
+  if (!v) return undefined;
+  // Normalise: strip leading @ if provided
+  return v.replace(/^@/, '');
+})();
+
+const inlineToken = (() => {
+  const v = getFlagValue('token') ?? getShortFlagValue('t');
+  if (!v) return undefined;
+  return v.trim();
+})();
+
 logger.debug('Rendering UI');
 const { unmount } = render(
   <Box flexDirection="column">
-    <App />
+    <App initialOrgSlug={initialOrgSlug} inlineToken={inlineToken} inlineTokenEphemeral={Boolean(inlineToken)} />
     <Text color="gray"></Text>
   </Box>
 );
