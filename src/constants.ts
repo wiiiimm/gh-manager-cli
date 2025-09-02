@@ -3,7 +3,7 @@ export const OAUTH_CONFIG = {
   // GitHub OAuth App Client ID (public, safe to include in client)
   // You'll need to register an OAuth App on GitHub and replace this with your client ID
   // Note: Device flow doesn't use callback URLs, but GitHub requires one during app setup
-  CLIENT_ID: 'YOUR_GITHUB_OAUTH_APP_CLIENT_ID', // Replace with actual client ID
+  CLIENT_ID: 'Ov23li1pOAO5GZmxBF1L', // gh-manager-cli OAuth App
   
   // GitHub Device Authorization Grant endpoints
   DEVICE_CODE_URL: 'https://github.com/login/device/code',
