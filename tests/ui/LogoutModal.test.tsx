@@ -176,40 +176,23 @@ describe('LogoutModal', () => {
     unmount();
   });
 
-  it('calls appropriate handler based on focus state when Enter is pressed', () => {
+  it('calls correct handler for Enter based on focus state', async () => {
     const onCancel = vi.fn();
     const onLogout = vi.fn();
-    let callbackCapture: any = null;
-    let componentState = { focus: 'confirm' };
-    
-    // Track all callbacks to simulate state
-    mockUseInput.mockImplementation((callback: any) => {
-      callbackCapture = callback;
-      
-      // Execute test scenario after component mounts
-      setTimeout(() => {
-        // First test: Enter with confirm focus (default)
-        callback('', { return: true });
-        
-        // Change focus by simulating arrow key
-        callback('', { rightArrow: true });
-        componentState.focus = 'cancel';
-        
-        // Second test: Enter with cancel focus
-        // This requires creating a new instance or forcing a re-render
-      }, 0);
-    });
-    
-    const { unmount } = render(
-      <LogoutModal onLogout={onLogout} onCancel={onCancel} />
-    );
+    let cb: any;
+    mockUseInput.mockImplementation((fn: any) => { cb = fn; });
+    const { unmount } = render(<LogoutModal onLogout={onLogout} onCancel={onCancel} />);
 
-    // Wait for callback execution
-    setTimeout(() => {
-      // First Enter should call onLogout
-      expect(onLogout).toHaveBeenCalled();
-      unmount();
-    }, 10);
+    // Default focus = confirm
+    cb('', { return: true });
+    expect(onLogout).toHaveBeenCalledTimes(1);
+
+    // Switch focus to cancel, await re-render, then Enter
+    cb('', { rightArrow: true });
+    await new Promise(r => setTimeout(r, 0));
+    cb('', { return: true });
+    expect(onCancel).toHaveBeenCalledTimes(1);
+    unmount();
   });
 
   it('ensures cancel path is executed when focus is on cancel', () => {
