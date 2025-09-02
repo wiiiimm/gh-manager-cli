@@ -15,8 +15,28 @@ export default defineConfig({
     coverage: {
       provider: 'v8',
       reportsDirectory: 'coverage',
-      reporter: ['text', 'html'],
-      exclude: ['dist/**', 'tests/**']
+      reporter: ['text', 'html', 'json-summary'],
+      include: ['src/**/*.{ts,tsx}'],
+      exclude: [
+        'dist/**',
+        'tests/**',
+        'test-*.{ts,tsx,js}',
+        '*.config.{ts,js}',
+        '**/*.d.ts',
+        '**/*.test.{ts,tsx}',
+        '**/*.spec.{ts,tsx}',
+        'node_modules/**',
+        '.github/**'
+      ],
+      all: true,
+      clean: true,
+      skipFull: false,
+      thresholds: {
+        statements: 0,
+        branches: 0,
+        functions: 0,
+        lines: 0
+      }
     }
   },
 });
