@@ -557,6 +557,39 @@ export default function RepoList({ token, maxVisibleRows, onLogout, viewerLogin,
   // Organization context handler is defined above (function handleOrgContextChange)
   
   useInput((input, key) => {
+    // Handle input when in error state
+    if (error) {
+      // Quit on 'Q'
+      if (input && input.toUpperCase() === 'Q') {
+        try {
+          const seq = '\x1b[2J\x1b[3J\x1b[H';
+          if (stdout && typeof (stdout as any).write === 'function') (stdout as any).write(seq);
+          else if (typeof process.stdout.write === 'function') process.stdout.write(seq);
+        } catch {}
+        exit();
+        return;
+      }
+      // Retry on 'R'
+      if (input && input.toUpperCase() === 'R') {
+        setCursor(0);
+        setRefreshing(true);
+        setSortingLoading(true);
+        ;(async () => {
+          try { await purgeApolloCacheFiles(); } catch {}
+          fetchPage(null, true, true, undefined, 'network-only');
+        })();
+        return;
+      }
+      // Logout on Ctrl+L
+      if (key.ctrl && (input === 'l' || input === 'L')) {
+        if (onLogout) {
+          onLogout();
+        }
+        return;
+      }
+      return; // Ignore all other inputs in error state
+    }
+    
     // When organization switcher is open, trap inputs for modal
     if (orgSwitcherOpen) {
       return; // OrgSwitcher component handles its own keyboard input
@@ -1087,7 +1120,7 @@ export default function RepoList({ token, maxVisibleRows, onLogout, viewerLogin,
     return (
       <Box flexDirection="column" alignItems="center" justifyContent="center" flexGrow={1}>
         <Text color="red">{error}</Text>
-        <Text color="gray" dimColor>Press R to retry or Q to quit</Text>
+        <Text color="gray" dimColor>Press R to retry • Ctrl+L to logout • Q to quit</Text>
       </Box>
     );
   }
