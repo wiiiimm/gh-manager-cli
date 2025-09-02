@@ -4,10 +4,10 @@ import Spinner from 'ink-spinner';
 
 export type OAuthStatus = 
   | 'initializing'
-  | 'server_starting'
+  | 'device_code_requested'
   | 'browser_opening'
-  | 'waiting_for_browser'
-  | 'exchanging_code'
+  | 'waiting_for_authorization'
+  | 'polling_for_token'
   | 'validating_token'
   | 'success'
   | 'error';
@@ -20,23 +20,23 @@ interface OAuthProgressProps {
 export default function OAuthProgress({ status, error }: OAuthProgressProps) {
   const statusMessages: Record<OAuthStatus, { message: string; showSpinner: boolean }> = {
     initializing: {
-      message: 'Initializing OAuth flow...',
+      message: 'Initializing GitHub Device Flow...',
       showSpinner: true
     },
-    server_starting: {
-      message: 'Starting local server for OAuth callback...',
+    device_code_requested: {
+      message: 'Requesting device authorization code...',
       showSpinner: true
     },
     browser_opening: {
       message: 'Opening browser for GitHub authentication...',
       showSpinner: true
     },
-    waiting_for_browser: {
-      message: 'Waiting for browser authentication...',
+    waiting_for_authorization: {
+      message: 'Waiting for you to authorize in your browser...',
       showSpinner: true
     },
-    exchanging_code: {
-      message: 'Exchanging authorization code for token...',
+    polling_for_token: {
+      message: 'Polling GitHub for access token...',
       showSpinner: true
     },
     validating_token: {
@@ -76,13 +76,16 @@ export default function OAuthProgress({ status, error }: OAuthProgressProps) {
         )}
       </Box>
       
-      {status === 'waiting_for_browser' && (
+      {status === 'waiting_for_authorization' && (
         <Box marginY={1} flexDirection="column">
           <Text color="gray">
             Your browser should open automatically.
           </Text>
           <Text color="gray">
             Please complete the authentication in your browser.
+          </Text>
+          <Text color="gray">
+            You'll need to enter the device code shown earlier.
           </Text>
         </Box>
       )}
