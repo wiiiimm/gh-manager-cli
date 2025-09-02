@@ -1,3 +1,10 @@
+# [1.17.0](https://github.com/wiiiimm/gh-manager-cli/compare/v1.16.1...v1.17.0) (2025-09-02)
+
+
+### Features
+
+* implement comprehensive logging system ([#17](https://github.com/wiiiimm/gh-manager-cli/issues/17)) ([a447ce1](https://github.com/wiiiimm/gh-manager-cli/commit/a447ce1287be86ce20830ddd96fa9d20ae22743e))
+
 ## [1.16.1](https://github.com/wiiiimm/gh-manager-cli/compare/v1.16.0...v1.16.1) (2025-09-02)
 
 
