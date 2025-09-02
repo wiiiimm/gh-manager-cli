@@ -1,0 +1,88 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg width="480" height="300" viewBox="0 0 480 300" xmlns="http://www.w3.org/2000/svg">
+  <title>gh-manager-cli in Mac Terminal (Dark Mode)</title>
+  
+  <!-- Terminal window shadow -->
+  <rect x="4" y="8" width="472" height="284" rx="12" fill="#000000" opacity="0.3"/>
+  
+  <!-- Terminal window background -->
+  <rect x="8" y="4" width="464" height="284" rx="12" fill="#1F2937" stroke="#374151" stroke-width="1"/>
+  
+  <!-- Terminal title bar -->
+  <rect x="8" y="4" width="464" height="28" rx="12" fill="#2D3748"/>
+  <rect x="8" y="24" width="464" height="8" fill="#2D3748"/>
+  
+  <!-- Traffic light buttons -->
+  <circle cx="24" cy="18" r="6" fill="#FF5F57"/>
+  <circle cx="44" cy="18" r="6" fill="#FFBD2E"/>
+  <circle cx="64" cy="18" r="6" fill="#28CA42"/>
+  
+  <!-- Window title -->
+  <text x="240" y="22" text-anchor="middle" font-family="-apple-system, BlinkMacSystemFont, SF Pro Display, sans-serif" 
+        font-size="13" fill="#E5E7EB" font-weight="500">Terminal — gh-manager-cli</text>
+  
+  <!-- Terminal content area -->
+  <rect x="8" y="32" width="464" height="252" fill="#111827"/>
+  
+  <!-- Command prompt and header -->
+  <text x="16" y="52" font-family="SF Mono, Monaco, Cascadia Code, Roboto Mono, Consolas, monospace" 
+        font-size="12" fill="#10B981">williamli@MacBook-Pro</text>
+  <text x="140" y="52" font-family="SF Mono, Monaco, Cascadia Code, Roboto Mono, Consolas, monospace" 
+        font-size="12" fill="#D1D5DB">gh-manager-cli %</text>
+  <text x="240" y="52" font-family="SF Mono, Monaco, Cascadia Code, Roboto Mono, Consolas, monospace" 
+        font-size="12" fill="#60A5FA">gh-manager-cli</text>
+  
+  <!-- App header -->
+  <rect x="16" y="64" width="448" height="1" fill="#374151"/>
+  <text x="20" y="84" font-family="SF Mono, Monaco, Cascadia Code, Roboto Mono, Consolas, monospace" 
+        font-size="14" fill="#F9FAFB" font-weight="600">📁 Repository Manager</text>
+  <text x="20" y="100" font-family="SF Mono, Monaco, Cascadia Code, Roboto Mono, Consolas, monospace" 
+        font-size="11" fill="#9CA3AF">Organization: wiiiimm • Filter: All • 24 repos</text>
+  
+  <!-- Repository list -->
+  <g font-family="SF Mono, Monaco, Cascadia Code, Roboto Mono, Consolas, monospace" font-size="11">
+    <!-- Header row -->
+    <text x="20" y="120" fill="#6B7280">NAME</text>
+    <text x="200" y="120" fill="#6B7280">VISIBILITY</text>
+    <text x="300" y="120" fill="#6B7280">UPDATED</text>
+    <text x="400" y="120" fill="#6B7280">STARS</text>
+    
+    <!-- Selected repository -->
+    <rect x="16" y="124" width="448" height="16" fill="#1E3A8A" rx="4"/>
+    <text x="20" y="136" fill="#93C5FD" font-weight="600">▶ gh-manager-cli</text>
+    <text x="200" y="136" fill="#34D399">Public</text>
+    <text x="300" y="136" fill="#E5E7EB">2 hours ago</text>
+    <text x="400" y="136" fill="#FBBF24">★ 1</text>
+    
+    <!-- Other repositories -->
+    <text x="20" y="152" fill="#D1D5DB">  homebrew-core</text>
+    <text x="200" y="152" fill="#F87171">Private</text>
+    <text x="300" y="152" fill="#D1D5DB">1 day ago</text>
+    <text x="400" y="152" fill="#FBBF24">★ 0</text>
+    
+    <text x="20" y="168" fill="#D1D5DB">  api-server</text>
+    <text x="200" y="168" fill="#A78BFA">Internal</text>
+    <text x="300" y="168" fill="#D1D5DB">3 days ago</text>
+    <text x="400" y="168" fill="#FBBF24">★ 5</text>
+    
+    <text x="20" y="184" fill="#D1D5DB">  react-components</text>
+    <text x="200" y="184" fill="#34D399">Public</text>
+    <text x="300" y="184" fill="#D1D5DB">1 week ago</text>
+    <text x="400" y="184" fill="#FBBF24">★ 12</text>
+    
+    <text x="20" y="200" fill="#D1D5DB">  mobile-app</text>
+    <text x="200" y="200" fill="#F87171">Private</text>
+    <text x="300" y="200" fill="#D1D5DB">2 weeks ago</text>
+    <text x="400" y="200" fill="#FBBF24">★ 2</text>
+  </g>
+  
+  <!-- Search bar -->
+  <rect x="16" y="220" width="448" height="20" fill="#374151" stroke="#4B5563" stroke-width="1" rx="4"/>
+  <text x="20" y="234" font-family="SF Mono, Monaco, Cascadia Code, Roboto Mono, Consolas, monospace" 
+        font-size="11" fill="#9CA3AF">Search: react</text>
+  <rect x="80" y="228" width="8" height="12" fill="#60A5FA"/>
+  
+  <!-- Footer -->
+  <text x="20" y="260" font-family="SF Mono, Monaco, Cascadia Code, Roboto Mono, Consolas, monospace" 
+        font-size="10" fill="#6B7280">↑/↓ Navigate • Enter View • / Search • V Visibility • Q Quit</text>
+</svg>

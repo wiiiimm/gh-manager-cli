@@ -19,6 +19,13 @@ This directory contains the official logo assets for gh-manager-cli.
 - **`logo-variant-retro.svg`** - Retro green terminal CRT style (128x128px)
 - **`logo-variant-badge.svg`** - Horizontal badge format (200x40px)
 
+### Mac Terminal Screenshots
+- **`logo-mac-terminal-light.svg`** - Realistic Mac Terminal in light mode (480x300px)
+- **`logo-mac-terminal-dark.svg`** - Realistic Mac Terminal in dark mode (480x300px)  
+- **`logo-mac-terminal-compact.svg`** - Compact terminal view (320x200px)
+- **`logo-mac-terminal-hero.svg`** - Large hero screenshot for presentations (600x380px)
+- **`logo-mac-terminal-enterprise.svg`** - Enterprise features showcase (520x320px)
+
 ### ASCII Art
 - **`logo-ascii.txt`** - Text-based logos for terminal/console use
 
