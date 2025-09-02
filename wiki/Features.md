@@ -9,21 +9,24 @@ gh-manager-cli provides a comprehensive set of features for managing your GitHub
 - **Live Pagination**: Infinite scroll with automatic page prefetching
 - **Interactive Sorting**: Modal-based sort selection (updated, pushed, name, stars) with direction toggle
 - **Smart Search**: Server-side search through repository names and descriptions (3+ characters)
-- **Visibility Filtering**: Modal-based visibility filter (All, Public, Private, Internal for enterprise) with server-side filtering
+- **Visibility Filtering**: Modal-based visibility filter (All, Public, Private/Internal for enterprise) with smart filtering
 - **Fork Status Tracking**: Toggle display of commits behind upstream for forked repositories
 - **Repository Actions**:
   - View detailed info (`I`) - Shows repository metadata, language, size, and timestamps
   - Open in browser (Enter/`O`)
   - Delete repository (`Del` or `Backspace`) with secure two-step confirmation
   - Archive/unarchive repositories (`Ctrl+A`) with confirmation prompts
+  - Change repository visibility (`Ctrl+V`) - Switch between Public, Private, and Internal (enterprise only)
   - Sync forks with upstream (`Ctrl+S`) with automatic conflict detection
 
 ## User Interface & Experience
 
 - **Keyboard Navigation**: Full keyboard control (arrow keys, PageUp/Down, `Ctrl+G`/`G`)
 - **Display Density**: Toggle between compact/cozy/comfy spacing (`T`)
-- **Visual Indicators**: Fork status, private/archived badges, language colors, visibility status
-- **Interactive Modals**: Sort selection, visibility filtering, and organization switching via modal dialogs
+- **Visual Indicators**: Fork status, private/internal/archived badges, language colors, visibility status
+- **Enterprise Support**: Full support for GitHub Enterprise with Internal repository visibility
+- **Organization Context**: Switch between personal and organization accounts with ENT badge for enterprise orgs
+- **Interactive Modals**: Sort selection, visibility filtering, organization switching, and visibility change dialogs
 - **Balanced Layout**: Repository items with spacing above and below for better visual hierarchy
 - **Loading States**: Contextual loading screens for sorting and refreshing operations
 - **Rate Limit Monitoring**: Live API usage display with visual warnings

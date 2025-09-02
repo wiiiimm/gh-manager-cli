@@ -11,7 +11,8 @@ interface RepoListHeaderProps {
   filter: string;
   searchActive: boolean;
   searchLoading: boolean;
-  visibilityFilter?: 'all' | 'public' | 'private' | 'internal';
+  visibilityFilter?: 'all' | 'public' | 'private';
+  isEnterprise?: boolean;
 }
 
 export default function RepoListHeader({
@@ -22,15 +23,11 @@ export default function RepoListHeader({
   filter,
   searchActive,
   searchLoading,
-  visibilityFilter = 'all'
+  visibilityFilter = 'all',
+  isEnterprise = false
 }: RepoListHeaderProps) {
   return (
     <Box flexDirection="row" gap={2} marginBottom={1}>
-      <Text color="cyan" bold>
-        {ownerContext === 'personal' 
-          ? 'Personal Account' 
-          : `Organization: ${ownerContext.name || ownerContext.login}`}
-      </Text>
       <Text color="gray" dimColor>
         Sort: {sortKey} {sortDir === 'asc' ? '↑' : '↓'}
       </Text>
@@ -40,8 +37,8 @@ export default function RepoListHeader({
       {visibilityFilter !== 'all' && (
         <Text color="yellow">
           Visibility: {visibilityFilter === 'public' ? 'Public' : 
-                      visibilityFilter === 'private' ? 'Private' : 
-                      'Internal'}
+                      visibilityFilter === 'private' ? (isEnterprise ? 'Private/Internal' : 'Private') : 
+                      ''}
         </Text>
       )}
       {filter && !searchActive && (

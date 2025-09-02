@@ -17,7 +17,7 @@ Launch the app, then use the keys below to navigate and interact with your repos
 - **Sort Direction**: `D` to toggle ascending/descending
 - **Display Density**: `T` to toggle compact/cozy/comfy
 - **Fork Status**: `F` to toggle showing commits behind upstream
-- **Visibility Filter**: `V` opens modal (All, Public, Private, Internal for enterprise)
+- **Visibility Filter**: `V` opens modal (All, Public, Private/Internal for enterprise)
 
 ## Navigation & Account
 
@@ -30,8 +30,9 @@ Launch the app, then use the keys below to navigate and interact with your repos
 ## Repository Actions
 
 - **Repository info**: `I` to view detailed metadata (size, language, timestamps)
-- **Cache info**: `Ctrl+I` to inspect Apollo cache status
+- **Cache info**: `K` to inspect Apollo cache status
 - **Archive/Unarchive**: `Ctrl+A` with confirmation prompt
+- **Change visibility**: `Ctrl+V` to change repository visibility (Public/Private/Internal)
 - **Delete repository**: `Del` or `Backspace` (with two-step confirmation modal)
   - Type confirmation code → confirm (Y/Enter)
   - Cancel: press `C` or Esc

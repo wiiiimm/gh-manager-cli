@@ -13,7 +13,7 @@ interface UIPrefs {
   forkTracking?: boolean;
   ownerAffiliations?: string[];
   ownerContext?: OwnerContext;
-  visibilityFilter?: 'all' | 'public' | 'private' | 'internal';
+  visibilityFilter?: 'all' | 'public' | 'private';
 }
 
 interface ConfigShape {

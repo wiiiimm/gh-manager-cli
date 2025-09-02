@@ -99,6 +99,7 @@ export interface Organization {
   login: string;
   name: string | null;
   avatarUrl: string;
+  isEnterprise?: boolean;
 }
 
 export async function fetchViewerOrganizations(
@@ -120,6 +121,34 @@ export async function fetchViewerOrganizations(
   `;
   const res: any = await client(query);
   return res.viewer.organizations.nodes as Organization[];
+}
+
+// Check if an organization is enterprise by checking enterpriseOwners field
+export async function checkOrganizationIsEnterprise(
+  client: ReturnType<typeof makeClient>,
+  orgLogin: string
+): Promise<boolean> {
+  try {
+    // The most reliable way to check if an org is enterprise is to check if it has enterpriseOwners
+    // This field is only present and returns data for organizations that belong to an enterprise
+    const query = /* GraphQL */ `
+      query CheckOrgEnterprise($orgLogin: String!) {
+        organization(login: $orgLogin) {
+          enterpriseOwners(first: 1) {
+            totalCount
+          }
+        }
+      }
+    `;
+    const res: any = await client(query, { orgLogin });
+    
+    // If the organization has enterprise owners, it's part of an enterprise
+    // The field will return null or throw an error for non-enterprise orgs
+    return res.organization?.enterpriseOwners?.totalCount > 0;
+  } catch (error) {
+    // If the query fails, it's likely not an enterprise org
+    return false;
+  }
 }
 
 export interface ReposPageResult {
@@ -499,11 +528,14 @@ export async function searchRepositoriesUnified(
   sortKey: string = 'UPDATED_AT',
   sortDir: string = 'DESC',
   includeForkTracking: boolean = true,
-  fetchPolicy: 'network-only' | 'cache-first' = 'network-only'
+  fetchPolicy: 'network-only' | 'cache-first' = 'network-only',
+  organizationLogin?: string
 ): Promise<ReposPageResult> {
   // GitHub search API doesn't support sort in query string - remove it
   // Include forks in search results with fork:true
-  const q = `${text} user:${viewer} in:name,description fork:true`;
+  // Use org: for organization context, user: for personal context
+  const searchContext = organizationLogin ? `org:${organizationLogin}` : `user:${viewer}`;
+  const q = `${text} ${searchContext} in:name,description fork:true`;
   
   
   try {
