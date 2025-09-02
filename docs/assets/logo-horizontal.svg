@@ -1,0 +1,24 @@
+<svg width="640" height="160" viewBox="0 0 640 160" fill="none" xmlns="http://www.w3.org/2000/svg" role="img" aria-labelledby="title desc">
+  <title>gh-manager-cli Horizontal Logo</title>
+  <desc>Logo mark with wordmark to the right</desc>
+  <!-- Mark -->
+  <g transform="translate(0,0)">
+    <rect x="8" y="8" width="128" height="128" rx="20" fill="#0D1117" stroke="#1F2937" stroke-width="6"/>
+    <circle cx="28" cy="28" r="5" fill="#EF4444"/>
+    <circle cx="44" cy="28" r="5" fill="#F59E0B"/>
+    <circle cx="60" cy="28" r="5" fill="#10B981"/>
+    <path d="M28 60 L70 84 L28 108 Z" fill="#22D3EE"/>
+    <rect x="78" y="98" width="28" height="6" rx="3" fill="#22D3EE"/>
+    <path d="M110 64 L114 76 L127 76 L116 84 L120 96 L110 88 L100 96 L104 84 L93 76 L106 76 Z" fill="#FACC15"/>
+  </g>
+
+  <!-- Wordmark -->
+  <g transform="translate(152,36)">
+    <text x="0" y="36" font-family="SFMono-Regular,ui-monospace,Menlo,Monaco,Consolas,&quot;Liberation Mono&quot;,&quot;Courier New&quot;,monospace" font-size="40" fill="#0F172A">gh-</text>
+    <text x="106" y="36" font-family="Inter, ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, &quot;Apple Color Emoji&quot;, &quot;Segoe UI Emoji&quot;" font-weight="700" font-size="40" fill="#111827">manager</text>
+    <text x="290" y="36" font-family="SFMono-Regular,ui-monospace,Menlo,Monaco,Consolas,&quot;Liberation Mono&quot;,&quot;Courier New&quot;,monospace" font-size="40" fill="#0F172A">-cli</text>
+    <rect x="0" y="50" width="360" height="6" rx="3" fill="#22D3EE" opacity="0.7"/>
+    <text x="0" y="90" font-family="Inter, ui-sans-serif, system-ui" font-size="16" fill="#6B7280">Interactive GitHub repo manager for your terminal</text>
+  </g>
+</svg>
+
