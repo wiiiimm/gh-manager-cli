@@ -140,6 +140,10 @@ export async function checkOrganizationIsEnterprise(
   client: ReturnType<typeof makeClient>,
   orgLogin: string
 ): Promise<boolean> {
+  logger.info('Checking if organization is enterprise', {
+    orgLogin
+  });
+  
   try {
     // The most reliable way to check if an org is enterprise is to check if it has enterpriseOwners
     // This field is only present and returns data for organizations that belong to an enterprise
@@ -156,7 +160,14 @@ export async function checkOrganizationIsEnterprise(
     
     // If the organization has enterprise owners, it's part of an enterprise
     // The field will return null or throw an error for non-enterprise orgs
-    return res.organization?.enterpriseOwners?.totalCount > 0;
+    const isEnterprise = res.organization?.enterpriseOwners?.totalCount > 0;
+    
+    logger.info('Organization enterprise status checked', {
+      orgLogin,
+      isEnterprise
+    });
+    
+    return isEnterprise;
   } catch (error) {
     // If the query fails, it's likely not an enterprise org
     return false;
@@ -668,6 +679,13 @@ export async function deleteRepositoryRest(
   repo: string
 ): Promise<void> {
   const url = `https://api.github.com/repos/${owner}/${repo}`;
+  
+  logger.info('Deleting repository', {
+    owner,
+    repo,
+    url
+  });
+  
   const res = await fetch(url, {
     method: 'DELETE',
     headers: {
@@ -676,7 +694,16 @@ export async function deleteRepositoryRest(
       'User-Agent': 'gh-manager-cli'
     }
   } as any);
-  if (res.status === 204) return; // No Content = success
+  
+  if (res.status === 204) {
+    logger.info('Successfully deleted repository', {
+      owner,
+      repo,
+      status: res.status
+    });
+    return; // No Content = success
+  }
+  
   let msg = `GitHub REST delete failed (status ${res.status})`;
   try {
     const body = await res.json();
@@ -684,6 +711,14 @@ export async function deleteRepositoryRest(
   } catch {
     // ignore
   }
+  
+  logger.error('Failed to delete repository', {
+    status: res.status,
+    error: msg,
+    owner,
+    repo
+  });
+  
   throw new Error(msg);
 }
 
@@ -691,6 +726,10 @@ export async function archiveRepositoryById(
   client: ReturnType<typeof makeClient>,
   repositoryId: string
 ): Promise<void> {
+  logger.info('Archiving repository', {
+    repositoryId
+  });
+  
   const mutation = /* GraphQL */ `
     mutation ArchiveRepo($repositoryId: ID!) {
       archiveRepository(input: { repositoryId: $repositoryId }) {
@@ -698,13 +737,30 @@ export async function archiveRepositoryById(
       }
     }
   `;
-  await client(mutation, { repositoryId });
+  
+  try {
+    await client(mutation, { repositoryId });
+    logger.info('Successfully archived repository', {
+      repositoryId
+    });
+  } catch (error: any) {
+    logger.error('Failed to archive repository', {
+      repositoryId,
+      error: error.message,
+      stack: error.stack
+    });
+    throw error;
+  }
 }
 
 export async function unarchiveRepositoryById(
   client: ReturnType<typeof makeClient>,
   repositoryId: string
 ): Promise<void> {
+  logger.info('Unarchiving repository', {
+    repositoryId
+  });
+  
   const mutation = /* GraphQL */ `
     mutation UnarchiveRepo($repositoryId: ID!) {
       unarchiveRepository(input: { repositoryId: $repositoryId }) {
@@ -712,7 +768,20 @@ export async function unarchiveRepositoryById(
       }
     }
   `;
-  await client(mutation, { repositoryId });
+  
+  try {
+    await client(mutation, { repositoryId });
+    logger.info('Successfully unarchived repository', {
+      repositoryId
+    });
+  } catch (error: any) {
+    logger.error('Failed to unarchive repository', {
+      repositoryId,
+      error: error.message,
+      stack: error.stack
+    });
+    throw error;
+  }
 }
 
 export async function changeRepositoryVisibility(
@@ -762,8 +831,23 @@ export async function changeRepositoryVisibility(
   
   if (!response.ok) {
     const error = await response.text();
+    logger.error('Failed to change repository visibility', {
+      status: response.status,
+      statusText: response.statusText,
+      error,
+      owner,
+      name,
+      visibility
+    });
     throw new Error(`Failed to change visibility: ${error}`);
   }
+  
+  logger.info('Successfully changed repository visibility', {
+    owner,
+    name,
+    newVisibility: visibility,
+    nameWithOwner: repo.nameWithOwner
+  });
   
   return { nameWithOwner: repo.nameWithOwner };
 }
@@ -895,6 +979,14 @@ export async function syncForkWithUpstream(
   branch: string = 'main'
 ): Promise<{ message: string; merge_type: string; base_branch: string }> {
   const url = `https://api.github.com/repos/${owner}/${repo}/merge-upstream`;
+  
+  logger.info('Syncing fork with upstream', {
+    owner,
+    repo,
+    branch,
+    url
+  });
+  
   const res = await fetch(url, {
     method: 'POST',
     headers: {
@@ -907,11 +999,25 @@ export async function syncForkWithUpstream(
   
   if (res.status === 204) {
     // Already up to date
+    logger.info('Fork already up-to-date with upstream', {
+      owner,
+      repo,
+      branch,
+      status: res.status
+    });
     return { message: 'Already up-to-date', merge_type: 'none', base_branch: branch };
   }
   
   if (res.status === 200) {
     const body = await res.json();
+    logger.info('Successfully synced fork with upstream', {
+      owner,
+      repo,
+      branch,
+      status: res.status,
+      mergeType: body.merge_type,
+      message: body.message
+    });
     return body;
   }
   
@@ -930,6 +1036,15 @@ export async function syncForkWithUpstream(
   } catch {
     // ignore
   }
+  
+  logger.error('Failed to sync fork with upstream', {
+    status: res.status,
+    error: msg,
+    owner,
+    repo,
+    branch
+  });
+  
   throw new Error(msg);
 }
 
@@ -980,6 +1095,11 @@ export async function updateCacheAfterArchive(token: string, repositoryId: strin
 }
 
 export async function updateCacheAfterVisibilityChange(token: string, repositoryId: string, visibility: 'PUBLIC' | 'PRIVATE' | 'INTERNAL'): Promise<void> {
+  logger.info('Updating cache after repository visibility change', {
+    repositoryId,
+    visibility
+  });
+  
   try {
     const ap = await makeApolloClient(token);
     if (!ap || !ap.client) return;
