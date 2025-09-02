@@ -2,6 +2,17 @@
 
 Launch the app, then use the keys below to navigate and interact with your repositories.
 
+## CLI Flags
+
+- `--token, -t <pat>`: Provide a Personal Access Token just for this run (not persisted).
+  - Examples: `gh-manager-cli --token ghp_XXX`, `gh-manager-cli -t=ghp_XXX`
+  - Precedence: CLI token > env (`GITHUB_TOKEN`/`GH_TOKEN`) > stored config.
+  - Security: Passing tokens on the command line can appear in shell history. Prefer env vars or the interactive prompt.
+
+- `--help, -h`: Show usage information and exit.
+
+- `--version, -v`: Print the current version and exit.
+
 ## Navigation & View Controls
 
 - **Top/Bottom**: `Ctrl+G` (top), `G` (bottom)
@@ -64,4 +75,3 @@ Launch the app, then use the keys below to navigate and interact with your repos
 - [Features](Features.md) - Detailed feature list
 - [Token & Security](Token-and-Security.md) - Authentication details
 - [Troubleshooting](Troubleshooting.md) - Common issues and solutions
-

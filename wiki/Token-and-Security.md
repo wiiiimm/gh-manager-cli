@@ -15,6 +15,15 @@ The app needs a GitHub token to read your repositories.
 
 Note: Tokens are stored in plaintext on disk with restricted permissions. Future work may add OS keychain support.
 
+### CLI Token Flag vs Environment Variables
+
+- You can supply a token just for a single run with the CLI flag: `--token <pat>` or `-t <pat>`.
+- Precedence: CLI token > environment (`GITHUB_TOKEN` / `GH_TOKEN`) > stored config.
+- Non‑persistence: Tokens provided via `--token/-t` are NOT saved to disk.
+- Security: Command‑line arguments may be recorded in shell history and visible to other local users via process listings. Prefer environment variables or the interactive prompt when possible.
+  - Safer example (one‑off): `GITHUB_TOKEN=ghp_XXXX gh-manager-cli`
+  - Or run without flags and enter the token at the prompt (it is masked and then stored locally with restricted permissions).
+
 ## PAT Permissions & Scopes
 
 Choose the least-privileged token for the features you plan to use:
@@ -41,4 +50,3 @@ If in doubt, the classic `repo` scope plus `delete_repo` (for deletion) is the s
 - [Installation](Installation.md) - How to install gh-manager-cli
 - [Features](Features.md) - Core features and capabilities
 - [Troubleshooting](Troubleshooting.md) - Common issues and solutions
-

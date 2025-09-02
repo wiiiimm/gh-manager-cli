@@ -13,7 +13,7 @@ const packageJson = require('../../package.json');
 
 type Mode = 'checking' | 'auth_method_selection' | 'prompt' | 'validating' | 'oauth_flow' | 'ready' | 'error' | 'rate_limited';
 
-export default function App() {
+export default function App({ inlineToken, inlineTokenEphemeral }: { inlineToken?: string; inlineTokenEphemeral?: boolean }) {
   const { exit } = useApp();
   const { stdout } = useStdout();
   const [mode, setMode] = useState<Mode>('checking');
@@ -52,10 +52,13 @@ export default function App() {
     const env = getTokenFromEnv();
     const stored = getStoredToken();
     const source = getTokenSource();
-    
+
     setTokenSource(source);
-    
-    if (env) {
+
+    if (inlineToken) {
+      setToken(inlineToken);
+      setMode('validating');
+    } else if (env) {
       setToken(env);
       setMode('validating');
     } else if (stored) {
@@ -64,7 +67,7 @@ export default function App() {
     } else {
       setMode('auth_method_selection');
     }
-  }, []);
+  }, [inlineToken]);
 
   // Handle OAuth flow
   useEffect(() => {
@@ -173,7 +176,7 @@ export default function App() {
         setWasRateLimited(false);
         setRateLimitReset(null);
         // If token came from prompt, it will be in input and not yet stored
-        if (!getStoredToken()) {
+        if (!getStoredToken() && !inlineTokenEphemeral) {
           storeToken(token);
         }
         setInput(''); // Clear the input after successful authentication
