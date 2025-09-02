@@ -1,4 +1,15 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+
+// Mock the logger before importing modules that use it
+vi.mock('../src/logger', () => ({
+  logger: {
+    info: vi.fn(),
+    error: vi.fn(),
+    warn: vi.fn(),
+    debug: vi.fn()
+  }
+}));
+
 import { makeClient, getViewerLogin, fetchViewerOrganizations } from '../src/github';
 
 // Mock @octokit/graphql
