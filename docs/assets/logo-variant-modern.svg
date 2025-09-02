@@ -1,0 +1,64 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg width="140" height="140" viewBox="0 0 140 140" xmlns="http://www.w3.org/2000/svg">
+  <title>gh-manager-cli Modern Variant</title>
+  
+  <!-- Background with gradient -->
+  <defs>
+    <linearGradient id="bgGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#0d1117"/>
+      <stop offset="100%" style="stop-color:#161b22"/>
+    </linearGradient>
+    <linearGradient id="accentGradient" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" style="stop-color:#58a6ff"/>
+      <stop offset="100%" style="stop-color:#1f6feb"/>
+    </linearGradient>
+  </defs>
+  
+  <!-- Main container -->
+  <rect x="10" y="10" width="120" height="120" rx="20" fill="url(#bgGradient)" stroke="#30363d" stroke-width="2"/>
+  
+  <!-- Top accent bar -->
+  <rect x="10" y="10" width="120" height="8" rx="20" fill="url(#accentGradient)"/>
+  <rect x="10" y="14" width="120" height="4" fill="url(#accentGradient)"/>
+  
+  <!-- Terminal indicator -->
+  <circle cx="25" cy="35" r="3" fill="#ff5f56"/>
+  <circle cx="35" cy="35" r="3" fill="#ffbd2e"/>
+  <circle cx="45" cy="35" r="3" fill="#27ca3f"/>
+  
+  <!-- Command line -->
+  <rect x="25" y="50" width="4" height="12" fill="#58a6ff"/>
+  <rect x="35" y="54" width="16" height="4" fill="#58a6ff" opacity="0.6"/>
+  
+  <!-- Repository matrix -->
+  <g transform="translate(25, 70)">
+    <!-- Column 1 -->
+    <rect x="0" y="0" width="12" height="12" rx="3" fill="#1f6feb" opacity="0.9"/>
+    <rect x="0" y="16" width="12" height="12" rx="3" fill="#238636" opacity="0.9"/>
+    <rect x="0" y="32" width="12" height="12" rx="3" fill="#da3633" opacity="0.9"/>
+    
+    <!-- Column 2 -->
+    <rect x="18" y="0" width="12" height="12" rx="3" fill="#fb8500" opacity="0.9"/>
+    <rect x="18" y="16" width="12" height="12" rx="3" fill="#8b5cf6" opacity="0.9"/>
+    <rect x="18" y="32" width="12" height="12" rx="3" fill="#db2777" opacity="0.9"/>
+    
+    <!-- Column 3 -->
+    <rect x="36" y="0" width="12" height="12" rx="3" fill="#0891b2" opacity="0.9"/>
+    <rect x="36" y="16" width="12" height="12" rx="3" fill="#65a30d" opacity="0.9"/>
+    <rect x="36" y="32" width="12" height="12" rx="3" fill="#f85149" opacity="0.9"/>
+    
+    <!-- Column 4 -->
+    <rect x="54" y="0" width="12" height="12" rx="3" fill="#ffa657" opacity="0.9"/>
+    <rect x="54" y="16" width="12" height="12" rx="3" fill="#56d364" opacity="0.9"/>
+    <rect x="54" y="32" width="12" height="12" rx="3" fill="#79c0ff" opacity="0.9"/>
+  </g>
+  
+  <!-- Selection indicator -->
+  <rect x="85" y="85" width="14" height="14" rx="3" fill="none" stroke="#58a6ff" stroke-width="2"/>
+  <rect x="87" y="87" width="10" height="10" rx="2" fill="#58a6ff" opacity="0.3"/>
+  
+  <!-- Activity dots -->
+  <circle cx="110" cy="35" r="2" fill="#58a6ff"/>
+  <circle cx="118" cy="35" r="2" fill="#58a6ff" opacity="0.5"/>
+  <circle cx="126" cy="35" r="2" fill="#58a6ff" opacity="0.3"/>
+</svg>

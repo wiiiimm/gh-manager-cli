@@ -284,20 +284,27 @@ Legend:
     - Prefer `clipboardy` dependency; fallback to OS commands: macOS `pbcopy`, Windows `clip`, Linux `xclip`/`xsel`/`wl-copy`
     - Silent no‑op if clipboard utility absent and `clipboardy` unavailable, but show error toast
 
-- [ ] OAuth login flow (alternative to token)
-  - GitHub OAuth App authentication as alternative to Personal Access Token
-  - Implementation approach:
-    - Register OAuth app with GitHub (client ID/secret)
-    - CLI flow: open browser to GitHub OAuth authorize URL
-    - Start local HTTP server to receive callback with authorization code
-    - Exchange code for access token via GitHub token endpoint
-    - Store token with same security as current PAT implementation
+- [x] OAuth login flow (alternative to token) ✓ COMPLETED
+  - GitHub OAuth App authentication as alternative to Personal Access Token ✓
+  - Implementation details:
+    - Uses GitHub Device Authorization Grant flow (no client secret needed) ✓
+    - Client ID: Ov23li1pOAO5GZmxBF1L ✓
+    - Device code displayed prominently in yellow box during auth ✓
+    - Auto-opens browser to GitHub's device authorization page ✓
+    - Polls for token after user authorizes (5-second intervals) ✓
+    - Stores OAuth token with same 0600 permissions as PAT ✓
   - User experience:
-    - On first run: "Login via (1) Personal Access Token or (2) GitHub OAuth"
-    - OAuth flow: "Opening browser for GitHub login..." → callback → "Authentication successful!"
-    - Same token storage and management as current implementation
-  - Benefits: no need to manually create PATs, auto-scoping, better UX
-  - Considerations: requires OAuth app registration, local server for callback
+    - Auth method selector: OAuth shown as recommended option ✓
+    - Clear device code display with step-by-step instructions ✓
+    - Real-time status updates (waiting, polling, success, error) ✓
+    - Escape key handler for stuck flows ✓
+    - Q/Esc to quit from auth method selector ✓
+  - Advanced features:
+    - Comprehensive OAuth scopes (repo, read:org, user, delete_repo, workflow, packages) ✓
+    - Organisation access management (Ctrl+W in org switcher opens GitHub settings) ✓
+    - Refresh organisations list after granting permissions (R key) ✓
+    - British English throughout interface (organisation, authorisation, colour) ✓
+  - Benefits: No manual PAT creation, automatic scoping, better security, improved UX ✓
 
 - [x] Logout (clear stored token)
   - Assigned key: `Ctrl+L` to open logout prompt

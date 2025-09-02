@@ -16,9 +16,12 @@ interface UIPrefs {
   visibilityFilter?: 'all' | 'public' | 'private';
 }
 
+export type TokenSource = 'pat' | 'oauth';
+
 interface ConfigShape {
   token?: string;
   tokenVersion?: number;
+  tokenSource?: TokenSource;
   ui?: UIPrefs;
 }
 
@@ -63,16 +66,21 @@ export function getStoredToken(): string | undefined {
   return cfg.token;
 }
 
-export function storeToken(token: string) {
+export function storeToken(token: string, source: TokenSource = 'pat') {
   const existing = readConfig();
-  writeConfig({ ...existing, token, tokenVersion: 1 });
+  writeConfig({ ...existing, token, tokenVersion: 1, tokenSource: source });
 }
 
 export function clearStoredToken() {
   const existing = readConfig();
   // Preserve other settings like ui prefs
-  const { token, tokenVersion, ...rest } = existing as any;
+  const { token, tokenVersion, tokenSource, ...rest } = existing as any;
   writeConfig({ ...rest });
+}
+
+export function getTokenSource(): TokenSource {
+  const cfg = readConfig();
+  return cfg.tokenSource || 'pat'; // Default to PAT for backward compatibility
 }
 
 export function getUIPrefs(): UIPrefs {

@@ -1,14 +1,16 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { Box, Text, useApp, useStdout, useInput } from 'ink';
 import TextInput from 'ink-text-input';
-import { getStoredToken, storeToken, getTokenFromEnv, clearStoredToken, OwnerContext } from '../config';
+import { getStoredToken, storeToken, getTokenFromEnv, clearStoredToken, OwnerContext, getTokenSource, TokenSource } from '../config';
 import { makeClient, getViewerLogin } from '../github';
+import { pollForAccessToken, requestDeviceCode, DeviceCodeResponse } from '../oauth';
 import RepoList from './RepoList';
+import { AuthMethodSelector, AuthMethod, OAuthProgress, OAuthStatus } from './components/auth';
 
 // Import version from package.json
 const packageJson = require('../../package.json');
 
-type Mode = 'checking' | 'prompt' | 'validating' | 'ready' | 'error' | 'rate_limited';
+type Mode = 'checking' | 'auth_method_selection' | 'prompt' | 'validating' | 'oauth_flow' | 'ready' | 'error' | 'rate_limited';
 
 export default function App() {
   const { exit } = useApp();
@@ -21,6 +23,11 @@ export default function App() {
   const [rateLimitReset, setRateLimitReset] = useState<string | null>(null);
   const [wasRateLimited, setWasRateLimited] = useState(false);
   const [orgContext, setOrgContext] = useState<OwnerContext>('personal');
+  const [authMethod, setAuthMethod] = useState<AuthMethod>('pat');
+  const [oauthStatus, setOAuthStatus] = useState<OAuthStatus>('initializing');
+  const [tokenSource, setTokenSource] = useState<TokenSource>('pat');
+  const [deviceCodeResponse, setDeviceCodeResponse] = useState<DeviceCodeResponse | null>(null);
+  const [oauthDeviceCode, setOauthDeviceCode] = useState<{user_code: string; verification_uri: string} | null>(null);
   const [dims, setDims] = useState(() => {
     const cols = stdout?.columns ?? 100;
     const rows = stdout?.rows ?? 30;
@@ -43,6 +50,10 @@ export default function App() {
   useEffect(() => {
     const env = getTokenFromEnv();
     const stored = getStoredToken();
+    const source = getTokenSource();
+    
+    setTokenSource(source);
+    
     if (env) {
       setToken(env);
       setMode('validating');
@@ -50,9 +61,89 @@ export default function App() {
       setToken(stored);
       setMode('validating');
     } else {
-      setMode('prompt');
+      setMode('auth_method_selection');
     }
   }, []);
+
+  // Handle OAuth flow
+  useEffect(() => {
+    if (mode !== 'oauth_flow') return;
+    
+    (async () => {
+      try {
+        setOAuthStatus('initializing');
+        
+        // Small delay to ensure UI updates
+        await new Promise(resolve => setTimeout(resolve, 500));
+        
+        setOAuthStatus('device_code_requested');
+        
+        // Step 1: Get device code from GitHub (only once!)
+        const deviceCodeResp = await requestDeviceCode();
+        setDeviceCodeResponse(deviceCodeResp);
+        
+        // Set the device code for display
+        setOauthDeviceCode({
+          user_code: deviceCodeResp.user_code,
+          verification_uri: deviceCodeResp.verification_uri
+        });
+        
+        // Small delay to ensure UI updates
+        await new Promise(resolve => setTimeout(resolve, 500));
+        
+        setOAuthStatus('browser_opening');
+        
+        // Step 2: Open browser with the verification URL
+        const open = (await import('open')).default;
+        await open(deviceCodeResp.verification_uri);
+        
+        setOAuthStatus('waiting_for_authorization');
+        
+        // Small delay to let user see the device code
+        await new Promise(resolve => setTimeout(resolve, 2000));
+        
+        // Step 3: Poll for access token using the SAME device code response
+        setOAuthStatus('polling_for_token');
+        const tokenResult = await pollForAccessToken(deviceCodeResp);
+        
+        if (tokenResult.success && tokenResult.token) {
+          setOAuthStatus('validating_token');
+          
+          // Store the token
+          storeToken(tokenResult.token, 'oauth');
+          setToken(tokenResult.token);
+          setTokenSource('oauth');
+          
+          if (tokenResult.login) {
+            setViewer(tokenResult.login);
+            setOAuthStatus('success');
+            
+            // Small delay to show success message
+            await new Promise(resolve => setTimeout(resolve, 1000));
+            
+            setMode('ready');
+          } else {
+            throw new Error('Failed to get user login from token');
+          }
+        } else {
+          throw new Error(tokenResult.error || 'Failed to obtain access token');
+        }
+      } catch (error: any) {
+        setOAuthStatus('error');
+        setError(error.message);
+      }
+    })();
+  }, [mode]);
+
+  // Handle authentication method selection
+  const handleAuthMethodSelect = (method: AuthMethod) => {
+    setAuthMethod(method);
+    if (method === 'pat') {
+      setMode('prompt');
+    } else if (method === 'oauth') {
+      setMode('oauth_flow');
+    }
+  };
 
   useEffect(() => {
     (async () => {
@@ -61,7 +152,7 @@ export default function App() {
       // Add timeout for validation to prevent getting stuck
       const timeoutId = setTimeout(() => {
         setError('Token validation timed out. Please check your network connection.');
-        setMode('prompt');
+        setMode('auth_method_selection');
         setToken(null);
       }, 15000); // 15 second timeout
       
@@ -137,11 +228,13 @@ export default function App() {
           setWasRateLimited(true);
           setMode('rate_limited');
         } else {
-          // Invalid token or other error: clear token input and return to prompt
+          // Invalid token or other error: clear token input and return to selection
           setError(errorMessage);
           setInput('');
-          setMode('prompt');
           setToken(null);
+          // Clear stored token since it's invalid
+          clearStoredToken();
+          setMode('auth_method_selection');
         }
       }
     })();
@@ -150,6 +243,7 @@ export default function App() {
   const onSubmitToken = async () => {
     if (!input.trim()) return;
     setToken(input.trim());
+    setTokenSource('pat');
     setError(null);
     setMode('validating');
   };
@@ -161,13 +255,23 @@ export default function App() {
     setToken(null);
     setViewer(null);
     setInput(''); // Clear the token input field
-    setMode('prompt');
+    setTokenSource('pat');
+    setMode('auth_method_selection');
   };
 
   // Handle keyboard input for different modes
   useInput((input, key) => {
-    if (mode === 'prompt' && key.escape) {
+    if ((mode === 'prompt' || mode === 'auth_method_selection') && key.escape) {
       exit();
+    }
+    
+    if (mode === 'oauth_flow' && key.escape) {
+      // Allow canceling OAuth flow at any time (during polling or on error)
+      setMode('auth_method_selection');
+      setError(null);
+      setOAuthStatus('initializing');
+      setOauthDeviceCode(null);
+      setDeviceCodeResponse(null);
     }
     
     if (mode === 'rate_limited') {
@@ -184,15 +288,14 @@ export default function App() {
     }
     
     if (mode === 'validating' && key.escape) {
-      // Cancel validation: return to previous state
-      if (wasRateLimited) {
+      // Cancel validation: return to rate-limited screen if relevant, else auth method selection
+      if (wasRateLimited || rateLimitReset) {
         setMode('rate_limited');
       } else {
-        // Return to prompt; ensure input box is cleared
-        setMode('prompt');
-        setToken(null);
-        setInput('');
+        setMode('auth_method_selection');
       }
+      setToken(null);
+      setInput('');
     }
   });
 
@@ -272,7 +375,7 @@ export default function App() {
               <Text bold>What would you like to do?</Text>
               <Box flexDirection="column" paddingLeft={2}>
                 <Text><Text color="cyan" bold>R</Text> - Retry now {rateLimitReset && formatResetTime(rateLimitReset) !== 'Now (should be reset)' ? '(likely to fail until reset)' : '(should work now)'}</Text>
-                <Text><Text color="cyan" bold>L</Text> - Logout and use a different token</Text>
+                <Text><Text color="cyan" bold>L</Text> - Logout and choose authentication method</Text>
                 <Text><Text color="gray" bold>Q/Esc</Text> - Quit application</Text>
               </Box>
             </Box>
@@ -281,6 +384,33 @@ export default function App() {
               Tip: Using multiple tokens or waiting between requests can help avoid rate limits.
             </Text>
           </Box>
+        </Box>
+      </Box>
+    );
+  }
+
+  if (mode === 'auth_method_selection') {
+    return (
+      <Box flexDirection="column" height={dims.rows} paddingX={2} paddingTop={verticalPadding} paddingBottom={verticalPadding}>
+        {header}
+        <Box flexGrow={1} justifyContent="center" alignItems="center">
+          <Box flexDirection="column" alignItems="center">
+            <AuthMethodSelector onSelect={handleAuthMethodSelect} />
+            {error && (
+              <Text color="red" marginTop={1}>{error}</Text>
+            )}
+          </Box>
+        </Box>
+      </Box>
+    );
+  }
+
+  if (mode === 'oauth_flow') {
+    return (
+      <Box flexDirection="column" height={dims.rows} paddingX={2} paddingTop={verticalPadding} paddingBottom={verticalPadding}>
+        {header}
+        <Box flexGrow={1} justifyContent="center" alignItems="center">
+          <OAuthProgress status={oauthStatus} error={error || undefined} deviceCode={oauthDeviceCode || undefined} />
         </Box>
       </Box>
     );
@@ -312,7 +442,7 @@ export default function App() {
               The token will be stored securely in your local config
             </Text>
             <Text color="gray" dimColor marginTop={1}>
-              Press Esc to quit
+              Press Esc to go back
             </Text>
           </Box>
         </Box>

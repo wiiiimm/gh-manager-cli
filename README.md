@@ -1,3 +1,7 @@
+<p align="center">
+  <img src="docs/assets/logo-horizontal.png" alt="gh-manager-cli logo" width="400" />
+</p>
+
 # gh-manager-cli
 
 [![npm version](https://img.shields.io/npm/v/gh-manager-cli.svg)](https://www.npmjs.com/package/gh-manager-cli)
@@ -41,12 +45,12 @@ Interactive terminal app to browse and manage your personal GitHub repositories.
 npx gh-manager-cli
 ```
 
-On first run, you'll be prompted for a GitHub Personal Access Token.
+On first run, you'll be prompted to authenticate with GitHub (OAuth recommended).
 
 ## Features
 
 ### Core Repository Management
-- **Token Authentication**: Secure PAT storage with validation and persistence
+- **Authentication**: GitHub OAuth (recommended) or Personal Access Token with secure storage
 - **Repository Listing**: Browse all your personal repositories with metadata (stars, forks, language, etc.)
 - **Live Pagination**: Infinite scroll with automatic page prefetching
 - **Interactive Sorting**: Modal-based sort selection (updated, pushed, name, stars) with direction toggle
@@ -142,18 +146,41 @@ pnpm link
 gh-manager-cli
 ```
 
-## Token & Security
+## Authentication
 
-The app needs a GitHub token to read your repositories.
+The app supports two authentication methods:
+
+### 1. GitHub OAuth (Recommended) 🎯
+
+The easiest and most secure way to authenticate:
+
+- **Device Flow**: No need to handle callback URLs - just enter a code on GitHub's website
+- **Browser-based**: Opens GitHub's authorization page automatically
+- **Secure**: No client secrets or sensitive data in the app
+- **Full Permissions**: Automatically requests all necessary scopes for complete functionality
+- **User-friendly**: No manual token management required
+
+When you first run the app, select **"GitHub OAuth (Recommended)"** from the authentication options. The app will:
+1. Display a device code for you to enter on GitHub
+2. Open your browser to GitHub's device authorization page
+3. Wait for you to authorize the app
+4. Securely store the OAuth token for future use
+
+### 2. Personal Access Token (PAT)
+
+Alternative method for users who prefer manual token management:
 
 - Provide via env var: `GITHUB_TOKEN` or `GH_TOKEN`, or enter when prompted on first run.
-- Recommended: classic PAT with `repo` scope for listing both public and private repos (read is sufficient).
+- Recommended: classic PAT with `repo` scope for listing both public and private repos.
 - Validation: a minimal `viewer { login }` request verifies the token.
-- Storage: token is saved as JSON in your OS user config directory with POSIX perms `0600`.
+
+### Token Storage & Security
+
+- Storage: tokens are saved as JSON in your OS user config directory with POSIX perms `0600`.
   - macOS: `~/Library/Preferences/gh-manager-cli/config.json`
   - Linux: `~/.config/gh-manager-cli/config.json`
   - Windows: `%APPDATA%\gh-manager-cli\config.json`
-- Revocation: you can revoke the PAT at any time in your GitHub settings.
+- Revocation: you can revoke tokens at any time in your GitHub settings.
 
 Note: Tokens are stored in plaintext on disk with restricted permissions. Future work may add OS keychain support.
 
@@ -332,6 +359,7 @@ REPOS_PER_FETCH=5 GH_MANAGER_DEBUG=1 npx gh-manager-cli-cli
 For the up-to-date task board, see [TODOs.md](./TODOs.md).
 
 Recently implemented:
+- ✅ OAuth login flow as an alternative to Personal Access Token
 - ✅ Density toggle for row spacing (compact/cozy/comfy)
 - ✅ Repo actions (archive/unarchive, delete, change visibility) with confirmations
 - ✅ Organization support and switching (press `W`) with enterprise detection

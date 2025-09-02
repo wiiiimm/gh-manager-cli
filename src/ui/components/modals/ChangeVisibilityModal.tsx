@@ -170,7 +170,7 @@ export const ChangeVisibilityModal: React.FC<ChangeVisibilityModalProps> = ({
             </Box>
           </Box>
           <Box marginTop={1} flexDirection="row" justifyContent="center">
-            <Text color="gray">Press Enter or C/Esc to Cancel</Text>
+            <Text color="gray">Press Enter to Cancel • C to cancel</Text>
           </Box>
         </>
       ) : (
@@ -235,7 +235,7 @@ export const ChangeVisibilityModal: React.FC<ChangeVisibilityModalProps> = ({
           <Box marginTop={1} flexDirection="row" justifyContent="center">
             <Text color="gray">
               {availableOptions.length > 1 ? '↑↓ Select Option • ' : ''}
-              ← → Navigate • Enter to Confirm • C/Esc to Cancel
+              ← → Navigate • Press Enter to {focusedButton === 'option' ? 'Change' : 'Cancel'} • Y to confirm • C to cancel
             </Text>
           </Box>
         </>

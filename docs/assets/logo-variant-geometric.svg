@@ -1,0 +1,46 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg width="120" height="120" viewBox="0 0 120 120" xmlns="http://www.w3.org/2000/svg">
+  <title>gh-manager-cli Geometric Variant</title>
+  
+  <!-- Outer frame -->
+  <rect x="10" y="10" width="100" height="100" rx="16" fill="#0d1117" stroke="#1f6feb" stroke-width="3"/>
+  
+  <!-- Inner content area -->
+  <rect x="20" y="30" width="80" height="70" rx="4" fill="#161b22"/>
+  
+  <!-- Header bar -->
+  <rect x="20" y="20" width="80" height="16" rx="8" fill="#21262d"/>
+  
+  <!-- Status dots -->
+  <circle cx="28" cy="28" r="2" fill="#ff5f56"/>
+  <circle cx="36" cy="28" r="2" fill="#ffbd2e"/>
+  <circle cx="44" cy="28" r="2" fill="#27ca3f"/>
+  
+  <!-- Command prompt -->
+  <polygon points="28,45 36,52 28,59" fill="#58a6ff"/>
+  
+  <!-- Repository grid (geometric pattern) -->
+  <g transform="translate(45, 40)">
+    <!-- Row 1 -->
+    <rect x="0" y="0" width="8" height="8" fill="#1f6feb"/>
+    <rect x="12" y="0" width="8" height="8" fill="#238636"/>
+    <rect x="24" y="0" width="8" height="8" fill="#da3633"/>
+    <rect x="36" y="0" width="8" height="8" fill="#fb8500"/>
+    
+    <!-- Row 2 -->
+    <rect x="0" y="12" width="8" height="8" fill="#8b5cf6"/>
+    <rect x="12" y="12" width="8" height="8" fill="#db2777"/>
+    <rect x="24" y="12" width="8" height="8" fill="#0891b2"/>
+    <rect x="36" y="12" width="8" height="8" fill="#65a30d"/>
+    
+    <!-- Row 3 -->
+    <rect x="0" y="24" width="8" height="8" fill="#f85149"/>
+    <rect x="12" y="24" width="8" height="8" fill="#ffa657"/>
+    <rect x="24" y="24" width="8" height="8" fill="#56d364"/>
+    <rect x="36" y="24" width="8" height="8" fill="#79c0ff"/>
+  </g>
+  
+  <!-- Bottom indicator -->
+  <rect x="30" y="85" width="60" height="3" rx="1.5" fill="#21262d"/>
+  <rect x="30" y="85" width="24" height="3" rx="1.5" fill="#58a6ff"/>
+</svg>
