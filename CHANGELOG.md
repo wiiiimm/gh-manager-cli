@@ -1,3 +1,10 @@
+# [1.18.0](https://github.com/wiiiimm/gh-manager-cli/compare/v1.17.1...v1.18.0) (2025-09-02)
+
+
+### Features
+
+* **workflows:** add missing normalize-pr-title.js script for PR title automation ([3a009b9](https://github.com/wiiiimm/gh-manager-cli/commit/3a009b979c9dbee7c2f7649ff71ecb385e917a6d))
+
 ## [1.17.1](https://github.com/wiiiimm/gh-manager-cli/compare/v1.17.0...v1.17.1) (2025-09-02)
 
 
