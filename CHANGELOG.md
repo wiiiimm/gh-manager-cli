@@ -1,3 +1,20 @@
+# [1.14.0](https://github.com/wiiiimm/gh-manager-cli/compare/v1.13.2...v1.14.0) (2025-09-02)
+
+
+### Bug Fixes
+
+* correct TextInput import from ink-text-input package ([1040eca](https://github.com/wiiiimm/gh-manager-cli/commit/1040ecac07b0976eaf916ee5593d0bc867590eda))
+* update both visibility and isPrivate fields when changing visibility ([4b96234](https://github.com/wiiiimm/gh-manager-cli/commit/4b962345a1e490b3a675575c8726e7040e0c0ed3))
+* use REST API for changing repository visibility ([0bd1475](https://github.com/wiiiimm/gh-manager-cli/commit/0bd1475f22d5802d919491ad507d4b38f158da5e))
+
+
+### Features
+
+* add enterprise support with Internal visibility and Ctrl+V visibility change ([9f457af](https://github.com/wiiiimm/gh-manager-cli/commit/9f457af4558458a23f321c14b42f0701fefecc0f))
+* add repository visibility change with Ctrl+V ([d51b5e8](https://github.com/wiiiimm/gh-manager-cli/commit/d51b5e8b28c78f6ba58056a3254fc1aa218d9838))
+* add support for Internal visibility in enterprise accounts ([781575a](https://github.com/wiiiimm/gh-manager-cli/commit/781575aee55a70f869aad7d724fd50b6bd052221))
+* respect visibility filter when changing repository visibility ([25c963c](https://github.com/wiiiimm/gh-manager-cli/commit/25c963ca89038c84e0c8711f69d71785eb3a7355))
+
 ## [1.13.2](https://github.com/wiiiimm/gh-manager-cli/compare/v1.13.1...v1.13.2) (2025-09-01)
 
 
