@@ -475,7 +475,7 @@ export default function RepoList({ token, maxVisibleRows, onLogout, viewerLogin,
       setRateLimit(page.rateLimit);
       setError(null);
     } catch (e: any) {
-      setError('Failed to load repositories. Check network or token.');
+      setError('Failed to load repositories. Check network or token, or visit status.github.com as it might be a GitHub server issue.');
     } finally {
       setLoading(false);
       setSortingLoading(false);
