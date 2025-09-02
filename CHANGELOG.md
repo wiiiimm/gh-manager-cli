@@ -1,3 +1,55 @@
+# [1.14.0](https://github.com/wiiiimm/gh-manager-cli/compare/v1.13.2...v1.14.0) (2025-09-02)
+
+
+### Bug Fixes
+
+* correct TextInput import from ink-text-input package ([1040eca](https://github.com/wiiiimm/gh-manager-cli/commit/1040ecac07b0976eaf916ee5593d0bc867590eda))
+* update both visibility and isPrivate fields when changing visibility ([4b96234](https://github.com/wiiiimm/gh-manager-cli/commit/4b962345a1e490b3a675575c8726e7040e0c0ed3))
+* use REST API for changing repository visibility ([0bd1475](https://github.com/wiiiimm/gh-manager-cli/commit/0bd1475f22d5802d919491ad507d4b38f158da5e))
+
+
+### Features
+
+* add enterprise support with Internal visibility and Ctrl+V visibility change ([9f457af](https://github.com/wiiiimm/gh-manager-cli/commit/9f457af4558458a23f321c14b42f0701fefecc0f))
+* add repository visibility change with Ctrl+V ([d51b5e8](https://github.com/wiiiimm/gh-manager-cli/commit/d51b5e8b28c78f6ba58056a3254fc1aa218d9838))
+* add support for Internal visibility in enterprise accounts ([781575a](https://github.com/wiiiimm/gh-manager-cli/commit/781575aee55a70f869aad7d724fd50b6bd052221))
+* respect visibility filter when changing repository visibility ([25c963c](https://github.com/wiiiimm/gh-manager-cli/commit/25c963ca89038c84e0c8711f69d71785eb3a7355))
+
+## [1.13.2](https://github.com/wiiiimm/gh-manager-cli/compare/v1.13.1...v1.13.2) (2025-09-01)
+
+
+### Bug Fixes
+
+* add authentication to Homebrew tap update in workflow ([31ec056](https://github.com/wiiiimm/gh-manager-cli/commit/31ec056a95bfbd696d8bb4d884fee0213c52257a))
+
+## [1.13.1](https://github.com/wiiiimm/gh-manager-cli/compare/v1.13.0...v1.13.1) (2025-09-01)
+
+
+### Bug Fixes
+
+* **auth,keyboard,ux:** retry + cancel flow on rate-limit; shared logout; cache info key = K ([#11](https://github.com/wiiiimm/gh-manager-cli/issues/11)) ([bcbd2fc](https://github.com/wiiiimm/gh-manager-cli/commit/bcbd2fcdb929a9354e3e307f960da4ae06fbbe61))
+
+# [1.13.0](https://github.com/wiiiimm/gh-manager-cli/compare/v1.12.0...v1.13.0) (2025-09-01)
+
+
+### Features
+
+* add Homebrew tap support and CLI flags ([#10](https://github.com/wiiiimm/gh-manager-cli/issues/10)) ([bba6c38](https://github.com/wiiiimm/gh-manager-cli/commit/bba6c38b5c1bd01b8a01d87b8e2910d3523dd776))
+
+# [1.12.0](https://github.com/wiiiimm/gh-manager-cli/compare/v1.11.1...v1.12.0) (2025-09-01)
+
+
+### Features
+
+* **homebrew:** packaging plan for submission to homebrew-core ([#9](https://github.com/wiiiimm/gh-manager-cli/issues/9)) ([f1d306a](https://github.com/wiiiimm/gh-manager-cli/commit/f1d306a321ba577cf8f3ea7c1a2090dbf8c8dfc4))
+
+## [1.11.1](https://github.com/wiiiimm/gh-manager-cli/compare/v1.11.0...v1.11.1) (2025-09-01)
+
+
+### Bug Fixes
+
+* handle require not defined error in GitHub Actions script ([49db95b](https://github.com/wiiiimm/gh-manager-cli/commit/49db95b8f69acbeb075190d81d7d5dcd6dc2991e))
+
 # [1.11.0](https://github.com/wiiiimm/gh-manager-cli/compare/v1.10.6...v1.11.0) (2025-09-01)
 
 

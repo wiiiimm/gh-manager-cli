@@ -1,6 +1,6 @@
 {
   "name": "gh-manager-cli",
-  "version": "1.11.0",
+  "version": "1.14.0",
   "private": false,
   "description": "Interactive CLI to manage your GitHub repos (personal) with Ink",
   "license": "MIT",
@@ -34,7 +34,8 @@
     "prepublishOnly": "pnpm run build",
     "test": "vitest run",
     "test:watch": "vitest",
-    "test:coverage": "vitest run --coverage"
+    "test:coverage": "vitest run --coverage",
+    "brew:sha": "bash scripts/brew-sha.sh"
   },
   "engines": {
     "node": ">=18"

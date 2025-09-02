@@ -2,13 +2,13 @@ import React, { useEffect, useMemo, useState, useRef } from 'react';
 import { Box, Text, useApp, useInput, useStdout, Spacer, Newline } from 'ink';
 import TextInput from 'ink-text-input';
 import chalk from 'chalk';
-import { makeClient, fetchViewerReposPageUnified, searchRepositoriesUnified, deleteRepositoryRest, archiveRepositoryById, unarchiveRepositoryById, syncForkWithUpstream, getRepositoryFromCache, purgeApolloCacheFiles, inspectCacheStatus, updateCacheAfterDelete, updateCacheAfterArchive, updateCacheWithRepository, OwnerAffiliation } from '../github';
+import { makeClient, fetchViewerReposPageUnified, searchRepositoriesUnified, deleteRepositoryRest, archiveRepositoryById, unarchiveRepositoryById, changeRepositoryVisibility, syncForkWithUpstream, getRepositoryFromCache, purgeApolloCacheFiles, inspectCacheStatus, updateCacheAfterDelete, updateCacheAfterArchive, updateCacheAfterVisibilityChange, updateCacheWithRepository, checkOrganizationIsEnterprise, OwnerAffiliation } from '../github';
 import { getUIPrefs, storeUIPrefs, OwnerContext } from '../config';
 import { makeApolloKey, makeSearchKey, isFresh, markFetched } from '../apolloMeta';
 import type { RepoNode, RateLimitInfo } from '../types';
 import { exec } from 'child_process';
 import OrgSwitcher from './OrgSwitcher';
-import { DeleteModal, ArchiveModal, SyncModal, InfoModal, LogoutModal, VisibilityModal, SortModal } from './components/modals';
+import { DeleteModal, ArchiveModal, SyncModal, InfoModal, LogoutModal, VisibilityModal, SortModal, ChangeVisibilityModal } from './components/modals';
 import { RepoRow, FilterInput, RepoListHeader } from './components/repo';
 import { SlowSpinner } from './components/common';
 import { truncate, formatDate } from '../utils';
@@ -118,7 +118,13 @@ export default function RepoList({ token, maxVisibleRows, onLogout, viewerLogin,
 
   // Visibility modal state
   const [visibilityMode, setVisibilityMode] = useState(false);
-  const [hasInternalRepos, setHasInternalRepos] = useState(false);
+  const [isEnterpriseOrg, setIsEnterpriseOrg] = useState(false);
+  
+  // Change visibility modal state
+  const [changeVisibilityMode, setChangeVisibilityMode] = useState(false);
+  const [changeVisibilityTarget, setChangeVisibilityTarget] = useState<RepoNode | null>(null);
+  const [changingVisibility, setChangingVisibility] = useState(false);
+  const [changeVisibilityError, setChangeVisibilityError] = useState<string | null>(null);
   
   // Sort modal state
   const [sortMode, setSortMode] = useState(false);
@@ -129,6 +135,13 @@ export default function RepoList({ token, maxVisibleRows, onLogout, viewerLogin,
     setArchiving(false);
     setArchiveError(null);
     setArchiveFocus('confirm');
+  }
+  
+  function closeChangeVisibilityModal() {
+    setChangeVisibilityMode(false);
+    setChangeVisibilityTarget(null);
+    setChangingVisibility(false);
+    setChangeVisibilityError(null);
   }
 
   function closeSyncModal() {
@@ -221,11 +234,62 @@ export default function RepoList({ token, maxVisibleRows, onLogout, viewerLogin,
     }
   }
   
-  function handleOrgContextChange(newContext: OwnerContext) {
+  // Handler for changing visibility
+  async function handleVisibilityChange(newVisibility: string) {
+    if (!changeVisibilityTarget || changingVisibility) return;
+    
+    try {
+      setChangingVisibility(true);
+      const id = (changeVisibilityTarget as any).id;
+      
+      await changeRepositoryVisibility(client, id, newVisibility as 'PUBLIC' | 'PRIVATE' | 'INTERNAL', token);
+      
+      // Update Apollo cache
+      await updateCacheAfterVisibilityChange(token, id, newVisibility as 'PUBLIC' | 'PRIVATE' | 'INTERNAL');
+      
+      // Check if the repo should be removed based on current visibility filter
+      // Note: 'private' filter includes both PRIVATE and INTERNAL
+      const shouldRemove = 
+        (visibilityFilter === 'public' && newVisibility !== 'PUBLIC') ||
+        (visibilityFilter === 'private' && newVisibility !== 'PRIVATE' && newVisibility !== 'INTERNAL');
+      
+      if (shouldRemove) {
+        // Remove the repo from the list if it doesn't match the filter
+        setItems(prev => prev.filter((r: any) => r.id !== id));
+        setSearchItems(prev => prev.filter((r: any) => r.id !== id));
+        
+        // Update counts
+        setTotalCount(c => Math.max(0, c - 1));
+        if (searchActive) {
+          setSearchTotalCount(c => Math.max(0, c - 1));
+        }
+        
+        // Adjust cursor if needed
+        const currentItemsLength = searchActive ? searchItems.length : items.length;
+        setCursor(c => Math.max(0, Math.min(c, currentItemsLength - 2)));
+      } else {
+        // Update the repo in place if it still matches the filter
+        const isPrivate = newVisibility === 'PRIVATE';
+        const updateRepo = (r: any) => (r.id === id ? { ...r, visibility: newVisibility, isPrivate } : r);
+        setItems(prev => prev.map(updateRepo));
+        setSearchItems(prev => prev.map(updateRepo));
+      }
+      
+      closeChangeVisibilityModal();
+    } catch (e: any) {
+      setChangingVisibility(false);
+      setChangeVisibilityError(e.message || 'Failed to change visibility. Check permissions.');
+      // Keep modal open on error
+    }
+  }
+  
+  async function handleOrgContextChange(newContext: OwnerContext) {
     setOwnerContext(newContext);
-    storeUIPrefs({ ownerContext: newContext });
     setCursor(0);
     setOrgSwitcherOpen(false);
+    
+    // Reset visibility filter to 'all' when switching organizations
+    setVisibilityFilter('all');
     
     // Update affiliations based on context
     const newAffiliations = newContext === 'personal' 
@@ -233,7 +297,22 @@ export default function RepoList({ token, maxVisibleRows, onLogout, viewerLogin,
       : ['ORGANIZATION_MEMBER'] as OwnerAffiliation[];
     
     setOwnerAffiliations(newAffiliations);
-    storeUIPrefs({ ownerAffiliations: newAffiliations });
+    
+    // Check if organization is enterprise
+    if (newContext !== 'personal') {
+      const client = makeClient(token);
+      const isEnt = await checkOrganizationIsEnterprise(client, newContext.login);
+      setIsEnterpriseOrg(isEnt);
+    } else {
+      setIsEnterpriseOrg(false);
+    }
+    
+    // Save all preferences including reset visibility filter
+    storeUIPrefs({ 
+      ownerContext: newContext,
+      ownerAffiliations: newAffiliations,
+      visibilityFilter: 'all'
+    });
     
     // Notify parent component of the change
     if (onOrgContextChange) {
@@ -300,8 +379,8 @@ export default function RepoList({ token, maxVisibleRows, onLogout, viewerLogin,
   // Fork tracking toggle - default ON to show commits behind
   const [forkTracking, setForkTracking] = useState<boolean>(true);
   
-  // Visibility filter - 'all' | 'public' | 'private' | 'internal'
-  type VisibilityFilter = 'all' | 'public' | 'private' | 'internal';
+  // Visibility filter - 'all' | 'public' | 'private'
+  type VisibilityFilter = 'all' | 'public' | 'private';
   const [visibilityFilter, setVisibilityFilter] = useState<VisibilityFilter>('all');
   const previousVisibilityFilter = useRef<VisibilityFilter>('all');
 
@@ -365,6 +444,14 @@ export default function RepoList({ token, maxVisibleRows, onLogout, viewerLogin,
         setHasInternalRepos(true);
       }
       
+      // Check if organization is enterprise (first page only)
+      if (!after && orgLogin) {
+        const client = makeClient(token);
+        checkOrganizationIsEnterprise(client, orgLogin).then(isEnt => {
+          setIsEnterpriseOrg(isEnt);
+        });
+      }
+      
       // Mark fetched time for TTL tracking (first page only)
       if (!after) {
         try {
@@ -411,7 +498,8 @@ export default function RepoList({ token, maxVisibleRows, onLogout, viewerLogin,
     setSearchLoading(true);
     try {
       const orderBy = { field: sortFieldMap[sortKey], direction: sortDir.toUpperCase() };
-      addDebugMessage(`[fetchSearchPage] Calling API with viewer="${viewerLogin}", query="${query.trim()}"`);
+      const orgLogin = ownerContext !== 'personal' ? ownerContext.login : undefined;
+      addDebugMessage(`[fetchSearchPage] Calling API with viewer="${viewerLogin}", orgLogin="${orgLogin || 'none'}", query="${query.trim()}"`);
       const page = await searchRepositoriesUnified(
         token,
         viewerLogin,
@@ -421,7 +509,8 @@ export default function RepoList({ token, maxVisibleRows, onLogout, viewerLogin,
         orderBy.field,
         orderBy.direction,
         forkTracking,
-        policy ?? (after ? 'network-only' : 'cache-first')
+        policy ?? (after ? 'network-only' : 'cache-first'),
+        orgLogin
       );
       
       addDebugMessage(`[fetchSearchPage] API returned ${page.nodes.length} results, totalCount=${page.totalCount}`);
@@ -484,6 +573,14 @@ export default function RepoList({ token, maxVisibleRows, onLogout, viewerLogin,
       // Notify parent of loaded context
       if (onOrgContextChange) {
         onOrgContextChange(ui.ownerContext);
+      }
+      
+      // Check if organization is enterprise
+      if (ui.ownerContext !== 'personal') {
+        const client = makeClient(token);
+        checkOrganizationIsEnterprise(client, ui.ownerContext.login).then(isEnt => {
+          setIsEnterpriseOrg(isEnt);
+        });
       }
     }
     
@@ -743,6 +840,11 @@ export default function RepoList({ token, maxVisibleRows, onLogout, viewerLogin,
       return; // VisibilityModal component handles its own keyboard input
     }
     
+    // When change visibility modal is open, trap inputs for modal
+    if (changeVisibilityMode) {
+      return; // ChangeVisibilityModal component handles its own keyboard input
+    }
+    
     // When sort modal is open, trap inputs for modal
     if (sortMode) {
       return; // SortModal component handles its own keyboard input
@@ -860,6 +962,16 @@ export default function RepoList({ token, maxVisibleRows, onLogout, viewerLogin,
       return;
     }
 
+    // Change visibility modal (Ctrl+V)
+    if (key.ctrl && (input === 'v' || input === 'V')) {
+      const repo = visibleItems[cursor];
+      if (repo) {
+        setChangeVisibilityTarget(repo);
+        setChangeVisibilityMode(true);
+      }
+      return;
+    }
+
     // Sync fork with upstream modal (Ctrl+S)
     if (key.ctrl && (input === 's' || input === 'S')) {
       const repo = visibleItems[cursor];
@@ -888,8 +1000,8 @@ export default function RepoList({ token, maxVisibleRows, onLogout, viewerLogin,
       return;
     }
     
-    // Cache inspection (Ctrl+I)
-    if (key.ctrl && (input === 'i' || input === 'I')) {
+    // Cache inspection (K)
+    if (input && input.toUpperCase() === 'K') {
       (async () => {
         try {
           await inspectCacheStatus();
@@ -999,11 +1111,13 @@ export default function RepoList({ token, maxVisibleRows, onLogout, viewerLogin,
   const filtered = useMemo(() => {
     let result = items;
     
-    // Apply visibility filter (only for internal since API doesn't support it)
-    if (visibilityFilter === 'internal') {
-      result = result.filter(r => r.visibility === 'INTERNAL');
+    // Apply visibility filter locally
+    // Match GitHub's behavior: Private filter includes both PRIVATE and INTERNAL
+    if (visibilityFilter === 'private') {
+      // Show both PRIVATE and INTERNAL repos (matching GitHub's behavior)
+      result = result.filter(r => r.visibility === 'PRIVATE' || r.visibility === 'INTERNAL');
     }
-    // Note: Public and Private filtering is now done at the API level
+    // Note: Public filtering is done at the API level and works correctly
     
     // Apply text filter
     const q = filter.trim().toLowerCase();
@@ -1039,7 +1153,23 @@ export default function RepoList({ token, maxVisibleRows, onLogout, viewerLogin,
   }, [filtered, sortKey, sortDir]);
 
   const searchActive = filter.trim().length >= 3;
-  const visibleItems = searchActive ? searchItems : filteredAndSorted;
+  
+  // Apply visibility filter to search results too
+  const filteredSearchItems = useMemo(() => {
+    let result = searchItems;
+    
+    // Match GitHub's behavior: Private filter includes both PRIVATE and INTERNAL
+    if (visibilityFilter === 'private') {
+      // Show both PRIVATE and INTERNAL repos (matching GitHub's behavior)
+      result = result.filter(r => r.visibility === 'PRIVATE' || r.visibility === 'INTERNAL');
+    } else if (visibilityFilter === 'public') {
+      result = result.filter(r => r.visibility === 'PUBLIC');
+    }
+    
+    return result;
+  }, [searchItems, visibilityFilter]);
+  
+  const visibleItems = searchActive ? filteredSearchItems : filteredAndSorted;
   
   // Debug log
   useEffect(() => {
@@ -1115,7 +1245,13 @@ export default function RepoList({ token, maxVisibleRows, onLogout, viewerLogin,
   const headerBar = useMemo(() => (
     <Box flexDirection="row" justifyContent="space-between" height={1} marginBottom={1}>
       <Box flexDirection="row" gap={1}>
-        <Text bold color={modalOpen ? 'gray' : undefined} dimColor={modalOpen ? true : undefined}>  Repositories</Text>
+        <Text color="cyan" bold={!modalOpen} dimColor={modalOpen}>
+          {'  '}{ownerContext === 'personal' 
+            ? 'Personal' 
+            : ownerContext.name || ownerContext.login}
+          {ownerContext !== 'personal' && isEnterpriseOrg && ' (ENT)'}
+        </Text>
+        <Text bold color={modalOpen ? 'gray' : undefined} dimColor={modalOpen ? true : undefined}>Repositories</Text>
         <Text color="gray">({visibleItems.length}/{searchActive ? searchTotalCount : totalCount})</Text>
         {(loading || searchLoading) && (
           <Box width={2} flexShrink={0} flexGrow={0} marginLeft={1}>
@@ -1134,10 +1270,11 @@ export default function RepoList({ token, maxVisibleRows, onLogout, viewerLogin,
               {` (${rateLimit.remaining - prevRateLimit > 0 ? '+' : ''}${rateLimit.remaining - prevRateLimit})`}
             </Text>
           )}
+          {'  '}
         </Text>
       )}
     </Box>
-  ), [visibleItems.length, searchActive, searchTotalCount, totalCount, loading, searchLoading, rateLimit, lowRate, modalOpen, prevRateLimit]);
+  ), [visibleItems.length, searchActive, searchTotalCount, totalCount, loading, searchLoading, rateLimit, lowRate, modalOpen, prevRateLimit, ownerContext, isEnterpriseOrg]);
 
   if (error) {
     return (
@@ -1572,7 +1709,7 @@ export default function RepoList({ token, maxVisibleRows, onLogout, viewerLogin,
                   <Box height={1}><Text> </Text></Box>
                   <Text>
                     {repo.visibility === 'PRIVATE' ? chalk.yellow('Private') : 
-                     repo.visibility === 'INTERNAL' ? chalk.cyan('Internal') : 
+                     repo.visibility === 'INTERNAL' ? chalk.magenta('Internal') : 
                      chalk.green('Public')}
                     {repo.isArchived ? chalk.gray('  Archived') : ''}
                     {repo.isFork ? chalk.blue('  Fork') : ''}
@@ -1595,7 +1732,7 @@ export default function RepoList({ token, maxVisibleRows, onLogout, viewerLogin,
           <Box height={contentHeight} alignItems="center" justifyContent="center">
             <VisibilityModal
               currentFilter={visibilityFilter}
-              hasInternalRepos={hasInternalRepos}
+              isEnterprise={isEnterpriseOrg}
               onSelect={(filter) => {
                 setVisibilityFilter(filter);
                 setVisibilityMode(false);
@@ -1619,6 +1756,20 @@ export default function RepoList({ token, maxVisibleRows, onLogout, viewerLogin,
               onCancel={() => setSortMode(false)}
             />
           </Box>
+        ) : changeVisibilityMode && changeVisibilityTarget ? (
+          <Box height={contentHeight} alignItems="center" justifyContent="center">
+            <ChangeVisibilityModal
+              isOpen={changeVisibilityMode}
+              repoName={changeVisibilityTarget.nameWithOwner}
+              currentVisibility={changeVisibilityTarget.visibility}
+              isFork={changeVisibilityTarget.isFork}
+              isEnterprise={isEnterpriseOrg}
+              onVisibilityChange={handleVisibilityChange}
+              onClose={closeChangeVisibilityModal}
+              changing={changingVisibility}
+              error={changeVisibilityError}
+            />
+          </Box>
         ) : (
           <>
             {/* Context/Filter/sort status */}
@@ -1631,12 +1782,13 @@ export default function RepoList({ token, maxVisibleRows, onLogout, viewerLogin,
               searchActive={searchActive}
               searchLoading={searchLoading}
               visibilityFilter={visibilityFilter}
+              isEnterprise={isEnterpriseOrg}
             />
 
             {/* Filter input */}
             {filterMode && (
               <Box marginBottom={1}>
-                <Text>Filter: </Text>
+                <Text>Search: </Text>
             <TextInput
               value={filter}
               onChange={(val) => {
@@ -1743,7 +1895,7 @@ export default function RepoList({ token, maxVisibleRows, onLogout, viewerLogin,
         {/* Line 3: Action controls */}
         <Box width={terminalWidth} justifyContent="center">
           <Text color="gray" dimColor={modalOpen ? true : undefined}>
-            I Info • Ctrl+I Cache Info • Ctrl+A Un/Archive • Del/Backspace Delete • Ctrl+S Sync Fork
+            I Info • K Cache Info • Ctrl+A Un/Archive • Ctrl+V Change Visibility • Del/Backspace Delete • Ctrl+S Sync Fork
           </Text>
         </Box>
       </Box>

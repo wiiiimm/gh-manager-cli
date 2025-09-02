@@ -130,67 +130,41 @@ export default function SortModal({
   };
   
   return (
-    <Box flexDirection="column" borderStyle="round" borderColor="cyan" paddingX={3} paddingY={2} width={60}>
+    <Box flexDirection="column" borderStyle="round" borderColor="cyan" paddingX={2} paddingY={1} width={40}>
       <Text bold>Sort By</Text>
-      <Box height={1}><Text> </Text></Box>
-      
-      <Text color="gray">Select how to sort repositories:</Text>
-      <Box height={1}><Text> </Text></Box>
       
       {/* Option buttons */}
-      <Box flexDirection="column" gap={1}>
+      <Box flexDirection="column" marginTop={1}>
         {options.map((option) => (
-          <Box
-            key={option}
-            borderStyle={focusedOption === option ? "round" : "single"}
-            borderColor={getButtonColor(option)}
-            paddingX={2}
-            paddingY={1}
-            width="100%"
-          >
-            <Box flexDirection="column">
-              <Box flexDirection="row" justifyContent="space-between">
-                <Text color={focusedOption === option ? 'white' : undefined}>
-                  {focusedOption === option ? 
-                    chalk[getButtonColor(option)].bold(getButtonLabel(option)) : 
-                    chalk[getButtonColor(option)](getButtonLabel(option))
-                  }
-                </Text>
-                {option === currentSort && (
-                  <Text color="green"> ✓ Current</Text>
-                )}
-              </Box>
-              <Text color="gray" dimColor>
-                {getButtonDescription(option)}
-              </Text>
-            </Box>
+          <Box key={option} paddingX={1}>
+            <Text>
+              {focusedOption === option ? 
+                chalk.bgCyan.black(' → ') : '   '}
+              {focusedOption === option ? 
+                chalk[getButtonColor(option)].bold(getButtonLabel(option)) : 
+                chalk[getButtonColor(option)](getButtonLabel(option))
+              }
+              {option === currentSort && chalk.green(' ✓')}
+            </Text>
           </Box>
         ))}
+        
+        {/* Cancel option */}
+        <Box paddingX={1}>
+          <Text>
+            {focusedOption === 'cancel' ? 
+              chalk.bgWhite.black(' → ') : '   '}
+            {focusedOption === 'cancel' ? 
+              chalk.white.bold('Cancel') : 
+              chalk.gray('Cancel')
+            }
+          </Text>
+        </Box>
       </Box>
       
-      <Box height={1}><Text> </Text></Box>
-      
-      {/* Cancel button */}
-      <Box
-        borderStyle={focusedOption === 'cancel' ? "round" : "single"}
-        borderColor={focusedOption === 'cancel' ? 'white' : 'gray'}
-        paddingX={2}
-        paddingY={1}
-        width="100%"
-        justifyContent="center"
-      >
-        <Text>
-          {focusedOption === 'cancel' ? 
-            chalk.white.bold('Cancel') : 
-            chalk.gray('Cancel')
-          }
-        </Text>
-      </Box>
-      
-      <Box height={1}><Text> </Text></Box>
-      <Box flexDirection="row" justifyContent="center">
-        <Text color="gray">
-          ↑↓ Navigate • Enter Select • U Updated • P Pushed • N Name • S Stars • C/Esc Cancel
+      <Box marginTop={1}>
+        <Text color="gray" dimColor>
+          ↑↓/Enter • U/P/N/S • Esc
         </Text>
       </Box>
     </Box>

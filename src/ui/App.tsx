@@ -21,6 +21,7 @@ export default function App() {
   const [error, setError] = useState<string | null>(null);
   const [viewer, setViewer] = useState<string | null>(null);
   const [rateLimitReset, setRateLimitReset] = useState<string | null>(null);
+  const [wasRateLimited, setWasRateLimited] = useState(false);
   const [orgContext, setOrgContext] = useState<OwnerContext>('personal');
   const [authMethod, setAuthMethod] = useState<AuthMethod>('pat');
   const [oauthStatus, setOAuthStatus] = useState<OAuthStatus>('initializing');
@@ -141,6 +142,9 @@ export default function App() {
         const login = await getViewerLogin(client);
         clearTimeout(timeoutId);
         setViewer(login);
+        // On successful validation, clear any previous rate-limit context
+        setWasRateLimited(false);
+        setRateLimitReset(null);
         // If token came from prompt, it will be in input and not yet stored
         if (!getStoredToken()) {
           storeToken(token);
@@ -200,13 +204,17 @@ export default function App() {
         }
         
         if (isRateLimit) {
+          // Keep token so Retry can revalidate; remember we came from rate-limit
           setRateLimitReset(resetTime);
+          setWasRateLimited(true);
           setMode('rate_limited');
         } else {
+          // Invalid token or other error: clear token input and return to selection
           setError(errorMessage);
+          setInput('');
+          setToken(null);
           setMode('auth_method_selection');
         }
-        setToken(null);
       }
     })();
   }, [mode, token]);
@@ -222,6 +230,7 @@ export default function App() {
   // Handle logout from child components
   const handleLogout = () => {
     try { clearStoredToken(); } catch {}
+    setRateLimitReset(null);
     setToken(null);
     setViewer(null);
     setInput(''); // Clear the token input field
@@ -242,28 +251,27 @@ export default function App() {
     }
     
     if (mode === 'rate_limited') {
-      if (key.escape || input === 'q') {
+      const ch = (input || '').toLowerCase();
+      if (key.escape || ch === 'q') {
         exit();
-      } else if (input === 'r') {
+      } else if (ch === 'r') {
         // Retry with current token
         setMode('validating');
-      } else if (input === 'l') {
+      } else if (ch === 'l') {
         // Logout - go back to authentication
-        setToken(null);
-        setInput('');
-        setRateLimitReset(null);
-        setMode('auth_method_selection');
+        handleLogout();
       }
     }
     
     if (mode === 'validating' && key.escape) {
-      // Allow canceling validation and go back to rate limit or auth method selection
-      if (rateLimitReset) {
+      // Cancel validation: return to rate-limited screen if relevant, else auth method selection
+      if (wasRateLimited || rateLimitReset) {
         setMode('rate_limited');
       } else {
         setMode('auth_method_selection');
-        setToken(null);
       }
+      setToken(null);
+      setInput('');
     }
   });
 
@@ -342,9 +350,9 @@ export default function App() {
             <Box marginTop={2} flexDirection="column" gap={1}>
               <Text bold>What would you like to do?</Text>
               <Box flexDirection="column" paddingLeft={2}>
-                <Text><Text color="cyan" bold>r</Text> - Retry now {rateLimitReset && formatResetTime(rateLimitReset) !== 'Now (should be reset)' ? '(likely to fail until reset)' : '(should work now)'}</Text>
-                <Text><Text color="cyan" bold>l</Text> - Logout and use a different token</Text>
-                <Text><Text color="gray" bold>q/Esc</Text> - Quit application</Text>
+                <Text><Text color="cyan" bold>R</Text> - Retry now {rateLimitReset && formatResetTime(rateLimitReset) !== 'Now (should be reset)' ? '(likely to fail until reset)' : '(should work now)'}</Text>
+                <Text><Text color="cyan" bold>L</Text> - Logout and use a different token</Text>
+                <Text><Text color="gray" bold>Q/Esc</Text> - Quit application</Text>
               </Box>
             </Box>
             

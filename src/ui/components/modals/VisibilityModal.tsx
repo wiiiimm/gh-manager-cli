@@ -2,25 +2,23 @@ import React, { useState, useEffect } from 'react';
 import { Box, Text, useInput } from 'ink';
 import chalk from 'chalk';
 
-type VisibilityFilter = 'all' | 'public' | 'private' | 'internal';
+type VisibilityFilter = 'all' | 'public' | 'private';
 
 interface VisibilityModalProps {
   currentFilter: VisibilityFilter;
-  hasInternalRepos: boolean;
+  isEnterprise: boolean;
   onSelect: (filter: VisibilityFilter) => void;
   onCancel: () => void;
 }
 
 export default function VisibilityModal({ 
   currentFilter, 
-  hasInternalRepos,
+  isEnterprise,
   onSelect, 
   onCancel 
 }: VisibilityModalProps) {
-  // Available options based on organization type
-  const options: VisibilityFilter[] = hasInternalRepos 
-    ? ['all', 'public', 'private', 'internal']
-    : ['all', 'public', 'private'];
+  // Same options for all, but label changes for enterprise
+  const options: VisibilityFilter[] = ['all', 'public', 'private'];
   
   const [selectedIndex, setSelectedIndex] = useState(0);
   const [focusedOption, setFocusedOption] = useState<VisibilityFilter | 'cancel'>('all');
@@ -103,8 +101,6 @@ export default function VisibilityModal({
         onSelect('public');
       } else if (upperInput === 'R') {
         onSelect('private');
-      } else if (upperInput === 'I' && hasInternalRepos) {
-        onSelect('internal');
       }
     }
   });
@@ -113,8 +109,7 @@ export default function VisibilityModal({
     switch (filter) {
       case 'all': return 'All Repositories';
       case 'public': return 'Public Only';
-      case 'private': return 'Private Only';
-      case 'internal': return 'Internal Only';
+      case 'private': return isEnterprise ? 'Private/Internal' : 'Private Only';
     }
   };
   
@@ -126,64 +121,41 @@ export default function VisibilityModal({
   };
   
   return (
-    <Box flexDirection="column" borderStyle="round" borderColor="cyan" paddingX={3} paddingY={2} width={60}>
+    <Box flexDirection="column" borderStyle="round" borderColor="cyan" paddingX={2} paddingY={1} width={45}>
       <Text bold>Visibility Filter</Text>
-      <Box height={1}><Text> </Text></Box>
-      
-      <Text color="gray">Select which repositories to display:</Text>
-      <Box height={1}><Text> </Text></Box>
       
       {/* Option buttons */}
-      <Box flexDirection="column" gap={1}>
+      <Box flexDirection="column" marginTop={1}>
         {options.map((option) => (
-          <Box
-            key={option}
-            borderStyle={focusedOption === option ? "round" : "single"}
-            borderColor={getButtonColor(option)}
-            paddingX={2}
-            paddingY={1}
-            width="100%"
-          >
-            <Box flexDirection="row" justifyContent="space-between">
-              <Text color={focusedOption === option ? 'white' : undefined}>
-                {focusedOption === option ? 
-                  chalk[getButtonColor(option)].bold(getButtonLabel(option)) : 
-                  chalk[getButtonColor(option)](getButtonLabel(option))
-                }
-              </Text>
-              {option === currentFilter && (
-                <Text color="green"> ✓ Current</Text>
-              )}
-            </Box>
+          <Box key={option} paddingX={1}>
+            <Text>
+              {focusedOption === option ? 
+                chalk.bgCyan.black(' → ') : '   '}
+              {focusedOption === option ? 
+                chalk[getButtonColor(option)].bold(getButtonLabel(option)) : 
+                chalk[getButtonColor(option)](getButtonLabel(option))
+              }
+              {option === currentFilter && chalk.green(' ✓')}
+            </Text>
           </Box>
         ))}
+        
+        {/* Cancel option */}
+        <Box paddingX={1}>
+          <Text>
+            {focusedOption === 'cancel' ? 
+              chalk.bgWhite.black(' → ') : '   '}
+            {focusedOption === 'cancel' ? 
+              chalk.white.bold('Cancel') : 
+              chalk.gray('Cancel')
+            }
+          </Text>
+        </Box>
       </Box>
       
-      <Box height={1}><Text> </Text></Box>
-      
-      {/* Cancel button */}
-      <Box
-        borderStyle={focusedOption === 'cancel' ? "round" : "single"}
-        borderColor={focusedOption === 'cancel' ? 'white' : 'gray'}
-        paddingX={2}
-        paddingY={1}
-        width="100%"
-        justifyContent="center"
-      >
-        <Text>
-          {focusedOption === 'cancel' ? 
-            chalk.white.bold('Cancel') : 
-            chalk.gray('Cancel')
-          }
-        </Text>
-      </Box>
-      
-      <Box height={1}><Text> </Text></Box>
-      <Box flexDirection="row" justifyContent="center">
-        <Text color="gray">
-          ↑↓ Navigate • Enter Select • A All • P Public • R Private
-          {hasInternalRepos && ' • I Internal'}
-          {' • C/Esc Cancel'}
+      <Box marginTop={1}>
+        <Text color="gray" dimColor>
+          ↑↓/Enter • A/P/R • Esc
         </Text>
       </Box>
     </Box>

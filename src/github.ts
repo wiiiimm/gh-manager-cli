@@ -99,6 +99,7 @@ export interface Organization {
   login: string;
   name: string | null;
   avatarUrl: string;
+  isEnterprise?: boolean;
 }
 
 export async function fetchViewerOrganizations(
@@ -120,6 +121,34 @@ export async function fetchViewerOrganizations(
   `;
   const res: any = await client(query);
   return res.viewer.organizations.nodes as Organization[];
+}
+
+// Check if an organization is enterprise by checking enterpriseOwners field
+export async function checkOrganizationIsEnterprise(
+  client: ReturnType<typeof makeClient>,
+  orgLogin: string
+): Promise<boolean> {
+  try {
+    // The most reliable way to check if an org is enterprise is to check if it has enterpriseOwners
+    // This field is only present and returns data for organizations that belong to an enterprise
+    const query = /* GraphQL */ `
+      query CheckOrgEnterprise($orgLogin: String!) {
+        organization(login: $orgLogin) {
+          enterpriseOwners(first: 1) {
+            totalCount
+          }
+        }
+      }
+    `;
+    const res: any = await client(query, { orgLogin });
+    
+    // If the organization has enterprise owners, it's part of an enterprise
+    // The field will return null or throw an error for non-enterprise orgs
+    return res.organization?.enterpriseOwners?.totalCount > 0;
+  } catch (error) {
+    // If the query fails, it's likely not an enterprise org
+    return false;
+  }
 }
 
 export interface ReposPageResult {
@@ -499,11 +528,14 @@ export async function searchRepositoriesUnified(
   sortKey: string = 'UPDATED_AT',
   sortDir: string = 'DESC',
   includeForkTracking: boolean = true,
-  fetchPolicy: 'network-only' | 'cache-first' = 'network-only'
+  fetchPolicy: 'network-only' | 'cache-first' = 'network-only',
+  organizationLogin?: string
 ): Promise<ReposPageResult> {
   // GitHub search API doesn't support sort in query string - remove it
   // Include forks in search results with fork:true
-  const q = `${text} user:${viewer} in:name,description fork:true`;
+  // Use org: for organization context, user: for personal context
+  const searchContext = organizationLogin ? `org:${organizationLogin}` : `user:${viewer}`;
+  const q = `${text} ${searchContext} in:name,description fork:true`;
   
   
   try {
@@ -622,6 +654,59 @@ export async function unarchiveRepositoryById(
     }
   `;
   await client(mutation, { repositoryId });
+}
+
+export async function changeRepositoryVisibility(
+  client: ReturnType<typeof makeClient>,
+  repositoryId: string,
+  visibility: 'PUBLIC' | 'PRIVATE' | 'INTERNAL',
+  token: string
+): Promise<{ nameWithOwner: string }> {
+  // First, get the repository details to get the owner and name
+  const query = /* GraphQL */ `
+    query GetRepoDetails($id: ID!) {
+      node(id: $id) {
+        ... on Repository {
+          nameWithOwner
+          owner {
+            login
+          }
+          name
+        }
+      }
+    }
+  `;
+  
+  const result = await client(query, { id: repositoryId });
+  const repo = result.node;
+  
+  if (!repo || !repo.nameWithOwner) {
+    throw new Error('Repository not found');
+  }
+  
+  const [owner, name] = repo.nameWithOwner.split('/');
+  
+  // Use REST API to change visibility since GraphQL doesn't support it
+  // Use the visibility field directly (supports public, private, internal)
+  const response = await fetch(`https://api.github.com/repos/${owner}/${name}`, {
+    method: 'PATCH',
+    headers: {
+      'Authorization': `token ${token}`,
+      'Accept': 'application/vnd.github+json',
+      'Content-Type': 'application/json',
+      'User-Agent': 'gh-manager-cli'
+    },
+    body: JSON.stringify({
+      visibility: visibility.toLowerCase() // API expects lowercase
+    })
+  });
+  
+  if (!response.ok) {
+    const error = await response.text();
+    throw new Error(`Failed to change visibility: ${error}`);
+  }
+  
+  return { nameWithOwner: repo.nameWithOwner };
 }
 
 // Try to get repository from cache first
@@ -830,6 +915,24 @@ export async function updateCacheAfterArchive(token: string, repositoryId: strin
       id: `Repository:${repositoryId}`,
       fields: {
         isArchived: () => isArchived
+      }
+    });
+  } catch {}
+}
+
+export async function updateCacheAfterVisibilityChange(token: string, repositoryId: string, visibility: 'PUBLIC' | 'PRIVATE' | 'INTERNAL'): Promise<void> {
+  try {
+    const ap = await makeApolloClient(token);
+    if (!ap || !ap.client) return;
+    
+    // Update both visibility and isPrivate fields in cache
+    // Note: Internal repos are not private in the traditional sense
+    const isPrivate = visibility === 'PRIVATE';
+    ap.client.cache.modify({
+      id: `Repository:${repositoryId}`,
+      fields: {
+        visibility: () => visibility,
+        isPrivate: () => isPrivate
       }
     });
   } catch {}

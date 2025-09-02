@@ -42,7 +42,12 @@ export default function RepoRow({
   const nameColor = selected ? chalk.cyan.bold : chalk.white;
   line1 += numColor(`${String(index).padStart(3, ' ')}.`);
   line1 += nameColor(` ${repo.nameWithOwner}`);
-  if (repo.isPrivate) line1 += chalk.yellow(' Private');
+  // Use visibility field to properly distinguish between PRIVATE and INTERNAL
+  if (repo.visibility === 'INTERNAL') {
+    line1 += chalk.magenta(' Internal');
+  } else if (repo.visibility === 'PRIVATE' || (repo.isPrivate && !repo.visibility)) {
+    line1 += chalk.yellow(' Private');
+  }
   if (repo.isArchived) line1 += ' ' + chalk.bgGray.whiteBright(' Archived ') + ' ';
   if (repo.isFork && repo.parent) {
     line1 += chalk.blue(` Fork of ${repo.parent.nameWithOwner}`);

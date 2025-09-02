@@ -27,13 +27,16 @@ tests/
 ├── utils.test.ts           # Utility function tests
 ├── apolloMeta.test.ts      # Apollo cache metadata tests
 └── ui/
-    ├── RepoRow.test.tsx    # Repository row component
+    ├── RepoRow.test.tsx    # Repository row component (with balanced spacing)
     ├── RepoListHeader.test.tsx  # Repository list header
+    ├── RepoListHeaderVisibility.test.tsx  # Visibility filter display tests
     ├── FilterInput.test.tsx     # Filter input component
     ├── SlowSpinner.test.tsx     # Loading spinner component
     ├── DeleteModal.test.tsx     # Delete confirmation modal
     ├── ArchiveModal.test.tsx    # Archive/unarchive modal
-    └── LogoutModal.test.tsx     # Logout confirmation modal
+    ├── LogoutModal.test.tsx     # Logout confirmation modal
+    ├── SortModal.test.tsx      # Sort selection modal (to be implemented)
+    └── VisibilityModal.test.tsx # Visibility filter modal (to be implemented)
 ```
 
 ## Running Tests
@@ -67,11 +70,11 @@ After running `pnpm test:coverage`, you'll see:
 ## Current Test Coverage
 
 ### Summary Statistics
-- **Total Test Files**: 11
-- **Total Tests**: 82
+- **Total Test Files**: 12
+- **Total Tests**: 82+
 - **Overall Coverage**: ~7.62% (low due to untested main components)
 - **Utilities Coverage**: 100% (4/4 utilities tested)
-- **Component Coverage**: 64% (7/11 components tested)
+- **Component Coverage**: 62% (8/13 components tested, 2 new modals pending tests)
 
 ### Detailed Test Coverage by Category
 
@@ -133,16 +136,23 @@ Testing:
 ##### RepoRow Component (`RepoRow.test.tsx`)
 **Coverage**: 74.5% | **Tests**: 1
 - Renders repository name and metadata correctly
+- Balanced spacing (1 line above, 1 line below) implemented
 
 ##### RepoListHeader Component (`RepoListHeader.test.tsx`)
 **Coverage**: 100% | **Tests**: 8
 - Personal account context display
 - Organization context display (with/without name)
 - Sort indicator display (field and direction)
-- Fork tracking status display
+- Fork tracking status display (renamed to "Fork Status - Commits Behind")
 - Filter display when not searching
 - Search mode display
 - All sort keys and directions
+
+##### RepoListHeaderVisibility Component Tests (`RepoListHeaderVisibility.test.tsx`)
+**Coverage**: New | **Tests**: Various
+- Visibility filter display in header
+- All visibility states (All, Public, Private, Internal)
+- Enterprise vs standard account detection
 
 ##### FilterInput Component (`FilterInput.test.tsx`)
 **Coverage**: 100% | **Tests**: 6
@@ -236,17 +246,52 @@ Focus on testing:
 
 ### High Priority Tests to Implement
 
-#### 1. Main Component Tests
+#### 1. New Modal Components
+- **SortModal.tsx** - Sort selection modal
+  - Modal rendering with all sort options
+  - Description display for each sort option
+  - Keyboard navigation (arrow keys, Enter, Esc)
+  - Selection callback
+  
+- **VisibilityModal.tsx** - Visibility filter modal
+  - Modal rendering with visibility options
+  - Enterprise detection (showing Internal option)
+  - Keyboard navigation
+  - Selection callback
+  - Current filter highlighting
+
+#### 2. Main Component Tests
 - **RepoList.tsx** - Main component state management and logic
   - Pagination and infinite scroll
-  - Sorting functionality
-  - Filtering (client-side and server-side)
+  - Sorting functionality with modal interface
+  - Visibility filtering (server-side)
   - Rate limit handling
   - Error states
+  - Footer reorganization (3 lines)
+  - Updated keyboard shortcuts (Del/Backspace for delete)
   
 - **App.tsx** - Application initialization and routing
   - Token bootstrap flow
   - Initial data loading
+
+#### 3. Integration Tests for New Features
+- **Visibility Filtering Flow**
+  - Opening modal with `V` key
+  - Selecting filter option
+  - Server-side API calls with privacy parameter
+  - Pagination with filtered results
+  - Config persistence
+  
+- **Sort Modal Flow**
+  - Opening modal with `S` key
+  - Selecting sort option
+  - Server refresh with new sort
+  - Config persistence
+
+- **Footer Navigation**
+  - Testing 3-line footer layout
+  - Keyboard shortcut verification
+  - Updated Delete key (Del/Backspace without Ctrl)
   - Error boundary behavior
 
 - **OrgSwitcher.tsx** - Organization switching

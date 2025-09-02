@@ -32,6 +32,27 @@ Legend:
 
 ## Near‑Term
 
+- [x] Change repository visibility
+  - Assigned key: `Ctrl+V` to open visibility change modal ✓
+  - Modal shows available visibility options (Public, Private, Internal for enterprise) ✓
+  - Fork repositories show explanation that visibility cannot be changed ✓
+  - Confirmation modal with Left/Right button navigation ✓
+  - Execute via GitHub REST API (PATCH /repos/{owner}/{repo}) ✓
+  - Updates local cache and respects active visibility filter ✓
+  - Removes repo from view if new visibility doesn't match filter ✓
+  - Error handling with retry option ✓
+
+- [x] Enterprise GitHub support
+  - Detection of enterprise organizations using `enterpriseOwners` GraphQL field ✓
+  - ENT badge shown in header and organization switcher ✓
+  - Support for INTERNAL repository visibility ✓
+  - Internal repos show with magenta "Internal" badge ✓
+  - Visibility filter shows "Private/Internal" for enterprise orgs ✓
+  - Change visibility modal includes Internal option for enterprise ✓
+  - Proper handling of GitHub API limitations with INTERNAL visibility ✓
+
+## Near‑Term
+
 - [x] Repo actions with confirmations
   - [x] Archive / Unarchive repositories
     - Key mapping: `Ctrl+A` to open archive/unarchive modal
@@ -94,15 +115,18 @@ Legend:
   - [ ] State management and reducers in RepoList
   
   **Component Tests:**
-  - [x] `RepoRow` - Basic rendering test (1 test)
+  - [x] `RepoRow` - Basic rendering test (1 test) - Updated spacing logic tested
   - [x] `DeleteModal` - Logic tests for verification code (4 tests)
   - [x] `RepoListHeader` - Header rendering and stats display (8 tests)
+  - [x] `RepoListHeaderVisibility` - Visibility filter display tests (new test file)
   - [x] `FilterInput` - Input handling and filter logic (6 tests - mocked TextInput)
   - [x] `SlowSpinner` - Animation component (5 tests)
   - [x] `ArchiveModal` - Archive/unarchive confirmation flow (6 tests - mocked useInput)
   - [~] `SyncModal` - Fork sync confirmation flow (not implemented)
   - [x] `LogoutModal` - Logout confirmation flow (6 tests - mocked useInput)
   - [~] `InfoModal` - Repository information display (not implemented)
+  - [ ] `SortModal` - Sort selection modal (needs tests)
+  - [ ] `VisibilityModal` - Visibility filter modal (needs tests)
   - [ ] `RepoList` - Main component integration tests
   - [ ] `OrgSwitcher` - Organization switching logic
   
@@ -114,9 +138,9 @@ Legend:
   - [ ] Rate limit handling
   
   **Current Progress:**
-  - Total test files: 11
-  - Total tests passing: 82
-  - Components with tests: 7/11 (64%)
+  - Total test files: 12 (added RepoListHeaderVisibility.test.tsx)
+  - Total tests passing: 82+
+  - Components with tests: 8/13 (62%) - Added 2 new modals needing tests
   - Utilities with tests: 4/4 (100%)
   
   **Testing Approach for useInput Components:**
@@ -170,52 +194,57 @@ Legend:
     - Smoother infinite scroll experience with earlier prefetching
     - Added debug messages to track when prefetching occurs
 
+- [x] Footer reorganization and UI improvements
+  - [x] Reorganized footer into 3 logical lines for better organization
+    - Line 1: Navigation controls (Refresh, Org Switch, Logout, Quit)
+    - Line 2: View/Filter controls (Top, Bottom, Search, Sort, Direction, Density, Fork Status, Visibility)
+    - Line 3: Repository actions (Info, Cache Info, Archive, Delete, Sync Fork)
+  - [x] Updated Delete key binding to Del/Backspace (no Ctrl required)
+  - [x] Renamed "Forks - Commits Behind" to "Fork Status - Commits Behind"
+  - [x] Balanced repository item spacing (1 line above, 1 line below)
+
 - [x] Server‑side search  
-  - Support GitHub search for repos (beyond loaded pages)
-  - Integrate with `/` filter bar; show mode indicator
-  - Implemented Apollo Client + apollo3-cache-persist for normalized caching and persistence
-    - Migrated GraphQL calls to ApolloClient with InMemoryCache
-    - Persist cache to files under app data dir via custom fs storage
-    - Added TTL overlay for stale-while-revalidate on startup
-  - Search requires 3+ characters to trigger server-side query
-  - ESC key clears search and returns to normal listing
-  - Down arrow from search input acts like Enter to start browsing results
-  - No auto-selection of first result - user must explicitly navigate
+  - Support GitHub search for repos (beyond loaded pages) ✓
+  - Integrate with `/` filter bar; show mode indicator ✓
+  - Implemented Apollo Client + apollo3-cache-persist for normalized caching and persistence ✓
+    - Migrated GraphQL calls to ApolloClient with InMemoryCache ✓
+    - Persist cache to files under app data dir via custom fs storage ✓
+    - Added TTL overlay for stale-while-revalidate on startup ✓
+  - Search requires 3+ characters to trigger server-side query ✓
+  - ESC key clears search and returns to normal listing ✓
+  - Down arrow from search input acts like Enter to start browsing results ✓
+  - No auto-selection of first result - user must explicitly navigate ✓
+  - Organization context support: uses `org:` prefix for org searches ✓
+  - Label changed from "Filter:" to "Search:" for clarity ✓
 
 - [x] Sorting enhancements  
   - [x] Persist sort field + direction in config (implemented in UI preferences)
+  - [x] Sort modal interface with descriptive options (updated, pushed, name, stars)
   - [ ] Additional fields (created, size)
 
-- [ ] Packaging for Homebrew
-  - Create a Homebrew Tap (e.g., `wiiiimm/homebrew-tap`) or submit to `homebrew-core`
-  - Provide tarball URLs and SHA256 for each release (from GitHub Releases)
-  - Write a formula that installs the npm package or bundled binary
-  - Add CI job to update formula on new tags (semantic-release hook)
-  - Test install on macOS (Intel/ARM) and verify `gh-manager` runs
+- [x] Packaging for Homebrew (completed via custom tap)
+  - Formula name: `gh-manager-cli` ✓
+  - Published to custom tap: `wiiiimm/tap` ✓
+  - Install command: `brew tap wiiiimm/tap && brew install gh-manager-cli` ✓
+  - Install strategy: uses npm tarball from registry ✓
+  - Dependencies: `node` requirement specified ✓
+  - Binary properly symlinked and executable ✓
+  - Version flag implemented for testing ✓
+  - SHA256 verification in formula ✓
+  - Successfully tested on macOS ARM and Intel ✓
+  - Note: Using custom tap instead of homebrew-core for easier maintenance
 
-- [ ] Smart repository data caching system
-  - **Challenge**: Each sort/direction combination changes server-side ordering, requiring separate cache entries
-  - **Hybrid caching approach**:
-    - **Full page cache**: Cache complete sorted repository lists by `{sortKey}-{sortDir}` key
-    - **Partial cache**: Cache expensive per-repo data (commits behind, etc.) by repo ID/name
-  - Cache strategies to consider:
-    - **Option A - Full page caching**: 
-      - Pro: Simple, matches current GraphQL query structure
-      - Con: Need separate cache for each sort combination (4 fields × 2 directions = 8 cache files)
-      - Cache key: `repos-{sortKey}-{sortDir}-{ownerAffiliation}.json`
-    - **Option B - Hybrid caching**:
-      - Cache basic repo metadata (name, description, stars, etc.) in unsorted format
-      - Cache expensive data (commits behind) separately by repo name/ID with longer TTL
-      - Pro: More efficient for sort changes, shared expensive data across views
-      - Con: Complex merge logic, may require individual queries for commit data
-    - **Option C - Smart invalidation**:
-      - Cache only the most recent sort combination to avoid cache explosion
-      - Invalidate when user changes sort, but keep expensive per-repo data
-  - Implementation considerations:
-    - Full queries save more API calls but create cache explosion
-    - Partial caching might require individual repo queries for commits behind (expensive)
-    - Client-side sorting of cached basic data isn't possible for server-only fields (like GitHub's sort fields)
-  - Recommended approach: Start with Option A (full page cache) for simplicity, monitor cache directory size
+- [x] Smart repository data caching system (implemented with Apollo Client)
+  - Implemented with Apollo Client and apollo3-cache-persist ✓
+  - Normalized cache with InMemoryCache for automatic deduplication ✓
+  - Persistent cache stored in `apollo-cache.json` file ✓
+  - Cache key generation for different query combinations ✓
+  - TTL-based cache invalidation with 30-minute default ✓
+  - Smart cache policies: cache-first, network-only, cache-and-network ✓
+  - Cache inspection with `K` key showing size and recent entries ✓
+  - Cache purging on refresh (`R` key) for fresh data ✓
+  - Debug mode (`GH_MANAGER_DEBUG=1`) shows cache hit/miss metrics ✓
+  - Efficient caching across sort/filter combinations ✓
 
 - [x] Rate‑limit improvements
   - [x] Show rate limit usage with delta changes: API: remaining/limit (+/-delta)
@@ -233,8 +262,11 @@ Legend:
 - [ ] OS keychain support
   - Optional storage via `keytar`; fallback to file with 0600 perms
 
-- [ ] Window resize handling
-  - Recompute layout on terminal resize; keep selection visible
+- [x] Window resize handling
+  - Terminal width detection via `useStdout().columns`
+  - Dynamic width adjustment for modals and repo rows
+  - Responsive layout that adapts to terminal size
+  - Implemented in App.tsx with resize event listener
 
 - [ ] Copy repository URL to clipboard
   - Key trigger: `C` to open copy URL modal
@@ -278,30 +310,18 @@ Legend:
     - Show success toast (e.g., "Logged out. Token cleared.")
   - Handle errors gracefully and keep user in current state on failure
 
-- [ ] Toggle repository visibility
-  - Assign key: `V` to trigger visibility change modal
-  - Detection and capabilities:
-    - Check if user has enterprise account (supports "internal" visibility)
-    - Use GraphQL to detect current visibility state
-    - Note: GraphQL `isPrivate` returns true for both private and internal repos
-  - Modal UI:
-    - Show current visibility status prominently
-    - Offer options based on account capabilities:
-      - Standard accounts: Public / Private
-      - Enterprise accounts: Public / Private / Internal
-    - Left/Right arrow keys to select option
-    - Enter to confirm, Esc to cancel
-  - Implementation:
-    - Use GraphQL `updateRepository` mutation if supported
-    - Fallback to REST API PATCH /repos/{owner}/{repo} for visibility changes
-    - Validate user has admin permissions (required for visibility changes)
-  - On success:
-    - Update local state (visibility/isPrivate fields)
-    - Show success message with new visibility status
-    - No need to refetch entire list
-  - On failure:
-    - Show error explaining why (permissions, enterprise-only, etc.)
-    - Keep modal open for retry or cancel
+- [x] Visibility filtering with modal interface
+  - Assigned key: `V` to open visibility filter modal ✓
+  - Modal shows options: All, Public, Private/Internal (combined for enterprise) ✓
+  - Detection of enterprise accounts via `enterpriseOwners` field ✓
+  - Shows ENT badge for enterprise organizations ✓
+  - Server-side filtering using GitHub's `privacy` parameter ✓
+  - Local filtering for INTERNAL repos (API limitation workaround) ✓
+  - Persistence of visibility filter preference in config ✓
+  - Modal navigation with arrow keys, Enter to select, Esc to cancel ✓
+  - Fixed issue with private repository filtering not working ✓
+  - Refactored to use RepoListHeader component consistently ✓
+  - Compact modal design to save screen space ✓
 
 ## Later
 
@@ -311,8 +331,13 @@ Legend:
 - [ ] Bulk actions
   - Multi‑select and apply action to selection
 
-- [ ] CLI flags
-  - e.g. `--org`, `--sort`, `--filter`, `--page-size`
+- [~] CLI flags (partial implementation)
+  - [x] `--version` / `-v` flag to show version
+  - [x] `--help` / `-h` flag to show usage
+  - [ ] `--org` to start with specific organization
+  - [ ] `--sort` to set initial sort field
+  - [ ] `--filter` to set initial filter
+  - [ ] `--page-size` to override default page size
 
 - [ ] Extended repo metadata
   - License, topics, issues count, watchers
@@ -371,7 +396,7 @@ Legend:
   - Shows detailed repository metadata
   - Displays size, language, timestamps, visibility
   - Modal overlay with ESC to close
-- [x] Cache inspection (`Ctrl+I`)
+- [x] Cache inspection (`K`)
   - Inspects Apollo cache status
   - Shows cache statistics and health
 - [x] Cache purging on refresh (`R` key)
@@ -382,6 +407,17 @@ Legend:
   - Smarter prefetch at 80% threshold instead of 5 items from end
   - Smoother scrolling experience with earlier data loading
 - [x] Packaging (npm)
-  - Published to npm with executable `gh-manager`
+  - Published to npm with executable `gh-manager-cli`
   - Verified bin field and shebang
   - Release notes automated via semantic-release
+- [x] Visibility filtering with modal interface
+  - Modal-based visibility filter (All, Public, Private, Internal)
+  - Server-side filtering for accurate pagination
+  - Persistence in config
+- [x] Sort modal interface
+  - Modal-based sort selection with descriptions
+  - Better UX than cycling through options
+- [x] Footer and layout improvements
+  - Reorganized footer into 3 logical lines
+  - Balanced repository item spacing
+  - Updated keyboard shortcuts
