@@ -2,7 +2,7 @@ import React, { useEffect, useMemo, useState, useRef } from 'react';
 import { Box, Text, useApp, useInput, useStdout, Spacer, Newline } from 'ink';
 import TextInput from 'ink-text-input';
 import chalk from 'chalk';
-import { makeClient, fetchViewerReposPageUnified, searchRepositoriesUnified, deleteRepositoryRest, archiveRepositoryById, unarchiveRepositoryById, changeRepositoryVisibility, syncForkWithUpstream, getRepositoryFromCache, purgeApolloCacheFiles, inspectCacheStatus, updateCacheAfterDelete, updateCacheAfterArchive, updateCacheAfterVisibilityChange, updateCacheWithRepository, checkOrganizationIsEnterprise, OwnerAffiliation } from '../github';
+import { makeClient, fetchViewerReposPageUnified, searchRepositoriesUnified, deleteRepositoryRest, archiveRepositoryById, unarchiveRepositoryById, changeRepositoryVisibility, syncForkWithUpstream, getRepositoryFromCache, purgeApolloCacheFiles, inspectCacheStatus, updateCacheAfterDelete, updateCacheAfterArchive, updateCacheAfterVisibilityChange, updateCacheWithRepository, checkOrganizationIsEnterprise, OwnerAffiliation, fetchViewerOrganizations } from '../github';
 import { getUIPrefs, storeUIPrefs, OwnerContext } from '../config';
 import { makeApolloKey, makeSearchKey, isFresh, markFetched } from '../apolloMeta';
 import type { RepoNode, RateLimitInfo } from '../types';
@@ -28,12 +28,13 @@ const getPageSize = () => {
 
 const PAGE_SIZE = getPageSize();
 
-export default function RepoList({ token, maxVisibleRows, onLogout, viewerLogin, onOrgContextChange }: { 
+export default function RepoList({ token, maxVisibleRows, onLogout, viewerLogin, onOrgContextChange, initialOrgSlug }: { 
   token: string; 
   maxVisibleRows?: number; 
   onLogout?: () => void; 
   viewerLogin?: string;
   onOrgContextChange?: (context: OwnerContext) => void;
+  initialOrgSlug?: string;
 }) {
   const { exit } = useApp();
   const { stdout } = useStdout();
@@ -137,6 +138,33 @@ export default function RepoList({ token, maxVisibleRows, onLogout, viewerLogin,
   
   // Sort modal state
   const [sortMode, setSortMode] = useState(false);
+
+  // Apply initial --org flag once (if provided)
+  const appliedInitialOrg = useRef(false);
+  useEffect(() => {
+    (async () => {
+      if (appliedInitialOrg.current) return;
+      if (!initialOrgSlug) return;
+      if (!token) return;
+      if (!prefsLoaded) {
+        // Wait until preferences are loaded so CLI flag can override
+        return;
+      }
+      appliedInitialOrg.current = true;
+      try {
+        const orgs = await fetchViewerOrganizations(client);
+        const match = orgs.find(o => o.login.toLowerCase() === initialOrgSlug.toLowerCase());
+        if (match) {
+          await handleOrgContextChange({ type: 'organization', login: match.login, name: match.name || undefined });
+          addDebugMessage(`[--org] Switched context to @${match.login}`);
+        } else {
+          addDebugMessage(`[--org] No access to org @${initialOrgSlug}, ignoring flag`);
+        }
+      } catch (e: any) {
+        addDebugMessage(`[--org] Failed to apply org flag: ${e.message || e}`);
+      }
+    })();
+  }, [initialOrgSlug, token, prefsLoaded]);
 
   function closeArchiveModal() {
     setArchiveMode(false);

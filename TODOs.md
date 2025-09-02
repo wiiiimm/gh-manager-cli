@@ -341,7 +341,9 @@ Legend:
 - [~] CLI flags (partial implementation)
   - [x] `--version` / `-v` flag to show version
   - [x] `--help` / `-h` flag to show usage
-  - [ ] `--org` to start with specific organization
+  - [x] `--org` to start with specific organization
+    - Launch with `--org <slug>` to jump to that organisation context if accessible; otherwise ignored
+    - Works with already authenticated session; overrides persisted context for the run
   - [ ] `--sort` to set initial sort field
   - [ ] `--filter` to set initial filter
   - [ ] `--page-size` to override default page size

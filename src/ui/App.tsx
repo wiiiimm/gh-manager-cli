@@ -13,7 +13,7 @@ const packageJson = require('../../package.json');
 
 type Mode = 'checking' | 'auth_method_selection' | 'prompt' | 'validating' | 'oauth_flow' | 'ready' | 'error' | 'rate_limited';
 
-export default function App() {
+export default function App({ initialOrgSlug }: { initialOrgSlug?: string }) {
   const { exit } = useApp();
   const { stdout } = useStdout();
   const [mode, setMode] = useState<Mode>('checking');
@@ -501,6 +501,7 @@ export default function App() {
         onLogout={handleLogout}
         viewerLogin={viewer ?? undefined}
         onOrgContextChange={setOrgContext}
+        initialOrgSlug={initialOrgSlug}
       />
     </Box>
   );
