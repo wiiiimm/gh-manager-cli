@@ -44,6 +44,16 @@ describe('RepoListHeader - Visibility Filter Display', () => {
     unmount();
   });
 
+  it('shows "Private/Internal" when visibility filter is private and isEnterprise is true', () => {
+    const { lastFrame, unmount } = render(
+      <RepoListHeader {...defaultProps} visibilityFilter="private" isEnterprise={true} />
+    );
+
+    const output = lastFrame() || '';
+    expect(output).toContain('Visibility: Private/Internal');
+    unmount();
+  });
+
   it('shows "Internal" when visibility filter is set to internal', () => {
     const { lastFrame, unmount } = render(
       <RepoListHeader {...defaultProps} visibilityFilter="internal" />
