@@ -172,7 +172,7 @@ describe('config', () => {
 
       expect(fs.writeFileSync).toHaveBeenCalledWith(
         expect.any(String),
-        JSON.stringify({ ...existingConfig, token: 'new-token', tokenVersion: 1 }, null, 2),
+        JSON.stringify({ ...existingConfig, token: 'new-token', tokenVersion: 1, tokenSource: 'pat' }, null, 2),
         'utf8'
       );
     });
@@ -186,7 +186,7 @@ describe('config', () => {
 
       expect(fs.writeFileSync).toHaveBeenCalledWith(
         expect.any(String),
-        JSON.stringify({ token: 'new-token', tokenVersion: 1 }, null, 2),
+        JSON.stringify({ token: 'new-token', tokenVersion: 1, tokenSource: 'pat' }, null, 2),
         'utf8'
       );
     });
