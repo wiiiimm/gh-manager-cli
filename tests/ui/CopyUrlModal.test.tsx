@@ -72,7 +72,7 @@ describe('CopyUrlModal', () => {
     const output = lastFrame() || '';
     expect(output).toContain('▶ git@github.com:owner/test-repo.git');
     expect(output).toContain('  https://github.com/owner/test-repo.git');
-    expect(output).toContain('Enter to copy SSH');
+    expect(output).toContain('Enter/Y to copy SSH');
     unmount();
   });
 
@@ -82,8 +82,8 @@ describe('CopyUrlModal', () => {
     const { lastFrame, unmount } = render(<CopyUrlModal {...defaultProps} />);
     
     const output = lastFrame() || '';
-    expect(output).toContain('↑↓ Select');
-    expect(output).toContain('Enter to copy SSH');
+    expect(output).toContain('↑↓←→ Select');
+    expect(output).toContain('Enter/Y to copy SSH');
     expect(output).toContain('S copy SSH');
     expect(output).toContain('H copy HTTPS');
     expect(output).toContain('Esc/Q/C to close');
@@ -154,7 +154,7 @@ describe('CopyUrlModal', () => {
     inputCallback('', { upArrow: true });
     rerender(<CopyUrlModal {...defaultProps} />);
     
-    expect(lastFrame()).toContain('Enter to copy SSH');
+    expect(lastFrame()).toContain('Enter/Y to copy SSH');
     unmount();
   });
 
@@ -171,7 +171,7 @@ describe('CopyUrlModal', () => {
     inputCallback('', { downArrow: true });
     rerender(<CopyUrlModal {...defaultProps} />);
     
-    expect(lastFrame()).toContain('Enter to copy HTTPS');
+    expect(lastFrame()).toContain('Enter/Y to copy HTTPS');
     unmount();
   });
 
@@ -246,17 +246,17 @@ describe('CopyUrlModal', () => {
     const { lastFrame, rerender, unmount } = render(<CopyUrlModal {...defaultProps} />);
 
     // Initial state - SSH is selected
-    expect(lastFrame()).toContain('Enter to copy SSH');
+    expect(lastFrame()).toContain('Enter/Y to copy SSH');
     
     // Simulate pressing down arrow to switch to HTTPS
     callbackRef('', { downArrow: true });
     rerender(<CopyUrlModal {...defaultProps} />);
-    expect(lastFrame()).toContain('Enter to copy HTTPS');
+    expect(lastFrame()).toContain('Enter/Y to copy HTTPS');
     
     // Simulate pressing up arrow to switch back to SSH
     callbackRef('', { upArrow: true });
     rerender(<CopyUrlModal {...defaultProps} />);
-    expect(lastFrame()).toContain('Enter to copy SSH');
+    expect(lastFrame()).toContain('Enter/Y to copy SSH');
     
     unmount();
   });
@@ -276,6 +276,102 @@ describe('CopyUrlModal', () => {
     await new Promise(r => setTimeout(r, 0));
     cb('', { return: true });
     expect(mockOnCopy).toHaveBeenCalledWith('https://github.com/owner/test-repo.git', 'HTTPS');
+    unmount();
+  });
+
+  it('handles left arrow navigation with wrap-around', () => {
+    let callbackRef: any;
+    mockUseInput.mockImplementation((callback: any) => {
+      callbackRef = callback;
+    });
+    
+    const { lastFrame, rerender, unmount } = render(<CopyUrlModal {...defaultProps} />);
+
+    // Initial state - SSH is selected
+    expect(lastFrame()).toContain('Enter/Y to copy SSH');
+    
+    // Simulate pressing left arrow - should wrap to HTTPS (last option)
+    callbackRef('', { leftArrow: true });
+    rerender(<CopyUrlModal {...defaultProps} />);
+    expect(lastFrame()).toContain('Enter/Y to copy HTTPS');
+    
+    // Simulate pressing left arrow again - should wrap back to SSH
+    callbackRef('', { leftArrow: true });
+    rerender(<CopyUrlModal {...defaultProps} />);
+    expect(lastFrame()).toContain('Enter/Y to copy SSH');
+    
+    unmount();
+  });
+
+  it('handles right arrow navigation with wrap-around', () => {
+    let callbackRef: any;
+    mockUseInput.mockImplementation((callback: any) => {
+      callbackRef = callback;
+    });
+    
+    const { lastFrame, rerender, unmount } = render(<CopyUrlModal {...defaultProps} />);
+
+    // Initial state - SSH is selected
+    expect(lastFrame()).toContain('Enter/Y to copy SSH');
+    
+    // Simulate pressing right arrow - should move to HTTPS
+    callbackRef('', { rightArrow: true });
+    rerender(<CopyUrlModal {...defaultProps} />);
+    expect(lastFrame()).toContain('Enter/Y to copy HTTPS');
+    
+    // Simulate pressing right arrow again - should wrap back to SSH
+    callbackRef('', { rightArrow: true });
+    rerender(<CopyUrlModal {...defaultProps} />);
+    expect(lastFrame()).toContain('Enter/Y to copy SSH');
+    
+    unmount();
+  });
+
+  it('handles Y key to copy selected option (lowercase)', () => {
+    const mockOnCopy = vi.fn().mockResolvedValue(undefined);
+    let inputCallback: any;
+    
+    mockUseInput.mockImplementation((callback: any) => {
+      inputCallback = callback;
+    });
+    
+    const { unmount } = render(<CopyUrlModal {...defaultProps} onCopy={mockOnCopy} />);
+    
+    // Simulate 'y' key (SSH should be selected by default)
+    inputCallback('y', {});
+    
+    expect(mockOnCopy).toHaveBeenCalledWith('git@github.com:owner/test-repo.git', 'SSH');
+    unmount();
+  });
+
+  it('handles Y key to copy selected option (uppercase)', () => {
+    const mockOnCopy = vi.fn().mockResolvedValue(undefined);
+    let inputCallback: any;
+    
+    mockUseInput.mockImplementation((callback: any) => {
+      inputCallback = callback;
+    });
+    
+    const { unmount } = render(<CopyUrlModal {...defaultProps} onCopy={mockOnCopy} />);
+    
+    // Simulate 'Y' key (SSH should be selected by default)
+    inputCallback('Y', {});
+    
+    expect(mockOnCopy).toHaveBeenCalledWith('git@github.com:owner/test-repo.git', 'SSH');
+    unmount();
+  });
+
+  it('shows updated footer instructions with new navigation options', () => {
+    mockUseInput.mockImplementation(() => {});
+    
+    const { lastFrame, unmount } = render(<CopyUrlModal {...defaultProps} />);
+    
+    const output = lastFrame() || '';
+    expect(output).toContain('↑↓←→ Select');
+    expect(output).toContain('Enter/Y to copy SSH');
+    expect(output).toContain('S copy SSH');
+    expect(output).toContain('H copy HTTPS');
+    expect(output).toContain('Esc/Q/C to close');
     unmount();
   });
 });
