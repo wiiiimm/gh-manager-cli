@@ -1180,10 +1180,11 @@ export async function updateCacheAfterRename(
   nameWithOwner: string
 ): Promise<void> {
   try {
-    const client = await getApolloClient(token);
+    const ap = await makeApolloClient(token);
+    if (!ap || !ap.client) return;
     
     // Update the repository in cache
-    client.cache.modify({
+    ap.client.cache.modify({
       id: `Repository:${repositoryId}`,
       fields: {
         name: () => newName,
