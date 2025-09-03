@@ -116,7 +116,7 @@ export default function RenameModal({ repo, onRename, onCancel }: RenameModalPro
       borderColor="cyan" 
       paddingX={3} 
       paddingY={2}
-      width={60}
+      width={80}
     >
       <Text bold color="cyan">Rename Repository</Text>
       <Box height={1}><Text> </Text></Box>
@@ -124,10 +124,10 @@ export default function RenameModal({ repo, onRename, onCancel }: RenameModalPro
       <Text color="gray">Current: {repo.nameWithOwner}</Text>
       <Box height={1}><Text> </Text></Box>
       
+      <Text>New name:</Text>
       <Box flexDirection="row" alignItems="center">
-        <Text>New name: {owner}/</Text>
         <Text color={inputMode ? 'yellow' : 'white'}>
-          {newName}
+          {owner}/{newName}
           {inputMode && chalk.gray('_')}
         </Text>
       </Box>
