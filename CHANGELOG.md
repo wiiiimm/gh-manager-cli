@@ -1,3 +1,10 @@
+# [1.20.0](https://github.com/wiiiimm/gh-manager-cli/compare/v1.19.2...v1.20.0) (2025-09-03)
+
+
+### Features
+
+* add repository rename functionality ([#23](https://github.com/wiiiimm/gh-manager-cli/issues/23)) ([4f25a7d](https://github.com/wiiiimm/gh-manager-cli/commit/4f25a7d080f678a91f846dddf78734d02fa69b91))
+
 ## [1.19.2](https://github.com/wiiiimm/gh-manager-cli/compare/v1.19.1...v1.19.2) (2025-09-03)
 
 
