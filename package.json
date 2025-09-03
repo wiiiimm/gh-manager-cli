@@ -46,6 +46,7 @@
     "@octokit/graphql": "^9.0.1",
     "apollo3-cache-persist": "^0.14.1",
     "chalk": "^5.6.0",
+    "clipboardy": "^4.0.0",
     "dotenv": "^17.2.1",
     "env-paths": "^3.0.0",
     "graphql": "^16.11.0",
