@@ -23,7 +23,9 @@ export default function CopyUrlModal({ repo, terminalWidth, onClose, onCopy }: C
     // Only handle input if repo is available
     if (!repo) return;
 
-    if (key.escape || (input && (input.toLowerCase() === 'c' || input.toLowerCase() === 'q'))) {
+    const ch = input?.toLowerCase();
+
+    if (key.escape || ch === 'c' || ch === 'q') {
       onClose();
       return;
     }
@@ -55,7 +57,7 @@ export default function CopyUrlModal({ repo, terminalWidth, onClose, onCopy }: C
     }
     
     // Enter key or Y key copies selected option
-    if (key.return || (input && input.toLowerCase() === 'y')) {
+    if (key.return || ch === 'y') {
       const sshUrl = `git@github.com:${repo.nameWithOwner}.git`;
       const httpsUrl = `https://github.com/${repo.nameWithOwner}.git`;
       const urlToCopy = selectedType === 'SSH' ? sshUrl : httpsUrl;
@@ -64,13 +66,13 @@ export default function CopyUrlModal({ repo, terminalWidth, onClose, onCopy }: C
     }
     
     // S/H shortcuts still work
-    if (input && input.toLowerCase() === 's') {
+    if (ch === 's') {
       const sshUrl = `git@github.com:${repo.nameWithOwner}.git`;
       handleCopy(sshUrl, 'SSH');
       return;
     }
     
-    if (input && input.toLowerCase() === 'h') {
+    if (ch === 'h') {
       const httpsUrl = `https://github.com/${repo.nameWithOwner}.git`;
       handleCopy(httpsUrl, 'HTTPS');
       return;
