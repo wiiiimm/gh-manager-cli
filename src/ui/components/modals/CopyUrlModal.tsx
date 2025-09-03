@@ -65,8 +65,9 @@ export default function CopyUrlModal({ repo, terminalWidth, onClose, onCopy }: C
       setCopyError(null);
       await onCopy(url, type);
       onClose();
-    } catch (error: any) {
-      setCopyError(`Failed to copy ${type} URL: ${error.message || 'Unknown error'}`);
+    } catch (error: unknown) {
+      const message = error instanceof Error ? error.message : String(error) || 'Unknown error';
+      setCopyError(`Failed to copy ${type} URL: ${message}`);
     }
   };
 
