@@ -1100,8 +1100,8 @@ export default function RepoList({ token, maxVisibleRows, onLogout, viewerLogin,
       return;
     }
 
-    // Rename modal (E for Edit name)
-    if (!key.ctrl && (input === 'e' || input === 'E')) {
+    // Rename modal (Ctrl+R)
+    if (key.ctrl && (input === 'r' || input === 'R')) {
       const repo = visibleItems[cursor];
       if (repo) {
         setRenameTarget(repo);
@@ -2051,7 +2051,7 @@ export default function RepoList({ token, maxVisibleRows, onLogout, viewerLogin,
         {/* Line 3: Action controls */}
         <Box width={terminalWidth} justifyContent="center">
           <Text color="gray" dimColor={modalOpen ? true : undefined}>
-            I Info • K Cache Info • E Rename • Ctrl+A Un/Archive • Ctrl+V Change Visibility • Del/Backspace Delete • Ctrl+S Sync Fork
+            I Info • K Cache Info • Ctrl+R Rename • Ctrl+A Un/Archive • Ctrl+V Change Visibility • Del/Backspace Delete • Ctrl+S Sync Fork
           </Text>
         </Box>
       </Box>
