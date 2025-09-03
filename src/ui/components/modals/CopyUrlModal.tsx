@@ -7,7 +7,7 @@ interface CopyUrlModalProps {
   repo: RepoNode | null;
   terminalWidth: number;
   onClose: () => void;
-  onCopy: (url: string, type: 'SSH' | 'HTTPS') => void;
+  onCopy: (url: string, type: 'SSH' | 'HTTPS') => Promise<void>;
 }
 
 type UrlType = 'SSH' | 'HTTPS';

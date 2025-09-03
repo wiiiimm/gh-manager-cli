@@ -152,6 +152,17 @@ export default function RepoList({ token, maxVisibleRows, onLogout, viewerLogin,
   const [copyUrlMode, setCopyUrlMode] = useState(false);
   const [copyUrlTarget, setCopyUrlTarget] = useState<RepoNode | null>(null);
   const [copyToast, setCopyToast] = useState<string | null>(null);
+  const copyToastTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // Cleanup toast timer on unmount
+  useEffect(() => {
+    return () => {
+      if (copyToastTimerRef.current) {
+        clearTimeout(copyToastTimerRef.current);
+        copyToastTimerRef.current = null;
+      }
+    };
+  }, []);
 
   // Apply initial --org flag once (if provided)
   const appliedInitialOrg = useRef(false);
@@ -226,14 +237,38 @@ export default function RepoList({ token, maxVisibleRows, onLogout, viewerLogin,
     setCopyToast(null);
   }
 
-  async function handleCopyUrl(url: string, type: 'SSH' | 'HTTPS') {
+  async function handleCopyUrl(url: string, type: 'SSH' | 'HTTPS'): Promise<void> {
     try {
+      // Clear any existing timer before setting a new one
+      if (copyToastTimerRef.current) {
+        clearTimeout(copyToastTimerRef.current);
+        copyToastTimerRef.current = null;
+      }
+      
       await copyToClipboard(url);
       setCopyToast(`Copied ${type} URL to clipboard`);
-      setTimeout(() => setCopyToast(null), 3000); // Clear toast after 3 seconds
-    } catch (error: any) {
-      setCopyToast(`Failed to copy ${type} URL: ${error.message || 'Unknown error'}`);
-      setTimeout(() => setCopyToast(null), 5000); // Clear error toast after 5 seconds
+      
+      // Set new timer for success toast
+      copyToastTimerRef.current = setTimeout(() => {
+        setCopyToast(null);
+        copyToastTimerRef.current = null;
+      }, 3000);
+    } catch (error: unknown) {
+      // Clear any existing timer before setting a new one
+      if (copyToastTimerRef.current) {
+        clearTimeout(copyToastTimerRef.current);
+        copyToastTimerRef.current = null;
+      }
+      
+      const message = error instanceof Error ? error.message : String(error) || 'Unknown error';
+      setCopyToast(`Failed to copy ${type} URL: ${message}`);
+      
+      // Set new timer for error toast
+      copyToastTimerRef.current = setTimeout(() => {
+        setCopyToast(null);
+        copyToastTimerRef.current = null;
+      }, 5000);
+      
       throw error; // Re-throw so modal can handle it
     }
   }
