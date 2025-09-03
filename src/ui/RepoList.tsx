@@ -891,6 +891,12 @@ export default function RepoList({ token, maxVisibleRows, onLogout, viewerLogin,
       return;
     }
 
+    // When in rename mode, trap ALL inputs for modal
+    // The modal's TextInput will handle the input
+    if (renameMode) {
+      return; // Let the modal handle everything
+    }
+    
     // When in archive mode, trap inputs for modal
     if (archiveMode) {
       if (key.escape || (input && input.toUpperCase() === 'C')) {
