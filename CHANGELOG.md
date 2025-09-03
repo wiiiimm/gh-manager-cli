@@ -1,3 +1,10 @@
+# [1.21.0](https://github.com/wiiiimm/gh-manager-cli/compare/v1.20.0...v1.21.0) (2025-09-03)
+
+
+### Features
+
+* add repository URL copying modal with interactive selection ([#24](https://github.com/wiiiimm/gh-manager-cli/issues/24)) ([45998e9](https://github.com/wiiiimm/gh-manager-cli/commit/45998e966805da7277a5fa6506e2b94c0d8dde39))
+
 # [1.20.0](https://github.com/wiiiimm/gh-manager-cli/compare/v1.19.2...v1.20.0) (2025-09-03)
 
 
