@@ -82,7 +82,7 @@ describe('CopyUrlModal', () => {
     const { lastFrame, unmount } = render(<CopyUrlModal {...defaultProps} />);
     
     const output = lastFrame() || '';
-    expect(output).toContain('↑↓←→ Select');
+    expect(output).toContain('↑↓ Select');
     expect(output).toContain('Enter/Y to copy SSH');
     expect(output).toContain('S copy SSH');
     expect(output).toContain('H copy HTTPS');
@@ -367,7 +367,7 @@ describe('CopyUrlModal', () => {
     const { lastFrame, unmount } = render(<CopyUrlModal {...defaultProps} />);
     
     const output = lastFrame() || '';
-    expect(output).toContain('↑↓←→ Select');
+    expect(output).toContain('↑↓ Select');
     expect(output).toContain('Enter/Y to copy SSH');
     expect(output).toContain('S copy SSH');
     expect(output).toContain('H copy HTTPS');

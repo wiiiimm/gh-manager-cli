@@ -138,7 +138,7 @@ export default function CopyUrlModal({ repo, terminalWidth, onClose, onCopy }: C
       <Box height={1}><Text> </Text></Box>
 
       <Text color="gray">
-        ↑↓←→ Select • Enter/Y to copy {selectedType} • S copy SSH • H copy HTTPS • Esc/Q/C to close
+        ↑↓ Select • Enter/Y to copy {selectedType} • S copy SSH • H copy HTTPS • Esc/Q/C to close
       </Text>
       
       {copyError && (
