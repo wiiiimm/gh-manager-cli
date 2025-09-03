@@ -12,6 +12,7 @@
 - ✅ Infinite scroll and pagination
 - ✅ Semantic release automation and CI/CD workflows
 - ✅ Automated changelog generation and PR title management
+- ✅ Repository rename functionality with modal interface (v1.20.0)
 - 🔧 UI spacing consistency across terminals (ongoing)
 - 🔧 Cross-terminal rendering optimization
 
@@ -65,6 +66,10 @@ gh-manager-cli/
 - Keyboard navigation (Up/Down, PageUp/PageDown, g/G, r, q/Esc)
 - Infinite scroll with automatic pagination
 - Real-time totalCount refresh to reflect new repos
+- Repository rename with `Ctrl+R` (modal with real-time validation)
+- Archive/unarchive repositories with `Ctrl+A`
+- Delete repositories with `Del` or `Backspace` (two-step confirmation)
+- Change visibility with `Ctrl+V` (Public/Private/Internal)
 
 ### Planned Enhancements
 See the living roadmap in [TODOs.md](./TODOs.md) for the canonical, up-to-date list. Key near-term items include:
@@ -234,6 +239,21 @@ First run prompts for a PAT if not provided via env vars. The token is validated
 - **Cause:** Different ANSI escape sequence handling and Yoga layout engine interpretations
 - **Current Solution:** Using chalk to pre-color strings before passing to single Text component
 - **Ongoing:** Testing various spacing approaches (Box with minHeight, empty components)
+
+### Repository Rename Feature (v1.20.0)
+- **Implementation:** Modal-based interface with TextInput component
+- **Keyboard Shortcut:** `Ctrl+R` triggers rename modal
+- **Validation:** Real-time filtering of invalid GitHub repo name characters (only allows alphanumeric, hyphens, underscores, periods)
+- **API:** GraphQL `updateRepository` mutation with Apollo cache updates
+- **Key Files:**
+  - `src/ui/components/modals/RenameModal.tsx` - Modal component with input validation
+  - `src/github.ts` - `renameRepositoryById` function and `updateCacheAfterRename` for cache management
+  - `src/ui/RepoList.tsx` - Integration and keyboard shortcut handling
+- **Test Coverage:** 70% code coverage for RenameModal component
+- **Known Considerations:**
+  - Modal input traps all keyboard events to prevent propagation
+  - Uses `makeApolloClient` for cache updates (not `getApolloClient`)
+  - Included in `modalOpen` calculation for proper UI dimming
 
 ### Key Code Patterns
 ```tsx
