@@ -2,17 +2,17 @@ import React, { useEffect, useMemo, useState, useRef, useCallback } from 'react'
 import { Box, Text, useApp, useInput, useStdout, Spacer, Newline } from 'ink';
 import TextInput from 'ink-text-input';
 import chalk from 'chalk';
-import { makeClient, fetchViewerReposPageUnified, searchRepositoriesUnified, deleteRepositoryRest, archiveRepositoryById, unarchiveRepositoryById, changeRepositoryVisibility, syncForkWithUpstream, getRepositoryFromCache, purgeApolloCacheFiles, inspectCacheStatus, updateCacheAfterDelete, updateCacheAfterArchive, updateCacheAfterVisibilityChange, updateCacheWithRepository, checkOrganizationIsEnterprise, OwnerAffiliation, fetchViewerOrganizations, renameRepositoryById, updateCacheAfterRename } from '../github';
+import { makeClient, fetchViewerReposPageUnified, searchRepositoriesUnified, deleteRepositoryRest, archiveRepositoryById, unarchiveRepositoryById, changeRepositoryVisibility, syncForkWithUpstream, getRepositoryFromCache, purgeApolloCacheFiles, inspectCacheStatus, updateCacheAfterDelete, updateCacheAfterArchive, updateCacheAfterVisibilityChange, updateCacheWithRepository, checkOrganizationIsEnterprise, OwnerAffiliation, fetchViewerOrganizations, fetchRestRateLimits } from '../github';
 import { getUIPrefs, storeUIPrefs, OwnerContext } from '../config';
 import { makeApolloKey, makeSearchKey, isFresh, markFetched } from '../apolloMeta';
-import type { RepoNode, RateLimitInfo } from '../types';
+import type { RepoNode, RateLimitInfo, RestRateLimitInfo } from '../types';
 import { exec } from 'child_process';
 import OrgSwitcher from './OrgSwitcher';
 import { logger } from '../logger';
-import { DeleteModal, ArchiveModal, SyncModal, InfoModal, LogoutModal, VisibilityModal, SortModal, ChangeVisibilityModal, RenameModal, CopyUrlModal } from './components/modals';
+import { DeleteModal, ArchiveModal, SyncModal, InfoModal, LogoutModal, VisibilityModal, SortModal, ChangeVisibilityModal } from './components/modals';
 import { RepoRow, FilterInput, RepoListHeader } from './components/repo';
 import { SlowSpinner } from './components/common';
-import { truncate, formatDate, copyToClipboard } from '../utils';
+import { truncate, formatDate } from '../utils';
 
 // Allow customizable repos per fetch via env var (1-50, default 15)
 const getPageSize = () => {
@@ -82,6 +82,8 @@ export default function RepoList({ token, maxVisibleRows, onLogout, viewerLogin,
   const [error, setError] = useState<string | null>(null);
   const [rateLimit, setRateLimit] = useState<RateLimitInfo | undefined>(undefined);
   const [prevRateLimit, setPrevRateLimit] = useState<number | undefined>(undefined);
+  const [restRateLimit, setRestRateLimit] = useState<RestRateLimitInfo | undefined>(undefined);
+  const [prevRestRateLimit, setPrevRestRateLimit] = useState<number | undefined>(undefined);
   // Display density: 0 = compact (0 lines), 1 = cozy (1 line), 2 = comfy (2 lines)
   const [density, setDensity] = useState<0 | 1 | 2>(2);
   const [prefsLoaded, setPrefsLoaded] = useState(false);
@@ -114,9 +116,6 @@ export default function RepoList({ token, maxVisibleRows, onLogout, viewerLogin,
   const [archiveError, setArchiveError] = useState<string | null>(null);
   const [archiveFocus, setArchiveFocus] = useState<'confirm' | 'cancel'>('confirm');
 
-  // Rename modal state
-  const [renameMode, setRenameMode] = useState(false);
-  const [renameTarget, setRenameTarget] = useState<RepoNode | null>(null);
   // Sync modal state
   const [syncMode, setSyncMode] = useState(false);
   const [syncTarget, setSyncTarget] = useState<RepoNode | null>(null);
@@ -147,22 +146,6 @@ export default function RepoList({ token, maxVisibleRows, onLogout, viewerLogin,
   
   // Sort modal state
   const [sortMode, setSortMode] = useState(false);
-
-  // Copy URL modal state
-  const [copyUrlMode, setCopyUrlMode] = useState(false);
-  const [copyUrlTarget, setCopyUrlTarget] = useState<RepoNode | null>(null);
-  const [copyToast, setCopyToast] = useState<string | null>(null);
-  const copyToastTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-
-  // Cleanup toast timer on unmount
-  useEffect(() => {
-    return () => {
-      if (copyToastTimerRef.current) {
-        clearTimeout(copyToastTimerRef.current);
-        copyToastTimerRef.current = null;
-      }
-    };
-  }, []);
 
   // Apply initial --org flag once (if provided)
   const appliedInitialOrg = useRef(false);
@@ -203,11 +186,6 @@ export default function RepoList({ token, maxVisibleRows, onLogout, viewerLogin,
     setArchiveError(null);
     setArchiveFocus('confirm');
   }
-
-  function closeRenameModal() {
-    setRenameMode(false);
-    setRenameTarget(null);
-  }
   
   function closeChangeVisibilityModal() {
     setChangeVisibilityMode(false);
@@ -223,54 +201,6 @@ export default function RepoList({ token, maxVisibleRows, onLogout, viewerLogin,
     setSyncError(null);
     setSyncFocus('confirm');
     setSyncTrigger(false);
-  }
-
-  function openCopyUrlModal(repo: RepoNode) {
-    setCopyUrlMode(true);
-    setCopyUrlTarget(repo);
-    setCopyToast(null);
-  }
-
-  function closeCopyUrlModal() {
-    setCopyUrlMode(false);
-    setCopyUrlTarget(null);
-    setCopyToast(null);
-  }
-
-  async function handleCopyUrl(url: string, type: 'SSH' | 'HTTPS'): Promise<void> {
-    try {
-      // Clear any existing timer before setting a new one
-      if (copyToastTimerRef.current) {
-        clearTimeout(copyToastTimerRef.current);
-        copyToastTimerRef.current = null;
-      }
-      
-      await copyToClipboard(url);
-      setCopyToast(`Copied ${type} URL to clipboard`);
-      
-      // Set new timer for success toast
-      copyToastTimerRef.current = setTimeout(() => {
-        setCopyToast(null);
-        copyToastTimerRef.current = null;
-      }, 3000);
-    } catch (error: unknown) {
-      // Clear any existing timer before setting a new one
-      if (copyToastTimerRef.current) {
-        clearTimeout(copyToastTimerRef.current);
-        copyToastTimerRef.current = null;
-      }
-      
-      const message = error instanceof Error ? error.message : String(error) || 'Unknown error';
-      setCopyToast(`Failed to copy ${type} URL: ${message}`);
-      
-      // Set new timer for error toast
-      copyToastTimerRef.current = setTimeout(() => {
-        setCopyToast(null);
-        copyToastTimerRef.current = null;
-      }, 5000);
-      
-      throw error; // Re-throw so modal can handle it
-    }
   }
   
   // Single sync execution function to prevent duplicate operations
@@ -351,30 +281,6 @@ export default function RepoList({ token, maxVisibleRows, onLogout, viewerLogin,
       setArchiving(false);
       setArchiveError('Failed to update archive state. Check permissions.');
       // Keep modal open on error
-    }
-  }
-
-  async function executeRename(repo: RepoNode, newName: string) {
-    if (!repo || !newName.trim()) return;
-    
-    try {
-      const id = (repo as any).id;
-      const owner = repo.nameWithOwner.split('/')[0];
-      const newNameWithOwner = `${owner}/${newName}`;
-      
-      await renameRepositoryById(client, id, newName);
-      
-      // Update Apollo cache
-      await updateCacheAfterRename(token, id, newName, newNameWithOwner);
-      
-      // Update both regular items and search items  
-      const updateRepo = (r: any) => (r.id === id ? { ...r, name: newName, nameWithOwner: newNameWithOwner } : r);
-      setItems(prev => prev.map(updateRepo));
-      setSearchItems(prev => prev.map(updateRepo));
-      
-      closeRenameModal();
-    } catch (error: any) {
-      throw error; // Let the modal handle the error
     }
   }
   
@@ -637,6 +543,16 @@ export default function RepoList({ token, maxVisibleRows, onLogout, viewerLogin,
         setPrevRateLimit(rateLimit.remaining);
       }
       setRateLimit(page.rateLimit);
+      
+      // Fetch REST rate limits too
+      fetchRestRateLimits(token).then(restLimits => {
+        if (restLimits && restRateLimit) {
+          setPrevRestRateLimit(restRateLimit.core.remaining);
+        }
+        if (restLimits) {
+          setRestRateLimit(restLimits);
+        }
+      });
       setError(null);
     } catch (e: any) {
       logger.error('Failed to fetch repositories in RepoList', {
@@ -904,7 +820,7 @@ export default function RepoList({ token, maxVisibleRows, onLogout, viewerLogin,
         return;
       }
       // Retry on 'R'
-      if (input && input.toUpperCase() === 'R' && !key.ctrl) {
+      if (input && input.toUpperCase() === 'R') {
         setCursor(0);
         setRefreshing(true);
         setSortingLoading(true);
@@ -959,12 +875,6 @@ export default function RepoList({ token, maxVisibleRows, onLogout, viewerLogin,
       return;
     }
 
-    // When in rename mode, trap ALL inputs for modal
-    // The modal's TextInput will handle the input
-    if (renameMode) {
-      return; // Let the modal handle everything
-    }
-    
     // When in archive mode, trap inputs for modal
     if (archiveMode) {
       if (key.escape || (input && input.toUpperCase() === 'C')) {
@@ -1062,11 +972,6 @@ export default function RepoList({ token, maxVisibleRows, onLogout, viewerLogin,
       return; // SortModal component handles its own keyboard input
     }
 
-    // When copy URL modal is open, trap inputs for modal
-    if (copyUrlMode) {
-      return; // CopyUrlModal component handles its own keyboard input
-    }
-
     // When in filter mode, only handle input for the TextInput
     if (filterMode) {
       if (key.escape) {
@@ -1149,7 +1054,7 @@ export default function RepoList({ token, maxVisibleRows, onLogout, viewerLogin,
       setCursor(visibleItems.length - 1);
       return;
     }
-    if (input && input.toUpperCase() === 'R' && !key.ctrl) {
+    if (input && input.toUpperCase() === 'R') {
       // Refresh - show loading screen
       setCursor(0);
       setRefreshing(true);
@@ -1175,16 +1080,6 @@ export default function RepoList({ token, maxVisibleRows, onLogout, viewerLogin,
         setArchiveError(null);
         setArchiving(false);
         setArchiveFocus('confirm');
-      }
-      return;
-    }
-
-    // Rename modal (Ctrl+R)
-    if (key.ctrl && (input === 'r' || input === 'R')) {
-      const repo = visibleItems[cursor];
-      if (repo) {
-        setRenameTarget(repo);
-        setRenameMode(true);
       }
       return;
     }
@@ -1260,15 +1155,6 @@ export default function RepoList({ token, maxVisibleRows, onLogout, viewerLogin,
         })();
       }
       setInfoMode(true);
-      return;
-    }
-
-    // Copy repository URL modal (C)
-    if (input && input.toUpperCase() === 'C') {
-      const repo = visibleItems[cursor];
-      if (repo) {
-        openCopyUrlModal(repo);
-      }
       return;
     }
     
@@ -1422,7 +1308,7 @@ export default function RepoList({ token, maxVisibleRows, onLogout, viewerLogin,
 
   // Calculate fixed heights for layout sections and list area
   const headerHeight = 2; // Header bar + margin
-  const footerHeight = 5; // Footer with border + margin (4 lines + spacing)
+  const footerHeight = 4; // Footer with border + margin (flexible height)
   const containerPadding = 2; // Top and bottom padding inside container
   const contentHeight = Math.max(1, availableHeight - headerHeight - footerHeight - containerPadding);
   const listHeight = Math.max(1, contentHeight - (filterMode ? 2 : 0) - 2);
@@ -1474,8 +1360,9 @@ export default function RepoList({ token, maxVisibleRows, onLogout, viewerLogin,
     exec(cmd);
   }
 
-  const lowRate = rateLimit && rateLimit.remaining <= Math.ceil(rateLimit.limit * 0.1);
-  const modalOpen = deleteMode || archiveMode || syncMode || logoutMode || infoMode || visibilityMode || renameMode || sortMode || changeVisibilityMode || copyUrlMode;
+  const lowRate = (rateLimit && rateLimit.remaining <= Math.ceil(rateLimit.limit * 0.1)) || 
+                   (restRateLimit && restRateLimit.core.remaining <= Math.ceil(restRateLimit.core.limit * 0.1));
+  const modalOpen = deleteMode || archiveMode || syncMode || logoutMode || infoMode || visibilityMode;
 
   // Memoize header to prevent re-renders - must be before any returns
   const headerBar = useMemo(() => (
@@ -1498,19 +1385,34 @@ export default function RepoList({ token, maxVisibleRows, onLogout, viewerLogin,
         )}
       </Box>
       
-      {rateLimit && (
+      {(rateLimit || restRateLimit) && (
         <Text color={lowRate ? 'yellow' : 'gray'}>
-          API: {rateLimit.remaining}/{rateLimit.limit}
-          {prevRateLimit !== undefined && prevRateLimit !== rateLimit.remaining && (
-            <Text color={rateLimit.remaining < prevRateLimit ? 'red' : 'green'}>
-              {` (${rateLimit.remaining - prevRateLimit > 0 ? '+' : ''}${rateLimit.remaining - prevRateLimit})`}
-            </Text>
+          {rateLimit && (
+            <>
+              GraphQL: {rateLimit.remaining}/{rateLimit.limit}
+              {prevRateLimit !== undefined && prevRateLimit !== rateLimit.remaining && (
+                <Text color={rateLimit.remaining < prevRateLimit ? 'red' : 'green'}>
+                  {` (${rateLimit.remaining - prevRateLimit > 0 ? '+' : ''}${rateLimit.remaining - prevRateLimit})`}
+                </Text>
+              )}
+            </>
+          )}
+          {rateLimit && restRateLimit && ' | '}
+          {restRateLimit && (
+            <>
+              REST: {restRateLimit.core.remaining}/{restRateLimit.core.limit}
+              {prevRestRateLimit !== undefined && prevRestRateLimit !== restRateLimit.core.remaining && (
+                <Text color={restRateLimit.core.remaining < prevRestRateLimit ? 'red' : 'green'}>
+                  {` (${restRateLimit.core.remaining - prevRestRateLimit > 0 ? '+' : ''}${restRateLimit.core.remaining - prevRestRateLimit})`}
+                </Text>
+              )}
+            </>
           )}
           {'  '}
         </Text>
       )}
     </Box>
-  ), [visibleItems.length, searchActive, searchTotalCount, totalCount, loading, searchLoading, rateLimit, lowRate, modalOpen, prevRateLimit, ownerContext, isEnterpriseOrg]);
+  ), [visibleItems.length, searchActive, searchTotalCount, totalCount, loading, searchLoading, rateLimit, lowRate, modalOpen, prevRateLimit, ownerContext, isEnterpriseOrg, restRateLimit, prevRestRateLimit]);
 
   if (error) {
     return (
@@ -1799,14 +1701,6 @@ export default function RepoList({ token, maxVisibleRows, onLogout, viewerLogin,
               )}
             </Box>
           </Box>
-        ) : renameMode && renameTarget ? (
-          <Box height={contentHeight} alignItems="center" justifyContent="center">
-            <RenameModal
-              repo={renameTarget}
-              onRename={executeRename}
-              onCancel={closeRenameModal}
-            />
-          </Box>
         ) : syncMode && syncTarget ? (
           <Box height={contentHeight} alignItems="center" justifyContent="center">
             <Box flexDirection="column" borderStyle="round" borderColor="blue" paddingX={3} paddingY={2} width={Math.min(terminalWidth - 8, 80)}>
@@ -2014,15 +1908,6 @@ export default function RepoList({ token, maxVisibleRows, onLogout, viewerLogin,
               error={changeVisibilityError}
             />
           </Box>
-        ) : copyUrlMode ? (
-          <Box height={contentHeight} alignItems="center" justifyContent="center">
-            <CopyUrlModal
-              repo={copyUrlTarget}
-              terminalWidth={terminalWidth}
-              onClose={closeCopyUrlModal}
-              onCopy={handleCopyUrl}
-            />
-          </Box>
         ) : (
           <>
             {/* Context/Filter/sort status */}
@@ -2131,30 +2016,24 @@ export default function RepoList({ token, maxVisibleRows, onLogout, viewerLogin,
         )}
       </Box>
 
-      {/* Help footer - 4 lines */}
+      {/* Help footer - 3 lines */}
       <Box marginTop={1} paddingX={1} flexDirection="column">
-        {/* Line 1: Basic navigation */}
+        {/* Line 1: Navigation controls */}
         <Box width={terminalWidth} justifyContent="center">
           <Text color="gray" dimColor={modalOpen ? true : undefined}>
-            ↑↓ Navigate • Ctrl+G Top • G Bottom • ⏎/O Open • R Refresh
+            ↑↓ Navigate • ⏎/O Open • R Refresh • W Org Switch • Ctrl+L Logout • Q Quit
           </Text>
         </Box>
-        {/* Line 2: Search and filtering */}
+        {/* Line 2: View and filter controls */}
         <Box width={terminalWidth} justifyContent="center">
           <Text color="gray" dimColor={modalOpen ? true : undefined}>
-            / Search • S Sort • D Direction • T Density • F Fork Status • V Visibility
+            Ctrl+G Top • G Bottom • / Search • S Sort • D Direction • T Density • F Fork Status • V Visibility
           </Text>
         </Box>
-        {/* Line 3: Repository actions */}
+        {/* Line 3: Action controls */}
         <Box width={terminalWidth} justifyContent="center">
           <Text color="gray" dimColor={modalOpen ? true : undefined}>
-            I Info • C Copy URL • Ctrl+R Rename • Ctrl+A Un/Archive • Ctrl+V Change Visibility • Ctrl+S Sync Fork
-          </Text>
-        </Box>
-        {/* Line 4: System controls */}
-        <Box width={terminalWidth} justifyContent="center">
-          <Text color="gray" dimColor={modalOpen ? true : undefined}>
-            K Cache Info • W Org Switch • Del/Backspace Delete • Ctrl+L Logout • Q Quit
+            I Info • K Cache Info • Ctrl+A Un/Archive • Ctrl+V Change Visibility • Del/Backspace Delete • Ctrl+S Sync Fork
           </Text>
         </Box>
       </Box>
@@ -2170,15 +2049,6 @@ export default function RepoList({ token, maxVisibleRows, onLogout, viewerLogin,
               <Text key={i} color="gray">{msg}</Text>
             ))
           )}
-        </Box>
-      )}
-
-      {/* Copy toast notification */}
-      {copyToast && (
-        <Box marginTop={1} justifyContent="center">
-          <Box borderStyle="round" borderColor={copyToast.includes('Failed') ? 'red' : 'green'} paddingX={2} paddingY={0}>
-            <Text color={copyToast.includes('Failed') ? 'red' : 'green'}>{copyToast}</Text>
-          </Box>
         </Box>
       )}
     </Box>
