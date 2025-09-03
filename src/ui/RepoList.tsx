@@ -2,14 +2,14 @@ import React, { useEffect, useMemo, useState, useRef, useCallback } from 'react'
 import { Box, Text, useApp, useInput, useStdout, Spacer, Newline } from 'ink';
 import TextInput from 'ink-text-input';
 import chalk from 'chalk';
-import { makeClient, fetchViewerReposPageUnified, searchRepositoriesUnified, deleteRepositoryRest, archiveRepositoryById, unarchiveRepositoryById, changeRepositoryVisibility, syncForkWithUpstream, getRepositoryFromCache, purgeApolloCacheFiles, inspectCacheStatus, updateCacheAfterDelete, updateCacheAfterArchive, updateCacheAfterVisibilityChange, updateCacheWithRepository, checkOrganizationIsEnterprise, OwnerAffiliation, fetchViewerOrganizations } from '../github';
+import { makeClient, fetchViewerReposPageUnified, searchRepositoriesUnified, deleteRepositoryRest, archiveRepositoryById, unarchiveRepositoryById, changeRepositoryVisibility, syncForkWithUpstream, getRepositoryFromCache, purgeApolloCacheFiles, inspectCacheStatus, updateCacheAfterDelete, updateCacheAfterArchive, updateCacheAfterVisibilityChange, updateCacheWithRepository, checkOrganizationIsEnterprise, OwnerAffiliation, fetchViewerOrganizations, renameRepositoryById, updateCacheAfterRename } from '../github';
 import { getUIPrefs, storeUIPrefs, OwnerContext } from '../config';
 import { makeApolloKey, makeSearchKey, isFresh, markFetched } from '../apolloMeta';
 import type { RepoNode, RateLimitInfo } from '../types';
 import { exec } from 'child_process';
 import OrgSwitcher from './OrgSwitcher';
 import { logger } from '../logger';
-import { DeleteModal, ArchiveModal, SyncModal, InfoModal, LogoutModal, VisibilityModal, SortModal, ChangeVisibilityModal } from './components/modals';
+import { DeleteModal, ArchiveModal, SyncModal, InfoModal, LogoutModal, VisibilityModal, SortModal, ChangeVisibilityModal, RenameModal } from './components/modals';
 import { RepoRow, FilterInput, RepoListHeader } from './components/repo';
 import { SlowSpinner } from './components/common';
 import { truncate, formatDate } from '../utils';
@@ -114,6 +114,9 @@ export default function RepoList({ token, maxVisibleRows, onLogout, viewerLogin,
   const [archiveError, setArchiveError] = useState<string | null>(null);
   const [archiveFocus, setArchiveFocus] = useState<'confirm' | 'cancel'>('confirm');
 
+  // Rename modal state
+  const [renameMode, setRenameMode] = useState(false);
+  const [renameTarget, setRenameTarget] = useState<RepoNode | null>(null);
   // Sync modal state
   const [syncMode, setSyncMode] = useState(false);
   const [syncTarget, setSyncTarget] = useState<RepoNode | null>(null);
@@ -183,6 +186,11 @@ export default function RepoList({ token, maxVisibleRows, onLogout, viewerLogin,
     setArchiving(false);
     setArchiveError(null);
     setArchiveFocus('confirm');
+  }
+
+  function closeRenameModal() {
+    setRenameMode(false);
+    setRenameTarget(null);
   }
   
   function closeChangeVisibilityModal() {
@@ -279,6 +287,30 @@ export default function RepoList({ token, maxVisibleRows, onLogout, viewerLogin,
       setArchiving(false);
       setArchiveError('Failed to update archive state. Check permissions.');
       // Keep modal open on error
+    }
+  }
+
+  async function executeRename(repo: RepoNode, newName: string) {
+    if (!repo || !newName.trim()) return;
+    
+    try {
+      const id = (repo as any).id;
+      const owner = repo.nameWithOwner.split('/')[0];
+      const newNameWithOwner = `${owner}/${newName}`;
+      
+      await renameRepositoryById(client, id, newName);
+      
+      // Update Apollo cache
+      await updateCacheAfterRename(token, id, newName, newNameWithOwner);
+      
+      // Update both regular items and search items  
+      const updateRepo = (r: any) => (r.id === id ? { ...r, name: newName, nameWithOwner: newNameWithOwner } : r);
+      setItems(prev => prev.map(updateRepo));
+      setSearchItems(prev => prev.map(updateRepo));
+      
+      closeRenameModal();
+    } catch (error: any) {
+      throw error; // Let the modal handle the error
     }
   }
   
@@ -808,7 +840,7 @@ export default function RepoList({ token, maxVisibleRows, onLogout, viewerLogin,
         return;
       }
       // Retry on 'R'
-      if (input && input.toUpperCase() === 'R') {
+      if (input && input.toUpperCase() === 'R' && !key.ctrl) {
         setCursor(0);
         setRefreshing(true);
         setSortingLoading(true);
@@ -863,6 +895,12 @@ export default function RepoList({ token, maxVisibleRows, onLogout, viewerLogin,
       return;
     }
 
+    // When in rename mode, trap ALL inputs for modal
+    // The modal's TextInput will handle the input
+    if (renameMode) {
+      return; // Let the modal handle everything
+    }
+    
     // When in archive mode, trap inputs for modal
     if (archiveMode) {
       if (key.escape || (input && input.toUpperCase() === 'C')) {
@@ -1042,7 +1080,7 @@ export default function RepoList({ token, maxVisibleRows, onLogout, viewerLogin,
       setCursor(visibleItems.length - 1);
       return;
     }
-    if (input && input.toUpperCase() === 'R') {
+    if (input && input.toUpperCase() === 'R' && !key.ctrl) {
       // Refresh - show loading screen
       setCursor(0);
       setRefreshing(true);
@@ -1068,6 +1106,16 @@ export default function RepoList({ token, maxVisibleRows, onLogout, viewerLogin,
         setArchiveError(null);
         setArchiving(false);
         setArchiveFocus('confirm');
+      }
+      return;
+    }
+
+    // Rename modal (Ctrl+R)
+    if (key.ctrl && (input === 'r' || input === 'R')) {
+      const repo = visibleItems[cursor];
+      if (repo) {
+        setRenameTarget(repo);
+        setRenameMode(true);
       }
       return;
     }
@@ -1349,7 +1397,7 @@ export default function RepoList({ token, maxVisibleRows, onLogout, viewerLogin,
   }
 
   const lowRate = rateLimit && rateLimit.remaining <= Math.ceil(rateLimit.limit * 0.1);
-  const modalOpen = deleteMode || archiveMode || syncMode || logoutMode || infoMode || visibilityMode;
+  const modalOpen = deleteMode || archiveMode || syncMode || logoutMode || infoMode || visibilityMode || renameMode;
 
   // Memoize header to prevent re-renders - must be before any returns
   const headerBar = useMemo(() => (
@@ -1672,6 +1720,14 @@ export default function RepoList({ token, maxVisibleRows, onLogout, viewerLogin,
                 </Box>
               )}
             </Box>
+          </Box>
+        ) : renameMode && renameTarget ? (
+          <Box height={contentHeight} alignItems="center" justifyContent="center">
+            <RenameModal
+              repo={renameTarget}
+              onRename={executeRename}
+              onCancel={closeRenameModal}
+            />
           </Box>
         ) : syncMode && syncTarget ? (
           <Box height={contentHeight} alignItems="center" justifyContent="center">
@@ -2005,7 +2061,7 @@ export default function RepoList({ token, maxVisibleRows, onLogout, viewerLogin,
         {/* Line 3: Action controls */}
         <Box width={terminalWidth} justifyContent="center">
           <Text color="gray" dimColor={modalOpen ? true : undefined}>
-            I Info • K Cache Info • Ctrl+A Un/Archive • Ctrl+V Change Visibility • Del/Backspace Delete • Ctrl+S Sync Fork
+            I Info • K Cache Info • Ctrl+R Rename • Ctrl+A Un/Archive • Ctrl+V Change Visibility • Del/Backspace Delete • Ctrl+S Sync Fork
           </Text>
         </Box>
       </Box>
