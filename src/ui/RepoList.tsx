@@ -836,7 +836,7 @@ export default function RepoList({ token, maxVisibleRows, onLogout, viewerLogin,
         return;
       }
       // Retry on 'R'
-      if (input && input.toUpperCase() === 'R') {
+      if (input && input.toUpperCase() === 'R' && !key.ctrl) {
         setCursor(0);
         setRefreshing(true);
         setSortingLoading(true);
@@ -1070,7 +1070,7 @@ export default function RepoList({ token, maxVisibleRows, onLogout, viewerLogin,
       setCursor(visibleItems.length - 1);
       return;
     }
-    if (input && input.toUpperCase() === 'R') {
+    if (input && input.toUpperCase() === 'R' && !key.ctrl) {
       // Refresh - show loading screen
       setCursor(0);
       setRefreshing(true);
