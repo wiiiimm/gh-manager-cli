@@ -141,6 +141,35 @@ describe('CopyUrlModal', () => {
     unmount();
   });
 
+  it('handles copy failure and shows error message', async () => {
+    const mockOnCopy = vi.fn().mockRejectedValue(new Error('copy failed'));
+    const mockOnClose = vi.fn();
+    let inputCallback: any;
+    
+    mockUseInput.mockImplementation((callback: any) => {
+      inputCallback = callback;
+    });
+    
+    const { lastFrame, unmount } = render(
+      <CopyUrlModal {...defaultProps} onCopy={mockOnCopy} onClose={mockOnClose} />
+    );
+    
+    // Simulate 'h' key to attempt HTTPS copy
+    inputCallback('h', {});
+    
+    // Wait for async error handling
+    await new Promise(resolve => setTimeout(resolve, 0));
+    
+    // Should show error message in the UI
+    const output = lastFrame() || '';
+    expect(output).toContain('Failed to copy HTTPS URL: copy failed');
+    
+    // Modal should remain open (onClose not called)
+    expect(mockOnClose).not.toHaveBeenCalled();
+    
+    unmount();
+  });
+
   it('handles up arrow to select SSH', () => {
     let inputCallback: any;
     
