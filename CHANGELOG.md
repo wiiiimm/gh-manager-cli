@@ -1,3 +1,13 @@
+## [Unreleased]
+
+### Features
+
+* **repository:** add repository rename functionality with modal interface ([#23](https://github.com/wiiiimm/gh-manager-cli/pull/23))
+  - Keyboard shortcut `Ctrl+R` to trigger rename modal
+  - Real-time validation of GitHub repository names
+  - GraphQL mutation with Apollo cache updates
+  - Comprehensive test coverage (70% for new component)
+
 ## [1.19.2](https://github.com/wiiiimm/gh-manager-cli/compare/v1.19.1...v1.19.2) (2025-09-03)
 
 

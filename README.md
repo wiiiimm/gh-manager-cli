@@ -62,6 +62,7 @@ On first run, you'll be prompted to authenticate with GitHub (OAuth recommended)
   - Open in browser (Enter/`O`)
   - Delete repository (`Del` or `Backspace`) with secure two-step confirmation
   - Archive/unarchive repositories (`Ctrl+A`) with confirmation prompts
+  - Rename repository (`Ctrl+R`) with real-time validation
   - Change repository visibility (`Ctrl+V`) - Switch between Public, Private, and Internal (enterprise only)
   - Sync forks with upstream (`Ctrl+S`) with automatic conflict detection
 
@@ -258,6 +259,9 @@ Launch the app, then use the keys below:
 - **Repository info**: `I` to view detailed metadata (size, language, timestamps)
 - **Cache info**: `K` to inspect Apollo cache status
 - **Archive/Unarchive**: `Ctrl+A` with confirmation prompt
+- **Rename repository**: `Ctrl+R` to rename (with real-time validation)
+  - Enter new name → confirm (Enter)
+  - Cancel: press Esc
 - **Change visibility**: `Ctrl+V` to change repository visibility (Public/Private/Internal)
 - **Delete repository**: `Del` or `Backspace` (with two-step confirmation modal)
   - Type confirmation code → confirm (Y/Enter)
@@ -306,7 +310,7 @@ Project layout:
 - `src/ui/App.tsx` — token bootstrap, renders `RepoList`
 - `src/ui/RepoList.tsx` — main list UI with modal management
 - `src/ui/components/` — modular components (modals, repo, common)
-  - `modals/` — DeleteModal, ArchiveModal, SyncModal, InfoModal, LogoutModal
+  - `modals/` — DeleteModal, ArchiveModal, RenameModal, SyncModal, InfoModal, LogoutModal
   - `repo/` — RepoRow, FilterInput, RepoListHeader
   - `common/` — SlowSpinner and shared UI elements
 - `src/ui/OrgSwitcher.tsx` — organization switching component
@@ -423,7 +427,8 @@ For the up-to-date task board, see [TODOs.md](./TODOs.md).
 Recently implemented:
 - ✅ OAuth login flow as an alternative to Personal Access Token
 - ✅ Density toggle for row spacing (compact/cozy/comfy)
-- ✅ Repo actions (archive/unarchive, delete, change visibility) with confirmations
+- ✅ Repo actions (archive/unarchive, delete, rename, change visibility) with confirmations
+- ✅ Repository renaming with real-time validation (`Ctrl+R`)
 - ✅ Organization support and switching (press `W`) with enterprise detection
 - ✅ Enhanced server-side search with improved UX and organization context support
 - ✅ Smart infinite scroll with 80% prefetch trigger
@@ -435,7 +440,6 @@ Recently implemented:
 Highlights on deck:
 - Optional OS keychain storage via `keytar`
 - Bulk selection and actions
-- Repository renaming
 
 ## License
 
