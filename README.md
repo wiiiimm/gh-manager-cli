@@ -74,7 +74,7 @@ On first run, you'll be prompted to authenticate with GitHub (OAuth recommended)
 - **Interactive Modals**: Sort selection, visibility filtering, organization switching, and visibility change dialogs
 - **Balanced Layout**: Repository items with spacing above and below for better visual hierarchy
 - **Loading States**: Contextual loading screens for sorting and refreshing operations
-- **Rate Limit Monitoring**: Live API usage display with visual warnings
+- **Rate Limit Monitoring**: Dual API rate limit display (GraphQL & REST) with real-time usage deltas and visual warnings
 
 ### Technical Features
 - **Preference Persistence**: UI settings (sort, density, visibility filter, fork tracking) saved between sessions
@@ -431,6 +431,7 @@ Recently implemented:
 - ✅ GitHub Enterprise support with Internal repository visibility
 - ✅ Change repository visibility modal (`Ctrl+V`)
 - ✅ Compact filter modals for better screen space utilization
+- ✅ Enhanced rate limit display showing both GraphQL and REST API limits with delta tracking
 
 Highlights on deck:
 - Optional OS keychain storage via `keytar`
