@@ -1387,27 +1387,7 @@ export default function RepoList({ token, maxVisibleRows, onLogout, viewerLogin,
       
       {(rateLimit || restRateLimit) && (
         <Text color={lowRate ? 'yellow' : 'gray'}>
-          {rateLimit && (
-            <>
-              GraphQL: {rateLimit.remaining}/{rateLimit.limit}
-              {prevRateLimit !== undefined && prevRateLimit !== rateLimit.remaining && (
-                <Text color={rateLimit.remaining < prevRateLimit ? 'red' : 'green'}>
-                  {` (${rateLimit.remaining - prevRateLimit > 0 ? '+' : ''}${rateLimit.remaining - prevRateLimit})`}
-                </Text>
-              )}
-            </>
-          )}
-          {rateLimit && restRateLimit && ' | '}
-          {restRateLimit && (
-            <>
-              REST: {restRateLimit.core.remaining}/{restRateLimit.core.limit}
-              {prevRestRateLimit !== undefined && prevRestRateLimit !== restRateLimit.core.remaining && (
-                <Text color={restRateLimit.core.remaining < prevRestRateLimit ? 'red' : 'green'}>
-                  {` (${restRateLimit.core.remaining - prevRestRateLimit > 0 ? '+' : ''}${restRateLimit.core.remaining - prevRestRateLimit})`}
-                </Text>
-              )}
-            </>
-          )}
+          API: {rateLimit ? `${rateLimit.remaining}/${rateLimit.limit}` : '---/---'} | {restRateLimit ? `${restRateLimit.core.remaining}/${restRateLimit.core.limit}` : '---/---'}
           {'  '}
         </Text>
       )}
