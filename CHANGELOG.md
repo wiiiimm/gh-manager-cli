@@ -1,3 +1,17 @@
+## [1.19.2](https://github.com/wiiiimm/gh-manager-cli/compare/v1.19.1...v1.19.2) (2025-09-03)
+
+
+### Bug Fixes
+
+* clear search filter when switching organization context ([a5df0bf](https://github.com/wiiiimm/gh-manager-cli/commit/a5df0bf5f23e08019bd5225d847d68288a62a74f))
+
+## [1.19.1](https://github.com/wiiiimm/gh-manager-cli/compare/v1.19.0...v1.19.1) (2025-09-02)
+
+
+### Bug Fixes
+
+* clear repository list immediately on context switch ([73c75af](https://github.com/wiiiimm/gh-manager-cli/commit/73c75afd725fa2640acc03e8381c4bc0598c6bf1))
+
 # [1.19.0](https://github.com/wiiiimm/gh-manager-cli/compare/v1.18.1...v1.19.0) (2025-09-02)
 
 

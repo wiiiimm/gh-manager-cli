@@ -407,7 +407,7 @@ APOLLO_TTL_MS=1800000 npx gh-manager-cli
 GH_MANAGER_DEBUG=1 npx gh-manager-cli
 
 # Combine multiple environment variables
-REPOS_PER_FETCH=5 GH_MANAGER_DEBUG=1 npx gh-manager-cli-cli
+REPOS_PER_FETCH=5 GH_MANAGER_DEBUG=1 npx gh-manager-cli
 ```
 
 ## Troubleshooting
