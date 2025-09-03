@@ -1,3 +1,10 @@
+# [1.22.0](https://github.com/wiiiimm/gh-manager-cli/compare/v1.21.0...v1.22.0) (2025-09-03)
+
+
+### Features
+
+* reorganize main UI footer into 4 logical groups ([bf61102](https://github.com/wiiiimm/gh-manager-cli/commit/bf61102745487cc79cf346d8b71bd5361893cc4c))
+
 # [1.21.0](https://github.com/wiiiimm/gh-manager-cli/compare/v1.20.0...v1.21.0) (2025-09-03)
 
 
