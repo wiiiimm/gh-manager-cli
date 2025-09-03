@@ -1393,7 +1393,7 @@ export default function RepoList({ token, maxVisibleRows, onLogout, viewerLogin,
   }
 
   const lowRate = rateLimit && rateLimit.remaining <= Math.ceil(rateLimit.limit * 0.1);
-  const modalOpen = deleteMode || archiveMode || syncMode || logoutMode || infoMode || visibilityMode;
+  const modalOpen = deleteMode || archiveMode || syncMode || logoutMode || infoMode || visibilityMode || renameMode;
 
   // Memoize header to prevent re-renders - must be before any returns
   const headerBar = useMemo(() => (

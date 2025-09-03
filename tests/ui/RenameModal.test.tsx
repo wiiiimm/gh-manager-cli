@@ -16,10 +16,34 @@ vi.mock('ink', async () => {
 vi.mock('ink-text-input', async () => {
   const { Text } = await vi.importActual('ink');
   const React = await vi.importActual('react');
-  return {
-    default: ({ value, onChange, placeholder }: any) => {
-      return React.createElement(Text, {}, `TextInput[value="${value}" placeholder="${placeholder || ''}"]`);
+  
+  // Create controller inside the mock factory to avoid hoisting issues
+  const textInputController = {
+    onChange: null as any,
+    onSubmit: null as any,
+    type: function(text: string) {
+      if (this.onChange) {
+        // Simulate typing character by character
+        for (let i = 1; i <= text.length; i++) {
+          this.onChange(text.slice(0, i));
+        }
+      }
+    },
+    submit: function() {
+      if (this.onSubmit) {
+        this.onSubmit();
+      }
     }
+  };
+  
+  return {
+    default: ({ value, onChange, onSubmit, placeholder }: any) => {
+      // Register the handlers so controller can call them
+      textInputController.onChange = onChange;
+      textInputController.onSubmit = onSubmit;
+      return React.createElement(Text, {}, `TextInput[value="${value}" placeholder="${placeholder || ''}"]`);
+    },
+    __controller: textInputController
   };
 });
 
