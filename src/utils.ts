@@ -33,29 +33,47 @@ export async function copyToClipboard(text: string): Promise<void> {
     await clipboardy.write(text);
     return;
   } catch (error) {
-    // Fallback to OS-specific commands
-    const { exec } = await import('child_process');
+    // Fallback to OS-specific commands using spawn for security
+    const { spawn } = await import('child_process');
     const { promisify } = await import('util');
-    const execAsync = promisify(exec);
+
+    const spawnCommand = (command: string, args: string[] = []): Promise<void> => {
+      return new Promise((resolve, reject) => {
+        const child = spawn(command, args, { stdio: ['pipe', 'pipe', 'pipe'] });
+        
+        child.stdin.write(text);
+        child.stdin.end();
+        
+        child.on('close', (code) => {
+          if (code === 0) {
+            resolve();
+          } else {
+            reject(new Error(`Command failed with code ${code}`));
+          }
+        });
+        
+        child.on('error', reject);
+      });
+    };
 
     try {
       const platform = process.platform;
       
       if (platform === 'darwin') {
         // macOS - use pbcopy
-        await execAsync(`echo "${text.replace(/"/g, '\\"')}" | pbcopy`);
+        await spawnCommand('pbcopy');
       } else if (platform === 'win32') {
         // Windows - use clip
-        await execAsync(`echo "${text.replace(/"/g, '\\"')}" | clip`);
+        await spawnCommand('clip');
       } else {
         // Linux - try xclip, xsel, or wl-copy
         try {
-          await execAsync(`echo "${text.replace(/"/g, '\\"')}" | xclip -selection clipboard`);
+          await spawnCommand('xclip', ['-selection', 'clipboard']);
         } catch {
           try {
-            await execAsync(`echo "${text.replace(/"/g, '\\"')}" | xsel --clipboard --input`);
+            await spawnCommand('xsel', ['--clipboard', '--input']);
           } catch {
-            await execAsync(`echo "${text.replace(/"/g, '\\"')}" | wl-copy`);
+            await spawnCommand('wl-copy');
           }
         }
       }

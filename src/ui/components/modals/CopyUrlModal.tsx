@@ -25,7 +25,7 @@ export default function CopyUrlModal({ repo, terminalWidth, onClose, onCopy }: C
 
   // Handle keyboard input
   useInput((input, key) => {
-    if (key.escape || input.toLowerCase() === 'c' || input.toLowerCase() === 'q') {
+    if (key.escape || (input && (input.toLowerCase() === 'c' || input.toLowerCase() === 'q'))) {
       onClose();
       return;
     }
@@ -49,12 +49,12 @@ export default function CopyUrlModal({ repo, terminalWidth, onClose, onCopy }: C
     }
     
     // S/H shortcuts still work
-    if (input.toLowerCase() === 's') {
+    if (input && input.toLowerCase() === 's') {
       handleCopy(sshUrl, 'SSH');
       return;
     }
     
-    if (input.toLowerCase() === 'h') {
+    if (input && input.toLowerCase() === 'h') {
       handleCopy(httpsUrl, 'HTTPS');
       return;
     }
