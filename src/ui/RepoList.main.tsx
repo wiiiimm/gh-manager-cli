@@ -231,6 +231,10 @@ export default function RepoList({ token, maxVisibleRows, onLogout, viewerLogin,
     setTotalCount(0);
     setSearchTotalCount(0);
     
+    // Clear search filter when switching context
+    setFilter('');
+    setFilterMode(false);
+    
     // Update affiliations based on context
     const newAffiliations = newContext === 'personal' 
       ? ['OWNER'] as OwnerAffiliation[]

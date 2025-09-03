@@ -342,6 +342,10 @@ export default function RepoList({ token, maxVisibleRows, onLogout, viewerLogin,
     setTotalCount(0);
     setSearchTotalCount(0);
     
+    // Clear search filter when switching context
+    setFilter('');
+    setFilterMode(false);
+    
     // Reset visibility filter to 'all' when switching organizations
     setVisibilityFilter('all');
     
