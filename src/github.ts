@@ -1173,6 +1173,68 @@ export async function updateCacheWithRepository(token: string, repository: RepoN
   } catch {}
 }
 
+export async function updateCacheAfterRename(
+  token: string,
+  repositoryId: string,
+  newName: string,
+  nameWithOwner: string
+): Promise<void> {
+  try {
+    const client = await getApolloClient(token);
+    
+    // Update the repository in cache
+    client.cache.modify({
+      id: `Repository:${repositoryId}`,
+      fields: {
+        name: () => newName,
+        nameWithOwner: () => nameWithOwner
+      }
+    });
+  } catch {}
+}
+
+export async function renameRepositoryById(
+  client: ReturnType<typeof makeClient>,
+  repositoryId: string,
+  newName: string
+): Promise<void> {
+  logger.info('Renaming repository', {
+    repositoryId,
+    newName
+  });
+
+  const mutation = /* GraphQL */ `
+    mutation RenameRepo($repositoryId: ID!, $name: String!) {
+      updateRepository(input: { repositoryId: $repositoryId, name: $name }) {
+        repository {
+          id
+          name
+          nameWithOwner
+        }
+      }
+    }
+  `;
+  
+  try {
+    const result = await client.mutate({
+      mutation,
+      variables: { repositoryId, name: newName }
+    });
+    
+    logger.info('Repository renamed successfully', {
+      repositoryId,
+      newName: result.data?.updateRepository?.repository?.name
+    });
+  } catch (error: any) {
+    logger.error('Failed to rename repository', {
+      repositoryId,
+      newName,
+      error: error.message
+    });
+    throw error;
+  }
+}
+
 // Debug function to inspect cache status - using stderr to bypass Ink UI
 export async function inspectCacheStatus(): Promise<void> {
   try {
