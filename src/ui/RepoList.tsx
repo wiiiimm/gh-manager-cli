@@ -9,10 +9,10 @@ import type { RepoNode, RateLimitInfo } from '../types';
 import { exec } from 'child_process';
 import OrgSwitcher from './OrgSwitcher';
 import { logger } from '../logger';
-import { DeleteModal, ArchiveModal, SyncModal, InfoModal, LogoutModal, VisibilityModal, SortModal, ChangeVisibilityModal, RenameModal } from './components/modals';
+import { DeleteModal, ArchiveModal, SyncModal, InfoModal, LogoutModal, VisibilityModal, SortModal, ChangeVisibilityModal, RenameModal, CopyUrlModal } from './components/modals';
 import { RepoRow, FilterInput, RepoListHeader } from './components/repo';
 import { SlowSpinner } from './components/common';
-import { truncate, formatDate } from '../utils';
+import { truncate, formatDate, copyToClipboard } from '../utils';
 
 // Allow customizable repos per fetch via env var (1-50, default 15)
 const getPageSize = () => {
@@ -148,6 +148,22 @@ export default function RepoList({ token, maxVisibleRows, onLogout, viewerLogin,
   // Sort modal state
   const [sortMode, setSortMode] = useState(false);
 
+  // Copy URL modal state
+  const [copyUrlMode, setCopyUrlMode] = useState(false);
+  const [copyUrlTarget, setCopyUrlTarget] = useState<RepoNode | null>(null);
+  const [copyToast, setCopyToast] = useState<string | null>(null);
+  const copyToastTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // Cleanup toast timer on unmount
+  useEffect(() => {
+    return () => {
+      if (copyToastTimerRef.current) {
+        clearTimeout(copyToastTimerRef.current);
+        copyToastTimerRef.current = null;
+      }
+    };
+  }, []);
+
   // Apply initial --org flag once (if provided)
   const appliedInitialOrg = useRef(false);
   useEffect(() => {
@@ -207,6 +223,54 @@ export default function RepoList({ token, maxVisibleRows, onLogout, viewerLogin,
     setSyncError(null);
     setSyncFocus('confirm');
     setSyncTrigger(false);
+  }
+
+  function openCopyUrlModal(repo: RepoNode) {
+    setCopyUrlMode(true);
+    setCopyUrlTarget(repo);
+    setCopyToast(null);
+  }
+
+  function closeCopyUrlModal() {
+    setCopyUrlMode(false);
+    setCopyUrlTarget(null);
+    setCopyToast(null);
+  }
+
+  async function handleCopyUrl(url: string, type: 'SSH' | 'HTTPS'): Promise<void> {
+    try {
+      // Clear any existing timer before setting a new one
+      if (copyToastTimerRef.current) {
+        clearTimeout(copyToastTimerRef.current);
+        copyToastTimerRef.current = null;
+      }
+      
+      await copyToClipboard(url);
+      setCopyToast(`Copied ${type} URL to clipboard`);
+      
+      // Set new timer for success toast
+      copyToastTimerRef.current = setTimeout(() => {
+        setCopyToast(null);
+        copyToastTimerRef.current = null;
+      }, 3000);
+    } catch (error: unknown) {
+      // Clear any existing timer before setting a new one
+      if (copyToastTimerRef.current) {
+        clearTimeout(copyToastTimerRef.current);
+        copyToastTimerRef.current = null;
+      }
+      
+      const message = error instanceof Error ? error.message : String(error) || 'Unknown error';
+      setCopyToast(`Failed to copy ${type} URL: ${message}`);
+      
+      // Set new timer for error toast
+      copyToastTimerRef.current = setTimeout(() => {
+        setCopyToast(null);
+        copyToastTimerRef.current = null;
+      }, 5000);
+      
+      throw error; // Re-throw so modal can handle it
+    }
   }
   
   // Single sync execution function to prevent duplicate operations
@@ -998,6 +1062,11 @@ export default function RepoList({ token, maxVisibleRows, onLogout, viewerLogin,
       return; // SortModal component handles its own keyboard input
     }
 
+    // When copy URL modal is open, trap inputs for modal
+    if (copyUrlMode) {
+      return; // CopyUrlModal component handles its own keyboard input
+    }
+
     // When in filter mode, only handle input for the TextInput
     if (filterMode) {
       if (key.escape) {
@@ -1191,6 +1260,15 @@ export default function RepoList({ token, maxVisibleRows, onLogout, viewerLogin,
         })();
       }
       setInfoMode(true);
+      return;
+    }
+
+    // Copy repository URL modal (C)
+    if (input && input.toUpperCase() === 'C') {
+      const repo = visibleItems[cursor];
+      if (repo) {
+        openCopyUrlModal(repo);
+      }
       return;
     }
     
@@ -1397,7 +1475,7 @@ export default function RepoList({ token, maxVisibleRows, onLogout, viewerLogin,
   }
 
   const lowRate = rateLimit && rateLimit.remaining <= Math.ceil(rateLimit.limit * 0.1);
-  const modalOpen = deleteMode || archiveMode || syncMode || logoutMode || infoMode || visibilityMode || renameMode;
+  const modalOpen = deleteMode || archiveMode || syncMode || logoutMode || infoMode || visibilityMode || renameMode || sortMode || changeVisibilityMode || copyUrlMode;
 
   // Memoize header to prevent re-renders - must be before any returns
   const headerBar = useMemo(() => (
@@ -1936,6 +2014,15 @@ export default function RepoList({ token, maxVisibleRows, onLogout, viewerLogin,
               error={changeVisibilityError}
             />
           </Box>
+        ) : copyUrlMode ? (
+          <Box height={contentHeight} alignItems="center" justifyContent="center">
+            <CopyUrlModal
+              repo={copyUrlTarget}
+              terminalWidth={terminalWidth}
+              onClose={closeCopyUrlModal}
+              onCopy={handleCopyUrl}
+            />
+          </Box>
         ) : (
           <>
             {/* Context/Filter/sort status */}
@@ -2061,7 +2148,7 @@ export default function RepoList({ token, maxVisibleRows, onLogout, viewerLogin,
         {/* Line 3: Action controls */}
         <Box width={terminalWidth} justifyContent="center">
           <Text color="gray" dimColor={modalOpen ? true : undefined}>
-            I Info • K Cache Info • Ctrl+R Rename • Ctrl+A Un/Archive • Ctrl+V Change Visibility • Del/Backspace Delete • Ctrl+S Sync Fork
+            I Info • C Copy URL • K Cache Info • Ctrl+R Rename • Ctrl+A Un/Archive • Ctrl+V Change Visibility • Del/Backspace Delete • Ctrl+S Sync Fork
           </Text>
         </Box>
       </Box>
@@ -2077,6 +2164,15 @@ export default function RepoList({ token, maxVisibleRows, onLogout, viewerLogin,
               <Text key={i} color="gray">{msg}</Text>
             ))
           )}
+        </Box>
+      )}
+
+      {/* Copy toast notification */}
+      {copyToast && (
+        <Box marginTop={1} justifyContent="center">
+          <Box borderStyle="round" borderColor={copyToast.includes('Failed') ? 'red' : 'green'} paddingX={2} paddingY={0}>
+            <Text color={copyToast.includes('Failed') ? 'red' : 'green'}>{copyToast}</Text>
+          </Box>
         </Box>
       )}
     </Box>
