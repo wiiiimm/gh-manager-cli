@@ -1216,14 +1216,11 @@ export async function renameRepositoryById(
   `;
   
   try {
-    const result = await client.mutate({
-      mutation,
-      variables: { repositoryId, name: newName }
-    });
+    const result = await client(mutation, { repositoryId, name: newName });
     
     logger.info('Repository renamed successfully', {
       repositoryId,
-      newName: result.data?.updateRepository?.repository?.name
+      newName: result?.updateRepository?.repository?.name
     });
   } catch (error: any) {
     logger.error('Failed to rename repository', {
