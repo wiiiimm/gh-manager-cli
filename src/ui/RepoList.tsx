@@ -1422,7 +1422,7 @@ export default function RepoList({ token, maxVisibleRows, onLogout, viewerLogin,
 
   // Calculate fixed heights for layout sections and list area
   const headerHeight = 2; // Header bar + margin
-  const footerHeight = 4; // Footer with border + margin (flexible height)
+  const footerHeight = 5; // Footer with border + margin (4 lines + spacing)
   const containerPadding = 2; // Top and bottom padding inside container
   const contentHeight = Math.max(1, availableHeight - headerHeight - footerHeight - containerPadding);
   const listHeight = Math.max(1, contentHeight - (filterMode ? 2 : 0) - 2);
@@ -2131,24 +2131,30 @@ export default function RepoList({ token, maxVisibleRows, onLogout, viewerLogin,
         )}
       </Box>
 
-      {/* Help footer - 3 lines */}
+      {/* Help footer - 4 lines */}
       <Box marginTop={1} paddingX={1} flexDirection="column">
-        {/* Line 1: Navigation controls */}
+        {/* Line 1: Basic navigation */}
         <Box width={terminalWidth} justifyContent="center">
           <Text color="gray" dimColor={modalOpen ? true : undefined}>
-            ↑↓ Navigate • ⏎/O Open • R Refresh • W Org Switch • Ctrl+L Logout • Q Quit
+            ↑↓ Navigate • Ctrl+G Top • G Bottom • ⏎/O Open • R Refresh
           </Text>
         </Box>
-        {/* Line 2: View and filter controls */}
+        {/* Line 2: Search and filtering */}
         <Box width={terminalWidth} justifyContent="center">
           <Text color="gray" dimColor={modalOpen ? true : undefined}>
-            Ctrl+G Top • G Bottom • / Search • S Sort • D Direction • T Density • F Fork Status • V Visibility
+            / Search • S Sort • D Direction • T Density • F Fork Status • V Visibility
           </Text>
         </Box>
-        {/* Line 3: Action controls */}
+        {/* Line 3: Repository actions */}
         <Box width={terminalWidth} justifyContent="center">
           <Text color="gray" dimColor={modalOpen ? true : undefined}>
-            I Info • C Copy URL • K Cache Info • Ctrl+R Rename • Ctrl+A Un/Archive • Ctrl+V Change Visibility • Del/Backspace Delete • Ctrl+S Sync Fork
+            I Info • C Copy URL • Ctrl+R Rename • Ctrl+A Un/Archive • Ctrl+V Change Visibility • Ctrl+S Sync Fork
+          </Text>
+        </Box>
+        {/* Line 4: System controls */}
+        <Box width={terminalWidth} justifyContent="center">
+          <Text color="gray" dimColor={modalOpen ? true : undefined}>
+            K Cache Info • W Org Switch • Del/Backspace Delete • Ctrl+L Logout • Q Quit
           </Text>
         </Box>
       </Box>
