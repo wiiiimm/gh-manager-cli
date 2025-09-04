@@ -6,6 +6,4 @@ export { default as LogoutModal } from './LogoutModal';
 export { default as VisibilityModal } from './VisibilityModal';
 export { default as SortModal } from './SortModal';
 export { ChangeVisibilityModal } from './ChangeVisibilityModal';
-export { default as RenameModal } from './RenameModal';
-export { default as CopyUrlModal } from './CopyUrlModal';
 

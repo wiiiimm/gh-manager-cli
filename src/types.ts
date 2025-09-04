@@ -52,6 +52,24 @@ export interface RateLimitInfo {
   resetAt: string; // ISO
 }
 
+export interface RestRateLimitInfo {
+  core: {
+    limit: number;
+    remaining: number;
+    reset: number; // Unix timestamp
+  };
+  graphql: {
+    limit: number;
+    remaining: number;
+    reset: number; // Unix timestamp
+  };
+}
+
+export interface CombinedRateLimitInfo {
+  graphql?: RateLimitInfo;
+  rest?: RestRateLimitInfo;
+}
+
 export interface OrganizationNode {
   id: string;
   login: string;

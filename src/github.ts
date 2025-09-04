@@ -4,7 +4,7 @@ import { persistCache } from 'apollo3-cache-persist';
 import fs from 'fs';
 import path from 'path';
 import envPaths from 'env-paths';
-import type { RepoNode, RateLimitInfo } from './types';
+import type { RepoNode, RateLimitInfo, RestRateLimitInfo, CombinedRateLimitInfo } from './types';
 import { logger } from './logger';
 
 export function makeClient(token: string) {
@@ -1173,67 +1173,48 @@ export async function updateCacheWithRepository(token: string, repository: RepoN
   } catch {}
 }
 
-export async function updateCacheAfterRename(
-  token: string,
-  repositoryId: string,
-  newName: string,
-  nameWithOwner: string
-): Promise<void> {
+// Debug function to inspect cache status - using stderr to bypass Ink UI
+// Fetch REST API rate limits
+export async function fetchRestRateLimits(token: string): Promise<RestRateLimitInfo | null> {
   try {
-    const ap = await makeApolloClient(token);
-    if (!ap || !ap.client) return;
+    logger.debug('Fetching REST API rate limits');
     
-    // Update the repository in cache
-    ap.client.cache.modify({
-      id: `Repository:${repositoryId}`,
-      fields: {
-        name: () => newName,
-        nameWithOwner: () => nameWithOwner
+    const response = await fetch('https://api.github.com/rate_limit', {
+      headers: {
+        'Authorization': `token ${token}`,
+        'Accept': 'application/vnd.github+json',
+        'User-Agent': 'gh-manager-cli'
       }
     });
-  } catch {}
-}
-
-export async function renameRepositoryById(
-  client: ReturnType<typeof makeClient>,
-  repositoryId: string,
-  newName: string
-): Promise<void> {
-  logger.info('Renaming repository', {
-    repositoryId,
-    newName
-  });
-
-  const mutation = /* GraphQL */ `
-    mutation RenameRepo($repositoryId: ID!, $name: String!) {
-      updateRepository(input: { repositoryId: $repositoryId, name: $name }) {
-        repository {
-          id
-          name
-          nameWithOwner
-        }
-      }
+    
+    if (!response.ok) {
+      logger.error('Failed to fetch REST rate limits', {
+        status: response.status,
+        statusText: response.statusText
+      });
+      return null;
     }
-  `;
-  
-  try {
-    const result = await client(mutation, { repositoryId, name: newName });
     
-    logger.info('Repository renamed successfully', {
-      repositoryId,
-      newName: result?.updateRepository?.repository?.name
+    const data = await response.json();
+    
+    logger.debug('Successfully fetched REST rate limits', {
+      core: data.resources?.core,
+      graphql: data.resources?.graphql
     });
+    
+    return {
+      core: data.resources?.core || { limit: 0, remaining: 0, reset: 0 },
+      graphql: data.resources?.graphql || { limit: 0, remaining: 0, reset: 0 }
+    };
   } catch (error: any) {
-    logger.error('Failed to rename repository', {
-      repositoryId,
-      newName,
-      error: error.message
+    logger.error('Error fetching REST rate limits', {
+      error: error.message,
+      stack: error.stack
     });
-    throw error;
+    return null;
   }
 }
 
-// Debug function to inspect cache status - using stderr to bypass Ink UI
 export async function inspectCacheStatus(): Promise<void> {
   try {
     const fs = await import('fs');
