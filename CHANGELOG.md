@@ -1,3 +1,10 @@
+# [1.23.0](https://github.com/wiiiimm/gh-manager-cli/compare/v1.22.0...v1.23.0) (2025-09-04)
+
+
+### Features
+
+* Enhanced rate limit display showing both GraphQL and REST API limits ([#25](https://github.com/wiiiimm/gh-manager-cli/issues/25)) ([1220a0f](https://github.com/wiiiimm/gh-manager-cli/commit/1220a0fe04da035dafab2ce8555a73ff95b96ea1))
+
 ## [1.19.2](https://github.com/wiiiimm/gh-manager-cli/compare/v1.19.1...v1.19.2) (2025-09-03)
 
 
