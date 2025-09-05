@@ -1,6 +1,4 @@
-<p align="center">
-  <img src="docs/assets/logo-horizontal.png" alt="gh-manager-cli logo" width="400" />
-</p>
+<img src="docs/assets/logo-horizontal.png" alt="gh-manager-cli logo" width="400" />
 
 # gh-manager-cli
 
