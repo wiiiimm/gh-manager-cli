@@ -111,7 +111,7 @@ npx gh-manager-cli@latest
 Install globally for persistent `gh-manager-cli` command:
 
 ```bash
-npm install -g gh-manager-cli
+npm install -g gh-manager-cli@latest
 gh-manager-cli
 ```
 
