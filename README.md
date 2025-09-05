@@ -1,3 +1,5 @@
+<img src="docs/assets/logo-horizontal.png" alt="gh-manager-cli logo" width="400" />
+
 # gh-manager-cli
 
 [![npm version](https://img.shields.io/npm/v/gh-manager-cli.svg)](https://www.npmjs.com/package/gh-manager-cli)
@@ -10,8 +12,30 @@
 
 Interactive terminal app to browse and manage your personal GitHub repositories. Built with Ink (React for CLIs) and the GitHub GraphQL API.
 
+🌐 **Visit our website:** [gh-manager-cli.dev](https://gh-manager-cli.dev) | [Source](https://github.com/wiiiimm/gh-manager-cli-site) | Hosted on [Vercel](https://vercel.com)
+
+## 🧹 Clean Up Your GitHub Account in Minutes
+
+**Stop clicking through GitHub's slow web interface.** Managing dozens of repos on github.com means endless page loads, multiple clicks per action, and no keyboard shortcuts. 
+
+`gh-manager-cli` replaces tedious web clicking with powerful terminal commands:
+
+### ❌ GitHub Website Pain Points → ✅ Our Solution
+- **Slow pagination** (20 repos/page) → View all repos instantly with smooth scrolling
+- **Multiple clicks per action** → Single keypress for any operation  
+- **No bulk operations** → Archive, delete, or modify multiple repos at once
+- **Buried settings menus** → Direct keyboard shortcuts for everything
+- **Page refresh after each action** → Instant updates with no reload
+
+Perfect for:
+- **Spring cleaning**: Archive old projects and delete forgotten forks
+- **Professional profiles**: Keep only your best work visible  
+- **Fork management**: Identify and sync outdated forks
+- **Consistent naming**: Bulk rename repositories with patterns
+- **Quick decisions**: See all metadata at a glance to decide what stays
+
 <p align="center">
-  <img src="docs/demo_interactive.gif" alt="Interactive demo of gh-manager-cli" width="900" />
+  <img src="docs/app-demo.gif" alt="Interactive demo of gh-manager-cli" width="900" />
   <br />
   <em>Fast, keyboard-first GitHub repo management from your terminal</em>
  </p>
@@ -38,15 +62,15 @@ Interactive terminal app to browse and manage your personal GitHub repositories.
 
 ```bash
 # Run with npx (no install)
-npx gh-manager-cli
+npx gh-manager-cli@latest
 ```
 
-On first run, you'll be prompted for a GitHub Personal Access Token.
+On first run, you'll be prompted to authenticate with GitHub (OAuth recommended).
 
 ## Features
 
 ### Core Repository Management
-- **Token Authentication**: Secure PAT storage with validation and persistence
+- **Authentication**: GitHub OAuth (recommended) or Personal Access Token with secure storage
 - **Repository Listing**: Browse all your personal repositories with metadata (stars, forks, language, etc.)
 - **Live Pagination**: Infinite scroll with automatic page prefetching
 - **Interactive Sorting**: Modal-based sort selection (updated, pushed, name, stars) with direction toggle
@@ -56,6 +80,8 @@ On first run, you'll be prompted for a GitHub Personal Access Token.
 - **Repository Actions**:
   - View detailed info (`I`) - Shows repository metadata, language, size, and timestamps
   - Open in browser (Enter/`O`)
+  - Rename repository (`Ctrl+R`) with inline validation and automatic cache update
+  - Copy repository URL to clipboard (`C`) with SSH/HTTPS options
   - Delete repository (`Del` or `Backspace`) with secure two-step confirmation
   - Archive/unarchive repositories (`Ctrl+A`) with confirmation prompts
   - Change repository visibility (`Ctrl+V`) - Switch between Public, Private, and Internal (enterprise only)
@@ -70,7 +96,7 @@ On first run, you'll be prompted for a GitHub Personal Access Token.
 - **Interactive Modals**: Sort selection, visibility filtering, organization switching, and visibility change dialogs
 - **Balanced Layout**: Repository items with spacing above and below for better visual hierarchy
 - **Loading States**: Contextual loading screens for sorting and refreshing operations
-- **Rate Limit Monitoring**: Live API usage display with visual warnings
+- **Rate Limit Monitoring**: Dual API rate limit display (GraphQL & REST) with real-time usage deltas and visual warnings
 
 ### Technical Features
 - **Preference Persistence**: UI settings (sort, density, visibility filter, fork tracking) saved between sessions
@@ -79,6 +105,7 @@ On first run, you'll be prompted for a GitHub Personal Access Token.
 - **Secure Storage**: Token stored with proper file permissions (0600)
 - **Error Handling**: Graceful error recovery with retry mechanisms
 - **Performance**: Efficient GraphQL queries with virtualized rendering and server-side filtering
+- **Comprehensive Logging**: Structured JSON logging with automatic rotation and configurable verbosity
 
 ## Installation
 
@@ -94,7 +121,7 @@ brew install gh-manager-cli
 Run instantly without installing:
 
 ```bash
-npx gh-manager-cli
+npx gh-manager-cli@latest
 ```
 
 ### NPM Global Install
@@ -102,7 +129,7 @@ npx gh-manager-cli
 Install globally for persistent `gh-manager-cli` command:
 
 ```bash
-npm install -g gh-manager-cli
+npm install -g gh-manager-cli@latest
 gh-manager-cli
 ```
 
@@ -142,18 +169,41 @@ pnpm link
 gh-manager-cli
 ```
 
-## Token & Security
+## Authentication
 
-The app needs a GitHub token to read your repositories.
+The app supports two authentication methods:
+
+### 1. GitHub OAuth (Recommended) 🎯
+
+The easiest and most secure way to authenticate:
+
+- **Device Flow**: No need to handle callback URLs - just enter a code on GitHub's website
+- **Browser-based**: Opens GitHub's authorization page automatically
+- **Secure**: No client secrets or sensitive data in the app
+- **Full Permissions**: Automatically requests all necessary scopes for complete functionality
+- **User-friendly**: No manual token management required
+
+When you first run the app, select **"GitHub OAuth (Recommended)"** from the authentication options. The app will:
+1. Display a device code for you to enter on GitHub
+2. Open your browser to GitHub's device authorization page
+3. Wait for you to authorize the app
+4. Securely store the OAuth token for future use
+
+### 2. Personal Access Token (PAT)
+
+Alternative method for users who prefer manual token management:
 
 - Provide via env var: `GITHUB_TOKEN` or `GH_TOKEN`, or enter when prompted on first run.
-- Recommended: classic PAT with `repo` scope for listing both public and private repos (read is sufficient).
+- Recommended: classic PAT with `repo` scope for listing both public and private repos.
 - Validation: a minimal `viewer { login }` request verifies the token.
-- Storage: token is saved as JSON in your OS user config directory with POSIX perms `0600`.
+
+### Token Storage & Security
+
+- Storage: tokens are saved as JSON in your OS user config directory with POSIX perms `0600`.
   - macOS: `~/Library/Preferences/gh-manager-cli/config.json`
   - Linux: `~/.config/gh-manager-cli/config.json`
   - Windows: `%APPDATA%\gh-manager-cli\config.json`
-- Revocation: you can revoke the PAT at any time in your GitHub settings.
+- Revocation: you can revoke tokens at any time in your GitHub settings.
 
 Note: Tokens are stored in plaintext on disk with restricted permissions. Future work may add OS keychain support.
 
@@ -179,6 +229,29 @@ Notes:
 ## Usage
 
 Launch the app, then use the keys below:
+
+### CLI Flags
+
+- `--org, -o <slug>`: Start in a specific organisation context (if accessible). Ignores the flag if you don’t have access or if the slug isn’t an organisation.
+  - Examples:
+    - `gh-manager-cli --org acme`
+    - `gh-manager-cli -o acme`
+    - `npx gh-manager-cli@latest --org=@acme`
+    - `npx gh-manager-cli@latest -o=@acme`
+  - Notes:
+    - Leading `@` is optional.
+    - Personal usernames are not supported by `--org`/`-o` (use default personal context).
+
+- `--token, -t <pat>`: Use a Personal Access Token just for this run. Does not persist to config.
+  - Examples:
+    - `gh-manager-cli --token ghp_XXXXXXXXXXXXXXXXXXXXXXXXXXXX`
+    - `gh-manager-cli -t=ghp_XXXXXXXXXXXXXXXXXXXXXXXXXXXX`
+  - Precedence: CLI token > `GITHUB_TOKEN`/`GH_TOKEN` env vars > stored config.
+  - Security: Supplying tokens on the command line may be captured in shell history. Prefer env vars or the interactive prompt when possible.
+
+- `--help, -h`: Show usage information and exit.
+
+- `--version, -v`: Print the current version and exit.
 
 ### Navigation & View Controls
 - **Top/Bottom**: `Ctrl+G` (top), `G` (bottom)
@@ -246,9 +319,65 @@ pnpm start:debug    # run with debug mode enabled
 pnpm start:dev      # run with 5 repos per page and debug mode
 ```
 
+### Release Process
+
+The project uses **automated releases** with two complementary workflows:
+
+#### 1. Semantic Release (Primary)
+- **Triggers**: On every push to `main` branch
+- **Version Calculation**: Uses [semantic-release](https://semantic-release.gitbook.io/) to analyze commit messages:
+  - `feat:` → Minor version bump (1.0.0 → 1.1.0)
+  - `fix:` → Patch version bump (1.0.0 → 1.0.1)
+  - `BREAKING CHANGE:` → Major version bump (1.0.0 → 2.0.0)
+- **Actions**:
+  1. Analyzes commits since last release
+  2. Calculates new version number
+  3. Updates `package.json`
+  4. Generates changelog
+  5. Creates GitHub release with tag
+  6. Publishes to NPM
+  7. Publishes to GitHub Packages
+  8. Updates Homebrew tap
+
+#### 2. Version Change Detection (Backup)
+- **Triggers**: When `package.json` version field changes
+- **Purpose**: Ensures releases happen even with manual version bumps
+- **Actions**:
+  1. Detects version change in `package.json`
+  2. Publishes to NPM if version doesn't exist
+  3. Updates Homebrew formula
+  4. Creates GitHub release
+
+#### Release Flow Example
+```
+Developer creates PR with commits:
+  - feat: add new feature
+  - fix: resolve bug
+    ↓
+PR merged to main
+    ↓
+semantic-release analyzes commits
+    ↓
+Calculates version: 1.2.3 → 1.3.0 (feat = minor)
+    ↓
+Updates package.json, creates changelog
+    ↓
+Publishes everywhere (NPM, GitHub, Homebrew)
+```
+
+#### Manual Release
+To manually trigger a release:
+```bash
+# Update version in package.json
+npm version patch  # or minor/major
+git push origin main
+```
+
+Both NPM and Homebrew will be automatically updated within minutes of any version change.
+
 Environment variables:
 - `REPOS_PER_FETCH`: Number of repositories to fetch per page (1-50, default: 15)
-- `GH_MANAGER_DEBUG=1`: Enables debug mode with performance metrics and detailed errors
+- `GH_MANAGER_DEBUG=1`: Enables debug mode with performance metrics, detailed errors, and console logging
 
 Project layout:
 - `src/index.tsx` — CLI entry and error handling
@@ -261,9 +390,47 @@ Project layout:
 - `src/ui/OrgSwitcher.tsx` — organization switching component
 - `src/github.ts` — GraphQL client and queries (repos + rateLimit)
 - `src/config.ts` — token read/write and UI preferences
+- `src/logger.ts` — structured logging with rotation
 - `src/types.ts` — shared types
 - `src/utils.ts` — utility functions (truncate, formatDate)
 - `src/apolloMeta.ts` — Apollo cache management
+- `viewlogs.sh` — utility script for viewing logs
+
+## Logging
+
+gh-manager-cli includes comprehensive logging for debugging and monitoring purposes.
+
+### Log Location
+
+Logs are automatically written to your system's standard log directory:
+- **macOS**: `~/Library/Logs/gh-manager-cli/gh-manager-cli.log`
+- **Linux**: `~/.local/state/gh-manager-cli-log/gh-manager-cli.log`
+- **Windows**: `%LOCALAPPDATA%\gh-manager-cli\Log\gh-manager-cli.log`
+
+### Viewing Logs
+
+Use the included `viewlogs.sh` script to quickly view recent log entries:
+```bash
+./viewlogs.sh        # View last 50 lines
+./viewlogs.sh 100    # View last 100 lines
+./viewlogs.sh -f     # Follow log in real-time
+```
+
+### Log Features
+
+- **Structured JSON**: Each log entry includes timestamp, level, message, and contextual data
+- **Automatic Rotation**: Logs rotate at 5MB with up to 5 historical files kept
+- **Comprehensive Coverage**: Tracks app lifecycle, API calls, user actions, and errors
+- **Debug Mode**: Set `GH_MANAGER_DEBUG=1` to enable verbose logging to console
+
+### What's Logged
+
+- Application startup/shutdown with version info
+- Authentication events (login/logout)
+- Repository operations (fetch, delete, archive, visibility changes)
+- API performance metrics and rate limit status
+- Error details with stack traces
+- User interface component lifecycle
 
 ## Apollo Cache (Performance)
 
@@ -273,7 +440,7 @@ gh-manager-cli includes built-in Apollo Client caching to reduce GitHub API call
 
 Run with `GH_MANAGER_DEBUG=1` to enable debugging features:
 ```bash
-GH_MANAGER_DEBUG=1 npx gh-manager-cli
+GH_MANAGER_DEBUG=1 npx gh-manager-cli@latest
 ```
 
 Debug mode provides:
@@ -309,16 +476,16 @@ Even with caching enabled, API credits may decrease due to:
 
 ```bash
 # Number of repositories to fetch per page (1-50, default: 15)
-REPOS_PER_FETCH=10 npx gh-manager-cli
+REPOS_PER_FETCH=10 npx gh-manager-cli@latest
 
 # Custom cache TTL (milliseconds) - default: 30 minutes
-APOLLO_TTL_MS=1800000 npx gh-manager-cli
+APOLLO_TTL_MS=1800000 npx gh-manager-cli@latest
 
 # Enable debug mode to see cache performance
-GH_MANAGER_DEBUG=1 npx gh-manager-cli
+GH_MANAGER_DEBUG=1 npx gh-manager-cli@latest
 
 # Combine multiple environment variables
-REPOS_PER_FETCH=5 GH_MANAGER_DEBUG=1 npx gh-manager-cli-cli
+REPOS_PER_FETCH=5 GH_MANAGER_DEBUG=1 npx gh-manager-cli@latest
 ```
 
 ## Troubleshooting
@@ -332,6 +499,7 @@ REPOS_PER_FETCH=5 GH_MANAGER_DEBUG=1 npx gh-manager-cli-cli
 For the up-to-date task board, see [TODOs.md](./TODOs.md).
 
 Recently implemented:
+- ✅ OAuth login flow as an alternative to Personal Access Token
 - ✅ Density toggle for row spacing (compact/cozy/comfy)
 - ✅ Repo actions (archive/unarchive, delete, change visibility) with confirmations
 - ✅ Organization support and switching (press `W`) with enterprise detection
@@ -341,6 +509,7 @@ Recently implemented:
 - ✅ GitHub Enterprise support with Internal repository visibility
 - ✅ Change repository visibility modal (`Ctrl+V`)
 - ✅ Compact filter modals for better screen space utilization
+- ✅ Enhanced rate limit display showing both GraphQL and REST API limits with delta tracking
 
 Highlights on deck:
 - Optional OS keychain storage via `keytar`

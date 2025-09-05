@@ -1,3 +1,165 @@
+# [1.30.0](https://github.com/wiiiimm/gh-manager-cli/compare/v1.29.0...v1.30.0) (2025-09-05)
+
+
+### Features
+
+* add workflow to auto-release on any version change ([f89c237](https://github.com/wiiiimm/gh-manager-cli/commit/f89c2378c6427fb3762e160294ddd0681d29ea80))
+
+# [1.29.0](https://github.com/wiiiimm/gh-manager-cli/compare/v1.28.0...v1.29.0) (2025-09-05)
+
+
+### Features
+
+* enhance messaging to position as GitHub web UI alternative ([5c4a802](https://github.com/wiiiimm/gh-manager-cli/commit/5c4a80252848dd1f85604c5fae9ec1f2945e1e9b))
+
+# [1.28.0](https://github.com/wiiiimm/gh-manager-cli/compare/v1.27.0...v1.28.0) (2025-09-05)
+
+
+### Features
+
+* replace all logos with green monochrome versions ([e01e4e8](https://github.com/wiiiimm/gh-manager-cli/commit/e01e4e865307223d609b63bb0bae874d18d9c92f)), closes [#22c55](https://github.com/wiiiimm/gh-manager-cli/issues/22c55)
+
+# [1.27.0](https://github.com/wiiiimm/gh-manager-cli/compare/v1.26.0...v1.27.0) (2025-09-05)
+
+
+### Features
+
+* add PNG versions of green logo-mark ([7e10efe](https://github.com/wiiiimm/gh-manager-cli/commit/7e10efe5a410f8de2723c7c6c1de5f13edb9d8a0))
+
+# [1.26.0](https://github.com/wiiiimm/gh-manager-cli/compare/v1.25.1...v1.26.0) (2025-09-05)
+
+
+### Features
+
+* add green monochrome logo-mark variant ([ec31eeb](https://github.com/wiiiimm/gh-manager-cli/commit/ec31eeb52f6af564568fe4346cd22085a39460fa)), closes [#22c55](https://github.com/wiiiimm/gh-manager-cli/issues/22c55)
+
+## [1.25.1](https://github.com/wiiiimm/gh-manager-cli/compare/v1.25.0...v1.25.1) (2025-09-05)
+
+
+### Bug Fixes
+
+* slow down OAuth loading spinner to update every 2 seconds ([bb2b9f0](https://github.com/wiiiimm/gh-manager-cli/commit/bb2b9f04f3410f5870884a3db74246ad4b8110bd))
+
+# [1.25.0](https://github.com/wiiiimm/gh-manager-cli/compare/v1.24.3...v1.25.0) (2025-09-05)
+
+
+### Features
+
+* update demo assets and documentation ([84242cc](https://github.com/wiiiimm/gh-manager-cli/commit/84242cc1cb14d58d5f8777e8d2ca20fb158839cb))
+
+## [1.24.3](https://github.com/wiiiimm/gh-manager-cli/compare/v1.24.2...v1.24.3) (2025-09-05)
+
+
+### Bug Fixes
+
+* clear all settings including org context on logout ([3a30b02](https://github.com/wiiiimm/gh-manager-cli/commit/3a30b0246d410b14bf9d9b5681904660cf7cc80f))
+
+## [1.24.2](https://github.com/wiiiimm/gh-manager-cli/compare/v1.24.1...v1.24.2) (2025-09-05)
+
+
+### Bug Fixes
+
+* prevent Ctrl+R from triggering refresh instead of rename ([987f505](https://github.com/wiiiimm/gh-manager-cli/commit/987f505ada3c2b17175e24cace81330ea8db9709))
+
+## [1.24.1](https://github.com/wiiiimm/gh-manager-cli/compare/v1.24.0...v1.24.1) (2025-09-05)
+
+
+### Bug Fixes
+
+* restore accidentally deleted features from refactor ([bcc9f12](https://github.com/wiiiimm/gh-manager-cli/commit/bcc9f123cba0abe274a1351168bfc5583cc9382f))
+
+# [1.24.0](https://github.com/wiiiimm/gh-manager-cli/compare/v1.23.0...v1.24.0) (2025-09-05)
+
+
+### Features
+
+* add app name with version to --help output ([3376c48](https://github.com/wiiiimm/gh-manager-cli/commit/3376c480186c506f125a62ab444f3e3d321ba82c))
+
+# [1.23.0](https://github.com/wiiiimm/gh-manager-cli/compare/v1.22.0...v1.23.0) (2025-09-04)
+
+
+### Features
+
+* Enhanced rate limit display showing both GraphQL and REST API limits ([#25](https://github.com/wiiiimm/gh-manager-cli/issues/25)) ([1220a0f](https://github.com/wiiiimm/gh-manager-cli/commit/1220a0fe04da035dafab2ce8555a73ff95b96ea1))
+
+## [1.19.2](https://github.com/wiiiimm/gh-manager-cli/compare/v1.19.1...v1.19.2) (2025-09-03)
+
+
+### Bug Fixes
+
+* clear search filter when switching organization context ([a5df0bf](https://github.com/wiiiimm/gh-manager-cli/commit/a5df0bf5f23e08019bd5225d847d68288a62a74f))
+
+## [1.19.1](https://github.com/wiiiimm/gh-manager-cli/compare/v1.19.0...v1.19.1) (2025-09-02)
+
+
+### Bug Fixes
+
+* clear repository list immediately on context switch ([73c75af](https://github.com/wiiiimm/gh-manager-cli/commit/73c75afd725fa2640acc03e8381c4bc0598c6bf1))
+
+# [1.19.0](https://github.com/wiiiimm/gh-manager-cli/compare/v1.18.1...v1.19.0) (2025-09-02)
+
+
+### Features
+
+* **cli:** add org (-o) and token (-t) flags ([#18](https://github.com/wiiiimm/gh-manager-cli/issues/18)) ([029376e](https://github.com/wiiiimm/gh-manager-cli/commit/029376e1465eb9376850c6e19ef2b514020a4542))
+
+## [1.18.1](https://github.com/wiiiimm/gh-manager-cli/compare/v1.18.0...v1.18.1) (2025-09-02)
+
+
+### Bug Fixes
+
+* handle both CommonJS and ES module contexts in normalize-pr-title.js ([b547877](https://github.com/wiiiimm/gh-manager-cli/commit/b547877c254fbfa0f644b271fa2f367b668838d4))
+
+# [1.18.0](https://github.com/wiiiimm/gh-manager-cli/compare/v1.17.1...v1.18.0) (2025-09-02)
+
+
+### Features
+
+* **workflows:** add missing normalize-pr-title.js script for PR title automation ([3a009b9](https://github.com/wiiiimm/gh-manager-cli/commit/3a009b979c9dbee7c2f7649ff71ecb385e917a6d))
+
+## [1.17.1](https://github.com/wiiiimm/gh-manager-cli/compare/v1.17.0...v1.17.1) (2025-09-02)
+
+
+### Bug Fixes
+
+* correct workflow syntax for GH_TOKEN check ([e9980a6](https://github.com/wiiiimm/gh-manager-cli/commit/e9980a69e15d1b74831cf95fe01985e052996489))
+* make Homebrew tap update conditional on GH_TOKEN availability ([cbbe500](https://github.com/wiiiimm/gh-manager-cli/commit/cbbe5005d767ecbe1139f7ac1b603b41d157a060))
+
+# [1.17.0](https://github.com/wiiiimm/gh-manager-cli/compare/v1.16.1...v1.17.0) (2025-09-02)
+
+
+### Features
+
+* implement comprehensive logging system ([#17](https://github.com/wiiiimm/gh-manager-cli/issues/17)) ([a447ce1](https://github.com/wiiiimm/gh-manager-cli/commit/a447ce1287be86ce20830ddd96fa9d20ae22743e))
+
+## [1.16.1](https://github.com/wiiiimm/gh-manager-cli/compare/v1.16.0...v1.16.1) (2025-09-02)
+
+
+### Bug Fixes
+
+* add missing hasInternalRepos state variable ([#16](https://github.com/wiiiimm/gh-manager-cli/issues/16)) ([e3bcc84](https://github.com/wiiiimm/gh-manager-cli/commit/e3bcc843b82259bafbac34726fda2113c66f874c))
+
+# [1.16.0](https://github.com/wiiiimm/gh-manager-cli/compare/v1.15.1...v1.16.0) (2025-09-02)
+
+
+### Features
+
+* add Ctrl+L logout option to error state ([#14](https://github.com/wiiiimm/gh-manager-cli/issues/14)) ([1a15028](https://github.com/wiiiimm/gh-manager-cli/commit/1a15028cc8f1a2bf39054f65b09d0ade7be1de0f))
+
+## [1.15.1](https://github.com/wiiiimm/gh-manager-cli/compare/v1.15.0...v1.15.1) (2025-09-02)
+
+
+### Bug Fixes
+
+* standardise keyboard shortcut capitalisation in error messages ([44d7998](https://github.com/wiiiimm/gh-manager-cli/commit/44d7998f3bad752a18c2a54c0adef18b69f9ecca))
+
+# [1.15.0](https://github.com/wiiiimm/gh-manager-cli/compare/v1.14.0...v1.15.0) (2025-09-02)
+
+
+### Features
+
+* implement GitHub Device Authorization Grant flow ([#13](https://github.com/wiiiimm/gh-manager-cli/issues/13)) ([d259534](https://github.com/wiiiimm/gh-manager-cli/commit/d259534a8a0e5c21270da17df4256aec6b0b216c))
+
 # [1.14.0](https://github.com/wiiiimm/gh-manager-cli/compare/v1.13.2...v1.14.0) (2025-09-02)
 
 

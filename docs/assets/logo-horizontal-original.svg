@@ -1,0 +1,33 @@
+<svg width="640" height="160" viewBox="0 0 640 160" fill="none" xmlns="http://www.w3.org/2000/svg" role="img" aria-labelledby="title desc">
+  <title>gh-manager-cli Horizontal Logo</title>
+  <desc>Logo mark with wordmark to the right</desc>
+  <!-- Mark (scaled from logo-mark.svg for consistency) -->
+  <g transform="translate(0,0) scale(0.5)">
+    <!-- Background tile -->
+    <rect x="8" y="8" width="240" height="240" rx="28" fill="#0D1117" stroke="#1F2937" stroke-width="8"/>
+    <!-- Window traffic lights -->
+    <circle cx="28" cy="30" r="6" fill="#EF4444"/>
+    <circle cx="46" cy="30" r="6" fill="#F59E0B"/>
+    <circle cx="64" cy="30" r="6" fill="#10B981"/>
+    <!-- Prompt caret and cursor -->
+    <path d="M40 98 L92 128 L40 158 Z" fill="#22D3EE"/>
+    <rect x="102" y="146" width="44" height="8" rx="4" fill="#22D3EE"/>
+    <!-- Star (repo stars) -->
+    <path d="M186 100 L192 118 L211 118 L195 129 L201 147 L186 136 L171 147 L177 129 L161 118 L180 118 Z" fill="#FACC15"/>
+    <!-- Fork glyph -->
+    <g stroke="#A3A3A3" stroke-width="6" stroke-linecap="round" stroke-linejoin="round">
+      <circle cx="168" cy="170" r="8" fill="#A3A3A3"/>
+      <circle cx="210" cy="170" r="8" fill="#A3A3A3"/>
+      <circle cx="189" cy="200" r="8" fill="#A3A3A3"/>
+      <path d="M168 170 C178 170 189 176 189 188"/>
+      <path d="M210 170 C200 170 189 176 189 188"/>
+    </g>
+  </g>
+
+  <!-- Wordmark -->
+  <g transform="translate(152,36)">
+    <text x="0" y="36" font-family="Inter, ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, &quot;Apple Color Emoji&quot;, &quot;Segoe UI Emoji&quot;" font-weight="700" font-size="40" fill="#111827" letter-spacing="-0.5px">gh-manager-cli</text>
+    <rect x="0" y="50" width="360" height="6" rx="3" fill="#22D3EE" opacity="0.7"/>
+    <text x="0" y="90" font-family="Inter, ui-sans-serif, system-ui" font-size="16" fill="#6B7280">Interactive GitHub repo manager for your terminal</text>
+  </g>
+</svg>

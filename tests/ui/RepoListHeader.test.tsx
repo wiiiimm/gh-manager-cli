@@ -171,4 +171,26 @@ describe('RepoListHeader', () => {
       unmount();
     }
   });
+
+  it('handles undefined ownerContext gracefully', () => {
+    const { lastFrame, unmount } = render(
+      <RepoListHeader
+        ownerContext={undefined as any}
+        sortKey="updated"
+        sortDir="desc"
+        forkTracking={false}
+        filter=""
+        searchActive={false}
+        searchLoading={false}
+      />
+    );
+
+    const output = lastFrame() || '';
+    // Should not show any context label when undefined
+    expect(output).not.toContain('Personal Account');
+    expect(output).not.toContain('Organization:');
+    // But should still show other elements
+    expect(output).toContain('Sort: updated ↓');
+    unmount();
+  });
 });

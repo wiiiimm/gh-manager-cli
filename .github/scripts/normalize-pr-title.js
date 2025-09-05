@@ -2,7 +2,7 @@
 
 /**
  * Shared script for normalizing PR titles to conventional commit format
- * Adapted for gh-manager-cli project
+ * Adapted for ra2mp3 bash project - removed project-specific Linear issue references
  */
 
 // Valid conventional commit types
@@ -338,6 +338,20 @@ if (typeof module !== 'undefined' && module.exports) {
 // CLI interface for testing
 // Check if running as main module (works in both CommonJS and ES modules)
 if (typeof require !== 'undefined' && require.main === module) {
+  const args = process.argv.slice(2);
+  if (args.length === 0) {
+    console.log('Usage: node normalize-pr-title.js "<title>" [commits-json] [branch-name]');
+    process.exit(1);
+  }
+  
+  const title = args[0];
+  const commits = args[1] ? JSON.parse(args[1]) : [];
+  const branch = args[2] || '';
+  
+  const result = processPRTitle(title, commits, branch);
+  console.log(JSON.stringify(result, null, 2));
+} else if (typeof import.meta !== 'undefined' && import.meta.url === `file://${process.argv[1]}`) {
+  // ES module main check
   const args = process.argv.slice(2);
   if (args.length === 0) {
     console.log('Usage: node normalize-pr-title.js "<title>" [commits-json] [branch-name]');

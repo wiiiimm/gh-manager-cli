@@ -190,8 +190,16 @@ jobs:
       - name: Update Homebrew Tap
         if: env.NEW_VERSION_CREATED == 'true'
         env:
-          GITHUB_TOKEN: ${{ secrets.GH_TOKEN || secrets.GITHUB_TOKEN }}
+          GITHUB_TOKEN: ${{ secrets.GH_TOKEN }}
         run: |
+          # Check if GH_TOKEN is available
+          if [ -z "$GITHUB_TOKEN" ]; then
+            echo "⚠️ Homebrew tap update skipped: GH_TOKEN secret not configured"
+            echo "To enable automatic Homebrew tap updates, add a GH_TOKEN secret with repo write permissions"
+            echo "The GH_TOKEN needs 'contents: write' permission for wiiiimm/homebrew-tap"
+            exit 0
+          fi
+          
           echo "Updating Homebrew tap for version ${{ env.VERSION_AFTER }}..."
           
           # Create npm tarball locally

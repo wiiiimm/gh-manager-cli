@@ -98,6 +98,131 @@ GH_MANAGER_DEBUG=1 npx gh-manager-cli
 REPOS_PER_FETCH=5 GH_MANAGER_DEBUG=1 npx gh-manager-cli-cli
 ```
 
+## Release Process
+
+The project uses **automated releases** with two complementary GitHub Actions workflows:
+
+### Automatic Semantic Releases
+
+**Workflow**: `automated-release.yml`  
+**Triggers**: Every push to `main` branch  
+**Process**:
+
+1. **Semantic Release** analyzes commit messages since the last release
+2. **Version Calculation** based on [conventional commits](https://www.conventionalcommits.org/):
+   - `feat:` → Minor version (1.0.0 → 1.1.0)
+   - `fix:` → Patch version (1.0.0 → 1.0.1)
+   - `BREAKING CHANGE:` → Major version (1.0.0 → 2.0.0)
+   - `chore:`, `docs:`, `style:`, `refactor:`, `test:` → No release
+3. **Automated Actions**:
+   - Updates `package.json` version
+   - Generates `CHANGELOG.md`
+   - Creates GitHub release with tag
+   - Publishes to NPM registry
+   - Publishes to GitHub Packages
+   - Updates Homebrew formula in [wiiiimm/homebrew-tap](https://github.com/wiiiimm/homebrew-tap)
+
+### Version Change Detection
+
+**Workflow**: `release-on-version-change.yml`  
+**Triggers**: When `package.json` version field changes  
+**Purpose**: Backup mechanism for manual releases  
+**Process**:
+
+1. Detects version change in `package.json`
+2. Verifies version doesn't exist on NPM
+3. Publishes to NPM if new
+4. Updates Homebrew formula with new SHA256
+5. Creates GitHub release
+
+### Writing Good Commit Messages
+
+To trigger automatic releases, follow the [Conventional Commits](https://www.conventionalcommits.org/) specification:
+
+```bash
+# Features (minor version bump)
+git commit -m "feat: add repository transfer functionality"
+git commit -m "feat(ui): implement dark mode toggle"
+
+# Fixes (patch version bump)
+git commit -m "fix: resolve rate limit handling issue"
+git commit -m "fix(api): correct pagination cursor logic"
+
+# Breaking changes (major version bump)
+git commit -m "feat!: redesign configuration format
+
+BREAKING CHANGE: Config files from v1.x need migration"
+
+# No release triggered
+git commit -m "chore: update dependencies"
+git commit -m "docs: improve README examples"
+git commit -m "style: format code with prettier"
+git commit -m "refactor: extract utility functions"
+git commit -m "test: add unit tests for auth flow"
+```
+
+### Manual Release Process
+
+To manually trigger a release:
+
+```bash
+# Update version using npm
+npm version patch    # 1.0.0 → 1.0.1
+npm version minor    # 1.0.0 → 1.1.0
+npm version major    # 1.0.0 → 2.0.0
+
+# Or edit package.json directly
+vim package.json     # Change "version" field
+
+# Commit and push
+git add package.json
+git commit -m "chore(release): 1.2.3"
+git push origin main
+```
+
+The `release-on-version-change.yml` workflow will detect the change and publish to NPM and Homebrew.
+
+### Release Destinations
+
+Each release publishes to multiple destinations:
+
+1. **NPM Registry** ([npmjs.com/package/gh-manager-cli](https://www.npmjs.com/package/gh-manager-cli))
+   - Public package for `npm install -g gh-manager-cli`
+   - Used by `npx gh-manager-cli@latest`
+
+2. **GitHub Packages** (@wiiiimm/gh-manager-cli)
+   - Alternative registry for GitHub users
+   - Install with: `npm install -g @wiiiimm/gh-manager-cli`
+
+3. **GitHub Releases** ([github.com/wiiiimm/gh-manager-cli/releases](https://github.com/wiiiimm/gh-manager-cli/releases))
+   - Tagged releases with changelogs
+   - Pre-built binaries for Windows, macOS, Linux
+
+4. **Homebrew Tap** ([github.com/wiiiimm/homebrew-tap](https://github.com/wiiiimm/homebrew-tap))
+   - Formula automatically updated with new version and SHA256
+   - Install with: `brew install wiiiimm/tap/gh-manager-cli`
+
+### Monitoring Releases
+
+- **GitHub Actions**: Check [Actions tab](https://github.com/wiiiimm/gh-manager-cli/actions) for workflow status
+- **NPM Versions**: Run `npm view gh-manager-cli versions` to see all published versions
+- **Release Notes**: View [Releases page](https://github.com/wiiiimm/gh-manager-cli/releases) for changelogs
+
+### Troubleshooting Releases
+
+If a release fails:
+
+1. **Check GitHub Actions logs** for error details
+2. **Verify secrets** are configured:
+   - `NPM_TOKEN` - For NPM publishing
+   - `GH_TOKEN` - For Homebrew tap updates (needs repo write access)
+3. **Semantic Release issues**:
+   - Ensure commit messages follow conventional format
+   - Check `.releaserc.json` configuration
+4. **Manual intervention**:
+   - Can manually publish to NPM: `npm publish`
+   - Can manually update Homebrew tap PR
+
 ## Testing
 
 For detailed information about testing, see the [Testing](Testing.md) page.

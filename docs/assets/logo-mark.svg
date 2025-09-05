@@ -1,0 +1,28 @@
+<svg width="256" height="256" viewBox="0 0 256 256" fill="none" xmlns="http://www.w3.org/2000/svg" role="img" aria-labelledby="title desc">
+  <title>gh-manager-cli Logo Mark (Green)</title>
+  <desc>A terminal-inspired square with green monochrome design</desc>
+  <!-- Background tile -->
+  <rect x="8" y="8" width="240" height="240" rx="28" fill="transparent" stroke="#22c55e" stroke-width="8"/>
+
+  <!-- Window traffic lights (all green) -->
+  <circle cx="28" cy="30" r="6" fill="#22c55e" opacity="0.5"/>
+  <circle cx="46" cy="30" r="6" fill="#22c55e" opacity="0.7"/>
+  <circle cx="64" cy="30" r="6" fill="#22c55e"/>
+
+  <!-- Prompt caret ">" -->
+  <path d="M40 98 L92 128 L40 158 Z" fill="#22c55e"/>
+  <!-- Prompt cursor "_" -->
+  <rect x="102" y="146" width="44" height="8" rx="4" fill="#22c55e"/>
+
+  <!-- Star (rep stars) -->
+  <path d="M186 100 L192 118 L211 118 L195 129 L201 147 L186 136 L171 147 L177 129 L161 118 L180 118 Z" fill="#22c55e" opacity="0.8"/>
+
+  <!-- Fork glyph (three nodes + connectors) -->
+  <g stroke="#22c55e" stroke-width="6" stroke-linecap="round" stroke-linejoin="round" opacity="0.7">
+    <circle cx="168" cy="170" r="8" fill="#22c55e"/>
+    <circle cx="210" cy="170" r="8" fill="#22c55e"/>
+    <circle cx="189" cy="200" r="8" fill="#22c55e"/>
+    <path d="M168 170 C178 170 189 176 189 188"/>
+    <path d="M210 170 C200 170 189 176 189 188"/>
+  </g>
+</svg>

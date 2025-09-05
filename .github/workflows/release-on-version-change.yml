@@ -1,0 +1,205 @@
+name: Release on Version Change
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'package.json'
+  workflow_dispatch:
+
+jobs:
+  check-version:
+    runs-on: ubuntu-latest
+    outputs:
+      version_changed: ${{ steps.version-check.outputs.changed }}
+      new_version: ${{ steps.version-check.outputs.version }}
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 2
+
+      - name: Check if version changed
+        id: version-check
+        run: |
+          # Get current version
+          CURRENT_VERSION=$(node -p "require('./package.json').version")
+          echo "Current version: $CURRENT_VERSION"
+          
+          # Get previous version
+          git checkout HEAD~1 2>/dev/null || true
+          if [ -f package.json ]; then
+            PREVIOUS_VERSION=$(node -p "require('./package.json').version" 2>/dev/null || echo "0.0.0")
+          else
+            PREVIOUS_VERSION="0.0.0"
+          fi
+          git checkout - 2>/dev/null || true
+          
+          echo "Previous version: $PREVIOUS_VERSION"
+          
+          # Check if version changed
+          if [ "$CURRENT_VERSION" != "$PREVIOUS_VERSION" ]; then
+            echo "Version changed from $PREVIOUS_VERSION to $CURRENT_VERSION"
+            echo "changed=true" >> $GITHUB_OUTPUT
+            echo "version=$CURRENT_VERSION" >> $GITHUB_OUTPUT
+          else
+            echo "Version unchanged ($CURRENT_VERSION)"
+            echo "changed=false" >> $GITHUB_OUTPUT
+            echo "version=$CURRENT_VERSION" >> $GITHUB_OUTPUT
+          fi
+
+  publish-npm:
+    needs: check-version
+    if: needs.check-version.outputs.version_changed == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          registry-url: 'https://registry.npmjs.org'
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v3
+        with:
+          version: 8
+
+      - name: Install dependencies
+        run: pnpm install --no-frozen-lockfile
+
+      - name: Build
+        run: pnpm run build
+
+      - name: Check if version exists on NPM
+        id: npm-check
+        run: |
+          VERSION=${{ needs.check-version.outputs.new_version }}
+          if npm view gh-manager-cli@$VERSION 2>/dev/null; then
+            echo "Version $VERSION already exists on NPM"
+            echo "exists=true" >> $GITHUB_OUTPUT
+          else
+            echo "Version $VERSION not found on NPM, will publish"
+            echo "exists=false" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Publish to NPM
+        if: steps.npm-check.outputs.exists == 'false'
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+        run: npm publish
+
+  update-homebrew:
+    needs: [check-version, publish-npm]
+    if: needs.check-version.outputs.version_changed == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Update Homebrew Formula
+        env:
+          GITHUB_TOKEN: ${{ secrets.GH_TOKEN }}
+        run: |
+          VERSION=${{ needs.check-version.outputs.new_version }}
+          
+          # Check if GH_TOKEN is available
+          if [ -z "$GITHUB_TOKEN" ]; then
+            echo "⚠️ Homebrew update skipped: GH_TOKEN secret not configured"
+            exit 0
+          fi
+          
+          echo "Updating Homebrew tap for version $VERSION..."
+          
+          # Wait a moment for NPM to propagate
+          sleep 10
+          
+          # Download the tarball from NPM
+          npm pack gh-manager-cli@$VERSION
+          TARBALL="gh-manager-cli-$VERSION.tgz"
+          
+          # Calculate SHA256
+          SHA256=$(sha256sum "$TARBALL" | cut -d' ' -f1)
+          echo "SHA256: $SHA256"
+          
+          # Configure git
+          git config --global user.name "github-actions[bot]"
+          git config --global user.email "github-actions[bot]@users.noreply.github.com"
+          
+          # Clone the tap repository
+          git clone https://x-access-token:${GITHUB_TOKEN}@github.com/wiiiimm/homebrew-tap.git tap-repo
+          
+          # Update the formula
+          cd tap-repo
+          FORMULA="Formula/gh-manager-cli.rb"
+          
+          # Update URL and SHA256
+          sed -i "s|url \"https://registry.npmjs.org/gh-manager-cli/-/gh-manager-cli-.*\.tgz\"|url \"https://registry.npmjs.org/gh-manager-cli/-/gh-manager-cli-${VERSION}.tgz\"|" "$FORMULA"
+          sed -i "s|sha256 \"[a-f0-9]\{64\}\"|sha256 \"${SHA256}\"|" "$FORMULA"
+          
+          # Check if changes were made
+          if git diff --quiet; then
+            echo "No changes to formula (version might already be updated)"
+            exit 0
+          fi
+          
+          # Commit and push
+          git add Formula/gh-manager-cli.rb
+          git commit -m "Update gh-manager-cli to ${VERSION}"
+          git push origin main
+          
+          echo "✅ Homebrew formula updated to version $VERSION"
+
+  create-github-release:
+    needs: [check-version, publish-npm]
+    if: needs.check-version.outputs.version_changed == 'true'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Check if release exists
+        id: release-check
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          VERSION=${{ needs.check-version.outputs.new_version }}
+          if gh release view "v$VERSION" 2>/dev/null; then
+            echo "Release v$VERSION already exists"
+            echo "exists=true" >> $GITHUB_OUTPUT
+          else
+            echo "Release v$VERSION not found, will create"
+            echo "exists=false" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Create Release
+        if: steps.release-check.outputs.exists == 'false'
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          VERSION=${{ needs.check-version.outputs.new_version }}
+          
+          # Generate release notes from recent commits
+          PREVIOUS_TAG=$(git describe --tags --abbrev=0 2>/dev/null || echo "")
+          if [ -z "$PREVIOUS_TAG" ]; then
+            RELEASE_NOTES="Initial release v$VERSION"
+          else
+            RELEASE_NOTES=$(git log $PREVIOUS_TAG..HEAD --pretty=format:"- %s" | head -20)
+          fi
+          
+          # Create the release
+          gh release create "v$VERSION" \
+            --title "v$VERSION" \
+            --notes "$RELEASE_NOTES" \
+            --latest

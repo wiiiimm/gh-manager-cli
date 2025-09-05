@@ -92,15 +92,14 @@ Legend:
     - Suggest creating a pull request to resolve conflicts
   - On other failure: show error with retry option
 
-- [ ] Rename repository
-  - Assign a key to trigger rename: e.g. `E` (Edit name)
-  - Modal overlay with a single-line text input prefilled with current repo name
-    - User can edit or clear and retype; value cannot be empty (trimmed)
-    - `Esc` cancels and closes the modal without changes
-  - On submit:
-    - Attempt rename via GitHub API (GraphQL mutation); validate scopes/permissions
-    - Success: close modal and update the repo in local list (name and nameWithOwner); re-run local sorting if applicable; no server refetch required
-    - Failure: show error message in the modal; allow retry or cancel
+- [x] Rename repository
+  - Assigned key `Ctrl+R` to trigger rename modal
+  - Modal overlay with text input prefilled with current repo name
+  - Real-time validation: name cannot be empty, must match GitHub naming rules
+  - GraphQL mutation `renameRepository` with automatic Apollo cache update
+  - Success: updates local state and cache without server refetch
+  - Error handling with retry option and clear error messages
+  - Cache update also refreshes nameWithOwner field
 
 - [~] Add automated test suite
   - [x] Test infrastructure setup (Vitest with TypeScript support)
@@ -259,8 +258,6 @@ Legend:
     - Visual indicator: forks show "Fork of parent" without behind count when disabled
     - Show "up to date" for forks with 0 commits behind when tracking enabled
 
-- [ ] OS keychain support
-  - Optional storage via `keytar`; fallback to file with 0600 perms
 
 - [x] Window resize handling
   - Terminal width detection via `useStdout().columns`
@@ -268,36 +265,36 @@ Legend:
   - Responsive layout that adapts to terminal size
   - Implemented in App.tsx with resize event listener
 
-- [ ] Copy repository URL to clipboard
-  - Key trigger: `C` to open copy URL modal
-  - Modal UI:
-    - Show two buttons: SSH and HTTPS
-    - Left/Right arrow keys to select between buttons
-    - Keyboard shortcuts while modal is open:
-      - `S` to copy SSH URL (`git@github.com:<owner>/<repo>.git`)
-      - `H` to copy HTTPS URL (`https://github.com/<owner>/<repo>.git`)
-      - `Esc` or `C` to close modal without copying
-    - Visual focus indication on selected button
-  - On success: show a short-lived footer toast (e.g., "Copied SSH URL" or "Copied HTTPS URL")
-  - On failure: show error toast with suggestion
-  - Cross‑platform clipboard
-    - Prefer `clipboardy` dependency; fallback to OS commands: macOS `pbcopy`, Windows `clip`, Linux `xclip`/`xsel`/`wl-copy`
-    - Silent no‑op if clipboard utility absent and `clipboardy` unavailable, but show error toast
+- [x] Copy repository URL to clipboard
+  - Assigned key `C` to open copy URL modal
+  - Modal UI with SSH and HTTPS options
+  - Left/Right arrow keys for button navigation
+  - Keyboard shortcuts: `S` for SSH, `H` for HTTPS
+  - Cross-platform clipboard support using `clipboardy`
+  - Fallback to OS commands (pbcopy, clip, xclip/xsel/wl-copy)
+  - Success/error toast messages with clear feedback
 
-- [ ] OAuth login flow (alternative to token)
-  - GitHub OAuth App authentication as alternative to Personal Access Token
-  - Implementation approach:
-    - Register OAuth app with GitHub (client ID/secret)
-    - CLI flow: open browser to GitHub OAuth authorize URL
-    - Start local HTTP server to receive callback with authorization code
-    - Exchange code for access token via GitHub token endpoint
-    - Store token with same security as current PAT implementation
+- [x] OAuth login flow (alternative to token) ✓ COMPLETED
+  - GitHub OAuth App authentication as alternative to Personal Access Token ✓
+  - Implementation details:
+    - Uses GitHub Device Authorization Grant flow (no client secret needed) ✓
+    - Client ID: Ov23li1pOAO5GZmxBF1L ✓
+    - Device code displayed prominently in yellow box during auth ✓
+    - Auto-opens browser to GitHub's device authorization page ✓
+    - Polls for token after user authorizes (5-second intervals) ✓
+    - Stores OAuth token with same 0600 permissions as PAT ✓
   - User experience:
-    - On first run: "Login via (1) Personal Access Token or (2) GitHub OAuth"
-    - OAuth flow: "Opening browser for GitHub login..." → callback → "Authentication successful!"
-    - Same token storage and management as current implementation
-  - Benefits: no need to manually create PATs, auto-scoping, better UX
-  - Considerations: requires OAuth app registration, local server for callback
+    - Auth method selector: OAuth shown as recommended option ✓
+    - Clear device code display with step-by-step instructions ✓
+    - Real-time status updates (waiting, polling, success, error) ✓
+    - Escape key handler for stuck flows ✓
+    - Q/Esc to quit from auth method selector ✓
+  - Advanced features:
+    - Comprehensive OAuth scopes (repo, read:org, user, delete_repo, workflow, packages) ✓
+    - Organisation access management (Ctrl+W in org switcher opens GitHub settings) ✓
+    - Refresh organisations list after granting permissions (R key) ✓
+    - British English throughout interface (organisation, authorisation, colour) ✓
+  - Benefits: No manual PAT creation, automatic scoping, better security, improved UX ✓
 
 - [x] Logout (clear stored token)
   - Assigned key: `Ctrl+L` to open logout prompt
@@ -334,7 +331,13 @@ Legend:
 - [~] CLI flags (partial implementation)
   - [x] `--version` / `-v` flag to show version
   - [x] `--help` / `-h` flag to show usage
-  - [ ] `--org` to start with specific organization
+  - [x] `--org` to start with specific organization
+    - Launch with `--org <slug>` to jump to that organisation context if accessible; otherwise ignored
+    - Works with already authenticated session; overrides persisted context for the run
+  - [ ] `--token` / `-t` to provide a token for this run
+    - Accepts `--token <pat>` and `--token=<pat>` (and `-t` forms)
+    - Overrides env/config for the current process only; does not persist
+    - Show a brief security note about shell history; prefer env var or interactive prompt
   - [ ] `--sort` to set initial sort field
   - [ ] `--filter` to set initial filter
   - [ ] `--page-size` to override default page size

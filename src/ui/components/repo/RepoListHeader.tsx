@@ -1,6 +1,6 @@
 import React from 'react';
 import { Box, Text } from 'ink';
-import { OwnerContext } from '../../../config';
+import { OwnerContext } from '../../../config/config';
 import { SlowSpinner } from '../common';
 
 interface RepoListHeaderProps {
@@ -11,7 +11,7 @@ interface RepoListHeaderProps {
   filter: string;
   searchActive: boolean;
   searchLoading: boolean;
-  visibilityFilter?: 'all' | 'public' | 'private';
+  visibilityFilter?: 'all' | 'public' | 'private' | 'internal';
   isEnterprise?: boolean;
 }
 
@@ -26,19 +26,34 @@ export default function RepoListHeader({
   visibilityFilter = 'all',
   isEnterprise = false
 }: RepoListHeaderProps) {
+  const contextLabel = ownerContext === 'personal'
+    ? 'Personal Account'
+    : ownerContext?.type === 'organization'
+      ? `Organization: ${ownerContext.name ?? ownerContext.login}`
+      : '';
+
+  const visibilityLabel = visibilityFilter === 'public'
+    ? 'Public'
+    : visibilityFilter === 'private'
+      ? (isEnterprise ? 'Private/Internal' : 'Private')
+      : visibilityFilter === 'internal'
+        ? 'Internal'
+        : '';
+
   return (
     <Box flexDirection="row" gap={2} marginBottom={1}>
+      {contextLabel && (
+        <Text>{contextLabel}</Text>
+      )}
       <Text color="gray" dimColor>
         Sort: {sortKey} {sortDir === 'asc' ? '↑' : '↓'}
       </Text>
       <Text color="gray" dimColor>
         Fork Status - Commits Behind: {forkTracking ? 'ON' : 'OFF'}
       </Text>
-      {visibilityFilter !== 'all' && (
+      {!!visibilityLabel && (
         <Text color="yellow">
-          Visibility: {visibilityFilter === 'public' ? 'Public' : 
-                      visibilityFilter === 'private' ? (isEnterprise ? 'Private/Internal' : 'Private') : 
-                      ''}
+          Visibility: {visibilityLabel}
         </Text>
       )}
       {filter && !searchActive && (

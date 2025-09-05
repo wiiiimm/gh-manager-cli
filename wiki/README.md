@@ -10,8 +10,25 @@
 
 Interactive terminal app to browse and manage your personal GitHub repositories. Built with Ink (React for CLIs) and the GitHub GraphQL API.
 
+## 🧹 Stop Clicking Through GitHub's Web Interface
+
+**Managing repos on github.com is painfully slow.** Every action requires multiple clicks, page loads, and navigating through buried settings menus. With hundreds of repos, it becomes impossible.
+
+`gh-manager-cli` is the terminal alternative to GitHub's web UI:
+
+### Why Terminal > Web Browser
+| GitHub.com Frustrations | gh-manager-cli Solution |
+|------------------------|------------------------|
+| 📄 20 repos per page, endless clicking "Next" | ♾️ Smooth infinite scroll through all repos |
+| 🖱️ Click repo → Settings → scroll → click action | ⌨️ Single keypress for any action |
+| 🚫 No way to bulk archive or delete | 📦 Batch operations on multiple repos |
+| 🔄 Full page refresh after every action | ⚡ Instant updates with no reload |
+| 🔍 Basic search, can't filter by activity | 🎯 Smart filters by date, size, fork status |
+
+**Result:** Clean up 50+ repos in 5 minutes instead of an hour of clicking
+
 <p align="center">
-  <img src="../docs/demo_interactive.gif" alt="Interactive demo of gh-manager-cli" width="900" />
+  <img src="../docs/app-demo.gif" alt="Interactive demo of gh-manager-cli" width="900" />
   <br />
   <em>Fast, keyboard-first GitHub repo management from your terminal</em>
  </p>
