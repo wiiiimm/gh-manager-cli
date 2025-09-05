@@ -319,6 +319,62 @@ pnpm start:debug    # run with debug mode enabled
 pnpm start:dev      # run with 5 repos per page and debug mode
 ```
 
+### Release Process
+
+The project uses **automated releases** with two complementary workflows:
+
+#### 1. Semantic Release (Primary)
+- **Triggers**: On every push to `main` branch
+- **Version Calculation**: Uses [semantic-release](https://semantic-release.gitbook.io/) to analyze commit messages:
+  - `feat:` → Minor version bump (1.0.0 → 1.1.0)
+  - `fix:` → Patch version bump (1.0.0 → 1.0.1)
+  - `BREAKING CHANGE:` → Major version bump (1.0.0 → 2.0.0)
+- **Actions**:
+  1. Analyzes commits since last release
+  2. Calculates new version number
+  3. Updates `package.json`
+  4. Generates changelog
+  5. Creates GitHub release with tag
+  6. Publishes to NPM
+  7. Publishes to GitHub Packages
+  8. Updates Homebrew tap
+
+#### 2. Version Change Detection (Backup)
+- **Triggers**: When `package.json` version field changes
+- **Purpose**: Ensures releases happen even with manual version bumps
+- **Actions**:
+  1. Detects version change in `package.json`
+  2. Publishes to NPM if version doesn't exist
+  3. Updates Homebrew formula
+  4. Creates GitHub release
+
+#### Release Flow Example
+```
+Developer creates PR with commits:
+  - feat: add new feature
+  - fix: resolve bug
+    ↓
+PR merged to main
+    ↓
+semantic-release analyzes commits
+    ↓
+Calculates version: 1.2.3 → 1.3.0 (feat = minor)
+    ↓
+Updates package.json, creates changelog
+    ↓
+Publishes everywhere (NPM, GitHub, Homebrew)
+```
+
+#### Manual Release
+To manually trigger a release:
+```bash
+# Update version in package.json
+npm version patch  # or minor/major
+git push origin main
+```
+
+Both NPM and Homebrew will be automatically updated within minutes of any version change.
+
 Environment variables:
 - `REPOS_PER_FETCH`: Number of repositories to fetch per page (1-50, default: 15)
 - `GH_MANAGER_DEBUG=1`: Enables debug mode with performance metrics, detailed errors, and console logging
