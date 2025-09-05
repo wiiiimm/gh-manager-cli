@@ -1215,6 +1215,66 @@ export async function fetchRestRateLimits(token: string): Promise<RestRateLimitI
   }
 }
 
+export async function updateCacheAfterRename(
+  token: string,
+  repositoryId: string,
+  newName: string,
+  nameWithOwner: string
+): Promise<void> {
+  try {
+    const ap = await makeApolloClient(token);
+    if (!ap || !ap.client) return;
+    
+    // Update the repository in cache
+    ap.client.cache.modify({
+      id: `Repository:${repositoryId}`,
+      fields: {
+        name: () => newName,
+        nameWithOwner: () => nameWithOwner
+      }
+    });
+  } catch {}
+}
+
+export async function renameRepositoryById(
+  client: ReturnType<typeof makeClient>,
+  repositoryId: string,
+  newName: string
+): Promise<void> {
+  logger.info('Renaming repository', {
+    repositoryId,
+    newName
+  });
+
+  const mutation = /* GraphQL */ `
+    mutation RenameRepo($repositoryId: ID!, $name: String!) {
+      updateRepository(input: { repositoryId: $repositoryId, name: $name }) {
+        repository {
+          id
+          name
+          nameWithOwner
+        }
+      }
+    }
+  `;
+  
+  try {
+    const result = await client(mutation, { repositoryId, name: newName });
+    
+    logger.info('Repository renamed successfully', {
+      repositoryId,
+      newName: result?.updateRepository?.repository?.name
+    });
+  } catch (error: any) {
+    logger.error('Failed to rename repository', {
+      repositoryId,
+      newName,
+      error: error.message
+    });
+    throw error;
+  }
+}
+
 export async function inspectCacheStatus(): Promise<void> {
   try {
     const fs = await import('fs');

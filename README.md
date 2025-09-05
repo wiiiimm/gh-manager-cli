@@ -42,7 +42,7 @@ Interactive terminal app to browse and manage your personal GitHub repositories.
 
 ```bash
 # Run with npx (no install)
-npx gh-manager-cli
+npx gh-manager-cli@latest
 ```
 
 On first run, you'll be prompted to authenticate with GitHub (OAuth recommended).
@@ -99,7 +99,7 @@ brew install gh-manager-cli
 Run instantly without installing:
 
 ```bash
-npx gh-manager-cli
+npx gh-manager-cli@latest
 ```
 
 ### NPM Global Install
@@ -214,8 +214,8 @@ Launch the app, then use the keys below:
   - Examples:
     - `gh-manager-cli --org acme`
     - `gh-manager-cli -o acme`
-    - `npx gh-manager-cli --org=@acme`
-    - `npx gh-manager-cli -o=@acme`
+    - `npx gh-manager-cli@latest --org=@acme`
+    - `npx gh-manager-cli@latest -o=@acme`
   - Notes:
     - Leading `@` is optional.
     - Personal usernames are not supported by `--org`/`-o` (use default personal context).
@@ -362,7 +362,7 @@ gh-manager-cli includes built-in Apollo Client caching to reduce GitHub API call
 
 Run with `GH_MANAGER_DEBUG=1` to enable debugging features:
 ```bash
-GH_MANAGER_DEBUG=1 npx gh-manager-cli
+GH_MANAGER_DEBUG=1 npx gh-manager-cli@latest
 ```
 
 Debug mode provides:
@@ -398,16 +398,16 @@ Even with caching enabled, API credits may decrease due to:
 
 ```bash
 # Number of repositories to fetch per page (1-50, default: 15)
-REPOS_PER_FETCH=10 npx gh-manager-cli
+REPOS_PER_FETCH=10 npx gh-manager-cli@latest
 
 # Custom cache TTL (milliseconds) - default: 30 minutes
-APOLLO_TTL_MS=1800000 npx gh-manager-cli
+APOLLO_TTL_MS=1800000 npx gh-manager-cli@latest
 
 # Enable debug mode to see cache performance
-GH_MANAGER_DEBUG=1 npx gh-manager-cli
+GH_MANAGER_DEBUG=1 npx gh-manager-cli@latest
 
 # Combine multiple environment variables
-REPOS_PER_FETCH=5 GH_MANAGER_DEBUG=1 npx gh-manager-cli
+REPOS_PER_FETCH=5 GH_MANAGER_DEBUG=1 npx gh-manager-cli@latest
 ```
 
 ## Troubleshooting
