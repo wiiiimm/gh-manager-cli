@@ -4,18 +4,22 @@ This page outlines the planned features and enhancements for gh-manager-cli. For
 
 ## Recently Implemented
 
+- ✅ **OAuth login flow** as alternative to Personal Access Token
 - ✅ **Density toggle** for row spacing (compact/cozy/comfy)
-- ✅ **Repo actions** (archive/unarchive, delete) with confirmations
-- ✅ **Organization support** and switching (press `W`)
-- ✅ **Enhanced server-side search** with improved UX
+- ✅ **Repo actions** (archive/unarchive, delete, change visibility) with confirmations
+- ✅ **Organization support** and switching (press `W`) with enterprise detection
+- ✅ **Enhanced server-side search** with improved UX and organization context
 - ✅ **Smart infinite scroll** with 80% prefetch trigger
 - ✅ **Modal-based sort and visibility filtering**
+- ✅ **GitHub Enterprise support** with Internal repository visibility
+- ✅ **Change repository visibility** (`Ctrl+V`)
 - ✅ **Server-side visibility filtering** for accurate pagination
 - ✅ **Sync fork with upstream** (`Ctrl+S`)
 - ✅ **Repository info modal** (`I` key)
-- ✅ **Cache inspection** (`Ctrl+I`)
+- ✅ **Cache inspection** (`K` key)
 - ✅ **Logout functionality** (`Ctrl+L`)
 - ✅ **Apollo Client caching** with persistent storage
+- ✅ **Rate limit monitoring** for GraphQL and REST APIs with delta tracking
 
 ## In Progress
 
@@ -37,29 +41,22 @@ This page outlines the planned features and enhancements for gh-manager-cli. For
   - Bulk operations (archive/unarchive, delete)
   - Progress tracking and status reporting
 
-- 📋 **OS keychain support**
-  - Optional storage via `keytar`
-  - Fallback to file with 0600 permissions
-
-- 📋 **Window resize handling**
-  - Recompute layout on terminal resize
-  - Keep selection visible
-
 - 📋 **Copy repository URL to clipboard**
   - SSH and HTTPS URL options
   - Cross-platform clipboard support
 
+- 📋 **OS keychain support**
+  - Optional storage via `keytar`
+  - Fallback to file with 0600 permissions
+
 ## Future Considerations
 
-- 🔮 **OAuth login flow** (alternative to token)
-- 🔮 **Toggle repository visibility** (public/private/internal)
 - 🔮 **Language filter and indicators**
-- 🔮 **CLI flags** (e.g., `--org`, `--sort`, `--filter`, `--page-size`)
+- 🔮 **Extended CLI flags** (`--sort`, `--filter`, `--page-size` - partial implementation exists)
 - 🔮 **Extended repo metadata** (license, topics, issues count, watchers)
-- 🔮 **Repository actions** (clone, create, delete repos from CLI)
+- 🔮 **Repository actions** (clone, create repos from CLI)
 - 🔮 **Issue management** (view and create issues)
 - 🔮 **PR management** (list and review pull requests)
-- 🔮 **Caching** (offline support with local data cache)
 - 🔮 **Themes** (customizable color schemes)
 - 🔮 **Config profiles** (multiple GitHub account support)
 

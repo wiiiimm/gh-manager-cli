@@ -6,13 +6,17 @@
 
 ### Current Status: Active Development
 - ✅ Core repository listing functionality
-- ✅ GitHub GraphQL API integration  
+- ✅ GitHub GraphQL API integration with Apollo Client caching
 - ✅ Interactive terminal UI with Ink
-- ✅ Token management and secure storage
-- ✅ Infinite scroll and pagination
+- ✅ OAuth and PAT authentication with secure storage
+- ✅ Infinite scroll with smart prefetching
+- ✅ Repository management (delete, archive, visibility change)
+- ✅ GitHub Enterprise support with Internal visibility
+- ✅ Organization switching and context management
+- ✅ Fork synchronization with upstream
 - ✅ Semantic release automation and CI/CD workflows
 - ✅ Automated changelog generation and PR title management
-- 🔧 UI spacing consistency across terminals (ongoing)
+- 🔧 Automated test suite expansion (ongoing)
 - 🔧 Cross-terminal rendering optimization
 
 **For current version and recent changes, see [CHANGELOG.md](./CHANGELOG.md)**
@@ -60,18 +64,22 @@ gh-manager-cli/
 - **Build:** tsup with esbuild
 
 ### Key Features
-- Token bootstrap: prompt → validate → persist (0600 perms on POSIX)
-- List personal repos with metadata (name, description, stars, forks, etc.)
-- Keyboard navigation (Up/Down, PageUp/PageDown, g/G, r, q/Esc)
-- Infinite scroll with automatic pagination
-- Real-time totalCount refresh to reflect new repos
+- OAuth and PAT authentication: prompt → validate → persist (0600 perms on POSIX)
+- List personal and organization repos with metadata (name, description, stars, forks, etc.)
+- Full keyboard navigation with extensive shortcuts
+- Smart infinite scroll with 80% prefetch trigger
+- Server-side search with Apollo Client caching
+- Repository actions: delete, archive/unarchive, change visibility, sync forks
+- Organization and Enterprise GitHub support
+- Modal-based UI for sorting, filtering, and actions
+- Persistent UI preferences (sort, density, visibility filter, fork tracking)
+- Real-time rate limit monitoring for GraphQL and REST APIs
 
 ### Planned Enhancements
 See the living roadmap in [TODOs.md](./TODOs.md) for the canonical, up-to-date list. Key near-term items include:
-- Density toggle (row spacing) with persisted preference
-- Repo actions (archive/unarchive, delete) with confirmations
-- Organization switcher and org listing
-- Server-side search and first-page cache
+- Repository renaming
+- Bulk selection and actions
+- Copy repository URL to clipboard
 - Optional OS keychain support (via `keytar`)
 
 ## Configuration & Token Storage
@@ -105,16 +113,23 @@ See the living roadmap in [TODOs.md](./TODOs.md) for the canonical, up-to-date l
 - PageUp/PageDown: jump ±10
 - `Ctrl+G`: jump to top
 - `G`: jump to bottom
-- `/`: filter mode (Enter applies, Esc cancels)
-- `S` / `D`: sort field / direction
+- `/`: search mode (3+ characters for server-side search, Esc cancels)
+- `S`: sort modal (updated, pushed, name, stars)
+- `D`: toggle sort direction
 - `T`: toggle display density (compact/cozy/comfy)
-- `F`: toggle fork metrics
+- `F`: toggle fork commit tracking
+- `V`: visibility filter modal (All, Public, Private/Internal)
+- `W`: organization switcher
 - Enter or `O`: open selected repo in browser
-- `Del` or `Ctrl+Backspace`: delete selected repo (opens confirmation modal)
+- `I`: repository info modal
+- `K`: cache inspection
+- `Del` or `Backspace`: delete selected repo (two-stage confirmation)
 - `Ctrl+A`: archive/unarchive selected repo
+- `Ctrl+V`: change repository visibility
+- `Ctrl+S`: sync fork with upstream
 - `Ctrl+L`: logout (returns to Authentication Required)
-- `R`: refresh list
-- `Q`: quit (Esc cancels an open modal or exits filter mode; does not quit)
+- `R`: refresh list (purges cache)
+- `Q`: quit (Esc cancels an open modal or exits search mode; does not quit)
 
 ### Modal UX Convention (preferred)
 - Left/Right: move focus between buttons (e.g., Delete, Cancel)
