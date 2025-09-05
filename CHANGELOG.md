@@ -1,3 +1,16 @@
+# [1.31.0](https://github.com/wiiiimm/gh-manager-cli/compare/v1.30.0...v1.31.0) (2025-09-05)
+
+
+### Bug Fixes
+
+* prevent workflow loops on automated release commits ([51b1cf8](https://github.com/wiiiimm/gh-manager-cli/commit/51b1cf821703d504d83d458bf441ec5e6ccb5f48))
+
+
+### Features
+
+* add GitHub sponsorship support with comprehensive platform documentation ([8b4dfcc](https://github.com/wiiiimm/gh-manager-cli/commit/8b4dfcc85bbb735584adf32b0463a93a246dce35))
+* initial setup for GitHub sponsorship feature branch ([749f41d](https://github.com/wiiiimm/gh-manager-cli/commit/749f41d81cf9bff640a7e384a8cd238e627c5c40))
+
 # [1.30.0](https://github.com/wiiiimm/gh-manager-cli/compare/v1.29.0...v1.30.0) (2025-09-05)
 
 
