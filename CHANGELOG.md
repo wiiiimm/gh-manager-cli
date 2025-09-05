@@ -1,3 +1,10 @@
+## [1.31.2](https://github.com/wiiiimm/gh-manager-cli/compare/v1.31.1...v1.31.2) (2025-09-05)
+
+
+### Bug Fixes
+
+* increase repository container height by 30% for better visibility ([2ce8f8d](https://github.com/wiiiimm/gh-manager-cli/commit/2ce8f8d017c70fd90a595804277a6d900f539b7d))
+
 ## [1.31.1](https://github.com/wiiiimm/gh-manager-cli/compare/v1.31.0...v1.31.1) (2025-09-05)
 
 
