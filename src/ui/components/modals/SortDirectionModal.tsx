@@ -1,12 +1,13 @@
 import React, { useState, useEffect } from 'react';
 import { Box, Text, useInput } from 'ink';
 import chalk from 'chalk';
+import { SortKey } from './SortModal';
 
 export type SortDirection = 'asc' | 'desc';
 
 interface SortDirectionModalProps {
   currentDirection: SortDirection;
-  currentSortKey: string;
+  currentSortKey: SortKey;
   onSelect: (direction: SortDirection) => void;
   onCancel: () => void;
 }
@@ -126,7 +127,6 @@ export default function SortDirectionModal({
       case 'pushed': return 'Last Pushed';
       case 'name': return 'Name';
       case 'stars': return 'Stars';
-      default: return currentSortKey;
     }
   };
   
