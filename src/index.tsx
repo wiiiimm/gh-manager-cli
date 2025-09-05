@@ -46,8 +46,10 @@ if (argv.includes('--version') || argv.includes('-v')) {
   process.exit(0);
 }
 if (argv.includes('--help') || argv.includes('-h')) {
-  process.stdout.write(`\n` +
-    `gh-manager-cli — GitHub repo manager (Ink TUI)\n\n` +
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const version = (pkg as any)?.version || '0.0.0';
+  process.stdout.write(`gh-manager-cli v${version}\n\n` +
+    `GitHub repo manager (Ink TUI)\n\n` +
     `Usage:\n` +
     `  gh-manager-cli                     Launch the TUI\n` +
     `  gh-manager-cli --org, -o <slug>    Start in an organisation context (if accessible)\n` +
