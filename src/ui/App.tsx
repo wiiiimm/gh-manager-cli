@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { Box, Text, useApp, useStdout, useInput } from 'ink';
 import TextInput from 'ink-text-input';
-import { getStoredToken, storeToken, getTokenFromEnv, clearStoredToken, OwnerContext, getTokenSource, TokenSource } from '../config/config';
+import { getStoredToken, storeToken, getTokenFromEnv, clearStoredToken, clearAllSettings, OwnerContext, getTokenSource, TokenSource } from '../config/config';
 import { makeClient, getViewerLogin } from '../services/github';
 import { pollForAccessToken, requestDeviceCode, DeviceCodeResponse } from '../services/oauth';
 import RepoList from './views/RepoList';
@@ -285,7 +285,7 @@ export default function App({ initialOrgSlug, inlineToken, inlineTokenEphemeral 
       previousUser: viewer,
       tokenOrigin: sessionTokenOrigin,
     });
-    try { clearStoredToken(); } catch {}
+    try { clearAllSettings(); } catch {}
     setRateLimitReset(null);
     setToken(null);
     setViewer(null);

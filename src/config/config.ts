@@ -78,6 +78,11 @@ export function clearStoredToken() {
   writeConfig({ ...rest });
 }
 
+export function clearAllSettings() {
+  // Clear everything including UI preferences and org context
+  writeConfig({});
+}
+
 export function getTokenSource(): TokenSource {
   const cfg = readConfig();
   return cfg.tokenSource || 'pat'; // Default to PAT for backward compatibility
