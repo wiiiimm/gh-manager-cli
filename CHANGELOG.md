@@ -1,3 +1,10 @@
+# [1.26.0](https://github.com/wiiiimm/gh-manager-cli/compare/v1.25.1...v1.26.0) (2025-09-05)
+
+
+### Features
+
+* add green monochrome logo-mark variant ([ec31eeb](https://github.com/wiiiimm/gh-manager-cli/commit/ec31eeb52f6af564568fe4346cd22085a39460fa)), closes [#22c55](https://github.com/wiiiimm/gh-manager-cli/issues/22c55)
+
 ## [1.25.1](https://github.com/wiiiimm/gh-manager-cli/compare/v1.25.0...v1.25.1) (2025-09-05)
 
 
