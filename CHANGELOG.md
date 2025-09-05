@@ -1,3 +1,10 @@
+# [1.30.0](https://github.com/wiiiimm/gh-manager-cli/compare/v1.29.0...v1.30.0) (2025-09-05)
+
+
+### Features
+
+* add workflow to auto-release on any version change ([f89c237](https://github.com/wiiiimm/gh-manager-cli/commit/f89c2378c6427fb3762e160294ddd0681d29ea80))
+
 # [1.29.0](https://github.com/wiiiimm/gh-manager-cli/compare/v1.28.0...v1.29.0) (2025-09-05)
 
 
