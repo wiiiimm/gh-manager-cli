@@ -1,3 +1,10 @@
+## [1.31.1](https://github.com/wiiiimm/gh-manager-cli/compare/v1.31.0...v1.31.1) (2025-09-05)
+
+
+### Bug Fixes
+
+* correct YAML syntax for conditional expressions in workflows ([c2faf29](https://github.com/wiiiimm/gh-manager-cli/commit/c2faf29932582d8ab9c438c6bcc4f52ccb67eacb))
+
 # [1.31.0](https://github.com/wiiiimm/gh-manager-cli/compare/v1.30.0...v1.31.0) (2025-09-05)
 
 
