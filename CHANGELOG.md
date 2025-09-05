@@ -1,3 +1,10 @@
+## [1.24.2](https://github.com/wiiiimm/gh-manager-cli/compare/v1.24.1...v1.24.2) (2025-09-05)
+
+
+### Bug Fixes
+
+* prevent Ctrl+R from triggering refresh instead of rename ([987f505](https://github.com/wiiiimm/gh-manager-cli/commit/987f505ada3c2b17175e24cace81330ea8db9709))
+
 ## [1.24.1](https://github.com/wiiiimm/gh-manager-cli/compare/v1.24.0...v1.24.1) (2025-09-05)
 
 
