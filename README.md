@@ -14,6 +14,26 @@ Interactive terminal app to browse and manage your personal GitHub repositories.
 
 🌐 **Visit our website:** [gh-manager-cli.dev](https://gh-manager-cli.dev) | [Source](https://github.com/wiiiimm/gh-manager-cli-site) | Hosted on [Vercel](https://vercel.com)
 
+## 🧹 Clean Up Your GitHub Account in Minutes
+
+**Stop clicking through GitHub's slow web interface.** Managing dozens of repos on github.com means endless page loads, multiple clicks per action, and no keyboard shortcuts. 
+
+`gh-manager-cli` replaces tedious web clicking with powerful terminal commands:
+
+### ❌ GitHub Website Pain Points → ✅ Our Solution
+- **Slow pagination** (20 repos/page) → View all repos instantly with smooth scrolling
+- **Multiple clicks per action** → Single keypress for any operation  
+- **No bulk operations** → Archive, delete, or modify multiple repos at once
+- **Buried settings menus** → Direct keyboard shortcuts for everything
+- **Page refresh after each action** → Instant updates with no reload
+
+Perfect for:
+- **Spring cleaning**: Archive old projects and delete forgotten forks
+- **Professional profiles**: Keep only your best work visible  
+- **Fork management**: Identify and sync outdated forks
+- **Consistent naming**: Bulk rename repositories with patterns
+- **Quick decisions**: See all metadata at a glance to decide what stays
+
 <p align="center">
   <img src="docs/app-demo.gif" alt="Interactive demo of gh-manager-cli" width="900" />
   <br />

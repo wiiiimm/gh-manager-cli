@@ -2,7 +2,7 @@
   "name": "gh-manager-cli",
   "version": "1.28.0",
   "private": false,
-  "description": "Interactive CLI to manage your GitHub repos (personal) with Ink",
+  "description": "TUI terminal app to manage GitHub repos. Clean up your account in 5 minutes. Archive, delete, rename repos with keyboard shortcuts. Alternative to clicking through github.com",
   "license": "MIT",
   "main": "dist/index.js",
   "bin": {
@@ -21,7 +21,22 @@
     "management",
     "terminal",
     "tui",
-    "react-ink"
+    "react-ink",
+    "github-cli",
+    "github-manager",
+    "repo-manager",
+    "repository-cleanup",
+    "github-cleanup",
+    "archive-repos",
+    "delete-repos",
+    "github-api",
+    "developer-tools",
+    "productivity",
+    "github-tools",
+    "terminal-ui",
+    "interactive-cli",
+    "ink",
+    "graphql"
   ],
   "type": "module",
   "scripts": {
@@ -75,7 +90,7 @@
   "bugs": {
     "url": "https://github.com/wiiiimm/gh-manager-cli/issues"
   },
-  "homepage": "https://github.com/wiiiimm/gh-manager-cli#readme",
+  "homepage": "https://gh-manager-cli.dev",
   "release": {
     "branches": [
       "main"
