@@ -73,7 +73,7 @@ On first run, you'll be prompted to authenticate with GitHub (OAuth recommended)
 - **Authentication**: GitHub OAuth (recommended) or Personal Access Token with secure storage
 - **Repository Listing**: Browse all your personal repositories with metadata (stars, forks, language, etc.)
 - **Live Pagination**: Infinite scroll with automatic page prefetching
-- **Interactive Sorting**: Modal-based sort selection (updated, pushed, name, stars) with direction toggle
+- **Interactive Sorting**: Modal-based sort selection (updated, pushed, name, stars) with modal-based direction selection
 - **Smart Search**: Server-side search through repository names and descriptions (3+ characters)
 - **Visibility Filtering**: Modal-based visibility filter (All, Public, Private/Internal for enterprise) with smart filtering
 - **Fork Status Tracking**: Toggle display of commits behind upstream for forked repositories
@@ -264,7 +264,7 @@ Launch the app, then use the keys below:
   - Pushed: When code was last pushed
   - Name: Alphabetical by repository name
   - Stars: Number of stars
-- **Sort Direction**: `D` to toggle ascending/descending
+- **Sort Direction**: `D` to open sort direction modal (ascending/descending)
 - **Display Density**: `T` to toggle compact/cozy/comfy
 - **Fork Status**: `F` to toggle showing commits behind upstream
 - **Visibility Filter**: `V` opens modal (All, Public, Private/Internal for enterprise)

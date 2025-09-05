@@ -9,7 +9,7 @@ import type { RepoNode, RateLimitInfo, RestRateLimitInfo } from '../../types';
 import { exec } from 'child_process';
 import OrgSwitcher from '../OrgSwitcher';
 import { logger } from '../../lib/logger';
-import { DeleteModal, ArchiveModal, SyncModal, InfoModal, LogoutModal, VisibilityModal, SortModal, ChangeVisibilityModal, CopyUrlModal, RenameModal } from '../components/modals';
+import { DeleteModal, ArchiveModal, SyncModal, InfoModal, LogoutModal, VisibilityModal, SortModal, SortDirectionModal, ChangeVisibilityModal, CopyUrlModal, RenameModal } from '../components/modals';
 import { RepoRow, FilterInput, RepoListHeader } from '../components/repo';
 import { SlowSpinner } from '../components/common';
 import { truncate, formatDate, copyToClipboard } from '../../lib/utils';
@@ -155,6 +155,7 @@ export default function RepoList({ token, maxVisibleRows, onLogout, viewerLogin,
   
   // Sort modal state
   const [sortMode, setSortMode] = useState(false);
+  const [sortDirectionMode, setSortDirectionMode] = useState(false);
 
   // Apply initial --org flag once (if provided)
   const appliedInitialOrg = useRef(false);
@@ -1079,6 +1080,11 @@ export default function RepoList({ token, maxVisibleRows, onLogout, viewerLogin,
     if (sortMode) {
       return; // SortModal component handles its own keyboard input
     }
+    
+    // When sort direction modal is open, trap inputs for modal
+    if (sortDirectionMode) {
+      return; // SortDirectionModal component handles its own keyboard input
+    }
 
     // When in filter mode, only handle input for the TextInput
     if (filterMode) {
@@ -1297,13 +1303,7 @@ export default function RepoList({ token, maxVisibleRows, onLogout, viewerLogin,
       return;
     }
     if (input && input.toUpperCase() === 'D') {
-      setSortDir(prev => {
-        const next = prev === 'asc' ? 'desc' : 'asc';
-        storeUIPrefs({ sortDir: next });
-        return next;
-      });
-      setCursor(0); // Reset cursor to top
-      // Will trigger refresh via useEffect
+      setSortDirectionMode(true);
       return;
     }
 
@@ -1489,7 +1489,7 @@ export default function RepoList({ token, maxVisibleRows, onLogout, viewerLogin,
 
   const lowRate = (rateLimit && rateLimit.remaining <= Math.ceil(rateLimit.limit * 0.1)) || 
                    (restRateLimit && restRateLimit.core.remaining <= Math.ceil(restRateLimit.core.limit * 0.1));
-  const modalOpen = deleteMode || archiveMode || syncMode || logoutMode || infoMode || visibilityMode;
+  const modalOpen = deleteMode || archiveMode || syncMode || logoutMode || infoMode || visibilityMode || sortMode || sortDirectionMode || changeVisibilityMode || copyUrlMode || renameMode;
 
   // Memoize header to prevent re-renders - must be before any returns
   const headerBar = useMemo(() => (
@@ -2011,6 +2011,21 @@ export default function RepoList({ token, maxVisibleRows, onLogout, viewerLogin,
                 // Will trigger refresh via useEffect
               }}
               onCancel={() => setSortMode(false)}
+            />
+          </Box>
+        ) : sortDirectionMode ? (
+          <Box height={contentHeight} alignItems="center" justifyContent="center">
+            <SortDirectionModal
+              currentDirection={sortDir}
+              currentSortKey={sortKey}
+              onSelect={(direction) => {
+                setSortDir(direction);
+                setSortDirectionMode(false);
+                setCursor(0); // Reset cursor when direction changes
+                storeUIPrefs({ sortDir: direction });
+                // Will trigger refresh via useEffect
+              }}
+              onCancel={() => setSortDirectionMode(false)}
             />
           </Box>
         ) : changeVisibilityMode && changeVisibilityTarget ? (
