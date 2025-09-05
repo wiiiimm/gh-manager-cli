@@ -1162,8 +1162,8 @@ export default function RepoList({ token, maxVisibleRows, onLogout, viewerLogin,
       setCursor(visibleItems.length - 1);
       return;
     }
-    if (input && input.toUpperCase() === 'R') {
-      // Refresh - show loading screen
+    if (input && input.toUpperCase() === 'R' && !key.ctrl) {
+      // Refresh - show loading screen (only if Ctrl is not pressed)
       setCursor(0);
       setRefreshing(true);
       setSortingLoading(true); // Use same loading state for consistency
