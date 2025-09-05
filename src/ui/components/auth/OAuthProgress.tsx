@@ -1,6 +1,6 @@
 import React from 'react';
 import { Box, Text } from 'ink';
-import Spinner from 'ink-spinner';
+import SlowSpinner from '../common/SlowSpinner';
 
 export type OAuthStatus = 
   | 'initializing'
@@ -69,7 +69,7 @@ export default function OAuthProgress({ status, error, deviceCode }: OAuthProgre
         {showSpinner ? (
           <Box>
             <Text color="green">
-              <Spinner type="dots" />
+              <SlowSpinner interval={2000} />
             </Text>
             <Text> {message}</Text>
           </Box>
