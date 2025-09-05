@@ -1,3 +1,10 @@
+# [1.29.0](https://github.com/wiiiimm/gh-manager-cli/compare/v1.28.0...v1.29.0) (2025-09-05)
+
+
+### Features
+
+* enhance messaging to position as GitHub web UI alternative ([5c4a802](https://github.com/wiiiimm/gh-manager-cli/commit/5c4a80252848dd1f85604c5fae9ec1f2945e1e9b))
+
 # [1.28.0](https://github.com/wiiiimm/gh-manager-cli/compare/v1.27.0...v1.28.0) (2025-09-05)
 
 
