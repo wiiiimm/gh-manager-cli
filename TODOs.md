@@ -92,15 +92,14 @@ Legend:
     - Suggest creating a pull request to resolve conflicts
   - On other failure: show error with retry option
 
-- [ ] Rename repository
-  - Assign a key to trigger rename: e.g. `E` (Edit name)
-  - Modal overlay with a single-line text input prefilled with current repo name
-    - User can edit or clear and retype; value cannot be empty (trimmed)
-    - `Esc` cancels and closes the modal without changes
-  - On submit:
-    - Attempt rename via GitHub API (GraphQL mutation); validate scopes/permissions
-    - Success: close modal and update the repo in local list (name and nameWithOwner); re-run local sorting if applicable; no server refetch required
-    - Failure: show error message in the modal; allow retry or cancel
+- [x] Rename repository
+  - Assigned key `Ctrl+R` to trigger rename modal
+  - Modal overlay with text input prefilled with current repo name
+  - Real-time validation: name cannot be empty, must match GitHub naming rules
+  - GraphQL mutation `renameRepository` with automatic Apollo cache update
+  - Success: updates local state and cache without server refetch
+  - Error handling with retry option and clear error messages
+  - Cache update also refreshes nameWithOwner field
 
 - [~] Add automated test suite
   - [x] Test infrastructure setup (Vitest with TypeScript support)
@@ -259,8 +258,6 @@ Legend:
     - Visual indicator: forks show "Fork of parent" without behind count when disabled
     - Show "up to date" for forks with 0 commits behind when tracking enabled
 
-- [ ] OS keychain support
-  - Optional storage via `keytar`; fallback to file with 0600 perms
 
 - [x] Window resize handling
   - Terminal width detection via `useStdout().columns`
@@ -268,21 +265,14 @@ Legend:
   - Responsive layout that adapts to terminal size
   - Implemented in App.tsx with resize event listener
 
-- [ ] Copy repository URL to clipboard
-  - Key trigger: `C` to open copy URL modal
-  - Modal UI:
-    - Show two buttons: SSH and HTTPS
-    - Left/Right arrow keys to select between buttons
-    - Keyboard shortcuts while modal is open:
-      - `S` to copy SSH URL (`git@github.com:<owner>/<repo>.git`)
-      - `H` to copy HTTPS URL (`https://github.com/<owner>/<repo>.git`)
-      - `Esc` or `C` to close modal without copying
-    - Visual focus indication on selected button
-  - On success: show a short-lived footer toast (e.g., "Copied SSH URL" or "Copied HTTPS URL")
-  - On failure: show error toast with suggestion
-  - Cross‑platform clipboard
-    - Prefer `clipboardy` dependency; fallback to OS commands: macOS `pbcopy`, Windows `clip`, Linux `xclip`/`xsel`/`wl-copy`
-    - Silent no‑op if clipboard utility absent and `clipboardy` unavailable, but show error toast
+- [x] Copy repository URL to clipboard
+  - Assigned key `C` to open copy URL modal
+  - Modal UI with SSH and HTTPS options
+  - Left/Right arrow keys for button navigation
+  - Keyboard shortcuts: `S` for SSH, `H` for HTTPS
+  - Cross-platform clipboard support using `clipboardy`
+  - Fallback to OS commands (pbcopy, clip, xclip/xsel/wl-copy)
+  - Success/error toast messages with clear feedback
 
 - [x] OAuth login flow (alternative to token) ✓ COMPLETED
   - GitHub OAuth App authentication as alternative to Personal Access Token ✓

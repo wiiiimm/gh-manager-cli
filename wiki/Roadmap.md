@@ -20,6 +20,8 @@ This page outlines the planned features and enhancements for gh-manager-cli. For
 - ✅ **Logout functionality** (`Ctrl+L`)
 - ✅ **Apollo Client caching** with persistent storage
 - ✅ **Rate limit monitoring** for GraphQL and REST APIs with delta tracking
+- ✅ **Repository renaming** (`Ctrl+R`) with inline validation and cache update
+- ✅ **Copy repository URL to clipboard** (`C` key) with SSH/HTTPS options
 
 ## In Progress
 
@@ -31,23 +33,10 @@ This page outlines the planned features and enhancements for gh-manager-cli. For
 
 ## Coming Soon
 
-- 📋 **Repository renaming**
-  - Assign a key to trigger rename (e.g., `E`)
-  - Modal overlay with text input prefilled with current repo name
-  - Update repository name via GitHub API
-
 - 📋 **Bulk selection and actions**
   - Multi-select mode with space to toggle selection
   - Bulk operations (archive/unarchive, delete)
   - Progress tracking and status reporting
-
-- 📋 **Copy repository URL to clipboard**
-  - SSH and HTTPS URL options
-  - Cross-platform clipboard support
-
-- 📋 **OS keychain support**
-  - Optional storage via `keytar`
-  - Fallback to file with 0600 permissions
 
 ## Future Considerations
 
