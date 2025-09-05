@@ -1,3 +1,10 @@
+## [1.24.1](https://github.com/wiiiimm/gh-manager-cli/compare/v1.24.0...v1.24.1) (2025-09-05)
+
+
+### Bug Fixes
+
+* restore accidentally deleted features from refactor ([bcc9f12](https://github.com/wiiiimm/gh-manager-cli/commit/bcc9f123cba0abe274a1351168bfc5583cc9382f))
+
 # [1.24.0](https://github.com/wiiiimm/gh-manager-cli/compare/v1.23.0...v1.24.0) (2025-09-05)
 
 
