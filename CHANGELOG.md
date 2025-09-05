@@ -1,3 +1,10 @@
+## [1.24.3](https://github.com/wiiiimm/gh-manager-cli/compare/v1.24.2...v1.24.3) (2025-09-05)
+
+
+### Bug Fixes
+
+* clear all settings including org context on logout ([3a30b02](https://github.com/wiiiimm/gh-manager-cli/commit/3a30b0246d410b14bf9d9b5681904660cf7cc80f))
+
 ## [1.24.2](https://github.com/wiiiimm/gh-manager-cli/compare/v1.24.1...v1.24.2) (2025-09-05)
 
 
