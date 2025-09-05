@@ -2,8 +2,8 @@ import React from 'react';
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { render } from 'ink-testing-library';
 import App from '../../src/ui/App';
-import { getStoredToken, storeToken, getTokenFromEnv, clearStoredToken } from '../../src/config';
-import { makeClient, getViewerLogin } from '../../src/github';
+import { getStoredToken, storeToken, getTokenFromEnv, clearStoredToken } from '../../src/config/config';
+import { makeClient, getViewerLogin } from '../../src/services/github';
 
 // Mock package.json
 vi.mock('../../package.json', () => ({
@@ -11,7 +11,7 @@ vi.mock('../../package.json', () => ({
 }));
 
 // Mock logger
-vi.mock('../../src/logger', () => ({
+vi.mock('../../src/lib/logger', () => ({
   logger: {
     info: vi.fn(),
     error: vi.fn(),
@@ -21,7 +21,7 @@ vi.mock('../../src/logger', () => ({
 }));
 
 // Mock config module
-vi.mock('../../src/config', () => ({
+vi.mock('../../src/config/config', () => ({
   getStoredToken: vi.fn(),
   storeToken: vi.fn(),
   getTokenFromEnv: vi.fn(),
@@ -31,13 +31,13 @@ vi.mock('../../src/config', () => ({
 }));
 
 // Mock github module  
-vi.mock('../../src/github', () => ({
+vi.mock('../../src/services/github', () => ({
   makeClient: vi.fn(),
   getViewerLogin: vi.fn()
 }));
 
 // Mock oauth module
-vi.mock('../../src/oauth', () => ({
+vi.mock('../../src/services/oauth', () => ({
   requestDeviceCode: vi.fn(),
   pollForAccessToken: vi.fn()
 }));

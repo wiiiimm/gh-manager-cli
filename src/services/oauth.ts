@@ -1,5 +1,5 @@
 import open from 'open';
-import { OAUTH_CONFIG } from './constants';
+import { OAUTH_CONFIG } from '../config/constants';
 import { makeClient, getViewerLogin } from './github';
 
 // Type definitions

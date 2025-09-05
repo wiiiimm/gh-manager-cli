@@ -4,8 +4,8 @@ import { persistCache } from 'apollo3-cache-persist';
 import fs from 'fs';
 import path from 'path';
 import envPaths from 'env-paths';
-import type { RepoNode, RateLimitInfo, RestRateLimitInfo, CombinedRateLimitInfo } from './types';
-import { logger } from './logger';
+import type { RepoNode, RateLimitInfo, RestRateLimitInfo, CombinedRateLimitInfo } from '../types';
+import { logger } from '../lib/logger';
 
 export function makeClient(token: string) {
   return makeGraphQL.defaults({

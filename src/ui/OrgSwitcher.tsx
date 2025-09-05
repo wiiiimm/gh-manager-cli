@@ -1,10 +1,10 @@
 import React, { useEffect, useState } from 'react';
 import { Box, Text, useInput } from 'ink';
 import chalk from 'chalk';
-import { fetchViewerOrganizations, checkOrganizationIsEnterprise } from '../github';
-import { openGitHubAuthorizationPage } from '../oauth';
+import { fetchViewerOrganizations, checkOrganizationIsEnterprise } from '../services/github';
+import { openGitHubAuthorizationPage } from '../services/oauth';
 import type { OrganizationNode } from '../types';
-import { OwnerContext } from '../config';
+import { OwnerContext } from '../config/config';
 
 interface OrgSwitcherProps {
   token: string;
@@ -30,7 +30,7 @@ export default function OrgSwitcher({ token, currentContext, onSelect, onClose }
     try {
       setLoading(true);
       setError(null);
-      const client = await import('../github').then(m => m.makeClient(token));
+      const client = await import('../services/github').then(m => m.makeClient(token));
       const orgs = await fetchViewerOrganizations(client);
       setOrganizations(orgs);
       

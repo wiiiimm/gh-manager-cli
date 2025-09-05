@@ -19,7 +19,7 @@ vi.mock('env-paths', () => ({
 }));
 
 // Import after mocking
-const modPromise = import('../src/apolloMeta');
+const modPromise = import('../src/services/apolloMeta');
 
 describe('apolloMeta keys and freshness', () => {
   beforeEach(() => {

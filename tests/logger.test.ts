@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import fs from 'fs';
 import path from 'path';
-import Logger, { LogLevel } from '../src/logger';
+import Logger, { LogLevel } from '../src/lib/logger';
 
 vi.mock('fs');
 vi.mock('env-paths', () => ({

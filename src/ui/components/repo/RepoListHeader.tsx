@@ -1,6 +1,6 @@
 import React from 'react';
 import { Box, Text } from 'ink';
-import { OwnerContext } from '../../../config';
+import { OwnerContext } from '../../../config/config';
 import { SlowSpinner } from '../common';
 
 interface RepoListHeaderProps {

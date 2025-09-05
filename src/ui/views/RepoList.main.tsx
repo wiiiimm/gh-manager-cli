@@ -1,18 +1,13 @@
-import React, { useEffect, useMemo, useState, useRef, useCallback } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { Box, Text, useApp, useInput, useStdout, Spacer, Newline } from 'ink';
 import TextInput from 'ink-text-input';
 import chalk from 'chalk';
-import { makeClient, fetchViewerReposPageUnified, searchRepositoriesUnified, deleteRepositoryRest, archiveRepositoryById, unarchiveRepositoryById, changeRepositoryVisibility, syncForkWithUpstream, getRepositoryFromCache, purgeApolloCacheFiles, inspectCacheStatus, updateCacheAfterDelete, updateCacheAfterArchive, updateCacheAfterVisibilityChange, updateCacheWithRepository, checkOrganizationIsEnterprise, OwnerAffiliation, fetchViewerOrganizations, fetchRestRateLimits } from '../github';
-import { getUIPrefs, storeUIPrefs, OwnerContext } from '../config';
-import { makeApolloKey, makeSearchKey, isFresh, markFetched } from '../apolloMeta';
-import type { RepoNode, RateLimitInfo, RestRateLimitInfo } from '../types';
+import { makeClient, fetchViewerReposPageUnified, searchRepositoriesUnified, deleteRepositoryRest, archiveRepositoryById, unarchiveRepositoryById, syncForkWithUpstream, purgeApolloCacheFiles, inspectCacheStatus, OwnerAffiliation } from '../../services/github';
+import { getUIPrefs, storeUIPrefs, OwnerContext } from '../../config/config';
+import { makeApolloKey, makeSearchKey, isFresh, markFetched } from '../../services/apolloMeta';
+import type { RepoNode, RateLimitInfo } from '../../types';
 import { exec } from 'child_process';
-import OrgSwitcher from './OrgSwitcher';
-import { logger } from '../logger';
-import { DeleteModal, ArchiveModal, SyncModal, InfoModal, LogoutModal, VisibilityModal, SortModal, ChangeVisibilityModal } from './components/modals';
-import { RepoRow, FilterInput, RepoListHeader } from './components/repo';
-import { SlowSpinner } from './components/common';
-import { truncate, formatDate } from '../utils';
+import OrgSwitcher from '../OrgSwitcher';
 
 // Allow customizable repos per fetch via env var (1-50, default 15)
 const getPageSize = () => {
@@ -28,13 +23,105 @@ const getPageSize = () => {
 
 const PAGE_SIZE = getPageSize();
 
-export default function RepoList({ token, maxVisibleRows, onLogout, viewerLogin, onOrgContextChange, initialOrgSlug }: { 
+// Custom slow spinner that updates every 0.5 seconds
+function SlowSpinner() {
+  const frames = ['⠋', '⠙', '⠹', '⠸', '⠼', '⠴', '⠦', '⠧', '⠇', '⠏'];
+  const [frame, setFrame] = useState(0);
+  
+  useEffect(() => {
+    const timer = setInterval(() => {
+      setFrame(f => (f + 1) % frames.length);
+    }, 500); // 0.5 seconds per frame
+    
+    return () => clearInterval(timer);
+  }, [frames.length]);
+  
+  return <Text>{frames[frame]}</Text>;
+}
+
+function truncate(str: string, max = 80) {
+  if (str.length <= max) return str;
+  return str.slice(0, Math.max(0, max - 1)) + '…';
+}
+
+function formatDate(dateStr: string): string {
+  const date = new Date(dateStr);
+  const now = new Date();
+  const diffMs = now.getTime() - date.getTime();
+  const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
+  
+  if (diffDays === 0) return 'today';
+  if (diffDays === 1) return 'yesterday';
+  if (diffDays < 7) return `${diffDays} days ago`;
+  if (diffDays < 30) return `${Math.floor(diffDays / 7)} weeks ago`;
+  if (diffDays < 365) return `${Math.floor(diffDays / 30)} months ago`;
+  return `${Math.floor(diffDays / 365)} years ago`;
+}
+
+function RepoRow({ repo, selected, index, maxWidth, spacingLines, dim, forkTracking }: { repo: RepoNode; selected: boolean; index: number; maxWidth: number; spacingLines: number; dim?: boolean; forkTracking: boolean }) {
+  const langName = repo.primaryLanguage?.name || '';
+  const langColor = repo.primaryLanguage?.color || '#666666';
+  
+  // Calculate commits behind for forks - only show if tracking is enabled AND data is available
+  const hasCommitData = repo.isFork && repo.parent && repo.defaultBranchRef && repo.parent.defaultBranchRef
+    && repo.parent.defaultBranchRef.target?.history && repo.defaultBranchRef.target?.history;
+  
+  const commitsBehind = hasCommitData
+    ? (repo.parent.defaultBranchRef.target.history.totalCount - repo.defaultBranchRef.target.history.totalCount)
+    : 0;
+  
+  const showCommitsBehind = forkTracking && hasCommitData;
+  
+  // Build colored line 1
+  let line1 = '';
+  const numColor = selected ? chalk.cyan : chalk.gray;
+  const nameColor = selected ? chalk.cyan.bold : chalk.white;
+  line1 += numColor(`${String(index).padStart(3, ' ')}.`);
+  line1 += nameColor(` ${repo.nameWithOwner}`);
+  if (repo.isPrivate) line1 += chalk.yellow(' Private');
+  if (repo.isArchived) line1 += ' ' + chalk.bgGray.whiteBright(' Archived ') + ' ';
+  if (repo.isFork && repo.parent) {
+    line1 += chalk.blue(` Fork of ${repo.parent.nameWithOwner}`);
+    if (showCommitsBehind) {
+      if (commitsBehind > 0) {
+        line1 += chalk.yellow(` (${commitsBehind} behind)`);
+      } else {
+        line1 += chalk.green(` (0 behind)`);
+      }
+    }
+  }
+  
+  // Build colored line 2
+  let line2 = '     ';
+  const metaColor = selected ? chalk.white : chalk.gray;
+  if (langName) line2 += chalk.hex(langColor)('● ') + metaColor(`${langName}  `);
+  line2 += metaColor(`★ ${repo.stargazerCount}  ⑂ ${repo.forkCount}  Updated ${formatDate(repo.updatedAt)}`);
+  
+  // Build line 3
+  const line3 = repo.description ? `     ${truncate(repo.description, Math.max(30, maxWidth - 10))}` : null;
+  
+  // Combine all lines with newlines
+  let fullText = line1 + '\n' + line2;
+  if (line3) fullText += '\n' + metaColor(line3);
+  
+  return (
+    <Box flexDirection="column" backgroundColor={selected ? 'gray' : undefined}>
+      <Text>{dim ? chalk.dim(fullText) : fullText}</Text>
+      {spacingLines > 0 && (
+        <Box height={spacingLines}>
+          <Text> </Text>
+        </Box>
+      )}
+    </Box>
+  );
+}
+
+export default function RepoList({ token, maxVisibleRows, onLogout, viewerLogin, onOrgContextChange }: { 
   token: string; 
   maxVisibleRows?: number; 
   onLogout?: () => void; 
   viewerLogin?: string;
   onOrgContextChange?: (context: OwnerContext) => void;
-  initialOrgSlug?: string;
 }) {
   const { exit } = useApp();
   const { stdout } = useStdout();
@@ -42,28 +129,15 @@ export default function RepoList({ token, maxVisibleRows, onLogout, viewerLogin,
   
   // Debug messages state
   const [debugMessages, setDebugMessages] = useState<string[]>([]);
-  const addDebugMessage = useCallback((msg: string) => {
+  const addDebugMessage = (msg: string) => {
     if (process.env.GH_MANAGER_DEBUG === '1') {
       setDebugMessages(prev => [...prev.slice(-9), msg]); // Keep last 10 messages
     }
-  }, []);
-
-  // Stable reference to org context change handler to avoid unstable deps in effects
-  const handleOrgContextChangeRef = useRef(onOrgContextChange);
-  useEffect(() => {
-    handleOrgContextChangeRef.current = onOrgContextChange;
-  }, [onOrgContextChange]);
+  };
   
   // Log on component mount
   React.useEffect(() => {
     addDebugMessage(`[RepoList] Component mounted`);
-    logger.info('RepoList component mounted', {
-      token: token ? 'present' : 'missing',
-      tokenLength: token?.length,
-      viewerLogin,
-      ownerContext,
-      prefsLoaded
-    });
   }, []);
   
   // Get terminal width for dynamic description truncation
@@ -82,8 +156,6 @@ export default function RepoList({ token, maxVisibleRows, onLogout, viewerLogin,
   const [error, setError] = useState<string | null>(null);
   const [rateLimit, setRateLimit] = useState<RateLimitInfo | undefined>(undefined);
   const [prevRateLimit, setPrevRateLimit] = useState<number | undefined>(undefined);
-  const [restRateLimit, setRestRateLimit] = useState<RestRateLimitInfo | undefined>(undefined);
-  const [prevRestRateLimit, setPrevRestRateLimit] = useState<number | undefined>(undefined);
   // Display density: 0 = compact (0 lines), 1 = cozy (1 line), 2 = comfy (2 lines)
   const [density, setDensity] = useState<0 | 1 | 2>(2);
   const [prefsLoaded, setPrefsLoaded] = useState(false);
@@ -122,62 +194,14 @@ export default function RepoList({ token, maxVisibleRows, onLogout, viewerLogin,
   const [syncing, setSyncing] = useState(false);
   const [syncError, setSyncError] = useState<string | null>(null);
   const [syncFocus, setSyncFocus] = useState<'confirm' | 'cancel'>('confirm');
-  const [syncTrigger, setSyncTrigger] = useState(false); // Trigger to initiate sync
 
   // Info (hidden) modal state
   const [infoMode, setInfoMode] = useState(false);
-  const [infoRepo, setInfoRepo] = useState<RepoNode | null>(null);
 
   // Logout modal state
   const [logoutMode, setLogoutMode] = useState(false);
   const [logoutFocus, setLogoutFocus] = useState<'confirm' | 'cancel'>('confirm');
   const [logoutError, setLogoutError] = useState<string | null>(null);
-
-  // Visibility modal state
-  const [visibilityMode, setVisibilityMode] = useState(false);
-  const [isEnterpriseOrg, setIsEnterpriseOrg] = useState(false);
-  const [hasInternalRepos, setHasInternalRepos] = useState(false);
-  
-  // Change visibility modal state
-  const [changeVisibilityMode, setChangeVisibilityMode] = useState(false);
-  const [changeVisibilityTarget, setChangeVisibilityTarget] = useState<RepoNode | null>(null);
-  const [changingVisibility, setChangingVisibility] = useState(false);
-  const [changeVisibilityError, setChangeVisibilityError] = useState<string | null>(null);
-  
-  // Sort modal state
-  const [sortMode, setSortMode] = useState(false);
-
-  // Apply initial --org flag once (if provided)
-  const appliedInitialOrg = useRef(false);
-  useEffect(() => {
-    (async () => {
-      if (appliedInitialOrg.current) return;
-      if (!initialOrgSlug) return;
-      if (!token) return;
-      if (!prefsLoaded) {
-        // Wait until preferences are loaded so CLI flag can override
-        return;
-      }
-      appliedInitialOrg.current = true;
-      try {
-        const orgs = await fetchViewerOrganizations(client);
-        const slug = initialOrgSlug.replace(/^@/, '');
-        const match = orgs.find(o => o.login.toLowerCase() === slug.toLowerCase());
-        if (match) {
-          await handleOrgContextChange({
-            type: 'organization',
-            login: match.login,
-            name: match.name || undefined,
-          });
-          addDebugMessage(`[--org] Switched context to @${match.login}`);
-        } else {
-          addDebugMessage(`[--org] No access to org @${slug}, ignoring flag`);
-        }
-      } catch (e: any) {
-        addDebugMessage(`[--org] Failed to apply org flag: ${e.message || e}`);
-      }
-    })();
-  }, [initialOrgSlug, token, prefsLoaded, client, addDebugMessage]);
 
   function closeArchiveModal() {
     setArchiveMode(false);
@@ -186,13 +210,6 @@ export default function RepoList({ token, maxVisibleRows, onLogout, viewerLogin,
     setArchiveError(null);
     setArchiveFocus('confirm');
   }
-  
-  function closeChangeVisibilityModal() {
-    setChangeVisibilityMode(false);
-    setChangeVisibilityTarget(null);
-    setChangingVisibility(false);
-    setChangeVisibilityError(null);
-  }
 
   function closeSyncModal() {
     setSyncMode(false);
@@ -200,141 +217,11 @@ export default function RepoList({ token, maxVisibleRows, onLogout, viewerLogin,
     setSyncing(false);
     setSyncError(null);
     setSyncFocus('confirm');
-    setSyncTrigger(false);
   }
   
-  // Single sync execution function to prevent duplicate operations
-  async function executeSync() {
-    if (!syncTarget || syncing) return;
-    
-    try {
-      setSyncing(true);
-      const [owner, repo] = syncTarget.nameWithOwner.split('/');
-      const branchName = syncTarget.defaultBranchRef?.name || 'main';
-      const result = await syncForkWithUpstream(token, owner, repo, branchName);
-      
-      // After successful sync, update locally without fetching from GitHub
-      // GitHub sets updatedAt to current time when syncing, and commits behind becomes 0
-      const updatedRepo = {
-        ...syncTarget,
-        updatedAt: new Date().toISOString(),
-        // If we're tracking fork commits and this is a fork with parent data, set commits to be in sync
-        ...(forkTracking && syncTarget.isFork && syncTarget.parent && syncTarget.defaultBranchRef?.target?.history && syncTarget.parent.defaultBranchRef?.target?.history ? {
-          defaultBranchRef: {
-            ...syncTarget.defaultBranchRef,
-            target: {
-              ...syncTarget.defaultBranchRef.target,
-              history: {
-                // Set fork's commit count equal to parent's (0 commits behind)
-                totalCount: syncTarget.parent.defaultBranchRef.target.history.totalCount
-              }
-            }
-          }
-        } : {})
-      };
-      
-      // Update Apollo cache with the locally updated data
-      await updateCacheWithRepository(token, updatedRepo);
-      
-      // Update both regular and search items with the locally updated data
-      const updateSyncedRepo = (r: any) => {
-        if (r.id === (syncTarget as any).id) {
-          return updatedRepo;
-        }
-        return r;
-      };
-      setItems(prev => prev.map(updateSyncedRepo));
-      setSearchItems(prev => prev.map(updateSyncedRepo));
-      closeSyncModal();
-    } catch (e: any) {
-      setSyncing(false);
-      setSyncError(e.message || 'Failed to sync fork. Check permissions and network.');
-      // Keep modal open on error so user can see the error message
-    }
-  }
-
-  // Shared archive execution function to avoid duplication
-  async function executeArchive() {
-    if (!archiveTarget || archiving) return;
-    
-    try {
-      setArchiving(true);
-      const isArchived = archiveTarget.isArchived;
-      const id = (archiveTarget as any).id;
-      
-      if (isArchived) {
-        await unarchiveRepositoryById(client, id);
-      } else {
-        await archiveRepositoryById(client, id);
-      }
-      
-      // Update Apollo cache
-      await updateCacheAfterArchive(token, id, !isArchived);
-      
-      // Update both regular items and search items
-      const updateRepo = (r: any) => (r.id === id ? { ...r, isArchived: !isArchived } : r);
-      setItems(prev => prev.map(updateRepo));
-      setSearchItems(prev => prev.map(updateRepo));
-      
-      closeArchiveModal();
-    } catch (e) {
-      setArchiving(false);
-      setArchiveError('Failed to update archive state. Check permissions.');
-      // Keep modal open on error
-    }
-  }
-  
-  // Handler for changing visibility
-  async function handleVisibilityChange(newVisibility: string) {
-    if (!changeVisibilityTarget || changingVisibility) return;
-    
-    try {
-      setChangingVisibility(true);
-      const id = (changeVisibilityTarget as any).id;
-      
-      await changeRepositoryVisibility(client, id, newVisibility as 'PUBLIC' | 'PRIVATE' | 'INTERNAL', token);
-      
-      // Update Apollo cache
-      await updateCacheAfterVisibilityChange(token, id, newVisibility as 'PUBLIC' | 'PRIVATE' | 'INTERNAL');
-      
-      // Check if the repo should be removed based on current visibility filter
-      // Note: 'private' filter includes both PRIVATE and INTERNAL
-      const shouldRemove = 
-        (visibilityFilter === 'public' && newVisibility !== 'PUBLIC') ||
-        (visibilityFilter === 'private' && newVisibility !== 'PRIVATE' && newVisibility !== 'INTERNAL');
-      
-      if (shouldRemove) {
-        // Remove the repo from the list if it doesn't match the filter
-        setItems(prev => prev.filter((r: any) => r.id !== id));
-        setSearchItems(prev => prev.filter((r: any) => r.id !== id));
-        
-        // Update counts
-        setTotalCount(c => Math.max(0, c - 1));
-        if (searchActive) {
-          setSearchTotalCount(c => Math.max(0, c - 1));
-        }
-        
-        // Adjust cursor if needed
-        const currentItemsLength = searchActive ? searchItems.length : items.length;
-        setCursor(c => Math.max(0, Math.min(c, currentItemsLength - 2)));
-      } else {
-        // Update the repo in place if it still matches the filter
-        const isPrivate = newVisibility === 'PRIVATE';
-        const updateRepo = (r: any) => (r.id === id ? { ...r, visibility: newVisibility, isPrivate } : r);
-        setItems(prev => prev.map(updateRepo));
-        setSearchItems(prev => prev.map(updateRepo));
-      }
-      
-      closeChangeVisibilityModal();
-    } catch (e: any) {
-      setChangingVisibility(false);
-      setChangeVisibilityError(e.message || 'Failed to change visibility. Check permissions.');
-      // Keep modal open on error
-    }
-  }
-  
-  async function handleOrgContextChange(newContext: OwnerContext) {
+  function handleOrgContextChange(newContext: OwnerContext) {
     setOwnerContext(newContext);
+    storeUIPrefs({ ownerContext: newContext });
     setCursor(0);
     setOrgSwitcherOpen(false);
     
@@ -348,35 +235,17 @@ export default function RepoList({ token, maxVisibleRows, onLogout, viewerLogin,
     setFilter('');
     setFilterMode(false);
     
-    // Reset visibility filter to 'all' when switching organizations
-    setVisibilityFilter('all');
-    
     // Update affiliations based on context
     const newAffiliations = newContext === 'personal' 
       ? ['OWNER'] as OwnerAffiliation[]
       : ['ORGANIZATION_MEMBER'] as OwnerAffiliation[];
     
     setOwnerAffiliations(newAffiliations);
-    
-    // Check if organization is enterprise
-    if (newContext !== 'personal') {
-      const client = makeClient(token);
-      const isEnt = await checkOrganizationIsEnterprise(client, newContext.login);
-      setIsEnterpriseOrg(isEnt);
-    } else {
-      setIsEnterpriseOrg(false);
-    }
-    
-    // Save all preferences including reset visibility filter
-    storeUIPrefs({ 
-      ownerContext: newContext,
-      ownerAffiliations: newAffiliations,
-      visibilityFilter: 'all'
-    });
+    storeUIPrefs({ ownerAffiliations: newAffiliations });
     
     // Notify parent component of the change
     if (onOrgContextChange) {
-      handleOrgContextChangeRef.current?.(newContext);
+      onOrgContextChange(newContext);
     }
   }
 
@@ -397,21 +266,9 @@ export default function RepoList({ token, maxVisibleRows, onLogout, viewerLogin,
       // REST: requires owner/repo and a token with delete_repo scope
       const [owner, repo] = (deleteTarget.nameWithOwner || '').split('/');
       await deleteRepositoryRest(token, owner, repo);
-      
-      // Update Apollo cache
-      const targetId = (deleteTarget as any).id;
-      await updateCacheAfterDelete(token, targetId);
-      
-      // Remove from both regular items and search items
-      setItems((prev) => prev.filter((r: any) => r.id !== targetId));
-      setSearchItems((prev) => prev.filter((r: any) => r.id !== targetId));
-      
-      // Update counts
+      // Remove from items and update counts
+      setItems((prev) => prev.filter((r: any) => r.id !== (deleteTarget as any).id));
       setTotalCount((c) => Math.max(0, c - 1));
-      if (searchActive) {
-        setSearchTotalCount((c) => Math.max(0, c - 1));
-      }
-      
       setDeleteMode(false);
       setDeleteTarget(null);
       setTypedCode('');
@@ -423,7 +280,6 @@ export default function RepoList({ token, maxVisibleRows, onLogout, viewerLogin,
     } catch (e: any) {
       setDeleting(false);
       setDeleteError('Failed to delete repository. Ensure delete_repo scope and admin permissions.');
-      // Keep modal open on error so user can see the error message
     }
   }
 
@@ -438,11 +294,6 @@ export default function RepoList({ token, maxVisibleRows, onLogout, viewerLogin,
   
   // Fork tracking toggle - default ON to show commits behind
   const [forkTracking, setForkTracking] = useState<boolean>(true);
-  
-  // Visibility filter - 'all' | 'public' | 'private'
-  type VisibilityFilter = 'all' | 'public' | 'private';
-  const [visibilityFilter, setVisibilityFilter] = useState<VisibilityFilter>('all');
-  const previousVisibilityFilter = useRef<VisibilityFilter>('all');
 
   // Map our sort keys to GitHub's GraphQL field names
   const sortFieldMap: Record<SortKey, string> = {
@@ -459,16 +310,6 @@ export default function RepoList({ token, maxVisibleRows, onLogout, viewerLogin,
     overrideForkTracking?: boolean,
     policy?: 'cache-first' | 'network-only'
   ) => {
-    logger.info('fetchPage called', {
-      after,
-      reset,
-      isSortChange,
-      policy,
-      token: token ? 'present' : 'missing',
-      viewerLogin,
-      ownerContext
-    });
-    
     if (isSortChange) {
       setSortingLoading(true);
     } else if (after && !reset) {
@@ -486,12 +327,6 @@ export default function RepoList({ token, maxVisibleRows, onLogout, viewerLogin,
       // Determine organization login if in org context
       const orgLogin = ownerContext !== 'personal' ? ownerContext.login : undefined;
       
-      // Map visibility filter to API privacy parameter
-      let privacy: 'PUBLIC' | 'PRIVATE' | undefined;
-      if (visibilityFilter === 'public') privacy = 'PUBLIC';
-      else if (visibilityFilter === 'private') privacy = 'PRIVATE';
-      // Note: GitHub API doesn't support filtering by INTERNAL at the API level
-      
       const page = await fetchViewerReposPageUnified(
         token,
         PAGE_SIZE,
@@ -500,27 +335,13 @@ export default function RepoList({ token, maxVisibleRows, onLogout, viewerLogin,
         overrideForkTracking ?? forkTracking,
         policy ?? (after ? 'network-only' : 'cache-first'),
         ownerAffiliations,
-        orgLogin,
-        privacy
+        orgLogin
       );
       
       setItems(prev => (reset || !after ? page.nodes : [...prev, ...page.nodes]));
       setEndCursor(page.endCursor);
       setHasNextPage(page.hasNextPage);
       setTotalCount(page.totalCount);
-      
-      // Check if any repos have internal visibility (enterprise feature)
-      if (page.nodes.some((repo: RepoNode) => repo.visibility === 'INTERNAL')) {
-        setHasInternalRepos(true);
-      }
-      
-      // Check if organization is enterprise (first page only)
-      if (!after && orgLogin) {
-        const client = makeClient(token);
-        checkOrganizationIsEnterprise(client, orgLogin).then(isEnt => {
-          setIsEnterpriseOrg(isEnt);
-        });
-      }
       
       // Mark fetched time for TTL tracking (first page only)
       if (!after) {
@@ -543,26 +364,8 @@ export default function RepoList({ token, maxVisibleRows, onLogout, viewerLogin,
         setPrevRateLimit(rateLimit.remaining);
       }
       setRateLimit(page.rateLimit);
-      
-      // Fetch REST rate limits too
-      fetchRestRateLimits(token).then(restLimits => {
-        if (restLimits && restRateLimit) {
-          setPrevRestRateLimit(restRateLimit.core.remaining);
-        }
-        if (restLimits) {
-          setRestRateLimit(restLimits);
-        }
-      });
       setError(null);
     } catch (e: any) {
-      logger.error('Failed to fetch repositories in RepoList', {
-        error: e.message,
-        stack: e.stack,
-        graphQLErrors: e.graphQLErrors,
-        networkError: e.networkError,
-        statusCode: e.statusCode,
-        response: e.response
-      });
       setError('Failed to load repositories. Check network or token.');
     } finally {
       setLoading(false);
@@ -586,8 +389,7 @@ export default function RepoList({ token, maxVisibleRows, onLogout, viewerLogin,
     setSearchLoading(true);
     try {
       const orderBy = { field: sortFieldMap[sortKey], direction: sortDir.toUpperCase() };
-      const orgLogin = ownerContext !== 'personal' ? ownerContext.login : undefined;
-      addDebugMessage(`[fetchSearchPage] Calling API with viewer="${viewerLogin}", orgLogin="${orgLogin || 'none'}", query="${query.trim()}"`);
+      addDebugMessage(`[fetchSearchPage] Calling API with viewer="${viewerLogin}", query="${query.trim()}"`);
       const page = await searchRepositoriesUnified(
         token,
         viewerLogin,
@@ -597,8 +399,7 @@ export default function RepoList({ token, maxVisibleRows, onLogout, viewerLogin,
         orderBy.field,
         orderBy.direction,
         forkTracking,
-        policy ?? (after ? 'network-only' : 'cache-first'),
-        orgLogin
+        policy ?? (after ? 'network-only' : 'cache-first')
       );
       
       addDebugMessage(`[fetchSearchPage] API returned ${page.nodes.length} results, totalCount=${page.totalCount}`);
@@ -637,7 +438,7 @@ export default function RepoList({ token, maxVisibleRows, onLogout, viewerLogin,
     }
   };
 
-  // Load UI preferences (density, sort key/dir, fork tracking, owner context, visibility filter) on mount
+  // Load UI preferences (density, sort key/dir, fork tracking, owner context) on mount
   useEffect(() => {
     const ui = getUIPrefs();
     if (ui.density !== undefined) setDensity(ui.density as 0 | 1 | 2);
@@ -650,25 +451,12 @@ export default function RepoList({ token, maxVisibleRows, onLogout, viewerLogin,
     if (ui.forkTracking !== undefined) setForkTracking(ui.forkTracking);
     else setForkTracking(true); // Default to ON if not set in config
     
-    // Load visibility filter
-    if (ui.visibilityFilter && ['all', 'public', 'private', 'internal'].includes(ui.visibilityFilter)) {
-      setVisibilityFilter(ui.visibilityFilter as VisibilityFilter);
-    }
-    
     // Load organization context
     if (ui.ownerContext) {
       setOwnerContext(ui.ownerContext);
       // Notify parent of loaded context
       if (onOrgContextChange) {
-        handleOrgContextChangeRef.current?.(ui.ownerContext);
-      }
-      
-      // Check if organization is enterprise
-      if (ui.ownerContext !== 'personal') {
-        const client = makeClient(token);
-        checkOrganizationIsEnterprise(client, ui.ownerContext.login).then(isEnt => {
-          setIsEnterpriseOrg(isEnt);
-        });
+        onOrgContextChange(ui.ownerContext);
       }
     }
     
@@ -753,39 +541,11 @@ export default function RepoList({ token, maxVisibleRows, onLogout, viewerLogin,
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [sortKey, sortDir]);
 
-  // Refresh from server when visibility filter changes
-  useEffect(() => {
-    // Skip initial mount and 'all' filter (no server filtering needed)
-    if (visibilityFilter !== 'all' || (previousVisibilityFilter.current && previousVisibilityFilter.current !== visibilityFilter)) {
-      if (!searchActive) {
-        if (items.length > 0) {
-          let policy: 'cache-first' | 'network-only' = 'network-only'; // Always fetch from network for visibility changes
-          
-          // Determine organization login if in org context
-          const orgLogin = ownerContext !== 'personal' ? ownerContext.login : undefined;
-          
-          fetchPage(null, true, true, undefined, policy);
-        }
-      } else {
-        // Re-run search with new visibility filter
-        if (!searchLoading && filter.trim().length >= 3) {
-          let policy: 'cache-first' | 'network-only' = 'network-only'; // Always fetch from network for visibility changes
-          fetchSearchPage(null, true, policy);
-        }
-      }
-    }
-    
-    // Update previous ref
-    previousVisibilityFilter.current = visibilityFilter;
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [visibilityFilter]);
-
   // If viewerLogin becomes available after typing (>=3), kick off search
   useEffect(() => {
     if (viewerLogin && searchActive && !searchLoading && searchItems.length === 0) {
       let policy: 'cache-first' | 'network-only' = 'cache-first';
       try {
-        const orgLogin = ownerContext !== 'personal' ? ownerContext.login : undefined;
         const key = makeSearchKey({
           viewer: viewerLogin || 'unknown',
           q: filter.trim(),
@@ -851,7 +611,7 @@ export default function RepoList({ token, maxVisibleRows, onLogout, viewerLogin,
         cancelDeleteModal();
         return;
       }
-      // In final warning stage, support left/right focus and Y key
+      // In final warning stage, support left/right focus and confirm/cancel with Enter
       if (deleteConfirmStage) {
         if (key.leftArrow) {
           setConfirmFocus('delete');
@@ -861,13 +621,13 @@ export default function RepoList({ token, maxVisibleRows, onLogout, viewerLogin,
           setConfirmFocus('cancel');
           return;
         }
-        // Let TextInput handle Enter key to avoid duplicate execution
+        if (key.return) {
+          if (confirmFocus === 'delete') confirmDeleteNow();
+          else cancelDeleteModal();
+          return;
+        }
         if (input && input.toUpperCase() === 'Y') {
-          if (confirmFocus === 'delete') {
-            confirmDeleteNow();
-          } else {
-            cancelDeleteModal();
-          }
+          confirmDeleteNow();
           return;
         }
       }
@@ -889,16 +649,29 @@ export default function RepoList({ token, maxVisibleRows, onLogout, viewerLogin,
         setArchiveFocus('cancel');
         return;
       }
-      // Only handle 'Y' key directly - Enter is handled by TextInput onSubmit
-      if (input && input.toUpperCase() === 'Y') {
+      if (key.return || (input && input.toUpperCase() === 'Y')) {
         if (archiveFocus === 'cancel') {
           closeArchiveModal();
           return;
         }
-        executeArchive();
+        if (!archiveTarget) return;
+        (async () => {
+          try {
+            setArchiving(true);
+            const isArchived = archiveTarget.isArchived;
+            const id = (archiveTarget as any).id;
+            if (isArchived) await unarchiveRepositoryById(client, id);
+            else await archiveRepositoryById(client, id);
+              setItems(prev => prev.map(r => (r.id === (archiveTarget as any).id ? { ...r, isArchived: !isArchived } : r)));
+            closeArchiveModal();
+          } catch (e) {
+            setArchiving(false);
+            setArchiveError('Failed to update archive state. Check permissions.');
+          }
+        })();
         return;
       }
-      // Trap everything else including Enter (TextInput will handle Enter via onSubmit)
+      // Trap everything else
       return;
     }
 
@@ -916,16 +689,46 @@ export default function RepoList({ token, maxVisibleRows, onLogout, viewerLogin,
         setSyncFocus('cancel');
         return;
       }
-      // Handle Y key for sync confirmation
-      if (input && input.toUpperCase() === 'Y') {
+      if (key.return || (input && input.toUpperCase() === 'Y')) {
         if (syncFocus === 'cancel') {
           closeSyncModal();
-        } else {
-          executeSync();
+          return;
         }
+        if (!syncTarget) return;
+        (async () => {
+          try {
+            setSyncing(true);
+            const [owner, repo] = syncTarget.nameWithOwner.split('/');
+            const branchName = syncTarget.defaultBranchRef?.name || 'main';
+            const result = await syncForkWithUpstream(token, owner, repo, branchName);
+            
+            // Update the repository state to show 0 behind
+            setItems(prev => prev.map(r => {
+              if (r.id === (syncTarget as any).id && r.parent && r.defaultBranchRef?.target?.history && r.parent.defaultBranchRef?.target?.history) {
+                return {
+                  ...r,
+                  defaultBranchRef: {
+                    ...r.defaultBranchRef,
+                    target: {
+                      ...r.defaultBranchRef.target,
+                      history: {
+                        totalCount: r.parent.defaultBranchRef.target.history.totalCount
+                      }
+                    }
+                  }
+                };
+              }
+              return r;
+            }));
+            closeSyncModal();
+          } catch (e: any) {
+            setSyncing(false);
+            setSyncError(e.message || 'Failed to sync fork. Check permissions and network.');
+          }
+        })();
         return;
       }
-      // Trap everything else including Enter (TextInput will handle Enter via onSubmit)
+      // Trap everything else
       return;
     }
 
@@ -951,25 +754,9 @@ export default function RepoList({ token, maxVisibleRows, onLogout, viewerLogin,
     if (infoMode) {
       if (key.escape || (input && input.toUpperCase() === 'I')) {
         setInfoMode(false);
-        setInfoRepo(null);
         return;
       }
       return;
-    }
-    
-    // When visibility modal is open, trap inputs for modal
-    if (visibilityMode) {
-      return; // VisibilityModal component handles its own keyboard input
-    }
-    
-    // When change visibility modal is open, trap inputs for modal
-    if (changeVisibilityMode) {
-      return; // ChangeVisibilityModal component handles its own keyboard input
-    }
-    
-    // When sort modal is open, trap inputs for modal
-    if (sortMode) {
-      return; // SortModal component handles its own keyboard input
     }
 
     // When in filter mode, only handle input for the TextInput
@@ -1028,9 +815,9 @@ export default function RepoList({ token, maxVisibleRows, onLogout, viewerLogin,
       const repo = visibleItems[cursor];
       if (repo) openInBrowser(`https://github.com/${repo.nameWithOwner}`);
     }
-    // Delete key: open delete modal (Del or Backspace)
-    // Some terminals may set delete=true even for Backspace
-    if (key.delete || key.backspace) {
+    // Delete key: open delete modal (Del or Ctrl+Backspace)
+    // Some terminals may set delete=true even for Backspace; require delete=true AND backspace=false.
+    if ((key.delete && !key.backspace) || (key.backspace && key.ctrl)) {
       const repo = visibleItems[cursor];
       if (repo) {
         setDeleteTarget(repo);
@@ -1084,18 +871,8 @@ export default function RepoList({ token, maxVisibleRows, onLogout, viewerLogin,
       return;
     }
 
-    // Change visibility modal (Ctrl+V)
-    if (key.ctrl && (input === 'v' || input === 'V')) {
-      const repo = visibleItems[cursor];
-      if (repo) {
-        setChangeVisibilityTarget(repo);
-        setChangeVisibilityMode(true);
-      }
-      return;
-    }
-
-    // Sync fork with upstream modal (Ctrl+S)
-    if (key.ctrl && (input === 's' || input === 'S')) {
+    // Sync fork with upstream modal (Ctrl+U)
+    if (key.ctrl && (input === 'u' || input === 'U')) {
       const repo = visibleItems[cursor];
       if (repo && repo.isFork && repo.parent) {
         // Only show sync option for forks that are behind
@@ -1142,18 +919,6 @@ export default function RepoList({ token, maxVisibleRows, onLogout, viewerLogin,
 
     // Hidden Info modal toggle (I)
     if (input && input.toUpperCase() === 'I') {
-      const repo = visibleItems[cursor];
-      if (repo) {
-        // Try to get repo from cache first for instant display
-        (async () => {
-          const cachedRepo = await getRepositoryFromCache(token, repo.id);
-          if (cachedRepo) {
-            setInfoRepo(cachedRepo);
-          } else {
-            setInfoRepo(repo);
-          }
-        })();
-      }
       setInfoMode(true);
       return;
     }
@@ -1164,9 +929,15 @@ export default function RepoList({ token, maxVisibleRows, onLogout, viewerLogin,
       return;
     }
 
-    // Sort modal: show sort options
+    // Sorting toggles: cycle key and direction - triggers server refresh
     if (input && input.toUpperCase() === 'S') {
-      setSortMode(true);
+      const order: SortKey[] = ['updated', 'pushed', 'name', 'stars'];
+      const idx = order.indexOf(sortKey);
+      const newSortKey = order[(idx + 1) % order.length];
+      setSortKey(newSortKey);
+      setCursor(0); // Reset cursor to top
+      storeUIPrefs({ sortKey: newSortKey });
+      // Will trigger refresh via useEffect
       return;
     }
     if (input && input.toUpperCase() === 'D') {
@@ -1219,39 +990,19 @@ export default function RepoList({ token, maxVisibleRows, onLogout, viewerLogin,
       });
       return;
     }
-    
-    // Open visibility filter modal (V)
-    if (input && input.toUpperCase() === 'V') {
-      setVisibilityMode(true);
-      return;
-    }
   });
 
   // (moved below visibleItems definition)
 
   // Derived: filtered + sorted items (local filter applies only when search not active)
   const filtered = useMemo(() => {
-    let result = items;
-    
-    // Apply visibility filter locally
-    // Match GitHub's behavior: Private filter includes both PRIVATE and INTERNAL
-    if (visibilityFilter === 'private') {
-      // Show both PRIVATE and INTERNAL repos (matching GitHub's behavior)
-      result = result.filter(r => r.visibility === 'PRIVATE' || r.visibility === 'INTERNAL');
-    }
-    // Note: Public filtering is done at the API level and works correctly
-    
-    // Apply text filter
     const q = filter.trim().toLowerCase();
-    if (q) {
-      result = result.filter(r =>
-        r.nameWithOwner.toLowerCase().includes(q) ||
-        (r.description ? r.description.toLowerCase().includes(q) : false)
-      );
-    }
-    
-    return result;
-  }, [items, filter, visibilityFilter]);
+    if (!q) return items;
+    return items.filter(r =>
+      r.nameWithOwner.toLowerCase().includes(q) ||
+      (r.description ? r.description.toLowerCase().includes(q) : false)
+    );
+  }, [items, filter]);
 
   const filteredAndSorted = useMemo(() => {
     const arr = [...filtered];
@@ -1275,23 +1026,7 @@ export default function RepoList({ token, maxVisibleRows, onLogout, viewerLogin,
   }, [filtered, sortKey, sortDir]);
 
   const searchActive = filter.trim().length >= 3;
-  
-  // Apply visibility filter to search results too
-  const filteredSearchItems = useMemo(() => {
-    let result = searchItems;
-    
-    // Match GitHub's behavior: Private filter includes both PRIVATE and INTERNAL
-    if (visibilityFilter === 'private') {
-      // Show both PRIVATE and INTERNAL repos (matching GitHub's behavior)
-      result = result.filter(r => r.visibility === 'PRIVATE' || r.visibility === 'INTERNAL');
-    } else if (visibilityFilter === 'public') {
-      result = result.filter(r => r.visibility === 'PUBLIC');
-    }
-    
-    return result;
-  }, [searchItems, visibilityFilter]);
-  
-  const visibleItems = searchActive ? filteredSearchItems : filteredAndSorted;
+  const visibleItems = searchActive ? searchItems : filteredAndSorted;
   
   // Debug log
   useEffect(() => {
@@ -1360,21 +1095,14 @@ export default function RepoList({ token, maxVisibleRows, onLogout, viewerLogin,
     exec(cmd);
   }
 
-  const lowRate = (rateLimit && rateLimit.remaining <= Math.ceil(rateLimit.limit * 0.1)) || 
-                   (restRateLimit && restRateLimit.core.remaining <= Math.ceil(restRateLimit.core.limit * 0.1));
-  const modalOpen = deleteMode || archiveMode || syncMode || logoutMode || infoMode || visibilityMode;
+  const lowRate = rateLimit && rateLimit.remaining <= Math.ceil(rateLimit.limit * 0.1);
+  const modalOpen = deleteMode || archiveMode || syncMode || logoutMode || infoMode;
 
   // Memoize header to prevent re-renders - must be before any returns
   const headerBar = useMemo(() => (
     <Box flexDirection="row" justifyContent="space-between" height={1} marginBottom={1}>
       <Box flexDirection="row" gap={1}>
-        <Text color="cyan" bold={!modalOpen} dimColor={modalOpen}>
-          {'  '}{ownerContext === 'personal' 
-            ? 'Personal' 
-            : ownerContext.name || ownerContext.login}
-          {ownerContext !== 'personal' && isEnterpriseOrg && ' (ENT)'}
-        </Text>
-        <Text bold color={modalOpen ? 'gray' : undefined} dimColor={modalOpen ? true : undefined}>Repositories</Text>
+        <Text bold color={modalOpen ? 'gray' : undefined} dimColor={modalOpen ? true : undefined}>  Repositories</Text>
         <Text color="gray">({visibleItems.length}/{searchActive ? searchTotalCount : totalCount})</Text>
         {(loading || searchLoading) && (
           <Box width={2} flexShrink={0} flexGrow={0} marginLeft={1}>
@@ -1385,54 +1113,24 @@ export default function RepoList({ token, maxVisibleRows, onLogout, viewerLogin,
         )}
       </Box>
       
-      {(rateLimit || restRateLimit) && (
+      {rateLimit && (
         <Text color={lowRate ? 'yellow' : 'gray'}>
-          GraphQL: {rateLimit ? `${rateLimit.remaining}/${rateLimit.limit}` : '---/---'}
-          {prevRateLimit !== undefined && rateLimit && prevRateLimit !== rateLimit.remaining && (
+          API: {rateLimit.remaining}/{rateLimit.limit}
+          {prevRateLimit !== undefined && prevRateLimit !== rateLimit.remaining && (
             <Text color={rateLimit.remaining < prevRateLimit ? 'red' : 'green'}>
               {` (${rateLimit.remaining - prevRateLimit > 0 ? '+' : ''}${rateLimit.remaining - prevRateLimit})`}
             </Text>
           )}
-          {' | '}
-          REST: {restRateLimit ? `${restRateLimit.core.remaining}/${restRateLimit.core.limit}` : '---/---'}
-          {prevRestRateLimit !== undefined && restRateLimit && prevRestRateLimit !== restRateLimit.core.remaining && (
-            <Text color={restRateLimit.core.remaining < prevRestRateLimit ? 'red' : 'green'}>
-              {` (${restRateLimit.core.remaining - prevRestRateLimit > 0 ? '+' : ''}${restRateLimit.core.remaining - prevRestRateLimit})`}
-            </Text>
-          )}
-          {'  '}
         </Text>
       )}
     </Box>
-  ), [visibleItems.length, searchActive, searchTotalCount, totalCount, loading, searchLoading, rateLimit, lowRate, modalOpen, prevRateLimit, ownerContext, isEnterpriseOrg, restRateLimit, prevRestRateLimit]);
+  ), [visibleItems.length, searchActive, searchTotalCount, totalCount, loading, searchLoading, rateLimit, lowRate, modalOpen, prevRateLimit]);
 
   if (error) {
     return (
-      <Box flexDirection="column" height={availableHeight}>
-        {/* Header bar */}
-        <Box flexDirection="row" justifyContent="space-between" height={1} marginBottom={1}>
-          <Box flexDirection="row" gap={1}>
-            <Text bold>  Repositories</Text>
-            <Text color="red">(Error)</Text>
-          </Box>
-        </Box>
-
-        {/* Main content container with border - fixed height */}
-        <Box borderStyle="single" borderColor="red" paddingX={1} paddingY={1} marginX={1} height={contentHeight + containerPadding + 2} flexDirection="column">
-          <Box height={contentHeight} justifyContent="center" alignItems="center">
-            <Box flexDirection="column" alignItems="center">
-              <Text color="red">{error}</Text>
-              <Box marginTop={1}>
-                <Text color="gray" dimColor>Press R to retry • Ctrl+L to logout • Q to quit</Text>
-              </Box>
-            </Box>
-          </Box>
-        </Box>
-
-        {/* Help footer */}
-        <Box marginTop={1} paddingX={1}>
-          <Text color="gray">Press R to retry • Ctrl+L to logout • Q to quit</Text>
-        </Box>
+      <Box flexDirection="column" alignItems="center" justifyContent="center" flexGrow={1}>
+        <Text color="red">{error}</Text>
+        <Text color="gray" dimColor>Press R to retry • Ctrl+L to logout • Q to quit</Text>
       </Box>
     );
   }
@@ -1588,7 +1286,7 @@ export default function RepoList({ token, maxVisibleRows, onLogout, viewerLogin,
                   {/* Bottom prompt with dynamic Enter action and key hints (gray) */}
                   <Box marginTop={1} flexDirection="row" justifyContent="center">
                     <Text color="gray">
-                      Press Enter to {confirmFocus === 'delete' ? 'Delete' : 'Cancel'} | Y to Delete | C to Cancel
+                      Press Enter to {confirmFocus === 'delete' ? 'Delete' : 'Cancel'} • Y to confirm • C to cancel
                     </Text>
                   </Box>
                   {/* Hidden input to capture Enter key */}
@@ -1666,7 +1364,7 @@ export default function RepoList({ token, maxVisibleRows, onLogout, viewerLogin,
                 </Box>
               </Box>
               <Box marginTop={1} flexDirection="row" justifyContent="center">
-                <Text color="gray">Press Enter to {archiveFocus === 'confirm' ? (archiveTarget.isArchived ? 'Unarchive' : 'Archive') : 'Cancel'} | Y to {archiveTarget.isArchived ? 'Unarchive' : 'Archive'} | C to Cancel</Text>
+                <Text color="gray">Press Enter to {archiveFocus === 'confirm' ? (archiveTarget.isArchived ? 'Unarchive' : 'Archive') : 'Cancel'} • Y to confirm • C to cancel</Text>
               </Box>
               <Box marginTop={1}>
                 <TextInput
@@ -1674,7 +1372,20 @@ export default function RepoList({ token, maxVisibleRows, onLogout, viewerLogin,
                   onChange={() => { /* noop */ }}
                   onSubmit={() => {
                     if (archiveFocus === 'confirm') {
-                      executeArchive();
+                      (async () => {
+                        try {
+                          setArchiving(true);
+                          const isArchived = archiveTarget.isArchived;
+                          const id = (archiveTarget as any).id;
+                          if (isArchived) await unarchiveRepositoryById(client, id);
+                          else await archiveRepositoryById(client, id);
+                          setItems(prev => prev.map(r => (r.id === (archiveTarget as any).id ? { ...r, isArchived: !isArchived } : r)));
+                          closeArchiveModal();
+                        } catch (e) {
+                          setArchiving(false);
+                          setArchiveError('Failed to update archive state. Check permissions.');
+                        }
+                      })();
                     } else {
                       closeArchiveModal();
                     }
@@ -1743,7 +1454,7 @@ export default function RepoList({ token, maxVisibleRows, onLogout, viewerLogin,
                 </Box>
               </Box>
               <Box marginTop={1} flexDirection="row" justifyContent="center">
-                <Text color="gray">Press Enter to {syncFocus === 'confirm' ? 'Sync' : 'Cancel'} | Y to Sync | C to Cancel</Text>
+                <Text color="gray">Press Enter to {syncFocus === 'confirm' ? 'Sync' : 'Cancel'} • y to confirm • c to cancel</Text>
               </Box>
               <Box marginTop={1}>
                 <TextInput
@@ -1751,7 +1462,36 @@ export default function RepoList({ token, maxVisibleRows, onLogout, viewerLogin,
                   onChange={() => { /* noop */ }}
                   onSubmit={() => {
                     if (syncFocus === 'confirm') {
-                      executeSync();
+                      (async () => {
+                        try {
+                          setSyncing(true);
+                          const [owner, repo] = syncTarget.nameWithOwner.split('/');
+                          const result = await syncForkWithUpstream(token, owner, repo);
+                          
+                          // Update the repository state to show 0 behind
+                          setItems(prev => prev.map(r => {
+                            if (r.id === (syncTarget as any).id && r.parent && r.defaultBranchRef?.target?.history && r.parent.defaultBranchRef?.target?.history) {
+                              return {
+                                ...r,
+                                defaultBranchRef: {
+                                  ...r.defaultBranchRef,
+                                  target: {
+                                    ...r.defaultBranchRef.target,
+                                    history: {
+                                      totalCount: r.parent.defaultBranchRef.target.history.totalCount
+                                    }
+                                  }
+                                }
+                              };
+                            }
+                            return r;
+                          }));
+                          closeSyncModal();
+                        } catch (e: any) {
+                          setSyncing(false);
+                          setSyncError(e.message || 'Failed to sync fork. Check permissions and network.');
+                        }
+                      })();
                     } else {
                       closeSyncModal();
                     }
@@ -1810,7 +1550,7 @@ export default function RepoList({ token, maxVisibleRows, onLogout, viewerLogin,
                 </Box>
               </Box>
               <Box marginTop={1} flexDirection="row" justifyContent="center">
-                <Text color="gray">Press Enter to {logoutFocus === 'confirm' ? 'Logout' : 'Cancel'} | Y to Logout | C to Cancel</Text>
+                <Text color="gray">Press Enter to {logoutFocus === 'confirm' ? 'Logout' : 'Cancel'} • Y to confirm • C to cancel</Text>
               </Box>
             </Box>
           </Box>
@@ -1826,21 +1566,19 @@ export default function RepoList({ token, maxVisibleRows, onLogout, viewerLogin,
         ) : infoMode ? (
           <Box height={contentHeight} alignItems="center" justifyContent="center">
             {(() => {
-              const repo = infoRepo || visibleItems[cursor];
+              const repo = visibleItems[cursor];
               if (!repo) return <Text color="red">No repository selected.</Text>;
               const langName = repo.primaryLanguage?.name || 'N/A';
               const langColor = repo.primaryLanguage?.color || '#666666';
               return (
                 <Box flexDirection="column" borderStyle="round" borderColor="magenta" paddingX={3} paddingY={2} width={Math.min(terminalWidth - 8, 90)}>
-                  <Text bold>Repository Info {infoRepo ? chalk.dim('(cached)') : ''}</Text>
+                  <Text bold>Repository Info</Text>
                   <Box height={1}><Text> </Text></Box>
                   <Text>{chalk.bold(repo.nameWithOwner)}</Text>
                   {repo.description && <Text color="gray">{repo.description}</Text>}
                   <Box height={1}><Text> </Text></Box>
                   <Text>
-                    {repo.visibility === 'PRIVATE' ? chalk.yellow('Private') : 
-                     repo.visibility === 'INTERNAL' ? chalk.magenta('Internal') : 
-                     chalk.green('Public')}
+                    {repo.isPrivate ? chalk.yellow('Private') : chalk.green('Public')}
                     {repo.isArchived ? chalk.gray('  Archived') : ''}
                     {repo.isFork ? chalk.blue('  Fork') : ''}
                   </Text>
@@ -1858,67 +1596,40 @@ export default function RepoList({ token, maxVisibleRows, onLogout, viewerLogin,
               );
             })()}
           </Box>
-        ) : visibilityMode ? (
-          <Box height={contentHeight} alignItems="center" justifyContent="center">
-            <VisibilityModal
-              currentFilter={visibilityFilter}
-              isEnterprise={isEnterpriseOrg}
-              onSelect={(filter) => {
-                setVisibilityFilter(filter);
-                setVisibilityMode(false);
-                setCursor(0); // Reset cursor when filter changes
-                storeUIPrefs({ visibilityFilter: filter });
-              }}
-              onCancel={() => setVisibilityMode(false)}
-            />
-          </Box>
-        ) : sortMode ? (
-          <Box height={contentHeight} alignItems="center" justifyContent="center">
-            <SortModal
-              currentSort={sortKey}
-              onSelect={(sort) => {
-                setSortKey(sort);
-                setSortMode(false);
-                setCursor(0); // Reset cursor when sort changes
-                storeUIPrefs({ sortKey: sort });
-                // Will trigger refresh via useEffect
-              }}
-              onCancel={() => setSortMode(false)}
-            />
-          </Box>
-        ) : changeVisibilityMode && changeVisibilityTarget ? (
-          <Box height={contentHeight} alignItems="center" justifyContent="center">
-            <ChangeVisibilityModal
-              isOpen={changeVisibilityMode}
-              repoName={changeVisibilityTarget.nameWithOwner}
-              currentVisibility={changeVisibilityTarget.visibility}
-              isFork={changeVisibilityTarget.isFork}
-              isEnterprise={isEnterpriseOrg}
-              onVisibilityChange={handleVisibilityChange}
-              onClose={closeChangeVisibilityModal}
-              changing={changingVisibility}
-              error={changeVisibilityError}
-            />
-          </Box>
         ) : (
           <>
             {/* Context/Filter/sort status */}
-            <RepoListHeader
-              ownerContext={ownerContext}
-              sortKey={sortKey}
-              sortDir={sortDir}
-              forkTracking={forkTracking}
-              filter={filter}
-              searchActive={searchActive}
-              searchLoading={searchLoading}
-              visibilityFilter={visibilityFilter}
-              isEnterprise={isEnterpriseOrg}
-            />
+            <Box flexDirection="row" gap={2} marginBottom={1}>
+              <Text color="cyan" bold>
+                {ownerContext === 'personal' 
+                  ? 'Personal Account' 
+                  : `Organization: ${ownerContext.name || ownerContext.login}`}
+              </Text>
+              <Text color="gray" dimColor>
+                Sort: {sortKey} {sortDir === 'asc' ? '↑' : '↓'}
+              </Text>
+              <Text color="gray" dimColor>
+                Forks - Commits Behind: {forkTracking ? 'ON' : 'OFF'}
+              </Text>
+              {filter && !searchActive && (
+                <Text color="cyan">Filter: "{filter}"</Text>
+              )}
+              {searchActive && (
+                <>
+                  <Text color="cyan">Search: "{filter.trim()}"</Text>
+                  {searchLoading && (
+                    <Box marginLeft={1}>
+                      <Text color="cyan"><SlowSpinner /> Searching…</Text>
+                    </Box>
+                  )}
+                </>
+              )}
+            </Box>
 
             {/* Filter input */}
             {filterMode && (
               <Box marginBottom={1}>
-                <Text>Search: </Text>
+                <Text>Filter: </Text>
             <TextInput
               value={filter}
               onChange={(val) => {
@@ -2008,24 +1719,16 @@ export default function RepoList({ token, maxVisibleRows, onLogout, viewerLogin,
         )}
       </Box>
 
-      {/* Help footer - 3 lines */}
+      {/* Help footer */}
       <Box marginTop={1} paddingX={1} flexDirection="column">
-        {/* Line 1: Navigation controls */}
         <Box width={terminalWidth} justifyContent="center">
           <Text color="gray" dimColor={modalOpen ? true : undefined}>
-            ↑↓ Navigate • ⏎/O Open • R Refresh • W Org Switch • Ctrl+L Logout • Q Quit
+            ↑↓ Navigate • Ctrl+G Top • G Bottom • / Filter • W Org Switcher • S Sort • D Direction • T Density • F Forks • ⏎/O Open
           </Text>
         </Box>
-        {/* Line 2: View and filter controls */}
         <Box width={terminalWidth} justifyContent="center">
           <Text color="gray" dimColor={modalOpen ? true : undefined}>
-            Ctrl+G Top • G Bottom • / Search • S Sort • D Direction • T Density • F Fork Status • V Visibility
-          </Text>
-        </Box>
-        {/* Line 3: Action controls */}
-        <Box width={terminalWidth} justifyContent="center">
-          <Text color="gray" dimColor={modalOpen ? true : undefined}>
-            I Info • K Cache Info • Ctrl+A Un/Archive • Ctrl+V Change Visibility • Del/Backspace Delete • Ctrl+S Sync Fork
+            Del/Ctrl+Backspace Delete • Ctrl+A Un/Archive • Ctrl+U Sync Fork • I Info • K Cache • Ctrl+L Logout • R Refresh • Q Quit
           </Text>
         </Box>
       </Box>

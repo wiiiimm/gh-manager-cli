@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { truncate, formatDate } from '../src/utils';
+import { truncate, formatDate } from '../src/lib/utils';
 
 describe('truncate', () => {
   it('returns string unchanged if shorter than max', () => {

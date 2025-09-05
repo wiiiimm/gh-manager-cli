@@ -5,7 +5,7 @@ import { render, Box, Text } from 'ink';
 import pkg from '../package.json';
 import 'dotenv/config';
 import App from './ui/App';
-import { logger } from './logger';
+import { logger } from './lib/logger';
 
 // Basic CLI flags (handled before rendering Ink)
 const argv = process.argv.slice(2);

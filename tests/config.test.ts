@@ -12,7 +12,7 @@ import {
   getUIPrefs,
   storeUIPrefs,
   getTokenSource
-} from '../src/config';
+} from '../src/config/config';
 
 // Mock fs and envPaths
 vi.mock('fs');

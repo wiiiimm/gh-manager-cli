@@ -1,9 +1,9 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { startOAuthFlow, pollForAccessToken, requestDeviceCode, openGitHubAuthorizationPage } from '../src/oauth';
-import type { DeviceCodeResponse, OAuthResult } from '../src/oauth';
+import { startOAuthFlow, pollForAccessToken, requestDeviceCode, openGitHubAuthorizationPage } from '../src/services/oauth';
+import type { DeviceCodeResponse, OAuthResult } from '../src/services/oauth';
 
 // Mock logger
-vi.mock('../src/logger', () => ({
+vi.mock('../src/lib/logger', () => ({
   logger: {
     info: vi.fn(),
     error: vi.fn(),
@@ -13,7 +13,7 @@ vi.mock('../src/logger', () => ({
 }));
 
 // Mock github module
-vi.mock('../src/github', () => ({
+vi.mock('../src/services/github', () => ({
   makeClient: vi.fn(),
   getViewerLogin: vi.fn()
 }));

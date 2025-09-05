@@ -2,7 +2,7 @@ import React from 'react';
 import { Box, Text } from 'ink';
 import chalk from 'chalk';
 import type { RepoNode } from '../../../types';
-import { formatDate, truncate } from '../../../utils';
+import { formatDate, truncate } from '../../../lib/utils';
 
 interface RepoRowProps {
   repo: RepoNode;

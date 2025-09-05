@@ -1,12 +1,12 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { Box, Text, useApp, useStdout, useInput } from 'ink';
 import TextInput from 'ink-text-input';
-import { getStoredToken, storeToken, getTokenFromEnv, clearStoredToken, OwnerContext, getTokenSource, TokenSource } from '../config';
-import { makeClient, getViewerLogin } from '../github';
-import { pollForAccessToken, requestDeviceCode, DeviceCodeResponse } from '../oauth';
-import RepoList from './RepoList';
+import { getStoredToken, storeToken, getTokenFromEnv, clearStoredToken, OwnerContext, getTokenSource, TokenSource } from '../config/config';
+import { makeClient, getViewerLogin } from '../services/github';
+import { pollForAccessToken, requestDeviceCode, DeviceCodeResponse } from '../services/oauth';
+import RepoList from './views/RepoList';
 import { AuthMethodSelector, AuthMethod, OAuthProgress, OAuthStatus } from './components/auth';
-import { logger } from '../logger';
+import { logger } from '../lib/logger';
 
 // Import version from package.json
 const packageJson = require('../../package.json');
