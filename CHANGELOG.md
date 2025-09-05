@@ -1,3 +1,15 @@
+# [1.32.0](https://github.com/wiiiimm/gh-manager-cli/compare/v1.31.2...v1.32.0) (2025-09-05)
+
+
+### Bug Fixes
+
+* ensure processPRTitle function is always exported in workflow script ([8056aa3](https://github.com/wiiiimm/gh-manager-cli/commit/8056aa399ef22d020f5e7d99253b4613a204236c))
+
+
+### Features
+
+* Add sort direction modal for improved UX ([#26](https://github.com/wiiiimm/gh-manager-cli/issues/26)) ([5209252](https://github.com/wiiiimm/gh-manager-cli/commit/520925241a325a6205378746964c0bd58d2640af))
+
 ## [1.31.2](https://github.com/wiiiimm/gh-manager-cli/compare/v1.31.1...v1.31.2) (2025-09-05)
 
 
