@@ -1,0 +1,24 @@
+# GitHub Sponsorship Configuration
+# These are supported funding model platforms for gh-manager-cli
+
+# GitHub Sponsors (preferred platform for recurring sponsorships)
+github: wiiiimm
+
+# Ko-fi (Buy Me Coffee alternative) - popular micro-donation platform
+# Uncomment and add your Ko-fi username when ready:
+# ko_fi: wiiiimm
+
+# Custom funding URLs - for Buy Me a Coffee and other platforms (max 4 URLs)
+# Uncomment and add your URLs when ready:
+# custom:
+#   - https://buymeacoffee.com/wiiiimm
+#   - https://www.paypal.me/wiiiimm
+
+# Additional supported platforms (uncomment and configure as needed):
+# patreon: your-patreon-username              # Subscription-based funding
+# open_collective: your-project-name          # Transparent funding for open source
+# tidelift: npm/gh-manager-cli                # Enterprise open source funding
+# community_bridge: your-project-name        # Linux Foundation funding platform
+# liberapay: your-liberapay-username         # European recurring donations
+# issuehunt: your-issuehunt-username         # Funding for specific GitHub issues
+# otechie: your-otechie-username             # Technical consulting platform
