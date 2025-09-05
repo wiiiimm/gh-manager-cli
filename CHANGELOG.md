@@ -1,3 +1,10 @@
+# [1.28.0](https://github.com/wiiiimm/gh-manager-cli/compare/v1.27.0...v1.28.0) (2025-09-05)
+
+
+### Features
+
+* replace all logos with green monochrome versions ([e01e4e8](https://github.com/wiiiimm/gh-manager-cli/commit/e01e4e865307223d609b63bb0bae874d18d9c92f)), closes [#22c55](https://github.com/wiiiimm/gh-manager-cli/issues/22c55)
+
 # [1.27.0](https://github.com/wiiiimm/gh-manager-cli/compare/v1.26.0...v1.27.0) (2025-09-05)
 
 
