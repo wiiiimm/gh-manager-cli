@@ -33,6 +33,12 @@ This page outlines the planned features and enhancements for gh-manager-cli. For
 
 ## Coming Soon
 
+- ⭐ **Stars mode** (Personal Account only)
+  - View repositories you've starred
+  - Available only when viewing Personal Account
+  - Unstar repositories directly from the list
+  - GraphQL query to fetch starred repositories
+
 - 📋 **Bulk selection and actions**
   - Multi-select mode with space to toggle selection
   - Bulk operations (archive/unarchive, delete)
