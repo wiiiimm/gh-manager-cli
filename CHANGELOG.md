@@ -1,3 +1,10 @@
+## [1.25.1](https://github.com/wiiiimm/gh-manager-cli/compare/v1.25.0...v1.25.1) (2025-09-05)
+
+
+### Bug Fixes
+
+* slow down OAuth loading spinner to update every 2 seconds ([bb2b9f0](https://github.com/wiiiimm/gh-manager-cli/commit/bb2b9f04f3410f5870884a3db74246ad4b8110bd))
+
 # [1.25.0](https://github.com/wiiiimm/gh-manager-cli/compare/v1.24.3...v1.25.0) (2025-09-05)
 
 
