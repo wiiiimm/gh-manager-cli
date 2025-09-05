@@ -9,7 +9,7 @@ jobs:
   # Job: Build binaries for multiple platforms
   build:
     # Skip if commit message starts with 'chore(release):'
-    if: (github.ref == 'refs/heads/main' || github.event_name == 'workflow_dispatch') && !startsWith(github.event.head_commit.message, 'chore(release):')
+    if: ${{ (github.ref == 'refs/heads/main' || github.event_name == 'workflow_dispatch') && !startsWith(github.event.head_commit.message, 'chore(release):') }}
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
@@ -79,7 +79,7 @@ jobs:
   create-release:
     needs: build
     # Skip if commit message starts with 'chore(release):'
-    if: (github.ref == 'refs/heads/main' || github.event_name == 'workflow_dispatch') && !startsWith(github.event.head_commit.message, 'chore(release):')
+    if: ${{ (github.ref == 'refs/heads/main' || github.event_name == 'workflow_dispatch') && !startsWith(github.event.head_commit.message, 'chore(release):') }}
     runs-on: ubuntu-latest
     permissions:
       contents: write
