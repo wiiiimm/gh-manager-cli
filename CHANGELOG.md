@@ -1,3 +1,10 @@
+# [1.24.0](https://github.com/wiiiimm/gh-manager-cli/compare/v1.23.0...v1.24.0) (2025-09-05)
+
+
+### Features
+
+* add app name with version to --help output ([3376c48](https://github.com/wiiiimm/gh-manager-cli/commit/3376c480186c506f125a62ab444f3e3d321ba82c))
+
 # [1.23.0](https://github.com/wiiiimm/gh-manager-cli/compare/v1.22.0...v1.23.0) (2025-09-04)
 
 
