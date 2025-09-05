@@ -335,7 +335,7 @@ export default function App({ initialOrgSlug, inlineToken, inlineTokenEphemeral 
   });
 
   // Calculate vertical padding as 15% of terminal height
-  const verticalPadding = Math.floor(dims.rows * 0.15);
+  const verticalPadding = Math.floor(dims.rows * 0.05); // Reduced from 15% to 5% for 30% more container height
   
   const header = useMemo(() => (
     <Box flexDirection="row" justifyContent="space-between" marginBottom={1}>
