@@ -323,8 +323,8 @@ function processPRTitle(currentTitle, commits = [], branchName = '') {
   };
 }
 
-// Export for use in GitHub Actions
-if (typeof module !== 'undefined' && module.exports) {
+// Export for use in GitHub Actions - always export if module is available
+if (typeof module !== 'undefined') {
   module.exports = {
     processPRTitle,
     isValidTitle,
