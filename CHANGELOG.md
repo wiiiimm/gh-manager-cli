@@ -1,3 +1,10 @@
+# [1.25.0](https://github.com/wiiiimm/gh-manager-cli/compare/v1.24.3...v1.25.0) (2025-09-05)
+
+
+### Features
+
+* update demo assets and documentation ([84242cc](https://github.com/wiiiimm/gh-manager-cli/commit/84242cc1cb14d58d5f8777e8d2ca20fb158839cb))
+
 ## [1.24.3](https://github.com/wiiiimm/gh-manager-cli/compare/v1.24.2...v1.24.3) (2025-09-05)
 
 
