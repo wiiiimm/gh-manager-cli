@@ -1,3 +1,10 @@
+# [1.27.0](https://github.com/wiiiimm/gh-manager-cli/compare/v1.26.0...v1.27.0) (2025-09-05)
+
+
+### Features
+
+* add PNG versions of green logo-mark ([7e10efe](https://github.com/wiiiimm/gh-manager-cli/commit/7e10efe5a410f8de2723c7c6c1de5f13edb9d8a0))
+
 # [1.26.0](https://github.com/wiiiimm/gh-manager-cli/compare/v1.25.1...v1.26.0) (2025-09-05)
 
 
