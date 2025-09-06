@@ -51,6 +51,11 @@ export default function InfoModal({ repo, terminalWidth, onClose }: InfoModalPro
       <Text color="gray">Updated: {formatDate(repo.updatedAt)} • Pushed: {formatDate(repo.pushedAt)}</Text>
       <Text color="gray">Size: {repo.diskUsage} KB</Text>
       <Box height={1}><Text> </Text></Box>
+      <Box flexDirection="column" borderStyle="single" borderColor="yellow" paddingX={1} marginY={1}>
+        <Text color="yellow">💚 Enjoying gh-manager-cli?</Text>
+        <Text color="gray">Support the project at:</Text>
+        <Text color="cyan">buymeacoffee.com/wiiiimm</Text>
+      </Box>
       <Text color="gray">Press Esc or I to close</Text>
     </Box>
   );
