@@ -93,6 +93,10 @@ export default function RepoList({ token, maxVisibleRows, onLogout, viewerLogin,
   const [ownerAffiliations, setOwnerAffiliations] = useState<OwnerAffiliation[]>(['OWNER']);
   const [orgSwitcherOpen, setOrgSwitcherOpen] = useState(false);
   
+  // Sponsor reminder state
+  const [operationCount, setOperationCount] = useState(0);
+  const [showSponsorReminder, setShowSponsorReminder] = useState(false);
+  
   // Search state (server-side)
   const [searchItems, setSearchItems] = useState<RepoNode[]>([]);
   const [searchEndCursor, setSearchEndCursor] = useState<string | null>(null);
@@ -188,6 +192,19 @@ export default function RepoList({ token, maxVisibleRows, onLogout, viewerLogin,
       }
     })();
   }, [initialOrgSlug, token, prefsLoaded, client, addDebugMessage]);
+
+  // Helper to track successful operations and show sponsor reminder
+  function trackSuccessfulOperation() {
+    const newCount = operationCount + 1;
+    setOperationCount(newCount);
+    
+    // Show sponsor reminder every 5 operations
+    if (newCount % 5 === 0) {
+      setShowSponsorReminder(true);
+      // Hide the reminder after 5 seconds
+      setTimeout(() => setShowSponsorReminder(false), 5000);
+    }
+  }
 
   function closeArchiveModal() {
     setArchiveMode(false);
@@ -301,6 +318,7 @@ export default function RepoList({ token, maxVisibleRows, onLogout, viewerLogin,
       setItems(prev => prev.map(updateRepo));
       setSearchItems(prev => prev.map(updateRepo));
       
+      trackSuccessfulOperation(); // Track the successful operation
       closeArchiveModal();
     } catch (e) {
       setArchiving(false);
@@ -511,6 +529,7 @@ export default function RepoList({ token, maxVisibleRows, onLogout, viewerLogin,
         setSearchTotalCount((c) => Math.max(0, c - 1));
       }
       
+      trackSuccessfulOperation(); // Track the successful operation
       setDeleteMode(false);
       setDeleteTarget(null);
       setTypedCode('');
@@ -1621,6 +1640,19 @@ export default function RepoList({ token, maxVisibleRows, onLogout, viewerLogin,
       {/* Header bar */}
       {headerBar}
 
+      {/* Sponsor reminder notification */}
+      {showSponsorReminder && (
+        <Box marginX={1} marginBottom={1}>
+          <Box borderStyle="single" borderColor="yellow" paddingX={2} paddingY={1}>
+            <Box flexDirection="column" alignItems="center">
+              <Text color="yellow">💚 Thanks for using gh-manager-cli!</Text>
+              <Text color="gray">Your support helps craft more open-source tools</Text>
+              <Text color="cyan">☕ buymeacoffee.com/wiiiimm</Text>
+            </Box>
+          </Box>
+        </Box>
+      )}
+
       {/* Main content container with border - fixed height */}
       <Box borderStyle="single" borderColor={modalOpen ? 'gray' : 'yellow'} paddingX={1} paddingY={1} marginX={1} height={contentHeight + containerPadding + 2} flexDirection="column">
         {deleteMode && deleteTarget ? (
@@ -2167,7 +2199,7 @@ export default function RepoList({ token, maxVisibleRows, onLogout, viewerLogin,
         )}
       </Box>
 
-      {/* Help footer - 4 lines */}
+      {/* Help footer - 5 lines */}
       <Box marginTop={1} paddingX={1} flexDirection="column">
         {/* Line 1: Basic navigation */}
         <Box width={terminalWidth} justifyContent="center">
@@ -2191,6 +2223,12 @@ export default function RepoList({ token, maxVisibleRows, onLogout, viewerLogin,
         <Box width={terminalWidth} justifyContent="center">
           <Text color="gray" dimColor={modalOpen ? true : undefined}>
             K Cache Info • W Org Switch • Del/Backspace Delete • Ctrl+L Logout • Q Quit
+          </Text>
+        </Box>
+        {/* Line 5: Sponsorship */}
+        <Box width={terminalWidth} justifyContent="center" marginTop={1}>
+          <Text color="yellow" dimColor={modalOpen ? true : undefined}>
+            💚 Support the project: buymeacoffee.com/wiiiimm
           </Text>
         </Box>
       </Box>
