@@ -1,3 +1,10 @@
+# [1.34.0](https://github.com/wiiiimm/gh-manager-cli/compare/v1.33.0...v1.34.0) (2025-09-06)
+
+
+### Features
+
+* add in-app sponsorship prompts and reminders ([#28](https://github.com/wiiiimm/gh-manager-cli/issues/28)) ([443aa4b](https://github.com/wiiiimm/gh-manager-cli/commit/443aa4bcaf2eb18dc4d4abef1ebe3f14652912bd))
+
 # [1.33.0](https://github.com/wiiiimm/gh-manager-cli/compare/v1.32.0...v1.33.0) (2025-09-06)
 
 
