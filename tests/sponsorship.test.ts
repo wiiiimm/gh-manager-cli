@@ -10,9 +10,10 @@ describe('GitHub Sponsorship Configuration', () => {
     expect(existsSync(fundingYmlPath)).toBe(true);
   });
 
-  it('should have GitHub Sponsors configured', () => {
+  it('should have Buy Me a Coffee configured', () => {
     const content = readFileSync(fundingYmlPath, 'utf8');
-    expect(content).toContain('github: wiiiimm');
+    expect(content).toContain('buymeacoffee.com/wiiiimm');
+    expect(content).toContain('custom:');
   });
 
   it('should contain Ko-fi configuration examples', () => {
