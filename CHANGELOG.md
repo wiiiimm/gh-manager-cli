@@ -1,3 +1,10 @@
+# [1.33.0](https://github.com/wiiiimm/gh-manager-cli/compare/v1.32.0...v1.33.0) (2025-09-06)
+
+
+### Features
+
+* add Buy Me a Coffee sponsorship support ([#27](https://github.com/wiiiimm/gh-manager-cli/issues/27)) ([76ed5dd](https://github.com/wiiiimm/gh-manager-cli/commit/76ed5ddf8a6ec4dd5c2110250858967e7f63b96f))
+
 # [1.32.0](https://github.com/wiiiimm/gh-manager-cli/compare/v1.31.2...v1.32.0) (2025-09-05)
 
 
