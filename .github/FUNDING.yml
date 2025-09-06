@@ -2,17 +2,17 @@
 # These are supported funding model platforms for gh-manager-cli
 
 # GitHub Sponsors (preferred platform for recurring sponsorships)
-github: wiiiimm
+# Commented out until approved by GitHub
+# github: wiiiimm
 
 # Ko-fi (Buy Me Coffee alternative) - popular micro-donation platform
 # Uncomment and add your Ko-fi username when ready:
 # ko_fi: wiiiimm
 
 # Custom funding URLs - for Buy Me a Coffee and other platforms (max 4 URLs)
-# Uncomment and add your URLs when ready:
-# custom:
-#   - https://buymeacoffee.com/wiiiimm
-#   - https://www.paypal.me/wiiiimm
+custom:
+  - https://buymeacoffee.com/wiiiimm
+  # - https://www.paypal.me/wiiiimm
 
 # Additional supported platforms (uncomment and configure as needed):
 # patreon: your-patreon-username              # Subscription-based funding
