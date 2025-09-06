@@ -516,6 +516,14 @@ Highlights on deck:
 - Bulk selection and actions
 - Repository renaming
 
+## Support & Sponsorship
+
+If you find gh-manager-cli useful, consider supporting its development:
+
+☕ **[Buy Me a Coffee](https://buymeacoffee.com/wiiiimm)** - Support with coffee donations
+
+Your support helps maintain and improve this project. Thank you! 🙏
+
 ## License
 
 MIT
