@@ -82,10 +82,35 @@ const handleShutdown = (signal: string) => {
   process.exit(0);
 };
 
+// Function to show sponsorship message
+const showSponsorshipMessage = () => {
+  console.log('\n' + '─'.repeat(60));
+  console.log('\n💚 Thank you for using gh-manager-cli!\n');
+  console.log('If this app saved you time, please consider supporting');
+  console.log('the development of more open-source projects like this:\n');
+  console.log('  ☕ Buy Me a Coffee: https://buymeacoffee.com/wiiiimm');
+  console.log('  🚀 Visit my site: https://wiiiimm.codes');
+  console.log('  💬 Leave feedback: https://github.com/wiiiimm/gh-manager-cli');
+  console.log('\nYour support and contributions make a difference! 🙏\n');
+  console.log('─'.repeat(60) + '\n');
+};
+
 // Register shutdown handlers
 process.on('SIGINT', () => handleShutdown('SIGINT'));  // Ctrl+C
 process.on('SIGTERM', () => handleShutdown('SIGTERM')); // Kill signal
 process.on('exit', (code) => {
+  // Only show sponsorship message on normal exit (code 0)
+  // and not when there's an error or when using --version/--help
+  const isNormalExit = code === 0;
+  const isInteractiveSession = !argv.includes('--version') && 
+                               !argv.includes('-v') && 
+                               !argv.includes('--help') && 
+                               !argv.includes('-h');
+  
+  if (isNormalExit && isInteractiveSession) {
+    showSponsorshipMessage();
+  }
+  
   logger.info('gh-manager-cli exited', { 
     exitCode: code,
     uptime: process.uptime()
