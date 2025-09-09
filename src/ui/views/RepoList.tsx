@@ -628,6 +628,14 @@ export default function RepoList({ token, maxVisibleRows, onLogout, viewerLogin,
     // Reset visibility filter to 'all' when switching organizations
     setVisibilityFilter('all');
     
+    // Disable star mode when switching to non-personal context
+    if (newContext !== 'personal' && starsMode) {
+      setStarsMode(false);
+      setStarredItems([]);
+      setStarredPageInfo({ hasNextPage: false, endCursor: null });
+      setStarredTotalCount(0);
+    }
+    
     // Update affiliations based on context
     const newAffiliations = newContext === 'personal' 
       ? ['OWNER'] as OwnerAffiliation[]
@@ -1411,8 +1419,8 @@ export default function RepoList({ token, maxVisibleRows, onLogout, viewerLogin,
       return;
     }
 
-    // Sync fork with upstream modal (Ctrl+S)
-    if (key.ctrl && (input === 's' || input === 'S')) {
+    // Sync fork with upstream modal (Ctrl+Y)
+    if (key.ctrl && (input === 'y' || input === 'Y')) {
       const repo = visibleItems[cursor];
       if (repo && repo.isFork && repo.parent) {
         // Only show sync option for forks that are behind
@@ -1552,8 +1560,8 @@ export default function RepoList({ token, maxVisibleRows, onLogout, viewerLogin,
       return;
     }
     
-    // Star/unstar toggle (Ctrl+U) - only in normal mode
-    if (key.ctrl && (input === 'u' || input === 'U') && !starsMode) {
+    // Star/unstar toggle (Ctrl+S) - only in normal mode
+    if (key.ctrl && (input === 's' || input === 'S') && !starsMode) {
       const repo = visibleItems[cursor];
       if (repo) {
         setStarTarget(repo);
@@ -1581,8 +1589,8 @@ export default function RepoList({ token, maxVisibleRows, onLogout, viewerLogin,
       return;
     }
 
-    // Toggle fork tracking
-    if (input && input.toUpperCase() === 'F') {
+    // Toggle fork tracking (Ctrl+F)
+    if (key.ctrl && (input === 'f' || input === 'F')) {
       setForkTracking((prev) => {
         const next = !prev;
         storeUIPrefs({ forkTracking: next });
@@ -2492,7 +2500,7 @@ export default function RepoList({ token, maxVisibleRows, onLogout, viewerLogin,
         {/* Line 2: Search and filtering */}
         <Box width={terminalWidth} justifyContent="center">
           <Text color="gray" dimColor={modalOpen ? true : undefined}>
-            / Search • S Sort • D Direction • T Density • F Fork Status{!starsMode && ' • V Visibility'}{ownerContext === 'personal' && ' • Shift+S Stars'}
+            / Search • S Sort • D Direction • T Density • Ctrl+F Fork Status{!starsMode && ' • V Visibility'}{ownerContext === 'personal' && ' • Shift+S Stars'}
           </Text>
         </Box>
         {/* Line 3: Repository actions */}
@@ -2500,7 +2508,7 @@ export default function RepoList({ token, maxVisibleRows, onLogout, viewerLogin,
           <Text color="gray" dimColor={modalOpen ? true : undefined}>
             {starsMode ? 
               'I Info • C Copy URL • U Unstar Repository' :
-              'I Info • C Copy URL • Ctrl+U Un/Star • Ctrl+R Rename • Ctrl+A Un/Archive • Ctrl+V Change Visibility • Ctrl+S Sync Fork'
+              'I Info • C Copy URL • Ctrl+S Un/Star • Ctrl+R Rename • Ctrl+A Un/Archive • Ctrl+V Change Visibility • Ctrl+Y Sync Fork'
             }
           </Text>
         </Box>
