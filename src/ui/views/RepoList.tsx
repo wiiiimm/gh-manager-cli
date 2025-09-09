@@ -1552,8 +1552,8 @@ export default function RepoList({ token, maxVisibleRows, onLogout, viewerLogin,
       return;
     }
     
-    // Star/unstar toggle (Shift+U) - only in normal mode
-    if (key.shift && input === 'U' && !starsMode) {
+    // Star/unstar toggle (Ctrl+U) - only in normal mode
+    if (key.ctrl && (input === 'u' || input === 'U') && !starsMode) {
       const repo = visibleItems[cursor];
       if (repo) {
         setStarTarget(repo);
@@ -2500,7 +2500,7 @@ export default function RepoList({ token, maxVisibleRows, onLogout, viewerLogin,
           <Text color="gray" dimColor={modalOpen ? true : undefined}>
             {starsMode ? 
               'I Info • C Copy URL • U Unstar Repository' :
-              'I Info • C Copy URL • Shift+U Un/Star • Ctrl+R Rename • Ctrl+A Un/Archive • Ctrl+V Change Visibility • Ctrl+S Sync Fork'
+              'I Info • C Copy URL • Ctrl+U Un/Star • Ctrl+R Rename • Ctrl+A Un/Archive • Ctrl+V Change Visibility • Ctrl+S Sync Fork'
             }
           </Text>
         </Box>
