@@ -1509,7 +1509,7 @@ export default function RepoList({ token, maxVisibleRows, onLogout, viewerLogin,
     }
 
     // Sort modal: show sort options (S key when not in stars mode)
-    if (input && input.toUpperCase() === 'S' && !key.shift) {
+    if (input && input.toUpperCase() === 'S' && !key.shift && !key.ctrl) {
       setSortMode(true);
       return;
     }

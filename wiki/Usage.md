@@ -31,8 +31,9 @@ Launch the app, then use the keys below to navigate and interact with your repos
   - Stars: Number of stars
 - **Sort Direction**: `D` to toggle ascending/descending
 - **Display Density**: `T` to toggle compact/cozy/comfy
-- **Fork Status**: `F` to toggle showing commits behind upstream
+- **Fork Status**: Always enabled - shows commits behind upstream for all forks
 - **Visibility Filter**: `V` opens modal (All, Public, Private/Internal for enterprise)
+- **Stars Mode**: `Shift+S` (personal account only) to view starred repositories
 
 ## Navigation & Account
 
@@ -51,7 +52,10 @@ Launch the app, then use the keys below to navigate and interact with your repos
 - **Delete repository**: `Del` or `Backspace` (with two-step confirmation modal)
   - Type confirmation code → confirm (Y/Enter)
   - Cancel: press `C` or Esc
-- **Sync fork**: `Ctrl+S` (for forks only, shows commit status and handles conflicts)
+- **Star/Unstar**: `Ctrl+S` to toggle star status for any repository
+- **Sync fork**: `Ctrl+F` (for forks only, shows commit status and handles conflicts)
+- **Rename repository**: `Ctrl+R` with inline validation
+- **Copy URL**: `C` to copy repository URL to clipboard (SSH/HTTPS options)
 
 ## General
 

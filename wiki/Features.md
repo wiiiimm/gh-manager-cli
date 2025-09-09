@@ -10,14 +10,18 @@ gh-manager-cli provides a comprehensive set of features for managing your GitHub
 - **Interactive Sorting**: Modal-based sort selection (updated, pushed, name, stars) with direction toggle
 - **Smart Search**: Server-side search through repository names and descriptions (3+ characters)
 - **Visibility Filtering**: Modal-based visibility filter (All, Public, Private/Internal for enterprise) with smart filtering
-- **Fork Status Tracking**: Toggle display of commits behind upstream for forked repositories
+- **Fork Status Tracking**: Always shows commits behind upstream for forked repositories
+- **Stars Mode**: View and manage starred repositories (personal account only)
 - **Repository Actions**:
   - View detailed info (`I`) - Shows repository metadata, language, size, and timestamps
   - Open in browser (Enter/`O`)
   - Delete repository (`Del` or `Backspace`) with secure two-step confirmation
   - Archive/unarchive repositories (`Ctrl+A`) with confirmation prompts
   - Change repository visibility (`Ctrl+V`) - Switch between Public, Private, and Internal (enterprise only)
-  - Sync forks with upstream (`Ctrl+S`) with automatic conflict detection
+  - Star/unstar repositories (`Ctrl+S`) - Toggle star status for any repository
+  - Sync forks with upstream (`Ctrl+F`) with automatic conflict detection
+  - Rename repository (`Ctrl+R`) with inline validation
+  - Copy repository URL to clipboard (`C`) with SSH/HTTPS options
 
 ## User Interface & Experience
 
