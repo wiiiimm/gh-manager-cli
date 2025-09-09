@@ -933,8 +933,8 @@ export default function RepoList({ token, maxVisibleRows, onLogout, viewerLogin,
     if (ui.sortDir && (ui.sortDir === 'asc' || ui.sortDir === 'desc')) {
       setSortDir(ui.sortDir);
     }
-    if (ui.forkTracking !== undefined) setForkTracking(ui.forkTracking);
-    else setForkTracking(true); // Default to ON if not set in config
+    // Fork tracking is now always ON
+    setForkTracking(true);
     
     // Load visibility filter
     if (ui.visibilityFilter && ['all', 'public', 'private', 'internal'].includes(ui.visibilityFilter)) {
@@ -1419,8 +1419,8 @@ export default function RepoList({ token, maxVisibleRows, onLogout, viewerLogin,
       return;
     }
 
-    // Sync fork with upstream modal (Ctrl+Y)
-    if (key.ctrl && (input === 'y' || input === 'Y')) {
+    // Sync fork with upstream modal (Ctrl+F)
+    if (key.ctrl && (input === 'f' || input === 'F')) {
       const repo = visibleItems[cursor];
       if (repo && repo.isFork && repo.parent) {
         // Only show sync option for forks that are behind
@@ -1589,28 +1589,7 @@ export default function RepoList({ token, maxVisibleRows, onLogout, viewerLogin,
       return;
     }
 
-    // Toggle fork tracking (Ctrl+F)
-    if (key.ctrl && (input === 'f' || input === 'F')) {
-      setForkTracking((prev) => {
-        const next = !prev;
-        storeUIPrefs({ forkTracking: next });
-        
-        // Check if we need to refresh data
-        const needsRefresh = next && items.some(repo => 
-          repo.isFork && repo.parent && (!repo.defaultBranchRef?.target?.history || !repo.parent.defaultBranchRef?.target?.history)
-        );
-        
-        if (needsRefresh) {
-          // Current data lacks commit history, need full refresh with new fork tracking value
-          setSortingLoading(true);
-          fetchPage(null, true, true, next);
-        }
-        // If toggling OFF or data is already complete, just update display immediately
-        
-        return next;
-      });
-      return;
-    }
+    // Fork tracking is now always on - removed toggle
     
     // Open visibility filter modal (V) - disabled in stars mode
     if (input && input.toUpperCase() === 'V') {
@@ -2500,7 +2479,7 @@ export default function RepoList({ token, maxVisibleRows, onLogout, viewerLogin,
         {/* Line 2: Search and filtering */}
         <Box width={terminalWidth} justifyContent="center">
           <Text color="gray" dimColor={modalOpen ? true : undefined}>
-            / Search • S Sort • D Direction • T Density • Ctrl+F Fork Status{!starsMode && ' • V Visibility'}{ownerContext === 'personal' && ' • Shift+S Stars'}
+            / Search • S Sort • D Direction • T Density{!starsMode && ' • V Visibility'}{ownerContext === 'personal' && ' • Shift+S Stars'}
           </Text>
         </Box>
         {/* Line 3: Repository actions */}
@@ -2508,7 +2487,7 @@ export default function RepoList({ token, maxVisibleRows, onLogout, viewerLogin,
           <Text color="gray" dimColor={modalOpen ? true : undefined}>
             {starsMode ? 
               'I Info • C Copy URL • U Unstar Repository' :
-              'I Info • C Copy URL • Ctrl+S Un/Star • Ctrl+R Rename • Ctrl+A Un/Archive • Ctrl+V Change Visibility • Ctrl+Y Sync Fork'
+              'I Info • C Copy URL • Ctrl+S Un/Star • Ctrl+R Rename • Ctrl+A Un/Archive • Ctrl+V Change Visibility • Ctrl+F Sync Fork'
             }
           </Text>
         </Box>
