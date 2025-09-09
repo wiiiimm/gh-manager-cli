@@ -53,13 +53,15 @@ Legend:
 
 ## Near‑Term
 
-- [ ] Stars mode (Personal Account only)
-  - Special mode to list repositories that the user has starred
-  - Available only when viewing Personal Account (not organizations)
-  - Key binding to trigger unstar action for selected repository
-  - GraphQL query to fetch starred repositories
-  - Display similar to regular repo list but with unstar action instead of delete
-  - Consider showing when/why starred if metadata available
+- [x] Stars mode (Personal Account only)
+  - Special mode to list repositories that the user has starred ✓
+  - Available only when viewing Personal Account (not organizations) ✓
+  - Key binding: Shift+S to toggle stars mode ✓
+  - Key binding: U to trigger unstar action for selected repository ✓
+  - GraphQL query to fetch starred repositories ✓
+  - Display similar to regular repo list but with unstar action instead of delete ✓
+  - Visual indicator "⭐ Stars Mode" in header when active ✓
+  - UnstarModal component for confirmation before unstarring ✓
 
 - [x] Repo actions with confirmations
   - [x] Archive / Unarchive repositories

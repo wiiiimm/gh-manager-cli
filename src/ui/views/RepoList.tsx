@@ -2,7 +2,7 @@ import React, { useEffect, useMemo, useState, useRef, useCallback } from 'react'
 import { Box, Text, useApp, useInput, useStdout, Spacer, Newline } from 'ink';
 import TextInput from 'ink-text-input';
 import chalk from 'chalk';
-import { makeClient, fetchViewerReposPageUnified, searchRepositoriesUnified, deleteRepositoryRest, archiveRepositoryById, unarchiveRepositoryById, changeRepositoryVisibility, syncForkWithUpstream, getRepositoryFromCache, purgeApolloCacheFiles, inspectCacheStatus, updateCacheAfterDelete, updateCacheAfterArchive, updateCacheAfterVisibilityChange, updateCacheWithRepository, checkOrganizationIsEnterprise, OwnerAffiliation, fetchViewerOrganizations, fetchRestRateLimits, renameRepositoryById, updateCacheAfterRename } from '../../services/github';
+import { makeClient, fetchViewerReposPageUnified, searchRepositoriesUnified, deleteRepositoryRest, archiveRepositoryById, unarchiveRepositoryById, changeRepositoryVisibility, syncForkWithUpstream, getRepositoryFromCache, purgeApolloCacheFiles, inspectCacheStatus, updateCacheAfterDelete, updateCacheAfterArchive, updateCacheAfterVisibilityChange, updateCacheWithRepository, checkOrganizationIsEnterprise, OwnerAffiliation, fetchViewerOrganizations, fetchRestRateLimits, renameRepositoryById, updateCacheAfterRename, getStarredRepositories, unstarRepository } from '../../services/github';
 import { getUIPrefs, storeUIPrefs, OwnerContext } from '../../config/config';
 import { makeApolloKey, makeSearchKey, isFresh, markFetched } from '../../services/apolloMeta';
 import type { RepoNode, RateLimitInfo, RestRateLimitInfo } from '../../types';
@@ -10,6 +10,7 @@ import { exec } from 'child_process';
 import OrgSwitcher from '../OrgSwitcher';
 import { logger } from '../../lib/logger';
 import { DeleteModal, ArchiveModal, SyncModal, InfoModal, LogoutModal, VisibilityModal, SortModal, SortDirectionModal, ChangeVisibilityModal, CopyUrlModal, RenameModal } from '../components/modals';
+import { UnstarModal } from '../components/modals/UnstarModal';
 import { RepoRow, FilterInput, RepoListHeader } from '../components/repo';
 import { SlowSpinner } from '../components/common';
 import { truncate, formatDate, copyToClipboard } from '../../lib/utils';
@@ -160,6 +161,20 @@ export default function RepoList({ token, maxVisibleRows, onLogout, viewerLogin,
   // Sort modal state
   const [sortMode, setSortMode] = useState(false);
   const [sortDirectionMode, setSortDirectionMode] = useState(false);
+  
+  // Stars mode state
+  const [starsMode, setStarsMode] = useState(false);
+  const [starredItems, setStarredItems] = useState<RepoNode[]>([]);
+  const [starredEndCursor, setStarredEndCursor] = useState<string | null>(null);
+  const [starredHasNextPage, setStarredHasNextPage] = useState(false);
+  const [starredTotalCount, setStarredTotalCount] = useState<number>(0);
+  const [starredLoading, setStarredLoading] = useState(false);
+  
+  // Unstar modal state
+  const [unstarMode, setUnstarMode] = useState(false);
+  const [unstarTarget, setUnstarTarget] = useState<RepoNode | null>(null);
+  const [unstarring, setUnstarring] = useState(false);
+  const [unstarError, setUnstarError] = useState<string | null>(null);
 
   // Apply initial --org flag once (if provided)
   const appliedInitialOrg = useRef(false);
@@ -246,6 +261,70 @@ export default function RepoList({ token, maxVisibleRows, onLogout, viewerLogin,
   }
   
   // Single sync execution function to prevent duplicate operations
+  // Fetch starred repositories
+  async function fetchStarredRepositories(after?: string | null, reset = false) {
+    setStarredLoading(true);
+    try {
+      const page = await getStarredRepositories(client, PAGE_SIZE, after ?? undefined);
+      
+      setStarredItems(prev => (reset || !after ? page.nodes : [...prev, ...page.nodes]));
+      setStarredEndCursor(page.endCursor ?? null);
+      setStarredHasNextPage(page.hasNextPage);
+      setStarredTotalCount(page.totalCount);
+      
+      if (page.rateLimit) {
+        setRateLimit(page.rateLimit);
+        if (prevRateLimit !== undefined) {
+          setPrevRateLimit(prevRateLimit);
+        }
+        setPrevRateLimit(page.rateLimit.remaining);
+      }
+      
+      setStarredLoading(false);
+    } catch (e: any) {
+      setStarredLoading(false);
+      setError(e.message || 'Failed to fetch starred repositories');
+    }
+  }
+  
+  // Handle unstar action
+  async function handleUnstar() {
+    if (!unstarTarget || unstarring) return;
+    
+    try {
+      setUnstarring(true);
+      const targetId = (unstarTarget as any).id;
+      
+      await unstarRepository(client, targetId);
+      
+      // Remove from starred items list
+      setStarredItems(prev => prev.filter((r: any) => r.id !== targetId));
+      setStarredTotalCount(c => Math.max(0, c - 1));
+      
+      // Adjust cursor if needed
+      setCursor(c => Math.max(0, Math.min(c, starredItems.length - 2)));
+      
+      trackSuccessfulOperation();
+      
+      // Close modal
+      setUnstarMode(false);
+      setUnstarTarget(null);
+      setUnstarError(null);
+      setUnstarring(false);
+    } catch (e: any) {
+      setUnstarring(false);
+      setUnstarError(e.message || 'Failed to unstar repository');
+    }
+  }
+  
+  // Close unstar modal
+  function closeUnstarModal() {
+    setUnstarMode(false);
+    setUnstarTarget(null);
+    setUnstarError(null);
+    setUnstarring(false);
+  }
+
   async function executeSync() {
     if (!syncTarget || syncing) return;
     
@@ -1020,6 +1099,16 @@ export default function RepoList({ token, maxVisibleRows, onLogout, viewerLogin,
       return;
     }
 
+    // When in unstar mode, trap inputs for modal
+    if (unstarMode) {
+      if (key.escape || (input && input.toUpperCase() === 'C')) {
+        closeUnstarModal();
+        return;
+      }
+      // Let the UnstarModal component handle other inputs
+      return;
+    }
+
     // When in sync mode, trap inputs for modal
     if (syncMode) {
       if (key.escape || (input && input.toUpperCase() === 'C')) {
@@ -1316,13 +1405,38 @@ export default function RepoList({ token, maxVisibleRows, onLogout, viewerLogin,
       return;
     }
 
-    // Sort modal: show sort options
-    if (input && input.toUpperCase() === 'S') {
+    // Sort modal: show sort options (S key when not in stars mode)
+    if (input && input.toUpperCase() === 'S' && !key.shift) {
       setSortMode(true);
       return;
     }
     if (input && input.toUpperCase() === 'D') {
       setSortDirectionMode(true);
+      return;
+    }
+    
+    // Stars mode toggle (Shift+S) - only available in personal context
+    if (key.shift && input === 'S' && ownerContext === 'personal') {
+      const newStarsMode = !starsMode;
+      setStarsMode(newStarsMode);
+      setCursor(0);
+      
+      if (newStarsMode) {
+        // Entering stars mode - fetch starred repositories
+        fetchStarredRepositories(null, true);
+      }
+      return;
+    }
+    
+    // Unstar action (U key) - only in stars mode
+    if (input && input.toUpperCase() === 'U' && starsMode) {
+      const repo = visibleItems[cursor];
+      if (repo) {
+        setUnstarTarget(repo);
+        setUnstarMode(true);
+        setUnstarError(null);
+        setUnstarring(false);
+      }
       return;
     }
 
@@ -1437,7 +1551,7 @@ export default function RepoList({ token, maxVisibleRows, onLogout, viewerLogin,
     return result;
   }, [searchItems, visibilityFilter]);
   
-  const visibleItems = searchActive ? filteredSearchItems : filteredAndSorted;
+  const visibleItems = starsMode ? starredItems : (searchActive ? filteredSearchItems : filteredAndSorted);
   
   // Debug log
   useEffect(() => {
@@ -2091,6 +2205,17 @@ export default function RepoList({ token, maxVisibleRows, onLogout, viewerLogin,
               onCopy={handleCopyUrl}
             />
           </Box>
+        ) : unstarMode && unstarTarget ? (
+          <Box height={contentHeight} alignItems="center" justifyContent="center">
+            <UnstarModal
+              visible={unstarMode}
+              repo={unstarTarget}
+              onConfirm={handleUnstar}
+              onCancel={closeUnstarModal}
+              isUnstarring={unstarring}
+              error={unstarError}
+            />
+          </Box>
         ) : (
           <>
             {/* Context/Filter/sort status */}
@@ -2104,6 +2229,7 @@ export default function RepoList({ token, maxVisibleRows, onLogout, viewerLogin,
               searchLoading={searchLoading}
               visibilityFilter={visibilityFilter}
               isEnterprise={isEnterpriseOrg}
+              starsMode={starsMode}
             />
 
             {/* Filter input */}
@@ -2210,13 +2336,16 @@ export default function RepoList({ token, maxVisibleRows, onLogout, viewerLogin,
         {/* Line 2: Search and filtering */}
         <Box width={terminalWidth} justifyContent="center">
           <Text color="gray" dimColor={modalOpen ? true : undefined}>
-            / Search • S Sort • D Direction • T Density • F Fork Status • V Visibility
+            / Search • S Sort • D Direction • T Density • F Fork Status • V Visibility{ownerContext === 'personal' && ' • Shift+S Stars'}
           </Text>
         </Box>
         {/* Line 3: Repository actions */}
         <Box width={terminalWidth} justifyContent="center">
           <Text color="gray" dimColor={modalOpen ? true : undefined}>
-            I Info • C Copy URL • Ctrl+R Rename • Ctrl+A Un/Archive • Ctrl+V Change Visibility • Ctrl+S Sync Fork
+            {starsMode ? 
+              'I Info • C Copy URL • U Unstar Repository' :
+              'I Info • C Copy URL • Ctrl+R Rename • Ctrl+A Un/Archive • Ctrl+V Change Visibility • Ctrl+S Sync Fork'
+            }
           </Text>
         </Box>
         {/* Line 4: System controls */}

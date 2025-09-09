@@ -13,6 +13,7 @@ interface RepoListHeaderProps {
   searchLoading: boolean;
   visibilityFilter?: 'all' | 'public' | 'private' | 'internal';
   isEnterprise?: boolean;
+  starsMode?: boolean;
 }
 
 export default function RepoListHeader({
@@ -24,7 +25,8 @@ export default function RepoListHeader({
   searchActive,
   searchLoading,
   visibilityFilter = 'all',
-  isEnterprise = false
+  isEnterprise = false,
+  starsMode = false
 }: RepoListHeaderProps) {
   const contextLabel = ownerContext === 'personal'
     ? 'Personal Account'
@@ -44,6 +46,11 @@ export default function RepoListHeader({
     <Box flexDirection="row" gap={2} marginBottom={1}>
       {contextLabel && (
         <Text>{contextLabel}</Text>
+      )}
+      {starsMode && (
+        <Text color="yellow" bold>
+          ⭐ Stars Mode
+        </Text>
       )}
       <Text color="gray" dimColor>
         Sort: {sortKey} {sortDir === 'asc' ? '↑' : '↓'}
