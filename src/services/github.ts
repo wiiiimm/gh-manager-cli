@@ -486,6 +486,8 @@ export async function fetchViewerReposPageUnified(
                   isArchived
                   stargazerCount
                   forkCount
+                  viewerHasStarred
+                  owner { __typename login }
                   primaryLanguage { name color }
                   updatedAt
                   pushedAt
@@ -521,6 +523,8 @@ export async function fetchViewerReposPageUnified(
                   isArchived
                   stargazerCount
                   forkCount
+                  viewerHasStarred
+                  owner { __typename login }
                   primaryLanguage { name color }
                   updatedAt
                   pushedAt
@@ -633,6 +637,8 @@ export async function searchRepositoriesUnified(
               isArchived
               stargazerCount
               forkCount
+              viewerHasStarred
+              owner { __typename login }
               primaryLanguage { name color }
               updatedAt
               pushedAt
