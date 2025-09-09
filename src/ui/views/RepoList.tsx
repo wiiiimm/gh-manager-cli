@@ -1439,11 +1439,26 @@ export default function RepoList({ token, maxVisibleRows, onLogout, viewerLogin,
       setStarsMode(newStarsMode);
       setCursor(0);
       
+      // Clear filter when toggling modes
+      setFilter('');
+      setFilterMode(false);
+      
       if (newStarsMode) {
         // Entering stars mode - fetch starred repositories
         // Reset visibility filter since it doesn't apply to starred repos
         setVisibilityFilter('all');
+        // Clear search items since we're switching to starred repos
+        setSearchItems([]);
+        setSearchEndCursor(null);
+        setSearchHasNextPage(false);
+        setSearchTotalCount(0);
         fetchStarredRepositories(null, true);
+      } else {
+        // Exiting stars mode - clear search state
+        setSearchItems([]);
+        setSearchEndCursor(null);
+        setSearchHasNextPage(false);
+        setSearchTotalCount(0);
       }
       return;
     }
