@@ -1222,11 +1222,12 @@ export default function RepoList({ token, maxVisibleRows, onLogout, viewerLogin,
         addDebugMessage('[ESC] Cleared search and returned to normal listing');
         return;
       }
-      // Down arrow in filter mode with search results - exit filter mode and select first item
-      if (key.downArrow && searchActive && visibleItems.length > 0) {
+      // Down arrow in filter mode with results - exit filter mode and select first item
+      // Works for both search mode and stars mode filtering
+      if (key.downArrow && (searchActive || (starsMode && filter.trim().length > 0)) && visibleItems.length > 0) {
         setFilterMode(false);
         setCursor(0); // Select first item
-        addDebugMessage('[DOWN] Exited filter mode and selected first search result');
+        addDebugMessage('[DOWN] Exited filter mode and selected first result');
         return;
       }
       // Let TextInput handle characters; Enter will exit via onSubmit
