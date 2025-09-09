@@ -1423,6 +1423,8 @@ export default function RepoList({ token, maxVisibleRows, onLogout, viewerLogin,
       
       if (newStarsMode) {
         // Entering stars mode - fetch starred repositories
+        // Reset visibility filter since it doesn't apply to starred repos
+        setVisibilityFilter('all');
         fetchStarredRepositories(null, true);
       }
       return;
@@ -1480,9 +1482,11 @@ export default function RepoList({ token, maxVisibleRows, onLogout, viewerLogin,
       return;
     }
     
-    // Open visibility filter modal (V)
+    // Open visibility filter modal (V) - disabled in stars mode
     if (input && input.toUpperCase() === 'V') {
-      setVisibilityMode(true);
+      if (!starsMode) {
+        setVisibilityMode(true);
+      }
       return;
     }
   });
@@ -1599,7 +1603,12 @@ export default function RepoList({ token, maxVisibleRows, onLogout, viewerLogin,
     const prefetchThreshold = Math.floor(visibleItems.length * 0.8);
     const nearEnd = visibleItems.length > 0 && cursor >= prefetchThreshold;
     
-    if (searchActive) {
+    if (starsMode) {
+      if (!starredLoading && starredHasNextPage && nearEnd) {
+        addDebugMessage(`[Infinite Scroll] Prefetching starred repos at ${cursor}/${visibleItems.length} (80% threshold: ${prefetchThreshold})`);
+        fetchStarredRepositories(starredEndCursor);
+      }
+    } else if (searchActive) {
       if (!searchLoading && searchHasNextPage && nearEnd) {
         addDebugMessage(`[Infinite Scroll] Prefetching search results at ${cursor}/${visibleItems.length} (80% threshold: ${prefetchThreshold})`);
         fetchSearchPage(searchEndCursor);
@@ -1611,7 +1620,7 @@ export default function RepoList({ token, maxVisibleRows, onLogout, viewerLogin,
       }
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [cursor, visibleItems.length, searchActive, searchLoading, searchHasNextPage, searchEndCursor, loading, loadingMore, hasNextPage, endCursor]);
+  }, [cursor, visibleItems.length, starsMode, starredLoading, starredHasNextPage, starredEndCursor, searchActive, searchLoading, searchHasNextPage, searchEndCursor, loading, loadingMore, hasNextPage, endCursor]);
 
   // Helper: open URL in default browser (cross-platform best-effort)
   function openInBrowser(url: string) {
@@ -2336,7 +2345,7 @@ export default function RepoList({ token, maxVisibleRows, onLogout, viewerLogin,
         {/* Line 2: Search and filtering */}
         <Box width={terminalWidth} justifyContent="center">
           <Text color="gray" dimColor={modalOpen ? true : undefined}>
-            / Search • S Sort • D Direction • T Density • F Fork Status • V Visibility{ownerContext === 'personal' && ' • Shift+S Stars'}
+            / Search • S Sort • D Direction • T Density • F Fork Status{!starsMode && ' • V Visibility'}{ownerContext === 'personal' && ' • Shift+S Stars'}
           </Text>
         </Box>
         {/* Line 3: Repository actions */}

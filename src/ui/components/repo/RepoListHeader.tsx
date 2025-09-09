@@ -58,7 +58,7 @@ export default function RepoListHeader({
       <Text color="gray" dimColor>
         Fork Status - Commits Behind: {forkTracking ? 'ON' : 'OFF'}
       </Text>
-      {!!visibilityLabel && (
+      {!!visibilityLabel && !starsMode && (
         <Text color="yellow">
           Visibility: {visibilityLabel}
         </Text>
