@@ -101,8 +101,10 @@ export function UnstarModal({
       </Box>
 
       {error && (
-        <Box marginBottom={1}>
-          <Text color="red">Error: {error}</Text>
+        <Box marginBottom={1} flexDirection="column">
+          <Text color="red" wrap="wrap">
+            {error.includes('OAuth access restrictions') ? '⚠️ ' : 'Error: '}{error}
+          </Text>
         </Box>
       )}
 

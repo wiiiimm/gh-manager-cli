@@ -313,7 +313,21 @@ export default function RepoList({ token, maxVisibleRows, onLogout, viewerLogin,
       setUnstarring(false);
     } catch (e: any) {
       setUnstarring(false);
-      setUnstarError(e.message || 'Failed to unstar repository');
+      
+      // Check for OAuth access restriction error
+      const errorMsg = e.message || 'Failed to unstar repository';
+      if (errorMsg.includes('OAuth App access restrictions')) {
+        // Extract org name from the error or use the repo owner
+        const orgMatch = errorMsg.match(/`([^`]+)` organization/);
+        const orgName = orgMatch ? orgMatch[1] : unstarTarget?.nameWithOwner.split('/')[0];
+        
+        setUnstarError(
+          `Cannot unstar: The ${orgName} organization has OAuth access restrictions. ` +
+          `You'll need to unstar this repository directly on GitHub.`
+        );
+      } else {
+        setUnstarError(errorMsg);
+      }
     }
   }
   
@@ -2303,6 +2317,7 @@ export default function RepoList({ token, maxVisibleRows, onLogout, viewerLogin,
                       maxWidth={terminalWidth - 6}
                       spacingLines={spacingLines}
                       forkTracking={forkTracking}
+                      starsMode={starsMode}
                     />
                   );
                 })
