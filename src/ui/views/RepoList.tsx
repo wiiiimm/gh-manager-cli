@@ -1552,7 +1552,8 @@ export default function RepoList({ token, maxVisibleRows, onLogout, viewerLogin,
     return arr;
   }, [filtered, sortKey, sortDir]);
 
-  const searchActive = filter.trim().length >= 3;
+  // In stars mode, we never do GitHub search - just local filtering
+  const searchActive = !starsMode && filter.trim().length >= 3;
   
   // Apply visibility filter to search results too
   const filteredSearchItems = useMemo(() => {
@@ -1569,7 +1570,18 @@ export default function RepoList({ token, maxVisibleRows, onLogout, viewerLogin,
     return result;
   }, [searchItems, visibilityFilter]);
   
-  const visibleItems = starsMode ? starredItems : (searchActive ? filteredSearchItems : filteredAndSorted);
+  // Apply filter to starred items if in stars mode
+  const filteredStarredItems = useMemo(() => {
+    if (!filter || filter.trim().length === 0) return starredItems;
+    
+    const lowerFilter = filter.toLowerCase();
+    return starredItems.filter(repo => 
+      repo.nameWithOwner.toLowerCase().includes(lowerFilter) ||
+      (repo.description && repo.description.toLowerCase().includes(lowerFilter))
+    );
+  }, [starredItems, filter]);
+  
+  const visibleItems = starsMode ? filteredStarredItems : (searchActive ? filteredSearchItems : filteredAndSorted);
   
   // Debug log
   useEffect(() => {
@@ -2294,7 +2306,7 @@ export default function RepoList({ token, maxVisibleRows, onLogout, viewerLogin,
               onSubmit={() => {
                 setFilterMode(false);
               }}
-              placeholder="Type to search (3+ chars for server search)..."
+              placeholder={starsMode ? "Type to filter starred repositories..." : "Type to search (3+ chars for server search)..."}
             />
           </Box>
         )}
