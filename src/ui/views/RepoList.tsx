@@ -1234,15 +1234,18 @@ export default function RepoList({ token, maxVisibleRows, onLogout, viewerLogin,
       return;
     }
 
-    // ESC key while viewing search results - clear search and return to normal listing
-    if (key.escape && searchActive) {
+    // ESC key while viewing search results or filtered stars - clear filter and return to normal listing
+    if (key.escape && (searchActive || (starsMode && filter.trim().length > 0))) {
       setFilter('');
-      setSearchItems([]);
-      setSearchEndCursor(null);
-      setSearchHasNextPage(false);
-      setSearchTotalCount(0);
+      if (!starsMode) {
+        // Only clear search-related state in non-stars mode
+        setSearchItems([]);
+        setSearchEndCursor(null);
+        setSearchHasNextPage(false);
+        setSearchTotalCount(0);
+      }
       setCursor(0); // Reset cursor to top
-      addDebugMessage('[ESC] Cleared search and returned to normal listing');
+      addDebugMessage('[ESC] Cleared filter and returned to normal listing');
       return;
     }
 
