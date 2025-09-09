@@ -280,9 +280,6 @@ export default function RepoList({ token, maxVisibleRows, onLogout, viewerLogin,
       
       if (page.rateLimit) {
         setRateLimit(page.rateLimit);
-        if (prevRateLimit !== undefined) {
-          setPrevRateLimit(prevRateLimit);
-        }
         setPrevRateLimit(page.rateLimit.remaining);
       }
       
@@ -632,7 +629,8 @@ export default function RepoList({ token, maxVisibleRows, onLogout, viewerLogin,
     if (newContext !== 'personal' && starsMode) {
       setStarsMode(false);
       setStarredItems([]);
-      setStarredPageInfo({ hasNextPage: false, endCursor: null });
+      setStarredHasNextPage(false);
+      setStarredEndCursor(null);
       setStarredTotalCount(0);
     }
     
