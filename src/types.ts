@@ -16,6 +16,7 @@ export interface RepoNode {
   isArchived: boolean;
   stargazerCount: number;
   forkCount: number;
+  viewerHasStarred?: boolean;
   primaryLanguage: Maybe<Language>;
   updatedAt: string; // ISO
   pushedAt: string; // ISO
@@ -39,6 +40,10 @@ export interface RepoNode {
       }
     }
   }>;
+  owner?: {
+    __typename: 'Organization' | 'User';
+    login: string;
+  };
 }
 
 export interface PageInfo {

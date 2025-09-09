@@ -2,14 +2,14 @@ import React, { useEffect, useMemo, useState, useRef, useCallback } from 'react'
 import { Box, Text, useApp, useInput, useStdout, Spacer, Newline } from 'ink';
 import TextInput from 'ink-text-input';
 import chalk from 'chalk';
-import { makeClient, fetchViewerReposPageUnified, searchRepositoriesUnified, deleteRepositoryRest, archiveRepositoryById, unarchiveRepositoryById, changeRepositoryVisibility, syncForkWithUpstream, getRepositoryFromCache, purgeApolloCacheFiles, inspectCacheStatus, updateCacheAfterDelete, updateCacheAfterArchive, updateCacheAfterVisibilityChange, updateCacheWithRepository, checkOrganizationIsEnterprise, OwnerAffiliation, fetchViewerOrganizations, fetchRestRateLimits, renameRepositoryById, updateCacheAfterRename, getStarredRepositories, unstarRepository } from '../../services/github';
+import { makeClient, fetchViewerReposPageUnified, searchRepositoriesUnified, deleteRepositoryRest, archiveRepositoryById, unarchiveRepositoryById, changeRepositoryVisibility, syncForkWithUpstream, getRepositoryFromCache, purgeApolloCacheFiles, inspectCacheStatus, updateCacheAfterDelete, updateCacheAfterArchive, updateCacheAfterVisibilityChange, updateCacheWithRepository, checkOrganizationIsEnterprise, OwnerAffiliation, fetchViewerOrganizations, fetchRestRateLimits, renameRepositoryById, updateCacheAfterRename, getStarredRepositories, starRepository, unstarRepository } from '../../services/github';
 import { getUIPrefs, storeUIPrefs, OwnerContext } from '../../config/config';
 import { makeApolloKey, makeSearchKey, isFresh, markFetched } from '../../services/apolloMeta';
 import type { RepoNode, RateLimitInfo, RestRateLimitInfo } from '../../types';
 import { exec } from 'child_process';
 import OrgSwitcher from '../OrgSwitcher';
 import { logger } from '../../lib/logger';
-import { DeleteModal, ArchiveModal, SyncModal, InfoModal, LogoutModal, VisibilityModal, SortModal, SortDirectionModal, ChangeVisibilityModal, CopyUrlModal, RenameModal } from '../components/modals';
+import { DeleteModal, ArchiveModal, SyncModal, InfoModal, LogoutModal, VisibilityModal, SortModal, SortDirectionModal, ChangeVisibilityModal, CopyUrlModal, RenameModal, StarModal } from '../components/modals';
 import { UnstarModal } from '../components/modals/UnstarModal';
 import { RepoRow, FilterInput, RepoListHeader } from '../components/repo';
 import { SlowSpinner } from '../components/common';
@@ -175,6 +175,12 @@ export default function RepoList({ token, maxVisibleRows, onLogout, viewerLogin,
   const [unstarTarget, setUnstarTarget] = useState<RepoNode | null>(null);
   const [unstarring, setUnstarring] = useState(false);
   const [unstarError, setUnstarError] = useState<string | null>(null);
+  
+  // Star modal state (for normal mode)
+  const [starMode, setStarMode] = useState(false);
+  const [starTarget, setStarTarget] = useState<RepoNode | null>(null);
+  const [starring, setStarring] = useState(false);
+  const [starError, setStarError] = useState<string | null>(null);
 
   // Apply initial --org flag once (if provided)
   const appliedInitialOrg = useRef(false);
@@ -337,6 +343,67 @@ export default function RepoList({ token, maxVisibleRows, onLogout, viewerLogin,
     setUnstarTarget(null);
     setUnstarError(null);
     setUnstarring(false);
+  }
+  
+  // Handle star/unstar action (for normal mode)
+  async function handleStar() {
+    if (!starTarget || starring) return;
+    
+    const isStarred = starTarget.viewerHasStarred;
+    
+    try {
+      setStarring(true);
+      const targetId = (starTarget as any).id;
+      
+      if (isStarred) {
+        await unstarRepository(client, targetId);
+      } else {
+        await starRepository(client, targetId);
+      }
+      
+      // Update the repo in the list
+      const updateRepo = (r: any) => {
+        if (r.id === targetId) {
+          return { ...r, viewerHasStarred: !isStarred, stargazerCount: r.stargazerCount + (isStarred ? -1 : 1) };
+        }
+        return r;
+      };
+      
+      setItems(prev => prev.map(updateRepo));
+      setSearchItems(prev => prev.map(updateRepo));
+      
+      trackSuccessfulOperation();
+      
+      // Close modal
+      setStarMode(false);
+      setStarTarget(null);
+      setStarError(null);
+      setStarring(false);
+    } catch (e: any) {
+      setStarring(false);
+      
+      // Check for OAuth access restriction error
+      const errorMsg = e.message || `Failed to ${isStarred ? 'unstar' : 'star'} repository`;
+      if (errorMsg.includes('OAuth access restrictions')) {
+        const orgMatch = errorMsg.match(/`([^`]+)` organization/);
+        const orgName = orgMatch ? orgMatch[1] : starTarget?.nameWithOwner.split('/')[0];
+        
+        setStarError(
+          `Cannot ${isStarred ? 'unstar' : 'star'}: The ${orgName} organization has OAuth access restrictions. ` +
+          `You'll need to ${isStarred ? 'unstar' : 'star'} this repository directly on GitHub.`
+        );
+      } else {
+        setStarError(errorMsg);
+      }
+    }
+  }
+  
+  // Close star modal
+  function closeStarModal() {
+    setStarMode(false);
+    setStarTarget(null);
+    setStarError(null);
+    setStarring(false);
   }
 
   async function executeSync() {
@@ -1123,6 +1190,16 @@ export default function RepoList({ token, maxVisibleRows, onLogout, viewerLogin,
       return;
     }
 
+    // When in star mode, trap inputs for modal
+    if (starMode) {
+      if (key.escape || (input && input.toUpperCase() === 'C')) {
+        closeStarModal();
+        return;
+      }
+      // Let the StarModal component handle other inputs
+      return;
+    }
+
     // When in sync mode, trap inputs for modal
     if (syncMode) {
       if (key.escape || (input && input.toUpperCase() === 'C')) {
@@ -1471,6 +1548,18 @@ export default function RepoList({ token, maxVisibleRows, onLogout, viewerLogin,
         setUnstarMode(true);
         setUnstarError(null);
         setUnstarring(false);
+      }
+      return;
+    }
+    
+    // Star/unstar toggle (Shift+U) - only in normal mode
+    if (key.shift && input === 'U' && !starsMode) {
+      const repo = visibleItems[cursor];
+      if (repo) {
+        setStarTarget(repo);
+        setStarMode(true);
+        setStarError(null);
+        setStarring(false);
       }
       return;
     }
@@ -2270,6 +2359,18 @@ export default function RepoList({ token, maxVisibleRows, onLogout, viewerLogin,
               error={unstarError}
             />
           </Box>
+        ) : starMode && starTarget ? (
+          <Box height={contentHeight} alignItems="center" justifyContent="center">
+            <StarModal
+              visible={starMode}
+              repo={starTarget}
+              isStarred={starTarget.viewerHasStarred || false}
+              onConfirm={handleStar}
+              onCancel={closeStarModal}
+              isStarring={starring}
+              error={starError}
+            />
+          </Box>
         ) : (
           <>
             {/* Context/Filter/sort status */}
@@ -2399,7 +2500,7 @@ export default function RepoList({ token, maxVisibleRows, onLogout, viewerLogin,
           <Text color="gray" dimColor={modalOpen ? true : undefined}>
             {starsMode ? 
               'I Info • C Copy URL • U Unstar Repository' :
-              'I Info • C Copy URL • Ctrl+R Rename • Ctrl+A Un/Archive • Ctrl+V Change Visibility • Ctrl+S Sync Fork'
+              'I Info • C Copy URL • Shift+U Un/Star • Ctrl+R Rename • Ctrl+A Un/Archive • Ctrl+V Change Visibility • Ctrl+S Sync Fork'
             }
           </Text>
         </Box>

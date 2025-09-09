@@ -43,6 +43,10 @@ export default function RepoRow({
   const numColor = selected ? chalk.cyan : chalk.gray;
   const nameColor = selected ? chalk.cyan.bold : chalk.white;
   line1 += numColor(`${String(index).padStart(3, ' ')}.`);
+  // Show star icon if the repo is starred
+  if (repo.viewerHasStarred) {
+    line1 += chalk.yellow(' ⭐');
+  }
   line1 += nameColor(` ${repo.nameWithOwner}`);
   // Use visibility field to properly distinguish between PRIVATE and INTERNAL
   if (repo.visibility === 'INTERNAL') {
