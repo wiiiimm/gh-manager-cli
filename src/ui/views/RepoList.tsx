@@ -1758,30 +1758,32 @@ export default function RepoList({ token, maxVisibleRows, onLogout, viewerLogin,
     return { start, end };
   }, [visibleItems.length, cursor, listHeight, spacingLines]);
 
-  // Infinite scroll: prefetch when at 80% of loaded items
+  // Infinite scroll: prefetch when at 80% of loaded items, or immediately when filter hides all loaded items
   useEffect(() => {
-    // Trigger prefetch when cursor reaches 80% of the loaded items
     const prefetchThreshold = Math.floor(visibleItems.length * 0.8);
     const nearEnd = visibleItems.length > 0 && cursor >= prefetchThreshold;
-    
+    // When an archive filter is active and all loaded items are filtered out, keep fetching
+    const filterDrainedPage = visibleItems.length === 0 && archiveFilter !== 'all';
+    const shouldFetch = nearEnd || filterDrainedPage;
+
     if (starsMode) {
-      if (!starredLoading && starredHasNextPage && nearEnd) {
+      if (!starredLoading && starredHasNextPage && shouldFetch) {
         addDebugMessage(`[Infinite Scroll] Prefetching starred repos at ${cursor}/${visibleItems.length} (80% threshold: ${prefetchThreshold})`);
         fetchStarredRepositories(starredEndCursor);
       }
     } else if (searchActive) {
-      if (!searchLoading && searchHasNextPage && nearEnd) {
+      if (!searchLoading && searchHasNextPage && shouldFetch) {
         addDebugMessage(`[Infinite Scroll] Prefetching search results at ${cursor}/${visibleItems.length} (80% threshold: ${prefetchThreshold})`);
         fetchSearchPage(searchEndCursor);
       }
     } else {
-      if (!loading && !loadingMore && hasNextPage && nearEnd) {
+      if (!loading && !loadingMore && hasNextPage && shouldFetch) {
         addDebugMessage(`[Infinite Scroll] Prefetching repos at ${cursor}/${visibleItems.length} (80% threshold: ${prefetchThreshold})`);
         fetchPage(endCursor);
       }
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [cursor, visibleItems.length, starsMode, starredLoading, starredHasNextPage, starredEndCursor, searchActive, searchLoading, searchHasNextPage, searchEndCursor, loading, loadingMore, hasNextPage, endCursor]);
+  }, [cursor, visibleItems.length, archiveFilter, starsMode, starredLoading, starredHasNextPage, starredEndCursor, searchActive, searchLoading, searchHasNextPage, searchEndCursor, loading, loadingMore, hasNextPage, endCursor]);
 
   // Helper: open URL in default browser (cross-platform best-effort)
   function openInBrowser(url: string) {

@@ -65,7 +65,7 @@ export default function RepoListHeader({
           Visibility: {visibilityLabel}
         </Text>
       )}
-      {archiveFilter !== 'all' && !starsMode && (
+      {archiveFilter !== 'all' && (
         <Text color="cyan">
           Archive: {archiveFilter === 'archived' ? 'Archived' : 'Unarchived'}
         </Text>
