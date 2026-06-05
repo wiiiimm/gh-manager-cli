@@ -108,7 +108,8 @@ See the living roadmap in [TODOs.md](./TODOs.md) for the canonical, up-to-date l
 - Because the full set is cached, **sorting is client-side** (`filteredAndSorted`) with no server refetch on sort change; archive/visibility (private) filtering is also client-side.
 - On each page fetch, also read `totalCount` to reflect newly created repos and to show background-load progress (`loaded/total`).
 - Selected fields: name/nameWithOwner/description/visibility/isPrivate/isFork/isArchived/stargazerCount/forkCount/primaryLanguage/updatedAt/pushedAt/diskUsage, plus `parent { nameWithOwner }` and `defaultBranchRef { name }`.
-- **Light bulk query (SWR-360):** the list/search queries intentionally do NOT fetch per-repo commit history (`history.totalCount`). Computing that for each repo and its parent across 100 repos/page exceeds GitHub's per-query budget and returns HTTP 502. Consequently fork **"commits behind"** counts are not available from the bulk fetch — `parent { nameWithOwner }` still drives the "Fork of X" label, but the "(N behind)" indicator is populated by a separate on-demand enrichment pass (follow-up). `fetchRepositoryById` (single repo) still fetches the full history fields.
+- **Light bulk query (SWR-360):** the list/search queries intentionally do NOT fetch per-repo commit history (`history.totalCount`). Computing that for each repo and its parent across 100 repos/page exceeds GitHub's per-query budget and returns HTTP 502. Fork `parent { nameWithOwner }` is still fetched so the "Fork of X" label always shows.
+- **Fork ahead/behind enrichment (SWR-362):** after the background fetch-all completes, a separate effect (`useEffect` gated on `!loading && !loadingMore && !hasNextPage`) enriches forks-only with commit counts. It uses `enrichForksWithAheadBehind` which builds a batched aliased GraphQL query (`fork_N: node(id:)` + `parent_N: repository(owner,name)`) capped at 5 forks per request (10 history queries). Results are merged directly into `items` state. A 200ms delay between batches throttles rate-limit consumption. Already-enriched IDs are tracked in `enrichmentDoneRef` to avoid re-fetching. Both `(N ahead)` and `(N behind)` are displayed in `RepoRow` and the sync confirmation modal.
 
 ## Controls
 
@@ -123,14 +124,16 @@ See the living roadmap in [TODOs.md](./TODOs.md) for the canonical, up-to-date l
 - `Shift+T`: cycle colour theme (Default → Ocean → Forest → Monochrome); persists across restarts
 - `F`: toggle fork commit tracking
 - `V`: visibility filter modal (All, Public, Private/Internal)
-- `W`: organization switcher
-- Enter or `O`: open selected repo in browser
+- `W`: organisation switcher
+- Enter or `O`: open selected repo in browser; for forks shows a chooser (This repository / Parent/upstream, Esc cancels)
+- `P`: on a fork — jump cursor to the parent repo if it is already loaded; otherwise fetches the parent repo and shows it in the Info modal
 - `I`: repository info modal
 - `K`: cache inspection
 - `Del` or `Backspace`: delete selected repo (two-stage confirmation)
 - `Ctrl+A`: archive/unarchive selected repo
 - `Ctrl+V`: change repository visibility
-- `Ctrl+S`: sync fork with upstream
+- `Ctrl+F`: sync fork with upstream (shows ahead/behind counts)
+- `Ctrl+S`: star/unstar selected repo
 - `Ctrl+L`: logout (returns to Authentication Required)
 - `Shift+S`: toggle between own repos and starred repos (personal context only)
   - Footer hint shows `Shift+S Starred` in normal mode and `Shift+S My Repos` in starred mode; hidden in org context
