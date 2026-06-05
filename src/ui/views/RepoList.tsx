@@ -1589,14 +1589,12 @@ export default function RepoList({ token, maxVisibleRows, onLogout, viewerLogin,
 
     // Cycle theme (Shift+T)
     if (key.shift && input === 'T') {
-      setThemeName((tn) => {
-        const next = nextTheme(tn);
-        storeUIPrefs({ theme: next });
-        if (themeToastTimerRef.current) clearTimeout(themeToastTimerRef.current);
-        setThemeToast(`Theme: ${getTheme(next).label}`);
-        themeToastTimerRef.current = setTimeout(() => setThemeToast(null), 2500);
-        return next;
-      });
+      const next = nextTheme(themeName);
+      setThemeName(next);
+      storeUIPrefs({ theme: next });
+      if (themeToastTimerRef.current) clearTimeout(themeToastTimerRef.current);
+      setThemeToast(`Theme: ${getTheme(next).label}`);
+      themeToastTimerRef.current = setTimeout(() => setThemeToast(null), 2500);
       return;
     }
 

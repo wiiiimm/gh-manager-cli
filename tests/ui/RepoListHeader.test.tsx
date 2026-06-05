@@ -38,7 +38,7 @@ describe('RepoListHeader', () => {
     );
 
     const output = lastFrame() || '';
-    expect(output).toContain('Organization: My Organization');
+    expect(output).toContain('Organisation: My Organization');
     expect(output).toContain('Sort: name ↑');
     expect(output).toContain('Fork Status - Commits Behind: OFF');
     unmount();
@@ -58,7 +58,7 @@ describe('RepoListHeader', () => {
     );
 
     const output = lastFrame() || '';
-    expect(output).toContain('Organization: my-org');
+    expect(output).toContain('Organisation: my-org');
     unmount();
   });
 
@@ -188,7 +188,7 @@ describe('RepoListHeader', () => {
     const output = lastFrame() || '';
     // Should not show any context label when undefined
     expect(output).not.toContain('Personal Account');
-    expect(output).not.toContain('Organization:');
+    expect(output).not.toContain('Organisation:');
     // But should still show other elements
     expect(output).toContain('Sort: updated ↓');
     unmount();

@@ -113,7 +113,7 @@ export function StarModal({
 
       {error && (
         <Box marginBottom={1} flexDirection="column">
-          <Text color="red" wrap="wrap">
+          <Text color={theme.error} wrap="wrap">
             {error.includes('OAuth access restrictions') ? '⚠️ ' : 'Error: '}{error}
           </Text>
         </Box>
