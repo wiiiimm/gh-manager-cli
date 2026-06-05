@@ -57,6 +57,43 @@ Launch the app, then use the keys below to navigate and interact with your repos
 - **Rename repository**: `Ctrl+R` with inline validation
 - **Copy URL**: `C` to copy repository URL to clipboard (SSH/HTTPS options)
 
+## Multi-select Mode (Bulk Operations)
+
+Multi-select mode lets you select multiple repositories and run a bulk action (delete, archive, or unarchive) against all of them at once.
+
+### Entering Multi-select Mode
+
+- **`M`** — toggle multi-select mode on/off
+- **`Esc`** — exit multi-select mode (clears selection)
+
+### Selection Controls (inside multi-select mode)
+
+- **`Space`** — toggle selection on the highlighted repository
+- **`Ctrl+A`** — select or deselect all currently-visible repositories
+- **`X`** — clear all selections without exiting multi-select mode
+
+### Running a Bulk Action
+
+1. Enter multi-select mode with `M`
+2. Select repositories with `Space` (or `Ctrl+A` for all visible)
+3. Press **`Enter`** or **`B`** to open the action picker (Delete / Archive / Unarchive)
+   - Alternatively, press **`Del`/`Backspace`** to go directly to bulk delete
+4. **Review list (Confirmation 1)**: A scrollable list of all selected repos appears.
+   - Use ↑↓ to navigate; `Space` to unselect individual entries before proceeding.
+5. **Count prompt (Confirmation 2)**: Confirms "You are about to {action} {N} repositories."
+   - For bulk delete: enter a 4-character verification code first.
+6. Progress is shown per-repo; partial failures are reported at the end.
+7. On completion, selections are cleared and multi-select mode exits automatically.
+
+### Persistence
+
+Selections persist across search and filter changes — you can search for one set, select some repos, search for something else, select more, and all prior selections remain intact. Selections are cleared only when:
+
+- You exit multi-select mode (`M` or `Esc`)
+- You switch organisation/scope
+- You toggle Stars mode
+- The bulk operation completes
+
 ## General
 
 - **Esc**: Cancels modals, clears search, or returns to normal listing (does not quit)

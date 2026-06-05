@@ -9,7 +9,8 @@ import type { RepoNode, RateLimitInfo, RestRateLimitInfo } from '../../types';
 import { exec } from 'child_process';
 import OrgSwitcher from '../OrgSwitcher';
 import { logger } from '../../lib/logger';
-import { ArchiveFilterModal, DeleteModal, ArchiveModal, SyncModal, InfoModal, LogoutModal, VisibilityModal, SortModal, SortDirectionModal, ChangeVisibilityModal, CopyUrlModal, RenameModal, StarModal } from '../components/modals';
+import { ArchiveFilterModal, DeleteModal, ArchiveModal, SyncModal, InfoModal, LogoutModal, VisibilityModal, SortModal, SortDirectionModal, ChangeVisibilityModal, CopyUrlModal, RenameModal, StarModal, BulkReviewModal, BulkConfirmModal, BulkProgressModal, BulkActionPickerModal } from '../components/modals';
+import type { BulkAction, BulkProgressState } from '../components/modals';
 import { UnstarModal } from '../components/modals/UnstarModal';
 import { RepoRow, FilterInput, RepoListHeader } from '../components/repo';
 import { SlowSpinner } from '../components/common';
@@ -184,6 +185,25 @@ export default function RepoList({ token, maxVisibleRows, onLogout, viewerLogin,
   const [starTarget, setStarTarget] = useState<RepoNode | null>(null);
   const [starring, setStarring] = useState(false);
   const [starError, setStarError] = useState<string | null>(null);
+
+  // Multi-select mode state
+  const [multiSelectMode, setMultiSelectMode] = useState(false);
+  // Selection stored as Map<id, RepoNode> so nodes persist across search/filter changes
+  const [selectedRepos, setSelectedRepos] = useState<Map<string, RepoNode>>(new Map());
+  // Bulk operation flow state
+  const [bulkActionPickerOpen, setBulkActionPickerOpen] = useState(false);
+  const [bulkAction, setBulkAction] = useState<BulkAction | null>(null);
+  const [bulkReviewOpen, setBulkReviewOpen] = useState(false);
+  const [bulkConfirmOpen, setBulkConfirmOpen] = useState(false);
+  const [bulkProgressOpen, setBulkProgressOpen] = useState(false);
+  const [bulkFinalSelection, setBulkFinalSelection] = useState<Map<string, RepoNode>>(new Map());
+  const [bulkProgress, setBulkProgress] = useState<BulkProgressState>({
+    total: 0,
+    completed: 0,
+    failed: [],
+    currentRepo: null,
+    done: false,
+  });
 
   // Apply initial --org flag once (if provided)
   const appliedInitialOrg = useRef(false);
@@ -487,6 +507,100 @@ export default function RepoList({ token, maxVisibleRows, onLogout, viewerLogin,
     }
   }
 
+  // Multi-select helpers
+  function enterMultiSelectMode() {
+    setMultiSelectMode(true);
+  }
+
+  function exitMultiSelectMode(clearSelection = true) {
+    setMultiSelectMode(false);
+    if (clearSelection) {
+      setSelectedRepos(new Map());
+    }
+  }
+
+  function toggleRepoSelection(repo: RepoNode) {
+    setSelectedRepos(prev => {
+      const next = new Map(prev);
+      if (next.has(repo.id)) {
+        next.delete(repo.id);
+      } else {
+        next.set(repo.id, repo);
+      }
+      return next;
+    });
+  }
+
+  function toggleAllVisibleSelection() {
+    setSelectedRepos(prev => {
+      const next = new Map(prev);
+      const allVisibleSelected = visibleItems.every(r => next.has(r.id));
+      if (allVisibleSelected) {
+        // Deselect all visible
+        for (const r of visibleItems) next.delete(r.id);
+      } else {
+        // Select all visible
+        for (const r of visibleItems) next.set(r.id, r);
+      }
+      return next;
+    });
+  }
+
+  // Bulk operation execution
+  async function executeBulkOperation(repos: RepoNode[], action: BulkAction) {
+    const total = repos.length;
+    setBulkProgress({ total, completed: 0, failed: [], currentRepo: null, done: false });
+    setBulkProgressOpen(true);
+
+    const failed: Array<{ repo: RepoNode; error: string }> = [];
+
+    for (let i = 0; i < repos.length; i++) {
+      const repo = repos[i];
+      setBulkProgress(prev => ({ ...prev, currentRepo: repo, completed: i }));
+
+      try {
+        if (action === 'delete') {
+          const [owner, repoName] = repo.nameWithOwner.split('/');
+          await deleteRepositoryRest(token, owner, repoName);
+          await updateCacheAfterDelete(token, repo.id);
+          setItems(prev => prev.filter(r => r.id !== repo.id));
+          setSearchItems(prev => prev.filter(r => r.id !== repo.id));
+          setTotalCount(c => Math.max(0, c - 1));
+        } else if (action === 'archive') {
+          await archiveRepositoryById(client, repo.id);
+          await updateCacheAfterArchive(token, repo.id, true);
+          const updateRepo = (r: RepoNode) => r.id === repo.id ? { ...r, isArchived: true } : r;
+          setItems(prev => prev.map(updateRepo));
+          setSearchItems(prev => prev.map(updateRepo));
+        } else if (action === 'unarchive') {
+          await unarchiveRepositoryById(client, repo.id);
+          await updateCacheAfterArchive(token, repo.id, false);
+          const updateRepo = (r: RepoNode) => r.id === repo.id ? { ...r, isArchived: false } : r;
+          setItems(prev => prev.map(updateRepo));
+          setSearchItems(prev => prev.map(updateRepo));
+        }
+        trackSuccessfulOperation();
+      } catch (e: any) {
+        failed.push({ repo, error: e.message || 'Unknown error' });
+      }
+
+      setBulkProgress(prev => ({ ...prev, completed: i + 1, failed: [...failed] }));
+    }
+
+    setBulkProgress(prev => ({ ...prev, currentRepo: null, done: true, failed: [...failed] }));
+    // Clear selection after operation
+    setSelectedRepos(new Map());
+    setMultiSelectMode(false);
+    // Adjust cursor
+    setCursor(c => Math.max(0, Math.min(c, visibleItems.length - 1)));
+  }
+
+  // Open bulk action picker
+  function openBulkActionPicker() {
+    if (selectedRepos.size === 0) return;
+    setBulkActionPickerOpen(true);
+  }
+
   // Shared rename execution function
   async function executeRename(repo: RepoNode, newName: string) {
     if (!repo || !newName.trim()) return;
@@ -620,6 +734,10 @@ export default function RepoList({ token, maxVisibleRows, onLogout, viewerLogin,
     setSearchItems([]);
     setTotalCount(0);
     setSearchTotalCount(0);
+    
+    // Clear multi-select when switching org/scope
+    setSelectedRepos(new Map());
+    setMultiSelectMode(false);
     
     // Clear search filter when switching context
     setFilter('');
@@ -1084,6 +1202,31 @@ export default function RepoList({ token, maxVisibleRows, onLogout, viewerLogin,
   // Organization context handler is defined above (function handleOrgContextChange)
   
   useInput((input, key) => {
+    // Bulk progress: any key dismisses after completion
+    if (bulkProgressOpen && bulkProgress.done) {
+      setBulkProgressOpen(false);
+      setBulkProgress({ total: 0, completed: 0, failed: [], currentRepo: null, done: false });
+      return;
+    }
+
+    // Block all other input while bulk is in progress
+    if (bulkProgressOpen) return;
+
+    // Bulk action picker modal
+    if (bulkActionPickerOpen) {
+      return; // BulkActionPickerModal handles its own input
+    }
+
+    // Bulk review modal (Confirmation 1)
+    if (bulkReviewOpen) {
+      return; // BulkReviewModal handles its own input
+    }
+
+    // Bulk confirm modal (Confirmation 2)
+    if (bulkConfirmOpen) {
+      return; // BulkConfirmModal handles its own input
+    }
+
     // Handle input when in error state
     if (error) {
       // Quit on 'Q'
@@ -1330,6 +1473,54 @@ export default function RepoList({ token, maxVisibleRows, onLogout, viewerLogin,
       return;
     }
 
+    // Multi-select mode: M toggles, Esc exits
+    if (input && input.toUpperCase() === 'M' && !key.ctrl && !key.shift) {
+      if (multiSelectMode) {
+        exitMultiSelectMode(true);
+      } else {
+        enterMultiSelectMode();
+      }
+      return;
+    }
+
+    // Esc exits multi-select mode (if not in filter/search)
+    if (key.escape && multiSelectMode) {
+      exitMultiSelectMode(true);
+      return;
+    }
+
+    // Multi-select specific key handlers
+    if (multiSelectMode) {
+      // Space: toggle selection on cursor row
+      if (input === ' ') {
+        const repo = visibleItems[cursor];
+        if (repo) toggleRepoSelection(repo);
+        return;
+      }
+      // Ctrl+A: select/deselect ALL visible repos
+      if (key.ctrl && (input === 'a' || input === 'A')) {
+        toggleAllVisibleSelection();
+        return;
+      }
+      // X: clear all selections
+      if (input && input.toUpperCase() === 'X' && !key.ctrl) {
+        setSelectedRepos(new Map());
+        return;
+      }
+      // Enter or B: open bulk action picker if anything is selected
+      if ((key.return || (input && input.toUpperCase() === 'B' && !key.ctrl)) && selectedRepos.size > 0) {
+        openBulkActionPicker();
+        return;
+      }
+      // Del/Backspace: quick bulk delete
+      if ((key.delete || key.backspace) && selectedRepos.size > 0) {
+        setBulkAction('delete');
+        setBulkReviewOpen(true);
+        setBulkActionPickerOpen(false);
+        return;
+      }
+    }
+
     // Quit only on 'Q' (Esc is reserved for cancel/close in modals and filter)
     if (input && input.toUpperCase() === 'Q') {
       try {
@@ -1344,14 +1535,13 @@ export default function RepoList({ token, maxVisibleRows, onLogout, viewerLogin,
     if (key.upArrow) setCursor(c => Math.max(c - 1, 0));
     if (key.pageDown) setCursor(c => Math.min(c + 10, visibleItems.length - 1));
     if (key.pageUp) setCursor(c => Math.max(c - 10, 0));
-    if (key.return) {
-      // Open in browser
+    if (key.return && !multiSelectMode) {
+      // Open in browser (only when not in multi-select mode)
       const repo = visibleItems[cursor];
       if (repo) openInBrowser(`https://github.com/${repo.nameWithOwner}`);
     }
-    // Delete key: open delete modal (Del or Backspace)
-    // Some terminals may set delete=true even for Backspace
-    if (key.delete || key.backspace) {
+    // Delete key: open delete modal (Del or Backspace) — only in single-select mode
+    if ((key.delete || key.backspace) && !multiSelectMode) {
       const repo = visibleItems[cursor];
       if (repo) {
         setDeleteTarget(repo);
@@ -1392,8 +1582,9 @@ export default function RepoList({ token, maxVisibleRows, onLogout, viewerLogin,
       return;
     }
 
-    // Archive/unarchive modal (Ctrl+A)
-    if (key.ctrl && (input === 'a' || input === 'A')) {
+    // Archive/unarchive modal (Ctrl+A) — only in single-select mode
+    // In multi-select mode, Ctrl+A is handled above (select/deselect all visible)
+    if (key.ctrl && (input === 'a' || input === 'A') && !multiSelectMode) {
       const repo = visibleItems[cursor];
       if (repo) {
         setArchiveTarget(repo);
@@ -1519,6 +1710,10 @@ export default function RepoList({ token, maxVisibleRows, onLogout, viewerLogin,
       const newStarsMode = !starsMode;
       setStarsMode(newStarsMode);
       setCursor(0);
+      
+      // Clear multi-select when switching modes
+      setSelectedRepos(new Map());
+      setMultiSelectMode(false);
       
       // Clear filter when toggling modes
       setFilter('');
@@ -1777,7 +1972,7 @@ export default function RepoList({ token, maxVisibleRows, onLogout, viewerLogin,
 
   const lowRate = (rateLimit && rateLimit.remaining <= Math.ceil(rateLimit.limit * 0.1)) || 
                    (restRateLimit && restRateLimit.core.remaining <= Math.ceil(restRateLimit.core.limit * 0.1));
-  const modalOpen = deleteMode || archiveMode || syncMode || logoutMode || infoMode || visibilityMode || archiveFilterMode || sortMode || sortDirectionMode || changeVisibilityMode || copyUrlMode || renameMode;
+  const modalOpen = deleteMode || archiveMode || syncMode || logoutMode || infoMode || visibilityMode || archiveFilterMode || sortMode || sortDirectionMode || changeVisibilityMode || copyUrlMode || renameMode || bulkActionPickerOpen || bulkReviewOpen || bulkConfirmOpen || bulkProgressOpen;
 
   // Memoize header to prevent re-renders - must be before any returns
   const headerBar = useMemo(() => (
@@ -2399,6 +2594,64 @@ export default function RepoList({ token, maxVisibleRows, onLogout, viewerLogin,
               error={starError}
             />
           </Box>
+        ) : bulkProgressOpen ? (
+          <Box height={contentHeight} alignItems="center" justifyContent="center">
+            <BulkProgressModal
+              state={bulkProgress}
+              action={bulkAction ?? 'delete'}
+              terminalWidth={terminalWidth}
+            />
+          </Box>
+        ) : bulkConfirmOpen && bulkAction ? (
+          <Box height={contentHeight} alignItems="center" justifyContent="center">
+            <BulkConfirmModal
+              repos={Array.from(bulkFinalSelection.values())}
+              action={bulkAction}
+              terminalWidth={terminalWidth}
+              onConfirm={() => {
+                setBulkConfirmOpen(false);
+                executeBulkOperation(Array.from(bulkFinalSelection.values()), bulkAction);
+              }}
+              onCancel={() => {
+                setBulkConfirmOpen(false);
+                setBulkFinalSelection(new Map());
+                setBulkAction(null);
+              }}
+            />
+          </Box>
+        ) : bulkReviewOpen && bulkAction ? (
+          <Box height={contentHeight} alignItems="center" justifyContent="center">
+            <BulkReviewModal
+              selectedRepos={selectedRepos}
+              action={bulkAction}
+              terminalWidth={terminalWidth}
+              maxHeight={contentHeight}
+              onConfirm={(finalSelection) => {
+                setBulkFinalSelection(finalSelection);
+                setBulkReviewOpen(false);
+                setBulkConfirmOpen(true);
+              }}
+              onCancel={() => {
+                setBulkReviewOpen(false);
+                setBulkAction(null);
+              }}
+            />
+          </Box>
+        ) : bulkActionPickerOpen ? (
+          <Box height={contentHeight} alignItems="center" justifyContent="center">
+            <BulkActionPickerModal
+              selectionCount={selectedRepos.size}
+              terminalWidth={terminalWidth}
+              onSelect={(action) => {
+                setBulkAction(action);
+                setBulkActionPickerOpen(false);
+                setBulkReviewOpen(true);
+              }}
+              onCancel={() => {
+                setBulkActionPickerOpen(false);
+              }}
+            />
+          </Box>
         ) : (
           <>
             {/* Context/Filter/sort status */}
@@ -2415,6 +2668,18 @@ export default function RepoList({ token, maxVisibleRows, onLogout, viewerLogin,
               isEnterprise={isEnterpriseOrg}
               starsMode={starsMode}
             />
+
+            {/* Multi-select mode status bar */}
+            {multiSelectMode && (
+              <Box marginBottom={1} flexDirection="row" justifyContent="space-between">
+                <Text color="cyan" bold>
+                  {`[MULTI-SELECT] ${selectedRepos.size > 0 ? `${selectedRepos.size} selected` : 'No selection'}`}
+                </Text>
+                <Text color="gray">
+                  Space select · Ctrl+A all · X clear · Enter/B action · M/Esc exit
+                </Text>
+              </Box>
+            )}
 
             {/* Filter input */}
             {filterMode && (
@@ -2479,6 +2744,8 @@ export default function RepoList({ token, maxVisibleRows, onLogout, viewerLogin,
                       spacingLines={spacingLines}
                       forkTracking={forkTracking}
                       starsMode={starsMode}
+                      multiSelectMode={multiSelectMode}
+                      isChecked={selectedRepos.has(repo.id)}
                     />
                   );
                 })
@@ -2553,6 +2820,17 @@ export default function RepoList({ token, maxVisibleRows, onLogout, viewerLogin,
             K Cache Info • W Org Switch • Del/Backspace Delete • Ctrl+L Logout • Q Quit
           </Text>
         </Box>
+        {/* Multi-select hint (shown when not in modal) */}
+        {!modalOpen && (
+          <Box width={terminalWidth} justifyContent="center">
+            <Text color={multiSelectMode ? 'cyan' : 'gray'} dimColor={!multiSelectMode}>
+              {multiSelectMode
+                ? `M/Esc exit multi-select • Space select • Ctrl+A all • X clear • Enter/B action (${selectedRepos.size} selected)`
+                : 'M Multi-select mode (bulk delete/archive)'
+              }
+            </Text>
+          </Box>
+        )}
         {/* Line 5: Sponsorship */}
         <Box width={terminalWidth} justifyContent="center" marginTop={1}>
           <Text color="yellow" dimColor={modalOpen ? true : undefined}>

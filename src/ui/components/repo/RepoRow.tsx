@@ -13,6 +13,8 @@ interface RepoRowProps {
   dim?: boolean;
   forkTracking: boolean;
   starsMode?: boolean;
+  multiSelectMode?: boolean;
+  isChecked?: boolean;
 }
 
 export default function RepoRow({ 
@@ -23,7 +25,9 @@ export default function RepoRow({
   spacingLines, 
   dim, 
   forkTracking,
-  starsMode = false
+  starsMode = false,
+  multiSelectMode = false,
+  isChecked = false,
 }: RepoRowProps) {
   const langName = repo.primaryLanguage?.name || '';
   const langColor = repo.primaryLanguage?.color || '#666666';
@@ -42,6 +46,16 @@ export default function RepoRow({
   let line1 = '';
   const numColor = selected ? chalk.cyan : chalk.gray;
   const nameColor = selected ? chalk.cyan.bold : chalk.white;
+
+  // Multi-select checkbox prefix
+  if (multiSelectMode) {
+    if (isChecked) {
+      line1 += chalk.green('[✓] ');
+    } else {
+      line1 += chalk.gray('[ ] ');
+    }
+  }
+
   line1 += numColor(`${String(index).padStart(3, ' ')}.`);
   // Show star icon if the repo is starred
   if (repo.viewerHasStarred) {
