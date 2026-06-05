@@ -8,7 +8,7 @@ gh-manager-cli provides a comprehensive set of features for managing your GitHub
 - **Repository Listing**: Browse all your personal repositories with metadata (stars, forks, language, etc.)
 - **Live Pagination**: Infinite scroll with automatic page prefetching
 - **Interactive Sorting**: Modal-based sort selection (updated, pushed, name, stars) with direction toggle
-- **Smart Search**: Server-side search through repository names and descriptions (3+ characters)
+- **Fuzzy Search**: Instant typo-tolerant search over the full cached set — searches name, owner, description, and language with no network calls in the search path (powered by [fuse.js](https://www.fusejs.io/))
 - **Visibility Filtering**: Modal-based visibility filter (All, Public, Private/Internal for enterprise) with smart filtering
 - **Fork Status Tracking**: Always shows commits behind upstream for forked repositories
 - **Stars Mode**: View and manage starred repositories (personal account only)

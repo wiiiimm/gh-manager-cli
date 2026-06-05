@@ -2,6 +2,8 @@ import React, { useEffect, useState } from 'react';
 import { Box, Text } from 'ink';
 import { useInput } from 'ink';
 import type { RepoNode } from '../../../types';
+import type { Theme } from '../../../config/themes';
+import { useTheme } from '../../hooks/useTheme';
 
 interface UnstarModalProps {
   visible: boolean;
@@ -10,6 +12,7 @@ interface UnstarModalProps {
   onCancel: () => void;
   isUnstarring?: boolean;
   error?: string | null;
+  theme?: Theme;
 }
 
 export function UnstarModal({
@@ -19,7 +22,9 @@ export function UnstarModal({
   onCancel,
   isUnstarring = false,
   error = null,
+  theme: themeProp,
 }: UnstarModalProps) {
+  const { theme } = useTheme(themeProp?.name ?? 'default');
   const [focusedButton, setFocusedButton] = useState<'cancel' | 'unstar'>('cancel');
 
   useInput((input, key) => {
@@ -37,26 +42,16 @@ export function UnstarModal({
     }
 
     if (key.return || input === 'y' || input === 'Y') {
-      if (focusedButton === 'unstar') {
-        onConfirm();
-      } else {
-        onCancel();
-      }
+      if (focusedButton === 'unstar') onConfirm();
+      else onCancel();
     }
 
-    if (input === 'n' || input === 'N') {
-      onCancel();
-    }
-
-    if (input === 'u' || input === 'U') {
-      onConfirm();
-    }
+    if (input === 'n' || input === 'N') onCancel();
+    if (input === 'u' || input === 'U') onConfirm();
   });
 
   useEffect(() => {
-    if (visible) {
-      setFocusedButton('cancel');
-    }
+    if (visible) setFocusedButton('cancel');
   }, [visible]);
 
   if (!visible || !repo) return null;
@@ -65,13 +60,13 @@ export function UnstarModal({
     <Box
       flexDirection="column"
       borderStyle="round"
-      borderColor="yellow"
+      borderColor={theme.warning}
       paddingX={2}
       paddingY={1}
       marginTop={1}
     >
       <Box marginBottom={1}>
-        <Text bold color="yellow">
+        <Text bold color={theme.warning}>
           ⭐ Unstar Repository
         </Text>
       </Box>
@@ -79,7 +74,7 @@ export function UnstarModal({
       <Box marginBottom={1}>
         <Text>
           Are you sure you want to unstar{' '}
-          <Text bold color="cyan">
+          <Text bold color={theme.primary}>
             {repo.nameWithOwner}
           </Text>
           ?
@@ -102,7 +97,7 @@ export function UnstarModal({
 
       {error && (
         <Box marginBottom={1} flexDirection="column">
-          <Text color="red" wrap="wrap">
+          <Text color={theme.error} wrap="wrap">
             {error.includes('OAuth access restrictions') ? '⚠️ ' : 'Error: '}{error}
           </Text>
         </Box>
@@ -110,7 +105,7 @@ export function UnstarModal({
 
       {isUnstarring ? (
         <Box>
-          <Text color="yellow">Unstarring...</Text>
+          <Text color={theme.warning}>Unstarring...</Text>
         </Box>
       ) : (
         <>
@@ -121,18 +116,16 @@ export function UnstarModal({
                 color={focusedButton === 'cancel' ? 'black' : 'white'}
                 bold={focusedButton === 'cancel'}
               >
-                {' '}
-                Cancel (C/Esc){' '}
+                {' '}Cancel (C/Esc){' '}
               </Text>
             </Box>
             <Box>
               <Text
                 backgroundColor={focusedButton === 'unstar' ? 'yellow' : undefined}
-                color={focusedButton === 'unstar' ? 'black' : 'yellow'}
+                color={focusedButton === 'unstar' ? 'black' : theme.warning}
                 bold={focusedButton === 'unstar'}
               >
-                {' '}
-                Unstar (U/Y){' '}
+                {' '}Unstar (U/Y){' '}
               </Text>
             </Box>
           </Box>

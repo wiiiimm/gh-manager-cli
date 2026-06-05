@@ -1,3 +1,24 @@
+# [1.42.0](https://github.com/wiiiimm/gh-manager-cli/compare/v1.41.0...v1.42.0) (2026-06-05)
+
+
+### Features
+
+* fuzzy repository search over full cached set (SWR-361) [semantic pr title] ([#55](https://github.com/wiiiimm/gh-manager-cli/issues/55)) ([042999d](https://github.com/wiiiimm/gh-manager-cli/commit/042999da6de2ce6b2688da84a3a4d698e0f7d16d))
+
+# [1.41.0](https://github.com/wiiiimm/gh-manager-cli/compare/v1.40.2...v1.41.0) (2026-06-05)
+
+
+### Features
+
+* colour themes with Shift+T cycle keybinding and persisted preference (SWR-354) [semantic pr title] ([#56](https://github.com/wiiiimm/gh-manager-cli/issues/56)) ([1a307c6](https://github.com/wiiiimm/gh-manager-cli/commit/1a307c6a8442a0d295f8a92aeb98eb544eb80d51))
+
+## [1.40.2](https://github.com/wiiiimm/gh-manager-cli/compare/v1.40.1...v1.40.2) (2026-06-05)
+
+
+### Bug Fixes
+
+* stars toggle footer hint truncation and contextual labels (SWR-359) ([#52](https://github.com/wiiiimm/gh-manager-cli/issues/52)) ([f19ca6f](https://github.com/wiiiimm/gh-manager-cli/commit/f19ca6f4ba81b71133ddc7e5e98df67191d348b0))
+
 ## [1.40.1](https://github.com/wiiiimm/gh-manager-cli/compare/v1.40.0...v1.40.1) (2026-06-05)
 
 

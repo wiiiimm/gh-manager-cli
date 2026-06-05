@@ -2,17 +2,21 @@ import React, { useState } from 'react';
 import { Box, Text, useInput } from 'ink';
 import chalk from 'chalk';
 import type { RepoNode } from '../../../types';
+import type { Theme } from '../../../config/themes';
+import { useTheme } from '../../hooks/useTheme';
 
 interface CopyUrlModalProps {
   repo: RepoNode | null;
   terminalWidth: number;
   onClose: () => void;
   onCopy: (url: string, type: 'SSH' | 'HTTPS') => Promise<void>;
+  theme?: Theme;
 }
 
 type UrlType = 'SSH' | 'HTTPS';
 
-export default function CopyUrlModal({ repo, terminalWidth, onClose, onCopy }: CopyUrlModalProps) {
+export default function CopyUrlModal({ repo, terminalWidth, onClose, onCopy, theme: themeProp }: CopyUrlModalProps) {
+  const { theme, c } = useTheme(themeProp?.name ?? 'default');
   const [copyError, setCopyError] = useState<string | null>(null);
   const [selectedType, setSelectedType] = useState<UrlType>('SSH'); // SSH selected by default
 
@@ -99,54 +103,54 @@ export default function CopyUrlModal({ repo, terminalWidth, onClose, onCopy }: C
   };
 
   return (
-    <Box 
-      flexDirection="column" 
-      borderStyle="round" 
-      borderColor="blue" 
-      paddingX={3} 
-      paddingY={2} 
+    <Box
+      flexDirection="column"
+      borderStyle="round"
+      borderColor={theme.secondary}
+      paddingX={3}
+      paddingY={2}
       width={Math.min(terminalWidth - 8, 80)}
     >
-      <Text bold color="blue">Copy Repository URL</Text>
+      <Text bold color={theme.secondary}>Copy Repository URL</Text>
       <Box height={1}><Text> </Text></Box>
-      
+
       <Text>{chalk.bold(repo.nameWithOwner)}</Text>
       <Box height={1}><Text> </Text></Box>
 
-      <Text color="gray">SSH URL:</Text>
-      <Box 
-        paddingX={2} 
-        paddingY={1} 
-        borderStyle="single" 
-        borderColor={selectedType === 'SSH' ? 'blue' : 'gray'}
+      <Text color={theme.muted}>SSH URL:</Text>
+      <Box
+        paddingX={2}
+        paddingY={1}
+        borderStyle="single"
+        borderColor={selectedType === 'SSH' ? theme.secondary : theme.muted}
       >
-        <Text color={selectedType === 'SSH' ? 'blue' : undefined}>
+        <Text color={selectedType === 'SSH' ? theme.secondary : undefined}>
           {selectedType === 'SSH' ? '▶ ' : '  '}{sshUrl}
         </Text>
       </Box>
       <Box height={1}><Text> </Text></Box>
 
-      <Text color="gray">HTTPS URL:</Text>
-      <Box 
-        paddingX={2} 
-        paddingY={1} 
-        borderStyle="single" 
-        borderColor={selectedType === 'HTTPS' ? 'blue' : 'gray'}
+      <Text color={theme.muted}>HTTPS URL:</Text>
+      <Box
+        paddingX={2}
+        paddingY={1}
+        borderStyle="single"
+        borderColor={selectedType === 'HTTPS' ? theme.secondary : theme.muted}
       >
-        <Text color={selectedType === 'HTTPS' ? 'blue' : undefined}>
+        <Text color={selectedType === 'HTTPS' ? theme.secondary : undefined}>
           {selectedType === 'HTTPS' ? '▶ ' : '  '}{httpsUrl}
         </Text>
       </Box>
       <Box height={1}><Text> </Text></Box>
 
-      <Text color="gray">
+      <Text color={theme.muted}>
         ↑↓ Select • Enter/Y to copy {selectedType} • S copy SSH • H copy HTTPS • Esc/Q/C to close
       </Text>
-      
+
       {copyError && (
         <>
           <Box height={1}><Text> </Text></Box>
-          <Text color="red">{copyError}</Text>
+          <Text color={theme.error}>{copyError}</Text>
         </>
       )}
     </Box>

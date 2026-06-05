@@ -68,11 +68,11 @@ gh-manager-cli/
 - List personal and organization repos with metadata (name, description, stars, forks, etc.)
 - Full keyboard navigation with extensive shortcuts
 - Background fetch-all: whole account loaded into the persisted cache after the first page
-- Server-side search with Apollo Client caching
+- Fuzzy search (local, over full cached set) with fuse.js — instant, no network calls in search path
 - Repository actions: delete, archive/unarchive, change visibility, sync forks
 - Organization and Enterprise GitHub support
 - Modal-based UI for sorting, filtering, and actions
-- Persistent UI preferences (sort, density, visibility filter, fork tracking)
+- Persistent UI preferences (sort, density, visibility filter, fork tracking, colour theme)
 - Real-time rate limit monitoring for GraphQL and REST APIs
 
 ### Planned Enhancements
@@ -104,7 +104,7 @@ See the living roadmap in [TODOs.md](./TODOs.md) for the canonical, up-to-date l
 
 - GraphQL query against `viewer.repositories` with `ownerAffiliations: OWNER` and `orderBy: UPDATED_AT DESC`.
 - Page size: 100 per request (default; configurable 1-100 via `REPOS_PER_FETCH`).
-- **Single pagination model — background fetch-all:** the first page renders immediately, then a background loop fetches every remaining page until `hasNextPage` is false, appending into the persisted cache. There is no scroll-position prefetch trigger for the owned/starred lists; the load is continuous and driven by the effect re-running as the list grows. (Server-side search remains lazy/per-query.)
+- **Single pagination model — background fetch-all:** the first page renders immediately, then a background loop fetches every remaining page until `hasNextPage` is false, appending into the persisted cache. There is no scroll-position prefetch trigger for the owned/starred lists; the load is continuous and driven by the effect re-running as the list grows.
 - Because the full set is cached, **sorting is client-side** (`filteredAndSorted`) with no server refetch on sort change; archive/visibility (private) filtering is also client-side.
 - On each page fetch, also read `totalCount` to reflect newly created repos and to show background-load progress (`loaded/total`).
 - Selected fields: name/nameWithOwner/description/visibility/isPrivate/isFork/isArchived/stargazerCount/forkCount/primaryLanguage/updatedAt/pushedAt/diskUsage, plus `parent { nameWithOwner }` and `defaultBranchRef { name }`.
@@ -117,10 +117,12 @@ See the living roadmap in [TODOs.md](./TODOs.md) for the canonical, up-to-date l
 - PageUp/PageDown: jump ±10
 - `Ctrl+G`: jump to top
 - `G`: jump to bottom
-- `/`: search mode (3+ characters for server-side search, Esc cancels)
+- `/`: fuzzy search mode (instant, typo-tolerant, no minimum length; searches name/owner/description/language over the full cached set; Esc cancels)
 - `S`: sort modal (updated, pushed, name, stars)
 - `D`: toggle sort direction
 - `T`: toggle display density (compact/cozy/comfy)
+- `Shift+T`: cycle colour theme (Default → Ocean → Forest → Monochrome); persists across restarts
+- `F`: toggle fork commit tracking
 - `V`: visibility filter modal (All, Public, Private/Internal)
 - `W`: organisation switcher
 - Enter or `O`: open selected repo in browser; for forks shows a chooser (This repository / Parent/upstream, Esc cancels)
@@ -133,6 +135,8 @@ See the living roadmap in [TODOs.md](./TODOs.md) for the canonical, up-to-date l
 - `Ctrl+F`: sync fork with upstream (shows ahead/behind counts)
 - `Ctrl+S`: star/unstar selected repo
 - `Ctrl+L`: logout (returns to Authentication Required)
+- `Shift+S`: toggle between own repos and starred repos (personal context only)
+  - Footer hint shows `Shift+S Starred` in normal mode and `Shift+S My Repos` in starred mode; hidden in org context
 - `R`: refresh list (purges cache)
 - `Q`: quit (Esc cancels an open modal or exits search mode; does not quit)
 
@@ -198,6 +202,7 @@ First run prompts for a PAT if not provided via env vars. The token is validated
 - **Automation:** semantic-release handles version bumping and git tags
 - **Release process:** Automated via GitHub Actions on main branch push
 - **Change tracking:** All releases documented in [CHANGELOG.md](./CHANGELOG.md)
+- **Do NOT manually edit [CHANGELOG.md](./CHANGELOG.md):** it is generated automatically by the semantic-release GitHub Actions workflow (`.github/workflows/automated-release.yml`) from conventional commit messages on `main`. Manual edits cause merge conflicts and are overwritten on the next release. To influence the changelog, write a well-formed conventional commit / PR title instead. When a feature branch conflicts with `main` on CHANGELOG.md, resolve by taking `main`'s version.
 
 ### Code Standards
 - **TypeScript:** Strict mode with comprehensive type definitions

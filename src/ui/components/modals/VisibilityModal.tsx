@@ -1,6 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { Box, Text, useInput } from 'ink';
 import chalk from 'chalk';
+import type { Theme } from '../../../config/themes';
+import { useTheme } from '../../hooks/useTheme';
 
 type VisibilityFilter = 'all' | 'public' | 'private';
 
@@ -9,21 +11,22 @@ interface VisibilityModalProps {
   isEnterprise: boolean;
   onSelect: (filter: VisibilityFilter) => void;
   onCancel: () => void;
+  theme?: Theme;
 }
 
-export default function VisibilityModal({ 
-  currentFilter, 
+export default function VisibilityModal({
+  currentFilter,
   isEnterprise,
-  onSelect, 
-  onCancel 
+  onSelect,
+  onCancel,
+  theme: themeProp,
 }: VisibilityModalProps) {
-  // Same options for all, but label changes for enterprise
+  const { theme, c } = useTheme(themeProp?.name ?? 'default');
   const options: VisibilityFilter[] = ['all', 'public', 'private'];
-  
+
   const [selectedIndex, setSelectedIndex] = useState(0);
   const [focusedOption, setFocusedOption] = useState<VisibilityFilter | 'cancel'>('all');
-  
-  // Set initial focus to current filter
+
   useEffect(() => {
     const currentIndex = options.indexOf(currentFilter);
     if (currentIndex !== -1) {
@@ -31,17 +34,15 @@ export default function VisibilityModal({
       setFocusedOption(currentFilter);
     }
   }, [currentFilter]);
-  
+
   useInput((input, key) => {
     if (key.escape || (input && input.toUpperCase() === 'C')) {
       onCancel();
       return;
     }
-    
+
     if (key.leftArrow || key.upArrow) {
-      // Move selection left/up
       if (focusedOption === 'cancel') {
-        // Move from cancel to last option
         const lastIndex = options.length - 1;
         setSelectedIndex(lastIndex);
         setFocusedOption(options[lastIndex]);
@@ -53,23 +54,20 @@ export default function VisibilityModal({
         }
       }
     }
-    
+
     if (key.rightArrow || key.downArrow) {
-      // Move selection right/down
       if (focusedOption !== 'cancel') {
         const currentIdx = options.indexOf(focusedOption as VisibilityFilter);
         if (currentIdx < options.length - 1) {
           setSelectedIndex(currentIdx + 1);
           setFocusedOption(options[currentIdx + 1]);
         } else {
-          // Move to cancel button
           setFocusedOption('cancel');
         }
       }
     }
-    
+
     if (key.tab) {
-      // Tab through all options including cancel
       if (focusedOption === 'cancel') {
         setSelectedIndex(0);
         setFocusedOption(options[0]);
@@ -83,7 +81,7 @@ export default function VisibilityModal({
         }
       }
     }
-    
+
     if (key.return) {
       if (focusedOption === 'cancel') {
         onCancel();
@@ -91,20 +89,15 @@ export default function VisibilityModal({
         onSelect(focusedOption as VisibilityFilter);
       }
     }
-    
-    // Quick select shortcuts
+
     if (input) {
       const upperInput = input.toUpperCase();
-      if (upperInput === 'A') {
-        onSelect('all');
-      } else if (upperInput === 'P') {
-        onSelect('public');
-      } else if (upperInput === 'R') {
-        onSelect('private');
-      }
+      if (upperInput === 'A') onSelect('all');
+      else if (upperInput === 'P') onSelect('public');
+      else if (upperInput === 'R') onSelect('private');
     }
   });
-  
+
   const getButtonLabel = (filter: VisibilityFilter): string => {
     switch (filter) {
       case 'all': return 'All Repositories';
@@ -112,49 +105,40 @@ export default function VisibilityModal({
       case 'private': return isEnterprise ? 'Private/Internal' : 'Private Only';
     }
   };
-  
-  const getButtonColor = (filter: VisibilityFilter): string => {
-    if (filter === currentFilter) {
-      return 'green'; // Current selection
-    }
-    return focusedOption === filter ? 'cyan' : 'gray';
+
+  const getOptionChalk = (filter: VisibilityFilter) => {
+    if (filter === currentFilter) return c.success;
+    return focusedOption === filter ? c.primary : c.muted;
   };
-  
+
   return (
-    <Box flexDirection="column" borderStyle="round" borderColor="cyan" paddingX={2} paddingY={1} width={45}>
+    <Box flexDirection="column" borderStyle="round" borderColor={theme.primary} paddingX={2} paddingY={1} width={45}>
       <Text bold>Visibility Filter</Text>
-      
-      {/* Option buttons */}
+
       <Box flexDirection="column" marginTop={1}>
         {options.map((option) => (
           <Box key={option} paddingX={1}>
             <Text>
-              {focusedOption === option ? 
-                chalk.bgCyan.black(' → ') : '   '}
-              {focusedOption === option ? 
-                chalk[getButtonColor(option)].bold(getButtonLabel(option)) : 
-                chalk[getButtonColor(option)](getButtonLabel(option))
+              {focusedOption === option ? c.arrow(' → ') : '   '}
+              {focusedOption === option
+                ? getOptionChalk(option).bold(getButtonLabel(option))
+                : getOptionChalk(option)(getButtonLabel(option))
               }
-              {option === currentFilter && chalk.green(' ✓')}
+              {option === currentFilter && c.success(' ✓')}
             </Text>
           </Box>
         ))}
-        
-        {/* Cancel option */}
+
         <Box paddingX={1}>
           <Text>
-            {focusedOption === 'cancel' ? 
-              chalk.bgWhite.black(' → ') : '   '}
-            {focusedOption === 'cancel' ? 
-              chalk.white.bold('Cancel') : 
-              chalk.gray('Cancel')
-            }
+            {focusedOption === 'cancel' ? c.arrowMuted(' → ') : '   '}
+            {focusedOption === 'cancel' ? chalk.white.bold('Cancel') : c.muted('Cancel')}
           </Text>
         </Box>
       </Box>
-      
+
       <Box marginTop={1}>
-        <Text color="gray" dimColor>
+        <Text color={theme.muted} dimColor>
           ↑↓/Enter • A/P/R • Esc
         </Text>
       </Box>

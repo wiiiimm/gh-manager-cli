@@ -2,9 +2,12 @@ import React, { useEffect, useMemo, useState, useRef, useCallback } from 'react'
 import { Box, Text, useApp, useInput, useStdout, Spacer, Newline } from 'ink';
 import TextInput from 'ink-text-input';
 import chalk from 'chalk';
-import { makeClient, fetchViewerReposPageUnified, searchRepositoriesUnified, deleteRepositoryRest, archiveRepositoryById, unarchiveRepositoryById, changeRepositoryVisibility, syncForkWithUpstream, getRepositoryFromCache, purgeApolloCacheFiles, inspectCacheStatus, updateCacheAfterDelete, updateCacheAfterArchive, updateCacheAfterVisibilityChange, updateCacheWithRepository, checkOrganizationIsEnterprise, OwnerAffiliation, fetchViewerOrganizations, fetchRestRateLimits, renameRepositoryById, updateCacheAfterRename, getStarredRepositories, starRepository, unstarRepository, enrichForksWithAheadBehind, fetchRepositoryByOwnerAndName } from '../../services/github';
+import { makeClient, fetchViewerReposPageUnified, deleteRepositoryRest, archiveRepositoryById, unarchiveRepositoryById, changeRepositoryVisibility, syncForkWithUpstream, getRepositoryFromCache, purgeApolloCacheFiles, inspectCacheStatus, updateCacheAfterDelete, updateCacheAfterArchive, updateCacheAfterVisibilityChange, updateCacheWithRepository, checkOrganizationIsEnterprise, OwnerAffiliation, fetchViewerOrganizations, fetchRestRateLimits, renameRepositoryById, updateCacheAfterRename, getStarredRepositories, starRepository, unstarRepository, enrichForksWithAheadBehind, fetchRepositoryByOwnerAndName } from '../../services/github';
 import { getUIPrefs, storeUIPrefs, OwnerContext } from '../../config/config';
-import { makeApolloKey, makeSearchKey, isFresh, markFetched } from '../../services/apolloMeta';
+import { type ThemeName, nextTheme, getTheme } from '../../config/themes';
+import { useTheme } from '../hooks/useTheme';
+import { makeApolloKey, isFresh, markFetched } from '../../services/apolloMeta';
+import { fuzzySearch } from '../../lib/fuzzySearch';
 import type { RepoNode, RateLimitInfo, RestRateLimitInfo } from '../../types';
 import { exec } from 'child_process';
 import OrgSwitcher from '../OrgSwitcher';
@@ -88,6 +91,12 @@ export default function RepoList({ token, maxVisibleRows, onLogout, viewerLogin,
   // Display density: 0 = compact (0 lines), 1 = cozy (1 line), 2 = comfy (2 lines)
   const [density, setDensity] = useState<0 | 1 | 2>(2);
   const [prefsLoaded, setPrefsLoaded] = useState(false);
+
+  // Theme state
+  const [themeName, setThemeName] = useState<ThemeName>('default');
+  const [themeToast, setThemeToast] = useState<string | null>(null);
+  const themeToastTimerRef = useRef<NodeJS.Timeout | null>(null);
+  const { theme, c: tc } = useTheme(themeName);
   
   // Organization context state
   const [ownerContext, setOwnerContext] = useState<OwnerContext>('personal');
@@ -98,12 +107,6 @@ export default function RepoList({ token, maxVisibleRows, onLogout, viewerLogin,
   const [operationCount, setOperationCount] = useState(0);
   const [showSponsorReminder, setShowSponsorReminder] = useState(false);
   
-  // Search state (server-side)
-  const [searchItems, setSearchItems] = useState<RepoNode[]>([]);
-  const [searchEndCursor, setSearchEndCursor] = useState<string | null>(null);
-  const [searchHasNextPage, setSearchHasNextPage] = useState(false);
-  const [searchTotalCount, setSearchTotalCount] = useState<number>(0);
-  const [searchLoading, setSearchLoading] = useState(false);
   // Delete modal state
   const [deleteMode, setDeleteMode] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState<RepoNode | null>(null);
@@ -378,10 +381,9 @@ export default function RepoList({ token, maxVisibleRows, onLogout, viewerLogin,
       };
       
       setItems(prev => prev.map(updateRepo));
-      setSearchItems(prev => prev.map(updateRepo));
-      
+
       trackSuccessfulOperation();
-      
+
       // Close modal
       setStarMode(false);
       setStarTarget(null);
@@ -446,7 +448,7 @@ export default function RepoList({ token, maxVisibleRows, onLogout, viewerLogin,
       // Update Apollo cache with the locally updated data
       await updateCacheWithRepository(token, updatedRepo);
       
-      // Update both regular and search items with the locally updated data
+      // Update items with the locally updated data
       const updateSyncedRepo = (r: any) => {
         if (r.id === (syncTarget as any).id) {
           return updatedRepo;
@@ -454,7 +456,6 @@ export default function RepoList({ token, maxVisibleRows, onLogout, viewerLogin,
         return r;
       };
       setItems(prev => prev.map(updateSyncedRepo));
-      setSearchItems(prev => prev.map(updateSyncedRepo));
       closeSyncModal();
     } catch (e: any) {
       setSyncing(false);
@@ -481,11 +482,9 @@ export default function RepoList({ token, maxVisibleRows, onLogout, viewerLogin,
       // Update Apollo cache
       await updateCacheAfterArchive(token, id, !isArchived);
       
-      // Update both regular items and search items
       const updateRepo = (r: any) => (r.id === id ? { ...r, isArchived: !isArchived } : r);
       setItems(prev => prev.map(updateRepo));
-      setSearchItems(prev => prev.map(updateRepo));
-      
+
       trackSuccessfulOperation(); // Track the successful operation
       closeArchiveModal();
     } catch (e) {
@@ -509,11 +508,9 @@ export default function RepoList({ token, maxVisibleRows, onLogout, viewerLogin,
       // Update Apollo cache
       await updateCacheAfterRename(token, id, newName, newNameWithOwner);
       
-      // Update both regular items and search items  
       const updateRepo = (r: any) => (r.id === id ? { ...r, name: newName, nameWithOwner: newNameWithOwner } : r);
       setItems(prev => prev.map(updateRepo));
-      setSearchItems(prev => prev.map(updateRepo));
-      
+
       closeRenameModal();
     } catch (error: any) {
       throw error; // Let the modal handle the error
@@ -560,12 +557,11 @@ export default function RepoList({ token, maxVisibleRows, onLogout, viewerLogin,
     }
   }
 
-  // Clear timer on unmount
+  // Clear timers on unmount
   useEffect(() => {
     return () => {
-      if (copyToastTimerRef.current) {
-        clearTimeout(copyToastTimerRef.current);
-      }
+      if (copyToastTimerRef.current) clearTimeout(copyToastTimerRef.current);
+      if (themeToastTimerRef.current) clearTimeout(themeToastTimerRef.current);
     };
   }, []);
   
@@ -591,23 +587,17 @@ export default function RepoList({ token, maxVisibleRows, onLogout, viewerLogin,
       if (shouldRemove) {
         // Remove the repo from the list if it doesn't match the filter
         setItems(prev => prev.filter((r: any) => r.id !== id));
-        setSearchItems(prev => prev.filter((r: any) => r.id !== id));
-        
+
         // Update counts
         setTotalCount(c => Math.max(0, c - 1));
-        if (searchActive) {
-          setSearchTotalCount(c => Math.max(0, c - 1));
-        }
-        
+
         // Adjust cursor if needed
-        const currentItemsLength = searchActive ? searchItems.length : items.length;
-        setCursor(c => Math.max(0, Math.min(c, currentItemsLength - 2)));
+        setCursor(c => Math.max(0, Math.min(c, items.length - 2)));
       } else {
         // Update the repo in place if it still matches the filter
         const isPrivate = newVisibility === 'PRIVATE';
         const updateRepo = (r: any) => (r.id === id ? { ...r, visibility: newVisibility, isPrivate } : r);
         setItems(prev => prev.map(updateRepo));
-        setSearchItems(prev => prev.map(updateRepo));
       }
       
       closeChangeVisibilityModal();
@@ -625,9 +615,7 @@ export default function RepoList({ token, maxVisibleRows, onLogout, viewerLogin,
     
     // Clear repository lists immediately when switching context
     setItems([]);
-    setSearchItems([]);
     setTotalCount(0);
-    setSearchTotalCount(0);
     
     // Clear search filter when switching context
     setFilter('');
@@ -696,15 +684,11 @@ export default function RepoList({ token, maxVisibleRows, onLogout, viewerLogin,
       const targetId = (deleteTarget as any).id;
       await updateCacheAfterDelete(token, targetId);
       
-      // Remove from both regular items and search items
+      // Remove from items list
       setItems((prev) => prev.filter((r: any) => r.id !== targetId));
-      setSearchItems((prev) => prev.filter((r: any) => r.id !== targetId));
-      
+
       // Update counts
       setTotalCount((c) => Math.max(0, c - 1));
-      if (searchActive) {
-        setSearchTotalCount((c) => Math.max(0, c - 1));
-      }
       
       trackSuccessfulOperation(); // Track the successful operation
       setDeleteMode(false);
@@ -962,71 +946,6 @@ export default function RepoList({ token, maxVisibleRows, onLogout, viewerLogin,
     }
   };
 
-  // Server-side search fetch
-  const fetchSearchPage = async (after?: string | null, reset = false, policy?: 'cache-first' | 'network-only', searchQuery?: string) => {
-    // Use provided searchQuery or fall back to filter state
-    const query = searchQuery ?? filter;
-    
-    addDebugMessage(`[fetchSearchPage] query="${query}", searchQuery="${searchQuery}", filter="${filter}"`);
-    
-    if (!viewerLogin) {
-      addDebugMessage('❌ No viewerLogin for search');
-      return;
-    }
-    setSearchLoading(true);
-    try {
-      const orderBy = { field: sortFieldMap[sortKey], direction: sortDir.toUpperCase() };
-      const orgLogin = ownerContext !== 'personal' ? ownerContext.login : undefined;
-      addDebugMessage(`[fetchSearchPage] Calling API with viewer="${viewerLogin}", orgLogin="${orgLogin || 'none'}", query="${query.trim()}"`);
-      const page = await searchRepositoriesUnified(
-        token,
-        viewerLogin,
-        query.trim(),
-        PAGE_SIZE,
-        after ?? null,
-        orderBy.field,
-        orderBy.direction,
-        forkTracking,
-        policy ?? (after ? 'network-only' : 'cache-first'),
-        orgLogin
-      );
-      
-      addDebugMessage(`[fetchSearchPage] API returned ${page.nodes.length} results, totalCount=${page.totalCount}`);
-      if (page.nodes.length > 0) {
-        addDebugMessage(`[fetchSearchPage] First result: ${page.nodes[0].name}`);
-      }
-      
-      setSearchItems(prev => (reset || !after ? page.nodes : [...prev, ...page.nodes]));
-      setSearchEndCursor(page.endCursor);
-      setSearchHasNextPage(page.hasNextPage);
-      setSearchTotalCount(page.totalCount);
-      if (!after) {
-        try {
-          const key = makeSearchKey({
-            viewer: viewerLogin || 'unknown',
-            q: query.trim(),
-            sortKey,
-            sortDir,
-            pageSize: PAGE_SIZE,
-            forkTracking,
-          });
-          // 90 seconds TTL for search
-          markFetched(key);
-        } catch {}
-      }
-      setError(null);
-    } catch (e: any) {
-      const errorMsg = `Failed to search: ${e.message || e}`;
-      addDebugMessage(`❌ Search error: ${e.message || e}`);
-      if (e.stack) {
-        addDebugMessage(`Stack: ${e.stack.split('\n')[0]}`);
-      }
-      setError(errorMsg);
-    } finally {
-      setSearchLoading(false);
-    }
-  };
-
   // Load UI preferences (density, sort key/dir, fork tracking, owner context, visibility filter) on mount
   useEffect(() => {
     const ui = getUIPrefs();
@@ -1048,6 +967,11 @@ export default function RepoList({ token, maxVisibleRows, onLogout, viewerLogin,
     // Load archive filter
     if (ui.archiveFilter && ['all', 'unarchived', 'archived'].includes(ui.archiveFilter)) {
       setArchiveFilter(ui.archiveFilter as ArchiveFilter);
+    }
+
+    // Load theme
+    if (ui.theme && ['default', 'ocean', 'forest', 'monochrome'].includes(ui.theme)) {
+      setThemeName(ui.theme);
     }
     
     // Load organization context
@@ -1104,80 +1028,19 @@ export default function RepoList({ token, maxVisibleRows, onLogout, viewerLogin,
   }, [client, prefsLoaded, ownerContext, ownerAffiliations]);
 
   // Sorting changes.
-  // Owned repos sort entirely client-side (filteredAndSorted) over the full
-  // background-loaded set, so no server refetch is needed (SWR-360). Search still
-  // re-runs server-side because its result set is server-ordered and paginated.
-  useEffect(() => {
-    if (searchActive) {
-      // Re-run search with new sort
-      if (!searchLoading && filter.trim().length >= 3) {
-        let policy: 'cache-first' | 'network-only' = 'cache-first';
-        try {
-          const key = makeSearchKey({
-            viewer: viewerLogin || 'unknown',
-            q: filter.trim(),
-            sortKey,
-            sortDir,
-            pageSize: PAGE_SIZE,
-            forkTracking,
-          });
-          policy = isFresh(key, 90 * 1000) ? 'cache-first' : 'network-only';
-        } catch {}
-        fetchSearchPage(null, true, policy);
-      }
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [sortKey, sortDir]);
-
   // Refresh from server when visibility filter changes
   useEffect(() => {
     // Skip initial mount and 'all' filter (no server filtering needed)
     if (visibilityFilter !== 'all' || (previousVisibilityFilter.current && previousVisibilityFilter.current !== visibilityFilter)) {
-      if (!searchActive) {
-        if (items.length > 0) {
-          let policy: 'cache-first' | 'network-only' = 'network-only'; // Always fetch from network for visibility changes
-          
-          // Determine organization login if in org context
-          const orgLogin = ownerContext !== 'personal' ? ownerContext.login : undefined;
-          
-          fetchPage(null, true, true, undefined, policy);
-        }
-      } else {
-        // Re-run search with new visibility filter
-        if (!searchLoading && filter.trim().length >= 3) {
-          let policy: 'cache-first' | 'network-only' = 'network-only'; // Always fetch from network for visibility changes
-          fetchSearchPage(null, true, policy);
-        }
+      if (items.length > 0) {
+        fetchPage(null, true, true, undefined, 'network-only');
       }
     }
-    
+
     // Update previous ref
     previousVisibilityFilter.current = visibilityFilter;
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [visibilityFilter]);
-
-  // If viewerLogin becomes available after typing (>=3), kick off search
-  useEffect(() => {
-    if (viewerLogin && searchActive && !searchLoading && searchItems.length === 0) {
-      let policy: 'cache-first' | 'network-only' = 'cache-first';
-      try {
-        const orgLogin = ownerContext !== 'personal' ? ownerContext.login : undefined;
-        const key = makeSearchKey({
-          viewer: viewerLogin || 'unknown',
-          q: filter.trim(),
-          sortKey,
-          sortDir,
-          pageSize: PAGE_SIZE,
-          forkTracking,
-          ownerContext: orgLogin ? `org:${orgLogin}` : 'personal',
-          affiliations: ownerAffiliations.join(',')
-        });
-        policy = isFresh(key, 90 * 1000) ? 'cache-first' : 'network-only';
-      } catch {}
-      fetchSearchPage(null, true, policy);
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [viewerLogin]);
 
   // Handle organization context switching
   // Organization context handler is defined above (function handleOrgContextChange)
@@ -1399,17 +1262,13 @@ export default function RepoList({ token, maxVisibleRows, onLogout, viewerLogin,
         // Clear search and return to normal listing
         setFilterMode(false);
         setFilter('');
-        setSearchItems([]);
-        setSearchEndCursor(null);
-        setSearchHasNextPage(false);
-        setSearchTotalCount(0);
         setCursor(0); // Reset cursor to top
         addDebugMessage('[ESC] Cleared search and returned to normal listing');
         return;
       }
       // Down arrow in filter mode with results - exit filter mode and select first item
-      // Works for both search mode and stars mode filtering
-      if (key.downArrow && (searchActive || (starsMode && filter.trim().length > 0)) && visibleItems.length > 0) {
+      // Works for both fuzzy mode and stars mode filtering
+      if (key.downArrow && (filterActive || (starsMode && filter.trim().length > 0)) && visibleItems.length > 0) {
         setFilterMode(false);
         setCursor(0); // Select first item
         addDebugMessage('[DOWN] Exited filter mode and selected first result');
@@ -1419,16 +1278,9 @@ export default function RepoList({ token, maxVisibleRows, onLogout, viewerLogin,
       return;
     }
 
-    // ESC key while viewing search results or filtered stars - clear filter and return to normal listing
-    if (key.escape && (searchActive || (starsMode && filter.trim().length > 0))) {
+    // ESC key while viewing fuzzy results or filtered stars - clear filter and return to normal listing
+    if (key.escape && (filterActive || (starsMode && filter.trim().length > 0))) {
       setFilter('');
-      if (!starsMode) {
-        // Only clear search-related state in non-stars mode
-        setSearchItems([]);
-        setSearchEndCursor(null);
-        setSearchHasNextPage(false);
-        setSearchTotalCount(0);
-      }
       setCursor(0); // Reset cursor to top
       addDebugMessage('[ESC] Cleared filter and returned to normal listing');
       return;
@@ -1614,12 +1466,14 @@ export default function RepoList({ token, maxVisibleRows, onLogout, viewerLogin,
       return;
     }
 
-    // Sort modal: show sort options (S key when not in stars mode)
-    if (input && input.toUpperCase() === 'S' && !key.shift && !key.ctrl) {
+    // Sort modal: show sort options (S key when not in stars mode).
+    // Disabled while a fuzzy search is active — results are ranked by match
+    // relevance, so sort controls are intentionally not offered (SWR-361).
+    if (input && input.toUpperCase() === 'S' && !key.shift && !key.ctrl && !filterActive) {
       setSortMode(true);
       return;
     }
-    if (input && input.toUpperCase() === 'D') {
+    if (input && input.toUpperCase() === 'D' && !filterActive) {
       setSortDirectionMode(true);
       return;
     }
@@ -1638,18 +1492,7 @@ export default function RepoList({ token, maxVisibleRows, onLogout, viewerLogin,
         // Entering stars mode - fetch starred repositories
         // Reset visibility filter since it doesn't apply to starred repos
         setVisibilityFilter('all');
-        // Clear search items since we're switching to starred repos
-        setSearchItems([]);
-        setSearchEndCursor(null);
-        setSearchHasNextPage(false);
-        setSearchTotalCount(0);
         fetchStarredRepositories(null, true);
-      } else {
-        // Exiting stars mode - clear search state
-        setSearchItems([]);
-        setSearchEndCursor(null);
-        setSearchHasNextPage(false);
-        setSearchTotalCount(0);
       }
       return;
     }
@@ -1706,8 +1549,19 @@ export default function RepoList({ token, maxVisibleRows, onLogout, viewerLogin,
       return;
     }
 
+    // Cycle theme (Shift+T)
+    if (key.shift && input === 'T') {
+      const next = nextTheme(themeName);
+      setThemeName(next);
+      storeUIPrefs({ theme: next });
+      if (themeToastTimerRef.current) clearTimeout(themeToastTimerRef.current);
+      setThemeToast(`Theme: ${getTheme(next).label}`);
+      themeToastTimerRef.current = setTimeout(() => setThemeToast(null), 2500);
+      return;
+    }
+
     // Toggle display density
-    if (input && input.toUpperCase() === 'T') {
+    if (input && input.toUpperCase() === 'T' && !key.shift) {
       setDensity((d) => {
         const next = (((d + 1) % 3) as 0 | 1 | 2);
         storeUIPrefs({ density: next });
@@ -1754,17 +1608,8 @@ export default function RepoList({ token, maxVisibleRows, onLogout, viewerLogin,
       result = result.filter(r => !r.isArchived);
     }
 
-    // Apply text filter
-    const q = filter.trim().toLowerCase();
-    if (q) {
-      result = result.filter(r =>
-        r.nameWithOwner.toLowerCase().includes(q) ||
-        (r.description ? r.description.toLowerCase().includes(q) : false)
-      );
-    }
-
     return result;
-  }, [items, filter, visibilityFilter, archiveFilter]);
+  }, [items, visibilityFilter, archiveFilter]);
 
   const filteredAndSorted = useMemo(() => {
     const arr = [...filtered];
@@ -1787,29 +1632,22 @@ export default function RepoList({ token, maxVisibleRows, onLogout, viewerLogin,
     return arr;
   }, [filtered, sortKey, sortDir]);
 
-  // In stars mode, we never do GitHub search - just local filtering
-  const searchActive = !starsMode && filter.trim().length >= 3;
-  
-  // Apply visibility filter to search results too
-  const filteredSearchItems = useMemo(() => {
-    let result = searchItems;
+  // Fuzzy-filter the full cached set; active for any non-empty query when not in stars mode
+  const filterActive = !starsMode && filter.trim().length > 0;
 
-    // Match GitHub's behavior: Private filter includes both PRIVATE and INTERNAL
+  const fuzzyItems = useMemo(() => {
+    if (!filterActive) return [];
+    let results = fuzzySearch(items, filter);
     if (visibilityFilter === 'private') {
-      result = result.filter(r => r.visibility === 'PRIVATE' || r.visibility === 'INTERNAL');
+      results = results.filter(r => r.visibility === 'PRIVATE' || r.visibility === 'INTERNAL');
     } else if (visibilityFilter === 'public') {
-      result = result.filter(r => r.visibility === 'PUBLIC');
+      results = results.filter(r => r.visibility === 'PUBLIC');
     }
+    if (archiveFilter === 'archived') results = results.filter(r => r.isArchived);
+    else if (archiveFilter === 'unarchived') results = results.filter(r => !r.isArchived);
+    return results;
+  }, [filterActive, items, filter, visibilityFilter, archiveFilter]);
 
-    if (archiveFilter === 'archived') {
-      result = result.filter(r => r.isArchived);
-    } else if (archiveFilter === 'unarchived') {
-      result = result.filter(r => !r.isArchived);
-    }
-
-    return result;
-  }, [searchItems, visibilityFilter, archiveFilter]);
-  
   // Apply filter to starred items if in stars mode
   const filteredStarredItems = useMemo(() => {
     let result = starredItems;
@@ -1831,23 +1669,15 @@ export default function RepoList({ token, maxVisibleRows, onLogout, viewerLogin,
     return result;
   }, [starredItems, filter, archiveFilter]);
   
-  const visibleItems = starsMode ? filteredStarredItems : (searchActive ? filteredSearchItems : filteredAndSorted);
+  const visibleItems = starsMode ? filteredStarredItems : (filterActive ? fuzzyItems : filteredAndSorted);
   
-  // Debug log
-  useEffect(() => {
-    if (searchActive) {
-      addDebugMessage(`[State] searchActive=${searchActive}, searchItems=${searchItems.length}, visibleItems=${visibleItems.length}, filter="${filter}"`);
-    }
-  }, [searchActive, searchItems.length, visibleItems.length, filter]);
-  
-
   // Keep cursor in range when data changes. Clamp against the *visible*
   // (post-filter) item count, otherwise an active archive/visibility filter
   // can leave the cursor past the end of visibleItems and crash the window
   // calculation when it dereferences a non-existent row.
   useEffect(() => {
     setCursor(c => Math.min(c, Math.max(0, visibleItems.length - 1)));
-  }, [searchActive, searchItems.length, items.length, visibleItems.length]);
+  }, [filterActive, items.length, visibleItems.length]);
 
   // Calculate fixed heights for layout sections and list area
   const headerHeight = 2; // Header bar + margin
@@ -1868,14 +1698,11 @@ export default function RepoList({ token, maxVisibleRows, onLogout, viewerLogin,
   // Owned repos and starred repos eagerly load the entire set in the background —
   // each page completing re-runs this effect (items length changes) which fetches the
   // next page until hasNextPage is false. No scroll-position gating. This makes
-  // filtering, sorting, and (future) fuzzy search complete and client-side.
-  // Search stays lazy/server-side (per-query, paginated near the end of the list).
+  // filtering, sorting, and fuzzy search (SWR-361) complete and client-side.
   useEffect(() => {
-    const prefetchThreshold = Math.floor(visibleItems.length * 0.8);
-    const nearEnd = visibleItems.length > 0 && cursor >= prefetchThreshold;
-    // Raw (pre-filter) list length for the active mode — guards against firing during a context
+    // Raw (pre-filter) list length — guards against firing during a context
     // switch where items was cleared to [] before loading was set to true.
-    const rawItemsLength = starsMode ? starredItems.length : searchActive ? searchItems.length : items.length;
+    const rawItemsLength = starsMode ? starredItems.length : items.length;
     // When an archive filter is active and all loaded items are filtered out, keep fetching.
     // Require rawItemsLength > 0 to avoid a spurious fetch on stale hasNextPage/endCursor.
     const filterDrainedPage = visibleItems.length === 0 && archiveFilter !== 'all' && rawItemsLength > 0;
@@ -1885,11 +1712,6 @@ export default function RepoList({ token, maxVisibleRows, onLogout, viewerLogin,
       if (!starredLoading && starredHasNextPage) {
         fetchStarredRepositories(starredEndCursor);
       }
-    } else if (searchActive) {
-      // Search remains lazy: prefetch near the end or when a filter drains the page.
-      if (!searchLoading && searchHasNextPage && (nearEnd || filterDrainedPage)) {
-        fetchSearchPage(searchEndCursor);
-      }
     } else {
       // Background-fill the entire owned set.
       if (!loading && !loadingMore && hasNextPage) {
@@ -1897,7 +1719,7 @@ export default function RepoList({ token, maxVisibleRows, onLogout, viewerLogin,
       }
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [cursor, visibleItems.length, archiveFilter, items.length, starredItems.length, searchItems.length, starsMode, starredLoading, starredHasNextPage, starredEndCursor, searchActive, searchLoading, searchHasNextPage, searchEndCursor, loading, loadingMore, hasNextPage, endCursor]);
+  }, [visibleItems.length, archiveFilter, items.length, starredItems.length, starsMode, starredLoading, starredHasNextPage, starredEndCursor, loading, loadingMore, hasNextPage, endCursor]);
 
   // Helper: open URL in default browser (cross-platform best-effort)
   function openInBrowser(url: string) {
@@ -1914,41 +1736,41 @@ export default function RepoList({ token, maxVisibleRows, onLogout, viewerLogin,
   const headerBar = useMemo(() => (
     <Box flexDirection="row" justifyContent="space-between" height={1} marginBottom={1}>
       <Box flexDirection="row" gap={1}>
-        <Text color="cyan" bold={!modalOpen} dimColor={modalOpen}>
-          {'  '}{ownerContext === 'personal' 
-            ? 'Personal' 
+        <Text color={theme.primary} bold={!modalOpen} dimColor={modalOpen}>
+          {'  '}{ownerContext === 'personal'
+            ? 'Personal'
             : ownerContext.name || ownerContext.login}
           {ownerContext !== 'personal' && isEnterpriseOrg && ' (ENT)'}
         </Text>
-        <Text bold color={modalOpen ? 'gray' : undefined} dimColor={modalOpen ? true : undefined}>Repositories</Text>
-        <Text color="gray">({visibleItems.length}/{searchActive ? searchTotalCount : totalCount})</Text>
-        {loadingMore && hasNextPage && !starsMode && !searchActive && totalCount > 0 && (
-          <Text color="cyan">{` · loading ${items.length}/${totalCount}`}</Text>
+        <Text bold color={modalOpen ? theme.muted : undefined} dimColor={modalOpen ? true : undefined}>Repositories</Text>
+        <Text color={theme.muted}>({visibleItems.length}/{totalCount})</Text>
+        {loadingMore && hasNextPage && !starsMode && totalCount > 0 && (
+          <Text color={theme.primary}>{` · loading ${items.length}/${totalCount}`}</Text>
         )}
         {enrichingForks && (
-          <Text color="gray">{` · enriching forks…`}</Text>
+          <Text color={theme.muted}>{` · enriching forks…`}</Text>
         )}
-        {(loading || searchLoading || loadingMore) && (
+        {(loading || loadingMore) && (
           <Box width={2} flexShrink={0} flexGrow={0} marginLeft={1}>
-            <Text color="yellow">
+            <Text color={theme.warning}>
               <SlowSpinner />
             </Text>
           </Box>
         )}
       </Box>
-      
+
       {(rateLimit || restRateLimit) && (
-        <Text color={lowRate ? 'yellow' : 'gray'}>
+        <Text color={lowRate ? theme.warning : theme.muted}>
           GraphQL: {rateLimit ? `${rateLimit.remaining}/${rateLimit.limit}` : '---/---'}
           {prevRateLimit !== undefined && rateLimit && prevRateLimit !== rateLimit.remaining && (
-            <Text color={rateLimit.remaining < prevRateLimit ? 'red' : 'green'}>
+            <Text color={rateLimit.remaining < prevRateLimit ? theme.error : theme.success}>
               {` (${rateLimit.remaining - prevRateLimit > 0 ? '+' : ''}${rateLimit.remaining - prevRateLimit})`}
             </Text>
           )}
           {' | '}
           REST: {restRateLimit ? `${restRateLimit.core.remaining}/${restRateLimit.core.limit}` : '---/---'}
           {prevRestRateLimit !== undefined && restRateLimit && prevRestRateLimit !== restRateLimit.core.remaining && (
-            <Text color={restRateLimit.core.remaining < prevRestRateLimit ? 'red' : 'green'}>
+            <Text color={restRateLimit.core.remaining < prevRestRateLimit ? theme.error : theme.success}>
               {` (${restRateLimit.core.remaining - prevRestRateLimit > 0 ? '+' : ''}${restRateLimit.core.remaining - prevRestRateLimit})`}
             </Text>
           )}
@@ -1956,7 +1778,7 @@ export default function RepoList({ token, maxVisibleRows, onLogout, viewerLogin,
         </Text>
       )}
     </Box>
-  ), [visibleItems.length, searchActive, searchTotalCount, totalCount, loading, searchLoading, rateLimit, lowRate, modalOpen, prevRateLimit, ownerContext, isEnterpriseOrg, restRateLimit, prevRestRateLimit, enrichingForks, loadingMore, hasNextPage, starsMode, items.length]);
+  ), [visibleItems.length, totalCount, loading, loadingMore, rateLimit, lowRate, modalOpen, prevRateLimit, ownerContext, isEnterpriseOrg, restRateLimit, prevRestRateLimit, enrichingForks, starsMode, hasNextPage, items.length, theme]);
 
   if (error) {
     return (
@@ -2060,7 +1882,7 @@ export default function RepoList({ token, maxVisibleRows, onLogout, viewerLogin,
       )}
 
       {/* Main content container with border - fixed height */}
-      <Box borderStyle="single" borderColor={modalOpen ? 'gray' : 'yellow'} paddingX={1} paddingY={1} marginX={1} height={contentHeight + containerPadding + 2} flexDirection="column">
+      <Box borderStyle="single" borderColor={modalOpen ? theme.muted : theme.warning} paddingX={1} paddingY={1} marginX={1} height={contentHeight + containerPadding + 2} flexDirection="column">
         {deleteMode && deleteTarget ? (
           // Centered modal; hide list content while modal is open
           <Box height={contentHeight} alignItems="center" justifyContent="center">
@@ -2074,13 +1896,13 @@ export default function RepoList({ token, maxVisibleRows, onLogout, viewerLogin,
                         const langName = deleteTarget.primaryLanguage?.name || '';
                         const langColor = deleteTarget.primaryLanguage?.color || '#666666';
                         let line1 = '';
-                        line1 += chalk.white(deleteTarget.nameWithOwner);
-                        if (deleteTarget.isPrivate) line1 += chalk.yellow(' Private');
-                        if (deleteTarget.isArchived) line1 += chalk.gray.dim(' Archived');
-                        if (deleteTarget.isFork && deleteTarget.parent) line1 += chalk.blue(` Fork of ${deleteTarget.parent.nameWithOwner}`);
+                        line1 += tc.text(deleteTarget.nameWithOwner);
+                        if (deleteTarget.isPrivate) line1 += tc.private(' Private');
+                        if (deleteTarget.isArchived) line1 += tc.archived.dim(' Archived');
+                        if (deleteTarget.isFork && deleteTarget.parent) line1 += tc.fork(` Fork of ${deleteTarget.parent.nameWithOwner}`);
                         let line2 = '';
-                        if (langName) line2 += chalk.hex(langColor)('● ') + chalk.gray(`${langName}  `);
-                        line2 += chalk.gray(`★ ${deleteTarget.stargazerCount}  ⑂ ${deleteTarget.forkCount}  Updated ${formatDate(deleteTarget.updatedAt)}`);
+                        if (langName) line2 += chalk.hex(langColor)('● ') + tc.muted(`${langName}  `);
+                        line2 += tc.muted(`★ ${deleteTarget.stargazerCount}  ⑂ ${deleteTarget.forkCount}  Updated ${formatDate(deleteTarget.updatedAt)}`);
                         return (
                           <>
                             <Text>{line1}</Text>
@@ -2136,7 +1958,7 @@ export default function RepoList({ token, maxVisibleRows, onLogout, viewerLogin,
                       justifyContent="center"
                       flexDirection="column"
                     >
-                      <Text>{confirmFocus === 'delete' ? chalk.bgRed.white.bold(' Delete ') : chalk.red.bold('Delete')}</Text>
+                      <Text>{confirmFocus === 'delete' ? chalk.bgRed.white.bold(' Delete ') : tc.error.bold('Delete')}</Text>
                     </Box>
                     <Box
                       borderStyle="round"
@@ -2147,7 +1969,7 @@ export default function RepoList({ token, maxVisibleRows, onLogout, viewerLogin,
                       justifyContent="center"
                       flexDirection="column"
                     >
-                      <Text>{confirmFocus === 'cancel' ? chalk.bgGray.white.bold(' Cancel ') : chalk.gray.bold('Cancel')}</Text>
+                      <Text>{confirmFocus === 'cancel' ? tc.btnMuted(' Cancel ') : tc.muted.bold('Cancel')}</Text>
                     </Box>
                   </Box>
                   {/* Bottom prompt with dynamic Enter action and key hints (gray) */}
@@ -2207,9 +2029,9 @@ export default function RepoList({ token, maxVisibleRows, onLogout, viewerLogin,
                   flexDirection="column"
                 >
                   <Text>
-                    {archiveFocus === 'confirm' ? 
-                      chalk.bgGreen.white.bold(` ${archiveTarget.isArchived ? 'Unarchive' : 'Archive'} `) : 
-                      chalk.bold[archiveTarget.isArchived ? 'green' : 'yellow'](archiveTarget.isArchived ? 'Unarchive' : 'Archive')
+                    {archiveFocus === 'confirm' ?
+                      chalk.bgGreen.white.bold(` ${archiveTarget.isArchived ? 'Unarchive' : 'Archive'} `) :
+                      (archiveTarget.isArchived ? tc.success : tc.warning).bold(archiveTarget.isArchived ? 'Unarchive' : 'Archive')
                     }
                   </Text>
                 </Box>
@@ -2223,15 +2045,12 @@ export default function RepoList({ token, maxVisibleRows, onLogout, viewerLogin,
                   flexDirection="column"
                 >
                   <Text>
-                    {archiveFocus === 'cancel' ? 
-                      chalk.bgGray.white.bold(' Cancel ') : 
-                      chalk.gray.bold('Cancel')
-                    }
+                    {archiveFocus === 'cancel' ? tc.btnMuted(' Cancel ') : tc.muted.bold('Cancel')}
                   </Text>
                 </Box>
               </Box>
               <Box marginTop={1} flexDirection="row" justifyContent="center">
-                <Text color="gray">Press Enter to {archiveFocus === 'confirm' ? (archiveTarget.isArchived ? 'Unarchive' : 'Archive') : 'Cancel'} | Y to {archiveTarget.isArchived ? 'Unarchive' : 'Archive'} | C to Cancel</Text>
+                <Text color={theme.muted}>Press Enter to {archiveFocus === 'confirm' ? (archiveTarget.isArchived ? 'Unarchive' : 'Archive') : 'Cancel'} | Y to {archiveTarget.isArchived ? 'Unarchive' : 'Archive'} | C to Cancel</Text>
               </Box>
               <Box marginTop={1}>
                 <TextInput
@@ -2301,10 +2120,7 @@ export default function RepoList({ token, maxVisibleRows, onLogout, viewerLogin,
                   flexDirection="column"
                 >
                   <Text>
-                    {syncFocus === 'confirm' ? 
-                      chalk.bgBlue.white.bold(' Sync ') : 
-                      chalk.blue.bold('Sync')
-                    }
+                    {syncFocus === 'confirm' ? tc.btnPrimary(' Sync ') : tc.primary.bold('Sync')}
                   </Text>
                 </Box>
                 <Box
@@ -2317,15 +2133,12 @@ export default function RepoList({ token, maxVisibleRows, onLogout, viewerLogin,
                   flexDirection="column"
                 >
                   <Text>
-                    {syncFocus === 'cancel' ? 
-                      chalk.bgGray.white.bold(' Cancel ') : 
-                      chalk.gray.bold('Cancel')
-                    }
+                    {syncFocus === 'cancel' ? tc.btnMuted(' Cancel ') : tc.muted.bold('Cancel')}
                   </Text>
                 </Box>
               </Box>
               <Box marginTop={1} flexDirection="row" justifyContent="center">
-                <Text color="gray">Press Enter to {syncFocus === 'confirm' ? 'Sync' : 'Cancel'} | Y to Sync | C to Cancel</Text>
+                <Text color={theme.muted}>Press Enter to {syncFocus === 'confirm' ? 'Sync' : 'Cancel'} | Y to Sync | C to Cancel</Text>
               </Box>
               <Box marginTop={1}>
                 <TextInput
@@ -2342,25 +2155,25 @@ export default function RepoList({ token, maxVisibleRows, onLogout, viewerLogin,
               </Box>
               {syncError && (
                 <Box marginTop={1}>
-                  <Text color="magenta">{syncError}</Text>
+                  <Text color={theme.error}>{syncError}</Text>
                 </Box>
               )}
               {syncing && (
                 <Box marginTop={1}>
-                  <Text color="yellow">Syncing...</Text>
+                  <Text color={theme.warning}>Syncing...</Text>
                 </Box>
               )}
             </Box>
           </Box>
         ) : logoutMode ? (
           <Box height={contentHeight} alignItems="center" justifyContent="center">
-            <Box flexDirection="column" borderStyle="round" borderColor="cyan" paddingX={3} paddingY={2} width={Math.min(terminalWidth - 8, 80)}>
+            <Box flexDirection="column" borderStyle="round" borderColor={theme.primary} paddingX={3} paddingY={2} width={Math.min(terminalWidth - 8, 80)}>
               <Text bold>Logout Confirmation</Text>
-              <Text color="cyan">Are you sure you want to log out?</Text>
+              <Text color={theme.primary}>Are you sure you want to log out?</Text>
               <Box marginTop={1} flexDirection="row" justifyContent="center" gap={6}>
                 <Box
                   borderStyle="round"
-                  borderColor="cyan"
+                  borderColor={theme.primary}
                   height={3}
                   width={20}
                   alignItems="center"
@@ -2368,15 +2181,12 @@ export default function RepoList({ token, maxVisibleRows, onLogout, viewerLogin,
                   flexDirection="column"
                 >
                   <Text>
-                    {logoutFocus === 'confirm' ? 
-                      chalk.bgCyan.white.bold(' Logout ') : 
-                      chalk.cyan.bold('Logout')
-                    }
+                    {logoutFocus === 'confirm' ? tc.btnPrimary(' Logout ') : tc.primary.bold('Logout')}
                   </Text>
                 </Box>
                 <Box
                   borderStyle="round"
-                  borderColor={logoutFocus === 'cancel' ? 'white' : 'gray'}
+                  borderColor={logoutFocus === 'cancel' ? 'white' : theme.muted}
                   height={3}
                   width={20}
                   alignItems="center"
@@ -2384,15 +2194,12 @@ export default function RepoList({ token, maxVisibleRows, onLogout, viewerLogin,
                   flexDirection="column"
                 >
                   <Text>
-                    {logoutFocus === 'cancel' ? 
-                      chalk.bgGray.white.bold(' Cancel ') : 
-                      chalk.gray.bold('Cancel')
-                    }
+                    {logoutFocus === 'cancel' ? tc.btnMuted(' Cancel ') : tc.muted.bold('Cancel')}
                   </Text>
                 </Box>
               </Box>
               <Box marginTop={1} flexDirection="row" justifyContent="center">
-                <Text color="gray">Press Enter to {logoutFocus === 'confirm' ? 'Logout' : 'Cancel'} | Y to Logout | C to Cancel</Text>
+                <Text color={theme.muted}>Press Enter to {logoutFocus === 'confirm' ? 'Logout' : 'Cancel'} | Y to Logout | C to Cancel</Text>
               </Box>
             </Box>
           </Box>
@@ -2409,33 +2216,33 @@ export default function RepoList({ token, maxVisibleRows, onLogout, viewerLogin,
           <Box height={contentHeight} alignItems="center" justifyContent="center">
             {(() => {
               const repo = infoRepo || visibleItems[cursor];
-              if (!repo) return <Text color="red">No repository selected.</Text>;
+              if (!repo) return <Text color={theme.error}>No repository selected.</Text>;
               const langName = repo.primaryLanguage?.name || 'N/A';
               const langColor = repo.primaryLanguage?.color || '#666666';
               return (
-                <Box flexDirection="column" borderStyle="round" borderColor="magenta" paddingX={3} paddingY={2} width={Math.min(terminalWidth - 8, 90)}>
-                  <Text bold>Repository Info {infoRepo ? chalk.dim('(cached)') : ''}</Text>
+                <Box flexDirection="column" borderStyle="round" borderColor={theme.internal} paddingX={3} paddingY={2} width={Math.min(terminalWidth - 8, 90)}>
+                  <Text bold>Repository Info {infoRepo ? tc.muted('(cached)') : ''}</Text>
                   <Box height={1}><Text> </Text></Box>
-                  <Text>{chalk.bold(repo.nameWithOwner)}</Text>
-                  {repo.description && <Text color="gray">{repo.description}</Text>}
+                  <Text>{tc.text.bold(repo.nameWithOwner)}</Text>
+                  {repo.description && <Text color={theme.muted}>{repo.description}</Text>}
                   <Box height={1}><Text> </Text></Box>
                   <Text>
-                    {repo.visibility === 'PRIVATE' ? chalk.yellow('Private') : 
-                     repo.visibility === 'INTERNAL' ? chalk.magenta('Internal') : 
-                     chalk.green('Public')}
-                    {repo.isArchived ? chalk.gray('  Archived') : ''}
-                    {repo.isFork ? chalk.blue('  Fork') : ''}
+                    {repo.visibility === 'PRIVATE' ? tc.private('Private') :
+                     repo.visibility === 'INTERNAL' ? tc.internal('Internal') :
+                     tc.success('Public')}
+                    {repo.isArchived ? tc.archived('  Archived') : ''}
+                    {repo.isFork ? tc.fork('  Fork') : ''}
                   </Text>
                   <Text>
-                    {chalk.gray(`★ ${repo.stargazerCount}  ⑂ ${repo.forkCount}`)}
+                    {tc.muted(`★ ${repo.stargazerCount}  ⑂ ${repo.forkCount}`)}
                   </Text>
                   <Text>
-                    {chalk.hex(langColor)(`● `)}{chalk.gray(`${langName}`)}
+                    {chalk.hex(langColor)(`● `)}{tc.muted(`${langName}`)}
                   </Text>
-                  <Text color="gray">Updated: {formatDate(repo.updatedAt)} • Pushed: {formatDate(repo.pushedAt)}</Text>
-                  <Text color="gray">Size: {repo.diskUsage} KB</Text>
+                  <Text color={theme.muted}>Updated: {formatDate(repo.updatedAt)} • Pushed: {formatDate(repo.pushedAt)}</Text>
+                  <Text color={theme.muted}>Size: {repo.diskUsage} KB</Text>
                   <Box height={1}><Text> </Text></Box>
-                  <Text color="gray">Press Esc or I to close</Text>
+                  <Text color={theme.muted}>Press Esc or I to close</Text>
                 </Box>
               );
             })()}
@@ -2451,6 +2258,7 @@ export default function RepoList({ token, maxVisibleRows, onLogout, viewerLogin,
                 storeUIPrefs({ archiveFilter: filter });
               }}
               onCancel={() => setArchiveFilterMode(false)}
+              theme={theme}
             />
           </Box>
         ) : visibilityMode ? (
@@ -2465,6 +2273,7 @@ export default function RepoList({ token, maxVisibleRows, onLogout, viewerLogin,
                 storeUIPrefs({ visibilityFilter: filter });
               }}
               onCancel={() => setVisibilityMode(false)}
+              theme={theme}
             />
           </Box>
         ) : sortMode ? (
@@ -2479,6 +2288,7 @@ export default function RepoList({ token, maxVisibleRows, onLogout, viewerLogin,
                 // Will trigger refresh via useEffect
               }}
               onCancel={() => setSortMode(false)}
+              theme={theme}
             />
           </Box>
         ) : sortDirectionMode ? (
@@ -2494,6 +2304,7 @@ export default function RepoList({ token, maxVisibleRows, onLogout, viewerLogin,
                 // Will trigger refresh via useEffect
               }}
               onCancel={() => setSortDirectionMode(false)}
+              theme={theme}
             />
           </Box>
         ) : changeVisibilityMode && changeVisibilityTarget ? (
@@ -2508,6 +2319,7 @@ export default function RepoList({ token, maxVisibleRows, onLogout, viewerLogin,
               onClose={closeChangeVisibilityModal}
               changing={changingVisibility}
               error={changeVisibilityError}
+              theme={theme}
             />
           </Box>
         ) : renameMode && renameTarget ? (
@@ -2516,6 +2328,7 @@ export default function RepoList({ token, maxVisibleRows, onLogout, viewerLogin,
               repo={renameTarget}
               onRename={executeRename}
               onCancel={closeRenameModal}
+              theme={theme}
             />
           </Box>
         ) : copyUrlMode ? (
@@ -2525,6 +2338,7 @@ export default function RepoList({ token, maxVisibleRows, onLogout, viewerLogin,
               terminalWidth={terminalWidth}
               onClose={closeCopyUrlModal}
               onCopy={handleCopyUrl}
+              theme={theme}
             />
           </Box>
         ) : unstarMode && unstarTarget ? (
@@ -2536,6 +2350,7 @@ export default function RepoList({ token, maxVisibleRows, onLogout, viewerLogin,
               onCancel={closeUnstarModal}
               isUnstarring={unstarring}
               error={unstarError}
+              theme={theme}
             />
           </Box>
         ) : starMode && starTarget ? (
@@ -2548,6 +2363,7 @@ export default function RepoList({ token, maxVisibleRows, onLogout, viewerLogin,
               onCancel={closeStarModal}
               isStarring={starring}
               error={starError}
+              theme={theme}
             />
           </Box>
         ) : openInBrowserMode && openInBrowserTarget ? (
@@ -2574,12 +2390,12 @@ export default function RepoList({ token, maxVisibleRows, onLogout, viewerLogin,
               sortDir={sortDir}
               forkTracking={forkTracking}
               filter={filter}
-              searchActive={searchActive}
-              searchLoading={searchLoading}
+              filterActive={filterActive}
               visibilityFilter={visibilityFilter}
               archiveFilter={archiveFilter}
               isEnterprise={isEnterpriseOrg}
               starsMode={starsMode}
+              theme={theme}
             />
 
             {/* Filter input */}
@@ -2589,69 +2405,37 @@ export default function RepoList({ token, maxVisibleRows, onLogout, viewerLogin,
             <TextInput
               value={filter}
               onChange={(val) => {
-                addDebugMessage(`[onChange] val="${val}"`);
                 setFilter(val);
-                const q = (val || '').trim();
-                addDebugMessage(`[onChange] trimmed="${q}", len=${q.length}`);
-                if (q.length >= 3) {
-                  // Kick off server search
-                  addDebugMessage(`[onChange] Triggering search for "${q}"`);
-                  let policy: 'cache-first' | 'network-only' = 'cache-first';
-                  try {
-                    const key = makeSearchKey({
-                      viewer: viewerLogin || 'unknown',
-                      q,
-                      sortKey,
-                      sortDir,
-                      pageSize: PAGE_SIZE,
-                      forkTracking,
-                    });
-                    policy = isFresh(key, 90 * 1000) ? 'cache-first' : 'network-only';
-                  } catch {}
-                  addDebugMessage(`[onChange] Calling fetchSearchPage with q="${q}"`);
-                  fetchSearchPage(null, true, policy, q);
-                } else {
-                  // Clear search results under threshold
-                  setSearchItems([]);
-                  setSearchEndCursor(null);
-                  setSearchHasNextPage(false);
-                  setSearchTotalCount(0);
-                }
               }}
               onSubmit={() => {
                 setFilterMode(false);
               }}
-              placeholder={starsMode ? "Type to filter starred repositories..." : "Type to search (3+ chars for server search)..."}
+              placeholder={starsMode ? "Type to filter starred repositories..." : "Type to fuzzy-search repositories..."}
             />
           </Box>
         )}
 
             {/* Repository list */}
             <Box flexDirection="column" height={listHeight}>
-              {(filterMode && filter.trim().length > 0 && filter.trim().length < 3) ? (
-                <Box justifyContent="center" alignItems="center" flexGrow={1}>
-                  <Text color="gray" dimColor>Type at least 3 characters to search</Text>
-                </Box>
-              ) : (
-                visibleItems.slice(windowed.start, windowed.end).map((repo, i) => {
-                  const idx = windowed.start + i;
-                  return (
-                    <RepoRow
-                      key={repo.nameWithOwner}
-                      repo={repo}
-                      selected={filterMode && searchActive ? false : idx === cursor}
-                      index={idx + 1}
-                      maxWidth={terminalWidth - 6}
-                      spacingLines={spacingLines}
-                      forkTracking={forkTracking}
-                      starsMode={starsMode}
-                    />
-                  );
-                })
-              )}
+              {visibleItems.slice(windowed.start, windowed.end).map((repo, i) => {
+                const idx = windowed.start + i;
+                return (
+                  <RepoRow
+                    key={repo.nameWithOwner}
+                    repo={repo}
+                    selected={filterMode ? false : idx === cursor}
+                    index={idx + 1}
+                    maxWidth={terminalWidth - 6}
+                    spacingLines={spacingLines}
+                    forkTracking={forkTracking}
+                    starsMode={starsMode}
+                    theme={theme}
+                  />
+                );
+              })}
               
               {/* Background fetch-all progress indicator */}
-              {loadingMore && hasNextPage && !starsMode && !searchActive && (
+              {loadingMore && hasNextPage && !starsMode && (
                 <Box justifyContent="center" alignItems="center" marginTop={1}>
                   <Box flexDirection="row">
                     <Box width={2} flexShrink={0} flexGrow={0} marginRight={1}>
@@ -2665,7 +2449,7 @@ export default function RepoList({ token, maxVisibleRows, onLogout, viewerLogin,
                   </Box>
                 </Box>
               )}
-              {loadingMore && hasNextPage && (starsMode || searchActive) && (
+              {loadingMore && hasNextPage && starsMode && (
                 <Box justifyContent="center" alignItems="center" marginTop={1}>
                   <Box flexDirection="row">
                     <Box width={2} flexShrink={0} flexGrow={0} marginRight={1}>
@@ -2677,11 +2461,20 @@ export default function RepoList({ token, maxVisibleRows, onLogout, viewerLogin,
                   </Box>
                 </Box>
               )}
-              
-              {!loading && !searchLoading && visibleItems.length === 0 && (
+
+              {/* Hint while background fetch-all is still loading during fuzzy search */}
+              {filterActive && hasNextPage && !starsMode && (
+                <Box justifyContent="center" alignItems="center" marginTop={1}>
+                  <Text color="yellow" dimColor>
+                    Still loading repos ({items.length}/{totalCount > 0 ? totalCount : '?'}) — fuzzy results may be incomplete
+                  </Text>
+                </Box>
+              )}
+
+              {!loading && visibleItems.length === 0 && !(filterActive && hasNextPage && !starsMode) && (
                 <Box justifyContent="center" alignItems="center" flexGrow={1}>
                   <Text color="gray" dimColor>
-                    {searchActive ? 'No repositories match your search' : (filter ? 'No repositories match your filter' : 'No repositories found')}
+                    {filter ? 'No repositories match your search' : 'No repositories found'}
                   </Text>
                 </Box>
               )}
@@ -2694,34 +2487,34 @@ export default function RepoList({ token, maxVisibleRows, onLogout, viewerLogin,
       <Box marginTop={1} paddingX={1} flexDirection="column">
         {/* Line 1: Basic navigation */}
         <Box width={terminalWidth} justifyContent="center">
-          <Text color="gray" dimColor={modalOpen ? true : undefined}>
+          <Text color={theme.muted} dimColor={modalOpen ? true : undefined}>
             ↑↓ Navigate • Ctrl+G Top • G Bottom • ⏎/O Open • R Refresh
           </Text>
         </Box>
         {/* Line 2: Search and filtering */}
         <Box width={terminalWidth} justifyContent="center">
-          <Text color="gray" dimColor={modalOpen ? true : undefined}>
-            / Search • S Sort • D Direction • T Density • A Archive Filter{!starsMode && ' • V Visibility Filter'}{ownerContext === 'personal' && ' • Shift+S Stars'}
+          <Text color={theme.muted} dimColor={modalOpen ? true : undefined}>
+            / Search{!filterActive && ' • S Sort • D Direction'} • T Density • Shift+T Theme • A Archive Filter{!starsMode && ' • V Visibility Filter'}
           </Text>
         </Box>
-        {/* Line 3: Repository actions */}
+        {/* Line 3: Repository actions (stars toggle at start so it is never truncated) */}
         <Box width={terminalWidth} justifyContent="center">
-          <Text color="gray" dimColor={modalOpen ? true : undefined}>
+          <Text color={theme.muted} dimColor={modalOpen ? true : undefined}>
             {starsMode ?
-              'I Info • C Copy URL • U Unstar Repository' :
-              'I Info • C Copy URL • Ctrl+S Un/Star • Ctrl+R Rename • Ctrl+A Un/Archive • Ctrl+V Change Visibility • Ctrl+F Sync Fork • P Jump to upstream'
+              'Shift+S My Repos • I Info • C Copy URL • U Unstar Repository' :
+              `${ownerContext === 'personal' ? 'Shift+S Starred • ' : ''}I Info • C Copy URL • Ctrl+S Un/Star • Ctrl+R Rename • Ctrl+A Un/Archive • Ctrl+V Change Visibility • Ctrl+F Sync Fork • P Jump to upstream`
             }
           </Text>
         </Box>
         {/* Line 4: System controls */}
         <Box width={terminalWidth} justifyContent="center">
-          <Text color="gray" dimColor={modalOpen ? true : undefined}>
+          <Text color={theme.muted} dimColor={modalOpen ? true : undefined}>
             K Cache Info • W Org Switch • Del/Backspace Delete • Ctrl+L Logout • Q Quit
           </Text>
         </Box>
         {/* Line 5: Sponsorship */}
         <Box width={terminalWidth} justifyContent="center" marginTop={1}>
-          <Text color="yellow" dimColor={modalOpen ? true : undefined}>
+          <Text color={theme.warning} dimColor={modalOpen ? true : undefined}>
             💖 Sponsor on GitHub: github.com/sponsors/wiiiimm
           </Text>
         </Box>
@@ -2738,6 +2531,15 @@ export default function RepoList({ token, maxVisibleRows, onLogout, viewerLogin,
               <Text key={i} color="gray">{msg}</Text>
             ))
           )}
+        </Box>
+      )}
+
+      {/* Theme toast notification */}
+      {themeToast && (
+        <Box marginTop={1} justifyContent="center">
+          <Box borderStyle="round" borderColor={theme.primary} paddingX={2} paddingY={0}>
+            <Text color={theme.primary}>{themeToast}</Text>
+          </Box>
         </Box>
       )}
 
