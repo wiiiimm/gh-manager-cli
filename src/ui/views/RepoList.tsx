@@ -9,7 +9,7 @@ import type { RepoNode, RateLimitInfo, RestRateLimitInfo } from '../../types';
 import { exec } from 'child_process';
 import OrgSwitcher from '../OrgSwitcher';
 import { logger } from '../../lib/logger';
-import { DeleteModal, ArchiveModal, SyncModal, InfoModal, LogoutModal, VisibilityModal, SortModal, SortDirectionModal, ChangeVisibilityModal, CopyUrlModal, RenameModal, StarModal } from '../components/modals';
+import { ArchiveFilterModal, DeleteModal, ArchiveModal, SyncModal, InfoModal, LogoutModal, VisibilityModal, SortModal, SortDirectionModal, ChangeVisibilityModal, CopyUrlModal, RenameModal, StarModal } from '../components/modals';
 import { UnstarModal } from '../components/modals/UnstarModal';
 import { RepoRow, FilterInput, RepoListHeader } from '../components/repo';
 import { SlowSpinner } from '../components/common';
@@ -146,6 +146,9 @@ export default function RepoList({ token, maxVisibleRows, onLogout, viewerLogin,
   const [logoutMode, setLogoutMode] = useState(false);
   const [logoutFocus, setLogoutFocus] = useState<'confirm' | 'cancel'>('confirm');
   const [logoutError, setLogoutError] = useState<string | null>(null);
+
+  // Archive filter modal state
+  const [archiveFilterMode, setArchiveFilterMode] = useState(false);
 
   // Visibility modal state
   const [visibilityMode, setVisibilityMode] = useState(false);
@@ -1280,6 +1283,11 @@ export default function RepoList({ token, maxVisibleRows, onLogout, viewerLogin,
       return; // CopyUrlModal component handles its own keyboard input
     }
     
+    // When archive filter modal is open, trap inputs for modal
+    if (archiveFilterMode) {
+      return; // ArchiveFilterModal component handles its own keyboard input
+    }
+
     // When visibility modal is open, trap inputs for modal
     if (visibilityMode) {
       return; // VisibilityModal component handles its own keyboard input
@@ -1598,14 +1606,9 @@ export default function RepoList({ token, maxVisibleRows, onLogout, viewerLogin,
 
     // Fork tracking is now always on - removed toggle
 
-    // Archive filter toggle (A) - cycle All → Unarchived → Archived
+    // Open archive filter modal (A)
     if (input && input.toUpperCase() === 'A' && !key.ctrl) {
-      setArchiveFilter(f => {
-        const next: ArchiveFilter = f === 'all' ? 'unarchived' : f === 'unarchived' ? 'archived' : 'all';
-        storeUIPrefs({ archiveFilter: next });
-        return next;
-      });
-      setCursor(0);
+      setArchiveFilterMode(true);
       return;
     }
 
@@ -1798,7 +1801,7 @@ export default function RepoList({ token, maxVisibleRows, onLogout, viewerLogin,
 
   const lowRate = (rateLimit && rateLimit.remaining <= Math.ceil(rateLimit.limit * 0.1)) || 
                    (restRateLimit && restRateLimit.core.remaining <= Math.ceil(restRateLimit.core.limit * 0.1));
-  const modalOpen = deleteMode || archiveMode || syncMode || logoutMode || infoMode || visibilityMode || sortMode || sortDirectionMode || changeVisibilityMode || copyUrlMode || renameMode;
+  const modalOpen = deleteMode || archiveMode || syncMode || logoutMode || infoMode || visibilityMode || archiveFilterMode || sortMode || sortDirectionMode || changeVisibilityMode || copyUrlMode || renameMode;
 
   // Memoize header to prevent re-renders - must be before any returns
   const headerBar = useMemo(() => (
@@ -2307,6 +2310,19 @@ export default function RepoList({ token, maxVisibleRows, onLogout, viewerLogin,
               );
             })()}
           </Box>
+        ) : archiveFilterMode ? (
+          <Box height={contentHeight} alignItems="center" justifyContent="center">
+            <ArchiveFilterModal
+              currentFilter={archiveFilter}
+              onSelect={(filter) => {
+                setArchiveFilter(filter);
+                setArchiveFilterMode(false);
+                setCursor(0);
+                storeUIPrefs({ archiveFilter: filter });
+              }}
+              onCancel={() => setArchiveFilterMode(false)}
+            />
+          </Box>
         ) : visibilityMode ? (
           <Box height={contentHeight} alignItems="center" justifyContent="center">
             <VisibilityModal
@@ -2526,7 +2542,7 @@ export default function RepoList({ token, maxVisibleRows, onLogout, viewerLogin,
         {/* Line 2: Search and filtering */}
         <Box width={terminalWidth} justifyContent="center">
           <Text color="gray" dimColor={modalOpen ? true : undefined}>
-            / Search • S Sort • D Direction • T Density • A Archive{!starsMode && ' • V Visibility Filter'}{ownerContext === 'personal' && ' • Shift+S Stars'}
+            / Search • S Sort • D Direction • T Density • A Archive Filter{!starsMode && ' • V Visibility Filter'}{ownerContext === 'personal' && ' • Shift+S Stars'}
           </Text>
         </Box>
         {/* Line 3: Repository actions */}
