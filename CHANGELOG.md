@@ -1,3 +1,10 @@
+# [1.40.0](https://github.com/wiiiimm/gh-manager-cli/compare/v1.39.1...v1.40.0) (2026-06-05)
+
+
+### Features
+
+* background fetch-all pagination with light bulk query ([#50](https://github.com/wiiiimm/gh-manager-cli/issues/50)) ([932deb8](https://github.com/wiiiimm/gh-manager-cli/commit/932deb85736bf999bde3c6f4d9bab02aaece8610))
+
 ## [1.39.1](https://github.com/wiiiimm/gh-manager-cli/compare/v1.39.0...v1.39.1) (2026-06-05)
 
 
