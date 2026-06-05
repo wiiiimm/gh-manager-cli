@@ -94,8 +94,8 @@ On first run, you'll be prompted to authenticate with GitHub (OAuth recommended)
 - **Bulk Operations** (`M` to enter multi-select mode):
   - Select multiple repositories with `Space`, select all visible with `Ctrl+A`
   - Run bulk delete, archive, or unarchive on all selected repos
-  - Selections persist across search and filter changes (select from different searches, then bulk-act)
-  - Two-step confirmation: review list with ability to unselect, then count prompt before executing
+  - Selections persist across search, filter, and sort changes (select from different searches, then bulk-act)
+  - Two-step confirmation: review list with ability to unselect, then a count prompt before executing — bulk delete additionally requires typing a 4-character verification code
   - Per-repo progress reporting with partial-failure summary
 
 ### User Interface & Experience

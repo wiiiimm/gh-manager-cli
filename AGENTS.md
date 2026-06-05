@@ -79,7 +79,6 @@ gh-manager-cli/
 ### Planned Enhancements
 See the living roadmap in [TODOs.md](./TODOs.md) for the canonical, up-to-date list. Key near-term items include:
 - Repository renaming
-- Bulk selection and actions
 - Copy repository URL to clipboard
 - Optional OS keychain support (via `keytar`)
 
