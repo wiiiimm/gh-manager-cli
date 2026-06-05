@@ -78,11 +78,12 @@ On first run, you'll be prompted to authenticate with GitHub (OAuth recommended)
 - **Smart Search**: Server-side search through repository names and descriptions (3+ characters)
 - **Visibility Filter**: Modal-based visibility filter (All, Public, Private/Internal for enterprise) with smart filtering
 - **Archive Filter**: Toggle-based archive filter (`A` key cycles All → Unarchived → Archived) for quick filtering by archive status
-- **Fork Status Tracking**: Always shows commits behind upstream for forked repositories
+- **Fork Status Tracking**: Always shows commits ahead/behind upstream for forked repositories
 - **Stars Mode**: View and manage starred repositories (personal account only)
 - **Repository Actions**:
   - View detailed info (`I`) - Shows repository metadata, language, size, and timestamps
-  - Open in browser (Enter/`O`)
+  - Open in browser (Enter/`O`) — fork repos show a chooser (this repo vs upstream)
+  - Jump to upstream parent (`P`) — moves cursor to parent if loaded, otherwise fetches and shows in Info modal
   - Rename repository (`Ctrl+R`) with inline validation and automatic cache update
   - Copy repository URL to clipboard (`C`) with SSH/HTTPS options
   - Delete repository (`Del` or `Backspace`) with secure two-step confirmation
@@ -270,13 +271,14 @@ Launch the app, then use the keys below:
   - Stars: Number of stars
 - **Sort Direction**: `D` to open sort direction modal (ascending/descending)
 - **Display Density**: `T` to toggle compact/cozy/comfy
-- **Fork Status**: Always enabled - shows commits behind upstream for all forks
+- **Fork Status**: Always enabled - shows commits ahead/behind upstream for all forks
 - **Visibility Filter**: `V` opens modal (All, Public, Private/Internal for enterprise)
 - **Archive Filter**: `A` toggles archive filter (All → Unarchived → Archived)
 - **Stars Mode**: `Shift+S` (personal account only) to view starred repositories
 
 ### Navigation & Account
-- **Open in browser**: Enter or `O`
+- **Open in browser**: Enter or `O` — for non-fork repos opens directly; for forks shows a chooser (this repository vs parent/upstream); Esc cancels
+- **Jump to upstream**: `P` — on a fork row, moves cursor to the upstream parent if it is in the loaded list; otherwise fetches the parent and shows it in the Info modal
 - **Refresh**: `R`
 - **Organization switcher**: `W` to switch between personal account and organizations
 - **Logout**: `Ctrl+L`

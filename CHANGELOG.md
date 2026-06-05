@@ -1,3 +1,11 @@
+## [Unreleased]
+
+### Added
+
+* Fork rows now show commits **ahead** as well as behind upstream when fork tracking is enabled ([SWR-352](https://linear.app/stealths/issue/SWR-352))
+* `P` key on a fork row jumps cursor to the upstream parent if visible; otherwise fetches and shows the parent in the Info modal ([SWR-352](https://linear.app/stealths/issue/SWR-352))
+* Enter / `O` on a fork now shows a chooser (this repo vs parent/upstream); non-fork repos open directly as before ([SWR-352](https://linear.app/stealths/issue/SWR-352))
+
 ## [1.39.1](https://github.com/wiiiimm/gh-manager-cli/compare/v1.39.0...v1.39.1) (2026-06-05)
 
 

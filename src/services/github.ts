@@ -1083,6 +1083,63 @@ export async function getRepositoryFromCache(token: string, repositoryId: string
   }
 }
 
+export async function fetchRepositoryByOwnerName(
+  client: ReturnType<typeof makeClient>,
+  owner: string,
+  name: string,
+  includeForkTracking: boolean = true
+): Promise<RepoNode | null> {
+  const query = /* GraphQL */ `
+    query GetRepositoryByOwnerName($owner: String!, $name: String!, $includeForkTracking: Boolean!) {
+      repository(owner: $owner, name: $name) {
+        id
+        name
+        nameWithOwner
+        description
+        pushedAt
+        updatedAt
+        isPrivate
+        isArchived
+        isFork
+        visibility
+        stargazerCount
+        forkCount
+        diskUsage
+        primaryLanguage {
+          name
+          color
+        }
+        parent @include(if: $includeForkTracking) {
+          nameWithOwner
+          defaultBranchRef {
+            name
+            target {
+              ... on Commit {
+                history(first: 0) {
+                  totalCount
+                }
+              }
+            }
+          }
+        }
+        defaultBranchRef @include(if: $includeForkTracking) {
+          name
+          target {
+            ... on Commit {
+              history(first: 0) {
+                totalCount
+              }
+            }
+          }
+        }
+      }
+    }
+  `;
+
+  const result: any = await client(query, { owner, name, includeForkTracking });
+  return result.repository as RepoNode | null;
+}
+
 export async function fetchRepositoryById(
   client: ReturnType<typeof makeClient>,
   repositoryId: string,

@@ -2,14 +2,14 @@ import React, { useEffect, useMemo, useState, useRef, useCallback } from 'react'
 import { Box, Text, useApp, useInput, useStdout, Spacer, Newline } from 'ink';
 import TextInput from 'ink-text-input';
 import chalk from 'chalk';
-import { makeClient, fetchViewerReposPageUnified, searchRepositoriesUnified, deleteRepositoryRest, archiveRepositoryById, unarchiveRepositoryById, changeRepositoryVisibility, syncForkWithUpstream, getRepositoryFromCache, purgeApolloCacheFiles, inspectCacheStatus, updateCacheAfterDelete, updateCacheAfterArchive, updateCacheAfterVisibilityChange, updateCacheWithRepository, checkOrganizationIsEnterprise, OwnerAffiliation, fetchViewerOrganizations, fetchRestRateLimits, renameRepositoryById, updateCacheAfterRename, getStarredRepositories, starRepository, unstarRepository } from '../../services/github';
+import { makeClient, fetchViewerReposPageUnified, searchRepositoriesUnified, deleteRepositoryRest, archiveRepositoryById, unarchiveRepositoryById, changeRepositoryVisibility, syncForkWithUpstream, getRepositoryFromCache, purgeApolloCacheFiles, inspectCacheStatus, updateCacheAfterDelete, updateCacheAfterArchive, updateCacheAfterVisibilityChange, updateCacheWithRepository, checkOrganizationIsEnterprise, OwnerAffiliation, fetchViewerOrganizations, fetchRestRateLimits, renameRepositoryById, updateCacheAfterRename, getStarredRepositories, starRepository, unstarRepository, fetchRepositoryByOwnerName } from '../../services/github';
 import { getUIPrefs, storeUIPrefs, OwnerContext } from '../../config/config';
 import { makeApolloKey, makeSearchKey, isFresh, markFetched } from '../../services/apolloMeta';
 import type { RepoNode, RateLimitInfo, RestRateLimitInfo } from '../../types';
 import { exec } from 'child_process';
 import OrgSwitcher from '../OrgSwitcher';
 import { logger } from '../../lib/logger';
-import { ArchiveFilterModal, DeleteModal, ArchiveModal, SyncModal, InfoModal, LogoutModal, VisibilityModal, SortModal, SortDirectionModal, ChangeVisibilityModal, CopyUrlModal, RenameModal, StarModal } from '../components/modals';
+import { ArchiveFilterModal, DeleteModal, ArchiveModal, SyncModal, InfoModal, LogoutModal, VisibilityModal, SortModal, SortDirectionModal, ChangeVisibilityModal, CopyUrlModal, RenameModal, StarModal, OpenInBrowserModal } from '../components/modals';
 import { UnstarModal } from '../components/modals/UnstarModal';
 import { RepoRow, FilterInput, RepoListHeader } from '../components/repo';
 import { SlowSpinner } from '../components/common';
@@ -184,6 +184,10 @@ export default function RepoList({ token, maxVisibleRows, onLogout, viewerLogin,
   const [starTarget, setStarTarget] = useState<RepoNode | null>(null);
   const [starring, setStarring] = useState(false);
   const [starError, setStarError] = useState<string | null>(null);
+
+  // Open in browser modal state (fork chooser)
+  const [openBrowserMode, setOpenBrowserMode] = useState(false);
+  const [openBrowserTarget, setOpenBrowserTarget] = useState<RepoNode | null>(null);
 
   // Apply initial --org flag once (if provided)
   const appliedInitialOrg = useRef(false);
@@ -1364,9 +1368,15 @@ export default function RepoList({ token, maxVisibleRows, onLogout, viewerLogin,
     if (key.pageDown) setCursor(c => Math.min(c + 10, visibleItems.length - 1));
     if (key.pageUp) setCursor(c => Math.max(c - 10, 0));
     if (key.return) {
-      // Open in browser
       const repo = visibleItems[cursor];
-      if (repo) openInBrowser(`https://github.com/${repo.nameWithOwner}`);
+      if (repo) {
+        if (repo.isFork && repo.parent) {
+          setOpenBrowserTarget(repo);
+          setOpenBrowserMode(true);
+        } else {
+          openInBrowser(`https://github.com/${repo.nameWithOwner}`);
+        }
+      }
     }
     // Delete key: open delete modal (Del or Backspace)
     // Some terminals may set delete=true even for Backspace
@@ -1498,6 +1508,32 @@ export default function RepoList({ token, maxVisibleRows, onLogout, viewerLogin,
       return;
     }
 
+    // Jump to upstream/parent (P) - only for forks
+    if (input && input.toUpperCase() === 'P') {
+      const repo = visibleItems[cursor];
+      if (repo && repo.isFork && repo.parent) {
+        const parentName = repo.parent.nameWithOwner;
+        const parentIdx = visibleItems.findIndex(r => r.nameWithOwner === parentName);
+        if (parentIdx !== -1) {
+          setCursor(parentIdx);
+        } else {
+          // Parent not in visible list — fetch and show in InfoModal
+          (async () => {
+            setInfoRepo(null);
+            setInfoMode(true);
+            try {
+              const [owner, name] = parentName.split('/');
+              const fetched = await fetchRepositoryByOwnerName(client, owner, name);
+              if (fetched) setInfoRepo(fetched);
+            } catch {
+              // leave InfoModal open with null repo (shows error text)
+            }
+          })();
+        }
+      }
+      return;
+    }
+
     // Copy URL modal (C)
     if (input && input.toUpperCase() === 'C') {
       const repo = visibleItems[cursor];
@@ -1590,7 +1626,14 @@ export default function RepoList({ token, maxVisibleRows, onLogout, viewerLogin,
     // Explicit open in browser
     if (input && input.toUpperCase() === 'O') {
       const repo = visibleItems[cursor];
-      if (repo) openInBrowser(`https://github.com/${repo.nameWithOwner}`);
+      if (repo) {
+        if (repo.isFork && repo.parent) {
+          setOpenBrowserTarget(repo);
+          setOpenBrowserMode(true);
+        } else {
+          openInBrowser(`https://github.com/${repo.nameWithOwner}`);
+        }
+      }
       return;
     }
 
@@ -1801,7 +1844,7 @@ export default function RepoList({ token, maxVisibleRows, onLogout, viewerLogin,
 
   const lowRate = (rateLimit && rateLimit.remaining <= Math.ceil(rateLimit.limit * 0.1)) || 
                    (restRateLimit && restRateLimit.core.remaining <= Math.ceil(restRateLimit.core.limit * 0.1));
-  const modalOpen = deleteMode || archiveMode || syncMode || logoutMode || infoMode || visibilityMode || archiveFilterMode || sortMode || sortDirectionMode || changeVisibilityMode || copyUrlMode || renameMode;
+  const modalOpen = deleteMode || archiveMode || syncMode || logoutMode || infoMode || visibilityMode || archiveFilterMode || sortMode || sortDirectionMode || changeVisibilityMode || copyUrlMode || renameMode || openBrowserMode;
 
   // Memoize header to prevent re-renders - must be before any returns
   const headerBar = useMemo(() => (
@@ -2406,6 +2449,15 @@ export default function RepoList({ token, maxVisibleRows, onLogout, viewerLogin,
               onCancel={closeUnstarModal}
               isUnstarring={unstarring}
               error={unstarError}
+            />
+          </Box>
+        ) : openBrowserMode && openBrowserTarget ? (
+          <Box height={contentHeight} alignItems="center" justifyContent="center">
+            <OpenInBrowserModal
+              repo={openBrowserTarget}
+              terminalWidth={terminalWidth}
+              onOpen={openInBrowser}
+              onClose={() => { setOpenBrowserMode(false); setOpenBrowserTarget(null); }}
             />
           </Box>
         ) : starMode && starTarget ? (

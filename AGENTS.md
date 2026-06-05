@@ -120,7 +120,8 @@ See the living roadmap in [TODOs.md](./TODOs.md) for the canonical, up-to-date l
 - `F`: toggle fork commit tracking
 - `V`: visibility filter modal (All, Public, Private/Internal)
 - `W`: organization switcher
-- Enter or `O`: open selected repo in browser
+- Enter or `O`: open selected repo in browser (for forks: shows chooser — this repo vs parent/upstream; Esc cancels)
+- `P`: jump to upstream parent of the selected fork (moves cursor if parent is visible; otherwise fetches and shows parent in Info modal)
 - `I`: repository info modal
 - `K`: cache inspection
 - `Del` or `Backspace`: delete selected repo (two-stage confirmation)
