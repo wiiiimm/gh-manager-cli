@@ -1762,8 +1762,12 @@ export default function RepoList({ token, maxVisibleRows, onLogout, viewerLogin,
   useEffect(() => {
     const prefetchThreshold = Math.floor(visibleItems.length * 0.8);
     const nearEnd = visibleItems.length > 0 && cursor >= prefetchThreshold;
-    // When an archive filter is active and all loaded items are filtered out, keep fetching
-    const filterDrainedPage = visibleItems.length === 0 && archiveFilter !== 'all';
+    // Raw (pre-filter) list length for the active mode — guards against firing during a context
+    // switch where items was cleared to [] before loading was set to true.
+    const rawItemsLength = starsMode ? starredItems.length : searchActive ? searchItems.length : items.length;
+    // When an archive filter is active and all loaded items are filtered out, keep fetching.
+    // Require rawItemsLength > 0 to avoid a spurious fetch on stale hasNextPage/endCursor.
+    const filterDrainedPage = visibleItems.length === 0 && archiveFilter !== 'all' && rawItemsLength > 0;
     const shouldFetch = nearEnd || filterDrainedPage;
 
     if (starsMode) {
@@ -1783,7 +1787,7 @@ export default function RepoList({ token, maxVisibleRows, onLogout, viewerLogin,
       }
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [cursor, visibleItems.length, archiveFilter, starsMode, starredLoading, starredHasNextPage, starredEndCursor, searchActive, searchLoading, searchHasNextPage, searchEndCursor, loading, loadingMore, hasNextPage, endCursor]);
+  }, [cursor, visibleItems.length, archiveFilter, items.length, starredItems.length, searchItems.length, starsMode, starredLoading, starredHasNextPage, starredEndCursor, searchActive, searchLoading, searchHasNextPage, searchEndCursor, loading, loadingMore, hasNextPage, endCursor]);
 
   // Helper: open URL in default browser (cross-platform best-effort)
   function openInBrowser(url: string) {
