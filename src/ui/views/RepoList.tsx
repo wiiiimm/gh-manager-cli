@@ -733,7 +733,10 @@ export default function RepoList({ token, maxVisibleRows, onLogout, viewerLogin,
     );
 
     if (unenriched.length === 0) return;
-    if (enrichingForks) return;
+    // No re-entrancy guard on `enrichingForks` here: React always runs the
+    // cleanup (setting `cancelled`) before re-running this effect, so two
+    // un-cancelled passes can never overlap. Gating on the UI flag was what
+    // left it stuck `true` after a torn-down pass.
 
     let cancelled = false;
     setEnrichingForks(true);
@@ -745,7 +748,8 @@ export default function RepoList({ token, maxVisibleRows, onLogout, viewerLogin,
         const BATCH_SIZE = 5;
         for (let i = 0; i < unenriched.length; i += BATCH_SIZE) {
           if (cancelled) break;
-          const batch = unenriched.slice(i, i + BATCH_SIZE).map(r => ({
+          const slice = unenriched.slice(i, i + BATCH_SIZE);
+          const batch = slice.map(r => ({
             id: r.id,
             parentNameWithOwner: r.parent!.nameWithOwner,
           }));
@@ -754,12 +758,17 @@ export default function RepoList({ token, maxVisibleRows, onLogout, viewerLogin,
 
           if (cancelled) break;
 
+          // Mark every fork in the batch as processed — even ones that came
+          // back with null/missing counts — so a failed lookup isn't retried
+          // forever (the effect would otherwise re-fire on the next items
+          // change with these still "unenriched").
+          slice.forEach(r => enrichmentDoneRef.current.add(r.id));
+
           // Merge history counts back into items
           setItems(prev => prev.map(repo => {
             const hit = enriched.find(e => e.id === repo.id);
             if (!hit || hit.forkHistoryCount === null || hit.parentHistoryCount === null) return repo;
 
-            enrichmentDoneRef.current.add(repo.id);
             return {
               ...repo,
               defaultBranchRef: repo.defaultBranchRef ? {
@@ -790,11 +799,13 @@ export default function RepoList({ token, maxVisibleRows, onLogout, viewerLogin,
       } catch (err: any) {
         logger.error('Fork enrichment failed', { error: err.message });
       } finally {
+        // Only clear when this pass wasn't torn down; a cancelled pass has the
+        // flag reset by the cleanup below so it can never stick `true`.
         if (!cancelled) setEnrichingForks(false);
       }
     })();
 
-    return () => { cancelled = true; };
+    return () => { cancelled = true; setEnrichingForks(false); };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [loading, loadingMore, hasNextPage, items.length, forkTracking]);
 
@@ -878,6 +889,12 @@ export default function RepoList({ token, maxVisibleRows, onLogout, viewerLogin,
         privacy
       );
       
+      // A fresh list load (refresh, sort change, org switch, first page)
+      // replaces items with un-enriched nodes — clear the enrichment tracker
+      // so forks get their ahead/behind counts recomputed against the new data.
+      if (reset || !after) {
+        enrichmentDoneRef.current.clear();
+      }
       setItems(prev => (reset || !after ? page.nodes : [...prev, ...page.nodes]));
       setEndCursor(page.endCursor);
       setHasNextPage(page.hasNextPage);
