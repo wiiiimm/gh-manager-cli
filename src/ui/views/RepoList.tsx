@@ -13,7 +13,7 @@ import { ArchiveFilterModal, DeleteModal, ArchiveModal, SyncModal, InfoModal, Lo
 import { UnstarModal } from '../components/modals/UnstarModal';
 import { RepoRow, FilterInput, RepoListHeader } from '../components/repo';
 import { SlowSpinner } from '../components/common';
-import { truncate, formatDate, copyToClipboard } from '../../lib/utils';
+import { truncate, formatDate, copyToClipboard, computeWindow } from '../../lib/utils';
 
 // Allow customizable repos per fetch via env var (1-50, default 15)
 const getPageSize = () => {
@@ -1710,10 +1710,13 @@ export default function RepoList({ token, maxVisibleRows, onLogout, viewerLogin,
   }, [searchActive, searchItems.length, visibleItems.length, filter]);
   
 
-  // Keep cursor in range when data changes
+  // Keep cursor in range when data changes. Clamp against the *visible*
+  // (post-filter) item count, otherwise an active archive/visibility filter
+  // can leave the cursor past the end of visibleItems and crash the window
+  // calculation when it dereferences a non-existent row.
   useEffect(() => {
-    setCursor(c => Math.min(c, Math.max(0, (searchActive ? searchItems.length : items.length) - 1)));
-  }, [searchActive, searchItems.length, items.length]);
+    setCursor(c => Math.min(c, Math.max(0, visibleItems.length - 1)));
+  }, [searchActive, searchItems.length, items.length, visibleItems.length]);
 
   // Calculate fixed heights for layout sections and list area
   const headerHeight = 2; // Header bar + margin
@@ -1724,23 +1727,11 @@ export default function RepoList({ token, maxVisibleRows, onLogout, viewerLogin,
 
   const spacingLines = density; // map density to spacer lines
 
-  // Virtualize list: compute window around cursor if maxVisibleRows provided
-  const windowed = useMemo(() => {
-    const total = visibleItems.length;
-    // Approximate lines: name + stats + optional description (assume 3) + spacing lines
-    const LINES_PER_REPO = 3 + spacingLines;
-    const visibleRepos = Math.max(1, Math.floor(listHeight / LINES_PER_REPO));
-    
-    if (visibleRepos >= total) return { start: 0, end: total };
-    
-    // Add buffer zone to reduce re-renders when scrolling
-    const buffer = 2;
-    const half = Math.floor(visibleRepos / 2);
-    let start = Math.max(0, cursor - half - buffer);
-    start = Math.min(start, Math.max(0, total - visibleRepos));
-    const end = Math.min(total, start + visibleRepos + buffer);
-    return { start, end };
-  }, [visibleItems.length, cursor, listHeight, spacingLines]);
+  // Virtualize list: compute window around cursor
+  const windowed = useMemo(
+    () => computeWindow(visibleItems, cursor, listHeight, spacingLines),
+    [visibleItems, cursor, listHeight, spacingLines],
+  );
 
   // Single pagination model (SWR-360): background fetch-all.
   // Owned repos and starred repos eagerly load the entire set in the background —
