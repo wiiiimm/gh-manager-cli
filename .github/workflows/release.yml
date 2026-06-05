@@ -177,13 +177,20 @@ jobs:
           echo "version=${VERSION}" >> $GITHUB_OUTPUT
           echo "Version: ${VERSION}"
           
-          # Extract changelog for this version
+          # Extract changelog for this version.
+          # NOTE: a naive awk range "/start/,/end/" collapses to a single line here,
+          # because the version's own heading also matches the generic version-number
+          # end pattern. Use a flag-based scan that consumes the start heading before
+          # testing for the next version heading.
           if [ -f "CHANGELOG.md" ]; then
-            # Extract content between this version and the previous version
-            CHANGELOG=$(awk "/^#+ \[?${VERSION}\]?/,/^#+ \[?[0-9]+\.[0-9]+\.[0-9]+\]?/" CHANGELOG.md | head -n -1)
+            CHANGELOG=$(awk -v ver="$VERSION" '
+              BEGIN { gsub(/\./, "\\.", ver) }   # match version dots literally, not as regex wildcards
+              !started && $0 ~ ("^#+ \\[?" ver "\\]?") { started=1; print; next }
+              started && /^#+ \[?[0-9]+\.[0-9]+\.[0-9]+\]?/ { exit }
+              started { print }
+            ' CHANGELOG.md)
             if [ -z "$CHANGELOG" ]; then
-              # Fallback: try to get content after version heading
-              CHANGELOG=$(awk "/^#+ \[?${VERSION}\]?/,/^$/{print}" CHANGELOG.md)
+              CHANGELOG="# Release v${VERSION}"
             fi
             # Save to file for GitHub release
             echo "$CHANGELOG" > release_notes.md
