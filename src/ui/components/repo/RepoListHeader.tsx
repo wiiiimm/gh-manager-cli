@@ -1,7 +1,6 @@
 import React from 'react';
 import { Box, Text } from 'ink';
 import { OwnerContext } from '../../../config/config';
-import { SlowSpinner } from '../common';
 
 interface RepoListHeaderProps {
   ownerContext: OwnerContext;
@@ -9,8 +8,7 @@ interface RepoListHeaderProps {
   sortDir: 'asc' | 'desc';
   forkTracking: boolean;
   filter: string;
-  searchActive: boolean;
-  searchLoading: boolean;
+  filterActive: boolean;
   visibilityFilter?: 'all' | 'public' | 'private' | 'internal';
   archiveFilter?: 'all' | 'unarchived' | 'archived';
   isEnterprise?: boolean;
@@ -23,8 +21,7 @@ export default function RepoListHeader({
   sortDir,
   forkTracking,
   filter,
-  searchActive,
-  searchLoading,
+  filterActive,
   visibilityFilter = 'all',
   archiveFilter = 'all',
   isEnterprise = false,
@@ -70,20 +67,9 @@ export default function RepoListHeader({
           Archive: {archiveFilter === 'archived' ? 'Archived' : 'Unarchived'}
         </Text>
       )}
-      {filter && !searchActive && (
-        <Text color="cyan">Filter: "{filter}"</Text>
-      )}
-      {searchActive && (
-        <>
-          <Text color="cyan">Search: "{filter.trim()}"</Text>
-          {searchLoading && (
-            <Box marginLeft={1}>
-              <Text color="cyan"><SlowSpinner /> Searching…</Text>
-            </Box>
-          )}
-        </>
+      {filterActive && (
+        <Text color="cyan">Search: "{filter.trim()}"</Text>
       )}
     </Box>
   );
 }
-

@@ -1,3 +1,9 @@
+## [Unreleased]
+
+### Added
+
+- Fuzzy repository search (local, over full cached set): instant, typo-tolerant filtering powered by `fuse.js` — no network calls in the search path. Weighted across `name`, `nameWithOwner`, `description`, and `primaryLanguage.name`. While the background fetch-all is still in progress, a hint indicates results may be incomplete. Clearing the query restores the normal sorted list. ([SWR-361](https://linear.app/stealths/issue/SWR-361/fuzzy-repository-search-local-over-full-cached-set))
+
 ## [1.40.1](https://github.com/wiiiimm/gh-manager-cli/compare/v1.40.0...v1.40.1) (2026-06-05)
 
 

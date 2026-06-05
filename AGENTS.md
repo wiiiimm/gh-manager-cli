@@ -68,7 +68,7 @@ gh-manager-cli/
 - List personal and organization repos with metadata (name, description, stars, forks, etc.)
 - Full keyboard navigation with extensive shortcuts
 - Background fetch-all: whole account loaded into the persisted cache after the first page
-- Server-side search with Apollo Client caching
+- Fuzzy search (local, over full cached set) with fuse.js — instant, no network calls in search path
 - Repository actions: delete, archive/unarchive, change visibility, sync forks
 - Organization and Enterprise GitHub support
 - Modal-based UI for sorting, filtering, and actions
@@ -104,7 +104,7 @@ See the living roadmap in [TODOs.md](./TODOs.md) for the canonical, up-to-date l
 
 - GraphQL query against `viewer.repositories` with `ownerAffiliations: OWNER` and `orderBy: UPDATED_AT DESC`.
 - Page size: 100 per request (default; configurable 1-100 via `REPOS_PER_FETCH`).
-- **Single pagination model — background fetch-all:** the first page renders immediately, then a background loop fetches every remaining page until `hasNextPage` is false, appending into the persisted cache. There is no scroll-position prefetch trigger for the owned/starred lists; the load is continuous and driven by the effect re-running as the list grows. (Server-side search remains lazy/per-query.)
+- **Single pagination model — background fetch-all:** the first page renders immediately, then a background loop fetches every remaining page until `hasNextPage` is false, appending into the persisted cache. There is no scroll-position prefetch trigger for the owned/starred lists; the load is continuous and driven by the effect re-running as the list grows.
 - Because the full set is cached, **sorting is client-side** (`filteredAndSorted`) with no server refetch on sort change; archive/visibility (private) filtering is also client-side.
 - On each page fetch, also read `totalCount` to reflect newly created repos and to show background-load progress (`loaded/total`).
 - Selected fields: name/nameWithOwner/description/visibility/isPrivate/isFork/isArchived/stargazerCount/forkCount/primaryLanguage/updatedAt/pushedAt/diskUsage, plus `parent { nameWithOwner }` and `defaultBranchRef { name }`.
@@ -116,7 +116,7 @@ See the living roadmap in [TODOs.md](./TODOs.md) for the canonical, up-to-date l
 - PageUp/PageDown: jump ±10
 - `Ctrl+G`: jump to top
 - `G`: jump to bottom
-- `/`: search mode (3+ characters for server-side search, Esc cancels)
+- `/`: fuzzy search mode (instant, typo-tolerant, no minimum length; searches name/owner/description/language over the full cached set; Esc cancels)
 - `S`: sort modal (updated, pushed, name, stars)
 - `D`: toggle sort direction
 - `T`: toggle display density (compact/cozy/comfy)
