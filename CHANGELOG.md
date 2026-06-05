@@ -1,3 +1,10 @@
+## [1.40.2](https://github.com/wiiiimm/gh-manager-cli/compare/v1.40.1...v1.40.2) (2026-06-05)
+
+
+### Bug Fixes
+
+* stars toggle footer hint truncation and contextual labels (SWR-359) ([#52](https://github.com/wiiiimm/gh-manager-cli/issues/52)) ([f19ca6f](https://github.com/wiiiimm/gh-manager-cli/commit/f19ca6f4ba81b71133ddc7e5e98df67191d348b0))
+
 ## [1.40.1](https://github.com/wiiiimm/gh-manager-cli/compare/v1.40.0...v1.40.1) (2026-06-05)
 
 
