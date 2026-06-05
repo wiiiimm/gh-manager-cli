@@ -563,20 +563,17 @@ export default function RepoList({ token, maxVisibleRows, onLogout, viewerLogin,
           await deleteRepositoryRest(token, owner, repoName);
           await updateCacheAfterDelete(token, repo.id);
           setItems(prev => prev.filter(r => r.id !== repo.id));
-          setSearchItems(prev => prev.filter(r => r.id !== repo.id));
           setTotalCount(c => Math.max(0, c - 1));
         } else if (action === 'archive') {
           await archiveRepositoryById(client, repo.id);
           await updateCacheAfterArchive(token, repo.id, true);
           const updateRepo = (r: RepoNode) => r.id === repo.id ? { ...r, isArchived: true } : r;
           setItems(prev => prev.map(updateRepo));
-          setSearchItems(prev => prev.map(updateRepo));
         } else if (action === 'unarchive') {
           await unarchiveRepositoryById(client, repo.id);
           await updateCacheAfterArchive(token, repo.id, false);
           const updateRepo = (r: RepoNode) => r.id === repo.id ? { ...r, isArchived: false } : r;
           setItems(prev => prev.map(updateRepo));
-          setSearchItems(prev => prev.map(updateRepo));
         }
         trackSuccessfulOperation();
       } catch (e: any) {
