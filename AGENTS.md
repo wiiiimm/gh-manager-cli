@@ -131,6 +131,8 @@ See the living roadmap in [TODOs.md](./TODOs.md) for the canonical, up-to-date l
 - `Ctrl+V`: change repository visibility
 - `Ctrl+S`: sync fork with upstream
 - `Ctrl+L`: logout (returns to Authentication Required)
+- `Shift+S`: toggle between own repos and starred repos (personal context only)
+  - Footer hint shows `Shift+S Starred` in normal mode and `Shift+S My Repos` in starred mode; hidden in org context
 - `R`: refresh list (purges cache)
 - `Q`: quit (Esc cancels an open modal or exits search mode; does not quit)
 
