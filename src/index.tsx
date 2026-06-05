@@ -6,6 +6,7 @@ import pkg from '../package.json';
 import 'dotenv/config';
 import App from './ui/App';
 import { logger } from './lib/logger';
+import { formatSessionSummary } from './lib/session';
 
 // Basic CLI flags (handled before rendering Ink)
 const argv = process.argv.slice(2);
@@ -82,10 +83,10 @@ const handleShutdown = (signal: string) => {
   process.exit(0);
 };
 
-// Function to show sponsorship message
+// Function to show session summary and sponsorship message
 const showSponsorshipMessage = () => {
-  console.log('\n' + '─'.repeat(60));
-  console.log('\n💚 Thank you for using gh-manager-cli!\n');
+  process.stdout.write(formatSessionSummary());
+  console.log('💚 Thank you for using gh-manager-cli!\n');
   console.log('If this app saved you time, please consider supporting');
   console.log('the development of more open-source projects like this:\n');
   console.log('  💖 Sponsor on GitHub: https://github.com/sponsors/wiiiimm');

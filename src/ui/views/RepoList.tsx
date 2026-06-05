@@ -17,6 +17,7 @@ import { UnstarModal } from '../components/modals/UnstarModal';
 import { RepoRow, FilterInput, RepoListHeader } from '../components/repo';
 import { SlowSpinner } from '../components/common';
 import { truncate, formatDate, copyToClipboard, computeWindow } from '../../lib/utils';
+import { trackOperation } from '../../lib/session';
 
 // Allow customizable repos per fetch via env var (1-50, default 15)
 const getPageSize = () => {
@@ -305,14 +306,15 @@ export default function RepoList({ token, maxVisibleRows, onLogout, viewerLogin,
       const targetId = (unstarTarget as any).id;
       
       await unstarRepository(client, targetId);
-      
+
       // Remove from starred items list
       setStarredItems(prev => prev.filter((r: any) => r.id !== targetId));
       setStarredTotalCount(c => Math.max(0, c - 1));
-      
+
       // Adjust cursor if needed
       setCursor(c => Math.max(0, Math.min(c, starredItems.length - 2)));
-      
+
+      trackOperation('unstar');
       trackSuccessfulOperation();
       
       // Close modal
@@ -374,6 +376,7 @@ export default function RepoList({ token, maxVisibleRows, onLogout, viewerLogin,
       
       setItems(prev => prev.map(updateRepo));
 
+      trackOperation(isStarred ? 'unstar' : 'star');
       trackSuccessfulOperation();
 
       // Close modal
@@ -448,6 +451,8 @@ export default function RepoList({ token, maxVisibleRows, onLogout, viewerLogin,
         return r;
       };
       setItems(prev => prev.map(updateSyncedRepo));
+      trackOperation('syncFork');
+      trackSuccessfulOperation();
       closeSyncModal();
     } catch (e: any) {
       setSyncing(false);
@@ -477,7 +482,8 @@ export default function RepoList({ token, maxVisibleRows, onLogout, viewerLogin,
       const updateRepo = (r: any) => (r.id === id ? { ...r, isArchived: !isArchived } : r);
       setItems(prev => prev.map(updateRepo));
 
-      trackSuccessfulOperation(); // Track the successful operation
+      trackOperation(isArchived ? 'unarchive' : 'archive');
+      trackSuccessfulOperation();
       closeArchiveModal();
     } catch (e) {
       setArchiving(false);
@@ -503,6 +509,8 @@ export default function RepoList({ token, maxVisibleRows, onLogout, viewerLogin,
       const updateRepo = (r: any) => (r.id === id ? { ...r, name: newName, nameWithOwner: newNameWithOwner } : r);
       setItems(prev => prev.map(updateRepo));
 
+      trackOperation('rename');
+      trackSuccessfulOperation();
       closeRenameModal();
     } catch (error: any) {
       throw error; // Let the modal handle the error
@@ -592,6 +600,8 @@ export default function RepoList({ token, maxVisibleRows, onLogout, viewerLogin,
         setItems(prev => prev.map(updateRepo));
       }
       
+      trackOperation('visibilityChange');
+      trackSuccessfulOperation();
       closeChangeVisibilityModal();
     } catch (e: any) {
       setChangingVisibility(false);
@@ -682,7 +692,8 @@ export default function RepoList({ token, maxVisibleRows, onLogout, viewerLogin,
       // Update counts
       setTotalCount((c) => Math.max(0, c - 1));
       
-      trackSuccessfulOperation(); // Track the successful operation
+      trackOperation('delete');
+      trackSuccessfulOperation();
       setDeleteMode(false);
       setDeleteTarget(null);
       setTypedCode('');
