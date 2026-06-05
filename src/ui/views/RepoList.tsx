@@ -728,6 +728,10 @@ export default function RepoList({ token, maxVisibleRows, onLogout, viewerLogin,
   const [visibilityFilter, setVisibilityFilter] = useState<VisibilityFilter>('all');
   const previousVisibilityFilter = useRef<VisibilityFilter>('all');
 
+  // Archive filter - 'all' | 'unarchived' | 'archived'
+  type ArchiveFilter = 'all' | 'unarchived' | 'archived';
+  const [archiveFilter, setArchiveFilter] = useState<ArchiveFilter>('all');
+
   // Map our sort keys to GitHub's GraphQL field names
   const sortFieldMap: Record<SortKey, string> = {
     'updated': 'UPDATED_AT',
@@ -937,6 +941,11 @@ export default function RepoList({ token, maxVisibleRows, onLogout, viewerLogin,
     // Load visibility filter
     if (ui.visibilityFilter && ['all', 'public', 'private', 'internal'].includes(ui.visibilityFilter)) {
       setVisibilityFilter(ui.visibilityFilter as VisibilityFilter);
+    }
+
+    // Load archive filter
+    if (ui.archiveFilter && ['all', 'unarchived', 'archived'].includes(ui.archiveFilter)) {
+      setArchiveFilter(ui.archiveFilter as ArchiveFilter);
     }
     
     // Load organization context
@@ -1588,7 +1597,18 @@ export default function RepoList({ token, maxVisibleRows, onLogout, viewerLogin,
     }
 
     // Fork tracking is now always on - removed toggle
-    
+
+    // Archive filter toggle (A) - cycle All → Unarchived → Archived
+    if (input && input.toUpperCase() === 'A' && !key.ctrl) {
+      setArchiveFilter(f => {
+        const next: ArchiveFilter = f === 'all' ? 'unarchived' : f === 'unarchived' ? 'archived' : 'all';
+        storeUIPrefs({ archiveFilter: next });
+        return next;
+      });
+      setCursor(0);
+      return;
+    }
+
     // Open visibility filter modal (V) - disabled in stars mode
     if (input && input.toUpperCase() === 'V') {
       if (!starsMode) {
@@ -1612,6 +1632,13 @@ export default function RepoList({ token, maxVisibleRows, onLogout, viewerLogin,
     }
     // Note: Public filtering is done at the API level and works correctly
     
+    // Apply archive filter
+    if (archiveFilter === 'archived') {
+      result = result.filter(r => r.isArchived);
+    } else if (archiveFilter === 'unarchived') {
+      result = result.filter(r => !r.isArchived);
+    }
+
     // Apply text filter
     const q = filter.trim().toLowerCase();
     if (q) {
@@ -1620,9 +1647,9 @@ export default function RepoList({ token, maxVisibleRows, onLogout, viewerLogin,
         (r.description ? r.description.toLowerCase().includes(q) : false)
       );
     }
-    
+
     return result;
-  }, [items, filter, visibilityFilter]);
+  }, [items, filter, visibilityFilter, archiveFilter]);
 
   const filteredAndSorted = useMemo(() => {
     const arr = [...filtered];
@@ -1651,28 +1678,43 @@ export default function RepoList({ token, maxVisibleRows, onLogout, viewerLogin,
   // Apply visibility filter to search results too
   const filteredSearchItems = useMemo(() => {
     let result = searchItems;
-    
+
     // Match GitHub's behavior: Private filter includes both PRIVATE and INTERNAL
     if (visibilityFilter === 'private') {
-      // Show both PRIVATE and INTERNAL repos (matching GitHub's behavior)
       result = result.filter(r => r.visibility === 'PRIVATE' || r.visibility === 'INTERNAL');
     } else if (visibilityFilter === 'public') {
       result = result.filter(r => r.visibility === 'PUBLIC');
     }
-    
+
+    if (archiveFilter === 'archived') {
+      result = result.filter(r => r.isArchived);
+    } else if (archiveFilter === 'unarchived') {
+      result = result.filter(r => !r.isArchived);
+    }
+
     return result;
-  }, [searchItems, visibilityFilter]);
+  }, [searchItems, visibilityFilter, archiveFilter]);
   
   // Apply filter to starred items if in stars mode
   const filteredStarredItems = useMemo(() => {
-    if (!filter || filter.trim().length === 0) return starredItems;
-    
-    const lowerFilter = filter.toLowerCase();
-    return starredItems.filter(repo => 
-      repo.nameWithOwner.toLowerCase().includes(lowerFilter) ||
-      (repo.description && repo.description.toLowerCase().includes(lowerFilter))
-    );
-  }, [starredItems, filter]);
+    let result = starredItems;
+
+    if (filter && filter.trim().length > 0) {
+      const lowerFilter = filter.toLowerCase();
+      result = result.filter(repo =>
+        repo.nameWithOwner.toLowerCase().includes(lowerFilter) ||
+        (repo.description && repo.description.toLowerCase().includes(lowerFilter))
+      );
+    }
+
+    if (archiveFilter === 'archived') {
+      result = result.filter(r => r.isArchived);
+    } else if (archiveFilter === 'unarchived') {
+      result = result.filter(r => !r.isArchived);
+    }
+
+    return result;
+  }, [starredItems, filter, archiveFilter]);
   
   const visibleItems = starsMode ? filteredStarredItems : (searchActive ? filteredSearchItems : filteredAndSorted);
   
@@ -2368,6 +2410,7 @@ export default function RepoList({ token, maxVisibleRows, onLogout, viewerLogin,
               searchActive={searchActive}
               searchLoading={searchLoading}
               visibilityFilter={visibilityFilter}
+              archiveFilter={archiveFilter}
               isEnterprise={isEnterpriseOrg}
               starsMode={starsMode}
             />
@@ -2477,7 +2520,7 @@ export default function RepoList({ token, maxVisibleRows, onLogout, viewerLogin,
         {/* Line 2: Search and filtering */}
         <Box width={terminalWidth} justifyContent="center">
           <Text color="gray" dimColor={modalOpen ? true : undefined}>
-            / Search • S Sort • D Direction • T Density{!starsMode && ' • V Visibility Filter'}{ownerContext === 'personal' && ' • Shift+S Stars'}
+            / Search • S Sort • D Direction • T Density • A Archive{!starsMode && ' • V Visibility Filter'}{ownerContext === 'personal' && ' • Shift+S Stars'}
           </Text>
         </Box>
         {/* Line 3: Repository actions */}

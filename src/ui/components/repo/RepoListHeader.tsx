@@ -12,6 +12,7 @@ interface RepoListHeaderProps {
   searchActive: boolean;
   searchLoading: boolean;
   visibilityFilter?: 'all' | 'public' | 'private' | 'internal';
+  archiveFilter?: 'all' | 'unarchived' | 'archived';
   isEnterprise?: boolean;
   starsMode?: boolean;
 }
@@ -25,6 +26,7 @@ export default function RepoListHeader({
   searchActive,
   searchLoading,
   visibilityFilter = 'all',
+  archiveFilter = 'all',
   isEnterprise = false,
   starsMode = false
 }: RepoListHeaderProps) {
@@ -61,6 +63,11 @@ export default function RepoListHeader({
       {!!visibilityLabel && !starsMode && (
         <Text color="yellow">
           Visibility: {visibilityLabel}
+        </Text>
+      )}
+      {archiveFilter !== 'all' && !starsMode && (
+        <Text color="cyan">
+          Archive: {archiveFilter === 'archived' ? 'Archived' : 'Unarchived'}
         </Text>
       )}
       {filter && !searchActive && (
