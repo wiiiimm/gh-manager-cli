@@ -1556,11 +1556,24 @@ export default function RepoList({ token, maxVisibleRows, onLogout, viewerLogin,
     if (input && input.toUpperCase() === 'P') {
       const repo = visibleItems[cursor];
       if (repo && repo.isFork && repo.parent?.nameWithOwner) {
-        const parentIdx = visibleItems.findIndex(r => r.nameWithOwner === repo.parent!.nameWithOwner);
+        const parentName = repo.parent.nameWithOwner;
+        const parentIdx = visibleItems.findIndex(r => r.nameWithOwner === parentName);
         if (parentIdx >= 0) {
+          // Parent is visible — move the cursor to it.
           setCursor(parentIdx);
         } else {
-          jumpToUpstreamRepo(repo.parent.nameWithOwner);
+          // Not visible. It may still be loaded (in items/starredItems) but
+          // hidden by a search/archive/visibility filter — prefer that cached
+          // copy and open it in Info, only fetching when it isn't loaded at all.
+          const cachedParent =
+            items.find(r => r.nameWithOwner === parentName) ||
+            starredItems.find(r => r.nameWithOwner === parentName);
+          if (cachedParent) {
+            setInfoRepo(cachedParent);
+            setInfoMode(true);
+          } else {
+            jumpToUpstreamRepo(parentName);
+          }
         }
       }
       return;
