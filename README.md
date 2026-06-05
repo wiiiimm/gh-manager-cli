@@ -75,7 +75,7 @@ On first run, you'll be prompted to authenticate with GitHub (OAuth recommended)
 - **Repository Listing**: Browse all your personal repositories with metadata (stars, forks, language, etc.)
 - **Background Fetch-All**: Loads your entire account in the background after the first page, so filtering/sorting/search are instant and complete
 - **Interactive Sorting**: Modal-based sort selection (updated, pushed, name, stars) with modal-based direction selection
-- **Smart Search**: Server-side search through repository names and descriptions (3+ characters)
+- **Fuzzy Search**: Instant typo-tolerant search over the full cached repository set — no network calls in the search path (powered by [fuse.js](https://www.fusejs.io/))
 - **Visibility Filter**: Modal-based visibility filter (All, Public, Private/Internal for enterprise) with smart filtering
 - **Archive Filter**: Toggle-based archive filter (`A` key cycles All → Unarchived → Archived) for quick filtering by archive status
 - **Fork Status Tracking**: Always shows commits behind upstream for forked repositories
