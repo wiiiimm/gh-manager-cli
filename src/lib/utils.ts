@@ -24,6 +24,92 @@ export function formatDate(dateStr: string): string {
 }
 
 /**
+ * Compute the virtualization window for the repository list.
+ *
+ * In compact mode (spacingLines === 0) repo rows have variable heights:
+ *   - 3 terminal lines when the repo has a description
+ *   - 2 terminal lines when it does not
+ *
+ * In cozy/comfy modes (spacingLines > 0) every row has a fixed height of
+ * 3 content lines + spacingLines padding lines.
+ *
+ * Returns the half-open interval [start, end) of items to render, with a
+ * small read-ahead buffer on each side to reduce re-renders while scrolling.
+ */
+export function computeWindow(
+  items: { description?: string | null }[],
+  cursor: number,
+  listHeight: number,
+  spacingLines: number,
+  buffer = 2,
+): { start: number; end: number } {
+  const total = items.length;
+
+  if (spacingLines > 0) {
+    // Fixed row height for cozy / comfy densities
+    const LINES_PER_REPO = 3 + spacingLines;
+    const visibleRepos = Math.max(1, Math.floor(listHeight / LINES_PER_REPO));
+
+    if (visibleRepos >= total) return { start: 0, end: total };
+
+    const half = Math.floor(visibleRepos / 2);
+    let start = Math.max(0, cursor - half - buffer);
+    start = Math.min(start, Math.max(0, total - visibleRepos));
+    const end = Math.min(total, start + visibleRepos + buffer);
+    return { start, end };
+  }
+
+  // Compact mode: variable row heights based on description presence
+  const rowHeight = (idx: number) => (items[idx].description ? 3 : 2);
+
+  // Fast paths to avoid a full scan when the answer is obvious
+  if (total * 3 <= listHeight) return { start: 0, end: total }; // all fit at max height
+
+  if (total * 2 <= listHeight) {
+    // May or may not fit — count actual lines
+    let totalLines = 0;
+    for (let i = 0; i < total; i++) totalLines += rowHeight(i);
+    if (totalLines <= listHeight) return { start: 0, end: total };
+  }
+
+  // Center the window on the cursor using actual per-row heights
+  const halfHeight = Math.floor(listHeight / 2);
+
+  // Walk backward from cursor to find the window start
+  let start = cursor;
+  let accBack = 0;
+  while (start > 0) {
+    const h = rowHeight(start - 1);
+    if (accBack + h > halfHeight) break;
+    accBack += h;
+    start--;
+  }
+
+  // Walk forward from start to find the window end
+  let end = start;
+  let accFwd = 0;
+  while (end < total) {
+    const h = rowHeight(end);
+    if (accFwd + h > listHeight) break;
+    accFwd += h;
+    end++;
+  }
+
+  // When the cursor is near the bottom, extend start backward to pack the view
+  if (end >= total) {
+    let accFill = accFwd;
+    while (start > 0) {
+      const h = rowHeight(start - 1);
+      if (accFill + h > listHeight) break;
+      accFill += h;
+      start--;
+    }
+  }
+
+  return { start: Math.max(0, start - buffer), end: Math.min(total, end + buffer) };
+}
+
+/**
  * Copies text to clipboard using multiple fallback strategies
  */
 export async function copyToClipboard(text: string): Promise<void> {

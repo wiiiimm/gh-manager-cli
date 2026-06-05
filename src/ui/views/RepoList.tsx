@@ -13,7 +13,7 @@ import { ArchiveFilterModal, DeleteModal, ArchiveModal, SyncModal, InfoModal, Lo
 import { UnstarModal } from '../components/modals/UnstarModal';
 import { RepoRow, FilterInput, RepoListHeader } from '../components/repo';
 import { SlowSpinner } from '../components/common';
-import { truncate, formatDate, copyToClipboard } from '../../lib/utils';
+import { truncate, formatDate, copyToClipboard, computeWindow } from '../../lib/utils';
 
 // Allow customizable repos per fetch via env var (1-50, default 15)
 const getPageSize = () => {
@@ -1743,23 +1743,11 @@ export default function RepoList({ token, maxVisibleRows, onLogout, viewerLogin,
 
   const spacingLines = density; // map density to spacer lines
 
-  // Virtualize list: compute window around cursor if maxVisibleRows provided
-  const windowed = useMemo(() => {
-    const total = visibleItems.length;
-    // Approximate lines: name + stats + optional description (assume 3) + spacing lines
-    const LINES_PER_REPO = 3 + spacingLines;
-    const visibleRepos = Math.max(1, Math.floor(listHeight / LINES_PER_REPO));
-    
-    if (visibleRepos >= total) return { start: 0, end: total };
-    
-    // Add buffer zone to reduce re-renders when scrolling
-    const buffer = 2;
-    const half = Math.floor(visibleRepos / 2);
-    let start = Math.max(0, cursor - half - buffer);
-    start = Math.min(start, Math.max(0, total - visibleRepos));
-    const end = Math.min(total, start + visibleRepos + buffer);
-    return { start, end };
-  }, [visibleItems.length, cursor, listHeight, spacingLines]);
+  // Virtualize list: compute window around cursor
+  const windowed = useMemo(
+    () => computeWindow(visibleItems, cursor, listHeight, spacingLines),
+    [visibleItems, cursor, listHeight, spacingLines],
+  );
 
   // Infinite scroll: prefetch when at 80% of loaded items, or immediately when filter hides all loaded items
   useEffect(() => {
