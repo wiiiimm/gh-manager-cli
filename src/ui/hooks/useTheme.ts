@@ -18,6 +18,8 @@ export interface ThemeColors {
   dim: chalk.Chalk;
   /** Selected option arrow indicator in modals, e.g. bgPrimary.black(' → ') */
   arrow: chalk.Chalk;
+  /** Neutral arrow indicator for the focused cancel/muted option in modals */
+  arrowMuted: chalk.Chalk;
   /** Background+text for confirmed/active button */
   btnPrimary: chalk.Chalk;
   /** Background+text for muted/cancel button */
@@ -56,6 +58,7 @@ export function useTheme(name: ThemeName): UseThemeResult {
       fork: chalkFor(theme.fork),
       dim: chalkFor(theme.dim),
       arrow: bgChalkFor(theme.primary).black,
+      arrowMuted: bgChalkFor(theme.muted).whiteBright,
       btnPrimary: bgChalkFor(theme.primary).black.bold,
       btnMuted: chalk.bgGray.white.bold,
     };

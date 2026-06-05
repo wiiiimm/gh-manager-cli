@@ -136,7 +136,7 @@ export default function SortDirectionModal({
 
         <Box paddingX={1} marginTop={1}>
           <Text>
-            {focusedOption === 'cancel' ? chalk.bgWhite.black(' → ') : '   '}
+            {focusedOption === 'cancel' ? c.arrowMuted(' → ') : '   '}
             {focusedOption === 'cancel' ? chalk.white.bold('Cancel') : c.muted('Cancel')}
           </Text>
         </Box>

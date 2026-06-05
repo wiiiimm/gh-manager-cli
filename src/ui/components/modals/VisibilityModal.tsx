@@ -131,7 +131,7 @@ export default function VisibilityModal({
 
         <Box paddingX={1}>
           <Text>
-            {focusedOption === 'cancel' ? chalk.bgWhite.black(' → ') : '   '}
+            {focusedOption === 'cancel' ? c.arrowMuted(' → ') : '   '}
             {focusedOption === 'cancel' ? chalk.white.bold('Cancel') : c.muted('Cancel')}
           </Text>
         </Box>
