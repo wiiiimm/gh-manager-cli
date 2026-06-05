@@ -1,3 +1,10 @@
+## [1.38.1](https://github.com/wiiiimm/gh-manager-cli/compare/v1.38.0...v1.38.1) (2026-06-05)
+
+
+### Bug Fixes
+
+* add archive filter toggle for repositories [semantic pr title] ([#43](https://github.com/wiiiimm/gh-manager-cli/issues/43)) ([3b717a3](https://github.com/wiiiimm/gh-manager-cli/commit/3b717a345c6104a6b59e530eb7688bac9d8276ee))
+
 # [1.38.0](https://github.com/wiiiimm/gh-manager-cli/compare/v1.37.0...v1.38.0) (2025-09-09)
 
 
