@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import { Box, Text } from 'ink';
 import chalk from 'chalk';
 import type { RepoNode } from '../../../types';
@@ -18,7 +18,21 @@ interface RepoRowProps {
   theme?: Theme;
 }
 
-export default function RepoRow({
+function arePropsEqual(prev: RepoRowProps, next: RepoRowProps): boolean {
+  return (
+    prev.repo === next.repo &&
+    prev.selected === next.selected &&
+    prev.dim === next.dim &&
+    prev.forkTracking === next.forkTracking &&
+    prev.starsMode === next.starsMode &&
+    prev.spacingLines === next.spacingLines &&
+    prev.maxWidth === next.maxWidth &&
+    prev.index === next.index &&
+    prev.theme === next.theme
+  );
+}
+
+function RepoRow({
   repo,
   selected,
   index,
@@ -29,63 +43,74 @@ export default function RepoRow({
   starsMode = false,
   theme: themeProp,
 }: RepoRowProps) {
-  const { theme, c } = useTheme(themeProp?.name ?? 'default');
-  const langName = repo.primaryLanguage?.name || '';
-  const langColor = repo.primaryLanguage?.color || '#666666';
+  const { c } = useTheme(themeProp?.name ?? 'default');
 
-  const hasCommitData = repo.isFork && repo.parent && repo.defaultBranchRef && repo.parent.defaultBranchRef
-    && repo.parent.defaultBranchRef.target?.history && repo.defaultBranchRef.target?.history;
+  const formattedContent = useMemo(() => {
+    const langName = repo.primaryLanguage?.name || '';
+    const langColor = repo.primaryLanguage?.color || '#666666';
 
-  const commitsBehind = hasCommitData
-    ? (repo.parent.defaultBranchRef.target.history.totalCount - repo.defaultBranchRef.target.history.totalCount)
-    : 0;
+    const hasCommitData = repo.isFork && repo.parent && repo.defaultBranchRef && repo.parent.defaultBranchRef
+      && repo.parent.defaultBranchRef.target?.history && repo.defaultBranchRef.target?.history;
 
-  const showCommitsBehind = forkTracking && hasCommitData;
+    const commitsBehind = hasCommitData
+      ? (repo.parent!.defaultBranchRef!.target!.history!.totalCount - repo.defaultBranchRef!.target!.history!.totalCount)
+      : 0;
 
-  // Build colored line 1
-  let line1 = '';
-  const numColor = selected ? c.selected : c.muted;
-  const nameColor = selected ? c.selected.bold : c.text;
-  line1 += numColor(`${String(index).padStart(3, ' ')}.`);
-  if (repo.viewerHasStarred) {
-    line1 += c.warning(' ⭐');
-  }
-  line1 += nameColor(` ${repo.nameWithOwner}`);
-  if (repo.visibility === 'INTERNAL') {
-    line1 += c.internal(' Internal');
-  } else if (repo.visibility === 'PRIVATE' || (repo.isPrivate && !repo.visibility)) {
-    line1 += c.private(' Private');
-  }
+    const showCommitsBehind = forkTracking && hasCommitData;
 
-  if (starsMode && repo.owner && repo.owner.__typename === 'Organization') {
-    line1 += c.muted(' [org]');
-  }
-  if (repo.isArchived) line1 += ' ' + chalk.bgGray.whiteBright(' Archived ') + ' ';
-  if (repo.isFork && repo.parent) {
-    line1 += c.fork(` Fork of ${repo.parent.nameWithOwner}`);
-    if (showCommitsBehind) {
-      if (commitsBehind > 0) {
-        line1 += c.warning(` (${commitsBehind} behind)`);
-      } else {
-        line1 += c.success(` (0 behind)`);
+    const numColor = selected ? c.selected : c.muted;
+    const nameColor = selected ? c.selected.bold : c.text;
+
+    let line1 = '';
+    line1 += numColor(`${String(index).padStart(3, ' ')}.`);
+    if (repo.viewerHasStarred) {
+      line1 += c.warning(' ⭐');
+    }
+    line1 += nameColor(` ${repo.nameWithOwner}`);
+    if (repo.visibility === 'INTERNAL') {
+      line1 += c.internal(' Internal');
+    } else if (repo.visibility === 'PRIVATE' || (repo.isPrivate && !repo.visibility)) {
+      line1 += c.private(' Private');
+    }
+
+    if (starsMode && repo.owner && repo.owner.__typename === 'Organization') {
+      line1 += c.muted(' [org]');
+    }
+    if (repo.isArchived) line1 += ' ' + chalk.bgGray.whiteBright(' Archived ') + ' ';
+    if (repo.isFork && repo.parent) {
+      line1 += c.fork(` Fork of ${repo.parent.nameWithOwner}`);
+      if (showCommitsBehind) {
+        if (commitsBehind > 0) {
+          line1 += c.warning(` (${commitsBehind} behind)`);
+        } else {
+          line1 += c.success(` (0 behind)`);
+        }
       }
     }
-  }
 
-  // Build colored line 2
-  let line2 = '     ';
-  const metaColor = selected ? c.text : c.muted;
-  if (langName) line2 += chalk.hex(langColor)('● ') + metaColor(`${langName}  `);
-  line2 += metaColor(`★ ${repo.stargazerCount}  ⑂ ${repo.forkCount}  Updated ${formatDate(repo.updatedAt)}`);
+    const metaColor = selected ? c.text : c.muted;
+    let line2 = '     ';
+    if (langName) line2 += chalk.hex(langColor)('● ') + metaColor(`${langName}  `);
+    line2 += metaColor(`★ ${repo.stargazerCount}  ⑂ ${repo.forkCount}  Updated ${formatDate(repo.updatedAt)}`);
 
-  // Build line 3
-  const line3 = repo.description ? `     ${truncate(repo.description, Math.max(30, maxWidth - 10))}` : null;
+    const line3 = repo.description ? `     ${truncate(repo.description, Math.max(30, maxWidth - 10))}` : null;
 
-  let fullText = line1 + '\n' + line2;
-  if (line3) fullText += '\n' + metaColor(line3);
+    let fullText = line1 + '\n' + line2;
+    if (line3) fullText += '\n' + metaColor(line3);
 
-  const spacingAbove = Math.floor(spacingLines / 2);
-  const spacingBelow = spacingLines - spacingAbove;
+    return { fullText, spacingAbove: Math.floor(spacingLines / 2), spacingBelow: spacingLines - Math.floor(spacingLines / 2) };
+  }, [
+    repo,
+    selected,
+    index,
+    maxWidth,
+    spacingLines,
+    forkTracking,
+    starsMode,
+    c,
+  ]);
+
+  const { fullText, spacingAbove, spacingBelow } = formattedContent;
 
   return (
     <Box flexDirection="column" backgroundColor={selected ? 'gray' : undefined}>
@@ -103,3 +128,5 @@ export default function RepoRow({
     </Box>
   );
 }
+
+export default React.memo(RepoRow, arePropsEqual);

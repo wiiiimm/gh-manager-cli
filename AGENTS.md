@@ -16,6 +16,7 @@
 - ✅ Fork synchronization with upstream
 - ✅ Semantic release automation and CI/CD workflows
 - ✅ Automated changelog generation and PR title management
+- ✅ `RepoRow` memoized with `React.memo` + `arePropsEqual` (SWR-358) — only 2 rows re-render per cursor move
 - 🔧 Automated test suite expansion (ongoing)
 - 🔧 Cross-terminal rendering optimization
 
@@ -274,6 +275,18 @@ const fullText = `${coloredName}\n${coloredDescription}\n${metadataLine}`;
 // Use Box with minHeight for consistent spacing
 <Box minHeight={2}>{/* Empty spacer */}</Box>
 ```
+
+### Performance: RepoRow memoization (SWR-358)
+`RepoRow` is wrapped in `React.memo` with a custom `arePropsEqual` that compares
+`repo` (by reference), `selected`, `dim`, `forkTracking`, `starsMode`,
+`spacingLines`, `maxWidth`, `index`, and `theme`. On each cursor move only the
+previously-selected and newly-selected rows re-render; all others are skipped.
+
+Chalk formatting is also wrapped in `useMemo` keyed on the same inputs so the
+string-building work is only repeated when a relevant prop actually changes.
+
+**Keep `arePropsEqual` in sync** when adding new props to `RepoRow` (e.g.
+`isMultiSelected`/`multiSelectMode` from SWR-353 multi-select).
 
 ## Common Tasks
 
