@@ -1,3 +1,10 @@
+# [1.43.0](https://github.com/wiiiimm/gh-manager-cli/compare/v1.42.0...v1.43.0) (2026-06-05)
+
+
+### Features
+
+* fork ahead/behind enrichment, jump-to-upstream (P), and open-in-browser chooser (SWR-362) [semantic pr title] ([#53](https://github.com/wiiiimm/gh-manager-cli/issues/53)) ([ffd7b16](https://github.com/wiiiimm/gh-manager-cli/commit/ffd7b1644f7fad93721b6ab7287c0c3a1990f9e6))
+
 # [1.42.0](https://github.com/wiiiimm/gh-manager-cli/compare/v1.41.0...v1.42.0) (2026-06-05)
 
 
