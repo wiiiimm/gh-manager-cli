@@ -28,15 +28,16 @@ export default function RepoRow({
   const langName = repo.primaryLanguage?.name || '';
   const langColor = repo.primaryLanguage?.color || '#666666';
   
-  // Calculate commits behind for forks - only show if tracking is enabled AND data is available
+  // Calculate ahead/behind for forks - only show if tracking is enabled AND enriched data is available
   const hasCommitData = repo.isFork && repo.parent && repo.defaultBranchRef && repo.parent.defaultBranchRef
     && repo.parent.defaultBranchRef.target?.history && repo.defaultBranchRef.target?.history;
-  
-  const commitsBehind = hasCommitData
-    ? (repo.parent.defaultBranchRef.target.history.totalCount - repo.defaultBranchRef.target.history.totalCount)
-    : 0;
-  
-  const showCommitsBehind = forkTracking && hasCommitData;
+
+  const forkCount = hasCommitData ? repo.defaultBranchRef.target.history.totalCount : 0;
+  const parentCount = hasCommitData ? repo.parent.defaultBranchRef.target.history.totalCount : 0;
+  const commitsBehind = hasCommitData ? Math.max(0, parentCount - forkCount) : 0;
+  const commitsAhead = hasCommitData ? Math.max(0, forkCount - parentCount) : 0;
+
+  const showCommitData = forkTracking && hasCommitData;
   
   // Build colored line 1
   let line1 = '';
@@ -62,11 +63,14 @@ export default function RepoRow({
   if (repo.isArchived) line1 += ' ' + chalk.bgGray.whiteBright(' Archived ') + ' ';
   if (repo.isFork && repo.parent) {
     line1 += chalk.blue(` Fork of ${repo.parent.nameWithOwner}`);
-    if (showCommitsBehind) {
-      if (commitsBehind > 0) {
-        line1 += chalk.yellow(` (${commitsBehind} behind)`);
+    if (showCommitData) {
+      const parts: string[] = [];
+      if (commitsAhead > 0) parts.push(chalk.green(`${commitsAhead} ahead`));
+      if (commitsBehind > 0) parts.push(chalk.yellow(`${commitsBehind} behind`));
+      if (parts.length > 0) {
+        line1 += chalk.gray(` (${parts.join(', ')})`);
       } else {
-        line1 += chalk.green(` (0 behind)`);
+        line1 += chalk.green(` (up to date)`);
       }
     }
   }

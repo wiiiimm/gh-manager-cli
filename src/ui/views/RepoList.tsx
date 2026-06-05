@@ -2,14 +2,14 @@ import React, { useEffect, useMemo, useState, useRef, useCallback } from 'react'
 import { Box, Text, useApp, useInput, useStdout, Spacer, Newline } from 'ink';
 import TextInput from 'ink-text-input';
 import chalk from 'chalk';
-import { makeClient, fetchViewerReposPageUnified, searchRepositoriesUnified, deleteRepositoryRest, archiveRepositoryById, unarchiveRepositoryById, changeRepositoryVisibility, syncForkWithUpstream, getRepositoryFromCache, purgeApolloCacheFiles, inspectCacheStatus, updateCacheAfterDelete, updateCacheAfterArchive, updateCacheAfterVisibilityChange, updateCacheWithRepository, checkOrganizationIsEnterprise, OwnerAffiliation, fetchViewerOrganizations, fetchRestRateLimits, renameRepositoryById, updateCacheAfterRename, getStarredRepositories, starRepository, unstarRepository } from '../../services/github';
+import { makeClient, fetchViewerReposPageUnified, searchRepositoriesUnified, deleteRepositoryRest, archiveRepositoryById, unarchiveRepositoryById, changeRepositoryVisibility, syncForkWithUpstream, getRepositoryFromCache, purgeApolloCacheFiles, inspectCacheStatus, updateCacheAfterDelete, updateCacheAfterArchive, updateCacheAfterVisibilityChange, updateCacheWithRepository, checkOrganizationIsEnterprise, OwnerAffiliation, fetchViewerOrganizations, fetchRestRateLimits, renameRepositoryById, updateCacheAfterRename, getStarredRepositories, starRepository, unstarRepository, enrichForksWithAheadBehind, fetchRepositoryByOwnerAndName } from '../../services/github';
 import { getUIPrefs, storeUIPrefs, OwnerContext } from '../../config/config';
 import { makeApolloKey, makeSearchKey, isFresh, markFetched } from '../../services/apolloMeta';
 import type { RepoNode, RateLimitInfo, RestRateLimitInfo } from '../../types';
 import { exec } from 'child_process';
 import OrgSwitcher from '../OrgSwitcher';
 import { logger } from '../../lib/logger';
-import { ArchiveFilterModal, DeleteModal, ArchiveModal, SyncModal, InfoModal, LogoutModal, VisibilityModal, SortModal, SortDirectionModal, ChangeVisibilityModal, CopyUrlModal, RenameModal, StarModal } from '../components/modals';
+import { ArchiveFilterModal, DeleteModal, ArchiveModal, SyncModal, InfoModal, LogoutModal, VisibilityModal, SortModal, SortDirectionModal, ChangeVisibilityModal, CopyUrlModal, RenameModal, StarModal, OpenInBrowserModal } from '../components/modals';
 import { UnstarModal } from '../components/modals/UnstarModal';
 import { RepoRow, FilterInput, RepoListHeader } from '../components/repo';
 import { SlowSpinner } from '../components/common';
@@ -184,6 +184,14 @@ export default function RepoList({ token, maxVisibleRows, onLogout, viewerLogin,
   const [starTarget, setStarTarget] = useState<RepoNode | null>(null);
   const [starring, setStarring] = useState(false);
   const [starError, setStarError] = useState<string | null>(null);
+
+  // Open-in-browser chooser modal state (fork vs upstream)
+  const [openInBrowserMode, setOpenInBrowserMode] = useState(false);
+  const [openInBrowserTarget, setOpenInBrowserTarget] = useState<RepoNode | null>(null);
+
+  // Fork enrichment (ahead/behind) state
+  const [enrichingForks, setEnrichingForks] = useState(false);
+  const enrichmentDoneRef = useRef<Set<string>>(new Set()); // ids already enriched
 
   // Apply initial --org flag once (if provided)
   const appliedInitialOrg = useRef(false);
@@ -725,7 +733,98 @@ export default function RepoList({ token, maxVisibleRows, onLogout, viewerLogin,
   
   // Fork tracking toggle - default ON to show commits behind
   const [forkTracking, setForkTracking] = useState<boolean>(true);
-  
+
+  // Fork ahead/behind enrichment: runs after the full list is loaded.
+  // Uses batched aliased GraphQL queries (5 forks/batch) to stay within per-query budget.
+  useEffect(() => {
+    // Only run when the owned list is fully loaded and we have forks to enrich
+    if (loading || loadingMore || hasNextPage || items.length === 0) return;
+    if (!forkTracking) return;
+
+    const unenriched = items.filter(r =>
+      r.isFork &&
+      r.parent?.nameWithOwner &&
+      !enrichmentDoneRef.current.has(r.id) &&
+      !(r.defaultBranchRef?.target?.history && r.parent?.defaultBranchRef?.target?.history)
+    );
+
+    if (unenriched.length === 0) return;
+    if (enrichingForks) return;
+
+    let cancelled = false;
+    setEnrichingForks(true);
+
+    ;(async () => {
+      const BATCH_DELAY_MS = 200;
+
+      try {
+        const BATCH_SIZE = 5;
+        for (let i = 0; i < unenriched.length; i += BATCH_SIZE) {
+          if (cancelled) break;
+          const batch = unenriched.slice(i, i + BATCH_SIZE).map(r => ({
+            id: r.id,
+            parentNameWithOwner: r.parent!.nameWithOwner,
+          }));
+
+          const enriched = await enrichForksWithAheadBehind(client, batch);
+
+          if (cancelled) break;
+
+          // Merge history counts back into items
+          setItems(prev => prev.map(repo => {
+            const hit = enriched.find(e => e.id === repo.id);
+            if (!hit || hit.forkHistoryCount === null || hit.parentHistoryCount === null) return repo;
+
+            enrichmentDoneRef.current.add(repo.id);
+            return {
+              ...repo,
+              defaultBranchRef: repo.defaultBranchRef ? {
+                ...repo.defaultBranchRef,
+                target: {
+                  ...(repo.defaultBranchRef.target || {}),
+                  history: { totalCount: hit.forkHistoryCount! },
+                },
+              } : { name: undefined, target: { history: { totalCount: hit.forkHistoryCount! } } },
+              parent: repo.parent ? {
+                ...repo.parent,
+                defaultBranchRef: {
+                  ...(repo.parent.defaultBranchRef || {}),
+                  target: {
+                    ...(repo.parent.defaultBranchRef?.target || {}),
+                    history: { totalCount: hit.parentHistoryCount! },
+                  },
+                },
+              } : repo.parent,
+            };
+          }));
+
+          // Small delay between batches to avoid rate-limit pressure
+          if (i + BATCH_SIZE < unenriched.length) {
+            await new Promise(resolve => setTimeout(resolve, BATCH_DELAY_MS));
+          }
+        }
+      } catch (err: any) {
+        logger.error('Fork enrichment failed', { error: err.message });
+      } finally {
+        if (!cancelled) setEnrichingForks(false);
+      }
+    })();
+
+    return () => { cancelled = true; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [loading, loadingMore, hasNextPage, items.length, forkTracking]);
+
+  // Fetch a parent repo by nameWithOwner and display it in the Info modal (P key fallback)
+  async function jumpToUpstreamRepo(parentNameWithOwner: string) {
+    const [parentOwner, parentName] = parentNameWithOwner.split('/');
+    if (!parentOwner || !parentName) return;
+    const repo = await fetchRepositoryByOwnerAndName(client, parentOwner, parentName);
+    if (repo) {
+      setInfoRepo(repo);
+      setInfoMode(true);
+    }
+  }
+
   // Visibility filter - 'all' | 'public' | 'private'
   type VisibilityFilter = 'all' | 'public' | 'private';
   const [visibilityFilter, setVisibilityFilter] = useState<VisibilityFilter>('all');
@@ -1259,6 +1358,11 @@ export default function RepoList({ token, maxVisibleRows, onLogout, viewerLogin,
       return; // RenameModal component handles its own keyboard input
     }
 
+    // When open-in-browser modal is open, trap inputs for modal
+    if (openInBrowserMode) {
+      return; // OpenInBrowserModal component handles its own keyboard input
+    }
+
     // When copy URL modal is open, trap inputs for modal
     if (copyUrlMode) {
       return; // CopyUrlModal component handles its own keyboard input
@@ -1345,9 +1449,15 @@ export default function RepoList({ token, maxVisibleRows, onLogout, viewerLogin,
     if (key.pageDown) setCursor(c => Math.min(c + 10, visibleItems.length - 1));
     if (key.pageUp) setCursor(c => Math.max(c - 10, 0));
     if (key.return) {
-      // Open in browser
       const repo = visibleItems[cursor];
-      if (repo) openInBrowser(`https://github.com/${repo.nameWithOwner}`);
+      if (repo) {
+        if (repo.isFork && repo.parent) {
+          setOpenInBrowserTarget(repo);
+          setOpenInBrowserMode(true);
+        } else {
+          openInBrowser(`https://github.com/${repo.nameWithOwner}`);
+        }
+      }
     }
     // Delete key: open delete modal (Del or Backspace)
     // Some terminals may set delete=true even for Backspace
@@ -1568,10 +1678,31 @@ export default function RepoList({ token, maxVisibleRows, onLogout, viewerLogin,
       return;
     }
 
-    // Explicit open in browser
+    // Explicit open in browser (O) - shows chooser for forks
     if (input && input.toUpperCase() === 'O') {
       const repo = visibleItems[cursor];
-      if (repo) openInBrowser(`https://github.com/${repo.nameWithOwner}`);
+      if (repo) {
+        if (repo.isFork && repo.parent) {
+          setOpenInBrowserTarget(repo);
+          setOpenInBrowserMode(true);
+        } else {
+          openInBrowser(`https://github.com/${repo.nameWithOwner}`);
+        }
+      }
+      return;
+    }
+
+    // Jump to upstream (P) - move cursor if parent is in list, else fetch and show in Info modal
+    if (input && input.toUpperCase() === 'P') {
+      const repo = visibleItems[cursor];
+      if (repo && repo.isFork && repo.parent?.nameWithOwner) {
+        const parentIdx = visibleItems.findIndex(r => r.nameWithOwner === repo.parent!.nameWithOwner);
+        if (parentIdx >= 0) {
+          setCursor(parentIdx);
+        } else {
+          jumpToUpstreamRepo(repo.parent.nameWithOwner);
+        }
+      }
       return;
     }
 
@@ -1777,7 +1908,7 @@ export default function RepoList({ token, maxVisibleRows, onLogout, viewerLogin,
 
   const lowRate = (rateLimit && rateLimit.remaining <= Math.ceil(rateLimit.limit * 0.1)) || 
                    (restRateLimit && restRateLimit.core.remaining <= Math.ceil(restRateLimit.core.limit * 0.1));
-  const modalOpen = deleteMode || archiveMode || syncMode || logoutMode || infoMode || visibilityMode || archiveFilterMode || sortMode || sortDirectionMode || changeVisibilityMode || copyUrlMode || renameMode;
+  const modalOpen = deleteMode || archiveMode || syncMode || logoutMode || infoMode || visibilityMode || archiveFilterMode || sortMode || sortDirectionMode || changeVisibilityMode || copyUrlMode || renameMode || openInBrowserMode;
 
   // Memoize header to prevent re-renders - must be before any returns
   const headerBar = useMemo(() => (
@@ -1793,6 +1924,9 @@ export default function RepoList({ token, maxVisibleRows, onLogout, viewerLogin,
         <Text color="gray">({visibleItems.length}/{searchActive ? searchTotalCount : totalCount})</Text>
         {loadingMore && hasNextPage && !starsMode && !searchActive && totalCount > 0 && (
           <Text color="cyan">{` · loading ${items.length}/${totalCount}`}</Text>
+        )}
+        {enrichingForks && (
+          <Text color="gray">{` · enriching forks…`}</Text>
         )}
         {(loading || searchLoading || loadingMore) && (
           <Box width={2} flexShrink={0} flexGrow={0} marginLeft={1}>
@@ -1822,7 +1956,7 @@ export default function RepoList({ token, maxVisibleRows, onLogout, viewerLogin,
         </Text>
       )}
     </Box>
-  ), [visibleItems.length, searchActive, searchTotalCount, totalCount, loading, searchLoading, rateLimit, lowRate, modalOpen, prevRateLimit, ownerContext, isEnterpriseOrg, restRateLimit, prevRestRateLimit]);
+  ), [visibleItems.length, searchActive, searchTotalCount, totalCount, loading, searchLoading, rateLimit, lowRate, modalOpen, prevRateLimit, ownerContext, isEnterpriseOrg, restRateLimit, prevRestRateLimit, enrichingForks, loadingMore, hasNextPage, starsMode, items.length]);
 
   if (error) {
     return (
@@ -2134,6 +2268,23 @@ export default function RepoList({ token, maxVisibleRows, onLogout, viewerLogin,
               {syncTarget.parent && (
                 <Text color="gray">Upstream: {syncTarget.parent.nameWithOwner}</Text>
               )}
+              {(() => {
+                const hasData = syncTarget.isFork && syncTarget.parent &&
+                  syncTarget.defaultBranchRef?.target?.history &&
+                  syncTarget.parent.defaultBranchRef?.target?.history;
+                if (!hasData) return null;
+                const forkC = syncTarget.defaultBranchRef!.target!.history!.totalCount;
+                const parentC = syncTarget.parent!.defaultBranchRef!.target!.history!.totalCount;
+                const behind = Math.max(0, parentC - forkC);
+                const ahead = Math.max(0, forkC - parentC);
+                const parts: string[] = [];
+                if (ahead > 0) parts.push(chalk.green(`${ahead} ahead`));
+                if (behind > 0) parts.push(chalk.yellow(`${behind} behind`));
+                const statusText = parts.length === 0
+                  ? chalk.green('Your fork is up to date with upstream.')
+                  : `This fork is ${parts.join(', ')} of upstream.`;
+                return <Text>{statusText}</Text>;
+              })()}
               <Box marginTop={1}>
                 <Text>
                   This will merge upstream changes into your fork.
@@ -2399,6 +2550,21 @@ export default function RepoList({ token, maxVisibleRows, onLogout, viewerLogin,
               error={starError}
             />
           </Box>
+        ) : openInBrowserMode && openInBrowserTarget ? (
+          <Box height={contentHeight} alignItems="center" justifyContent="center">
+            <OpenInBrowserModal
+              repo={openInBrowserTarget}
+              onOpen={(url) => {
+                openInBrowser(url);
+                setOpenInBrowserMode(false);
+                setOpenInBrowserTarget(null);
+              }}
+              onCancel={() => {
+                setOpenInBrowserMode(false);
+                setOpenInBrowserTarget(null);
+              }}
+            />
+          </Box>
         ) : (
           <>
             {/* Context/Filter/sort status */}
@@ -2541,9 +2707,9 @@ export default function RepoList({ token, maxVisibleRows, onLogout, viewerLogin,
         {/* Line 3: Repository actions */}
         <Box width={terminalWidth} justifyContent="center">
           <Text color="gray" dimColor={modalOpen ? true : undefined}>
-            {starsMode ? 
+            {starsMode ?
               'I Info • C Copy URL • U Unstar Repository' :
-              'I Info • C Copy URL • Ctrl+S Un/Star • Ctrl+R Rename • Ctrl+A Un/Archive • Ctrl+V Change Visibility • Ctrl+F Sync Fork'
+              'I Info • C Copy URL • Ctrl+S Un/Star • Ctrl+R Rename • Ctrl+A Un/Archive • Ctrl+V Change Visibility • Ctrl+F Sync Fork • P Jump to upstream'
             }
           </Text>
         </Box>

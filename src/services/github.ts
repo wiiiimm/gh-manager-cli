@@ -1480,3 +1480,152 @@ export async function inspectCacheStatus(): Promise<void> {
     process.stderr.write(`❌ Cache inspection failed: ${e.message}\n`);
   }
 }
+
+export interface ForkEnrichment {
+  id: string;
+  forkHistoryCount: number | null;
+  parentHistoryCount: number | null;
+}
+
+// Batch-enrich forks with ahead/behind counts using aliased node(id:) + repository(owner,name) queries.
+// Batch size is capped at 5 forks (10 history queries) to stay well within GitHub's per-query budget.
+export async function enrichForksWithAheadBehind(
+  client: ReturnType<typeof makeClient>,
+  forks: Array<{ id: string; parentNameWithOwner: string }>
+): Promise<ForkEnrichment[]> {
+  if (forks.length === 0) return [];
+
+  const results: ForkEnrichment[] = [];
+  const BATCH_SIZE = 5;
+
+  for (let batchStart = 0; batchStart < forks.length; batchStart += BATCH_SIZE) {
+    const batch = forks.slice(batchStart, batchStart + BATCH_SIZE);
+
+    const queryParts: string[] = [];
+    const variables: Record<string, string> = {};
+
+    batch.forEach((fork, i) => {
+      const [parentOwner, parentName] = fork.parentNameWithOwner.split('/');
+      if (!parentOwner || !parentName) return;
+
+      const varName = `fid${i}`;
+      variables[varName] = fork.id;
+
+      // Sanitise owner/name: only alphanumeric, hyphens, dots and underscores are valid
+      const safeOwner = parentOwner.replace(/[^a-zA-Z0-9_.\-]/g, '');
+      const safeName = parentName.replace(/[^a-zA-Z0-9_.\-]/g, '');
+
+      queryParts.push(`
+        fork${i}: node(id: $${varName}) {
+          ... on Repository {
+            id
+            defaultBranchRef {
+              target {
+                ... on Commit {
+                  history(first: 0) { totalCount }
+                }
+              }
+            }
+          }
+        }
+        parent${i}: repository(owner: "${safeOwner}", name: "${safeName}") {
+          defaultBranchRef {
+            target {
+              ... on Commit {
+                history(first: 0) { totalCount }
+              }
+            }
+          }
+        }
+      `);
+    });
+
+    if (queryParts.length === 0) continue;
+
+    const varDefs = Object.entries(variables)
+      .map(([k]) => `$${k}: ID!`)
+      .join(', ');
+
+    const query = `query EnrichForks(${varDefs}) { ${queryParts.join('\n')} }`;
+
+    try {
+      const res: any = await client(query, variables);
+
+      batch.forEach((fork, i) => {
+        const forkNode = res[`fork${i}`];
+        const parentNode = res[`parent${i}`];
+
+        const forkHistoryCount: number | null =
+          forkNode?.defaultBranchRef?.target?.history?.totalCount ?? null;
+        const parentHistoryCount: number | null =
+          parentNode?.defaultBranchRef?.target?.history?.totalCount ?? null;
+
+        results.push({ id: fork.id, forkHistoryCount, parentHistoryCount });
+      });
+    } catch (err: any) {
+      logger.error('enrichForksWithAheadBehind batch failed', {
+        error: err.message,
+        batchSize: batch.length,
+      });
+      // Push nulls for this batch so callers know they weren't enriched
+      batch.forEach(fork => results.push({ id: fork.id, forkHistoryCount: null, parentHistoryCount: null }));
+    }
+  }
+
+  return results;
+}
+
+export async function fetchRepositoryByOwnerAndName(
+  client: ReturnType<typeof makeClient>,
+  owner: string,
+  name: string
+): Promise<RepoNode | null> {
+  const query = /* GraphQL */ `
+    query GetRepoByOwnerName($owner: String!, $name: String!) {
+      repository(owner: $owner, name: $name) {
+        id
+        name
+        nameWithOwner
+        description
+        pushedAt
+        updatedAt
+        isPrivate
+        isArchived
+        isFork
+        visibility
+        stargazerCount
+        forkCount
+        diskUsage
+        viewerHasStarred
+        owner { __typename login }
+        primaryLanguage { name color }
+        parent {
+          nameWithOwner
+          defaultBranchRef {
+            target {
+              ... on Commit {
+                history(first: 0) { totalCount }
+              }
+            }
+          }
+        }
+        defaultBranchRef {
+          name
+          target {
+            ... on Commit {
+              history(first: 0) { totalCount }
+            }
+          }
+        }
+      }
+    }
+  `;
+
+  try {
+    const result: any = await client(query, { owner, name });
+    return result.repository as RepoNode | null;
+  } catch (err: any) {
+    logger.error('fetchRepositoryByOwnerAndName failed', { owner, name, error: err.message });
+    return null;
+  }
+}
