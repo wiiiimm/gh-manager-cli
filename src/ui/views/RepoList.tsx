@@ -2622,6 +2622,10 @@ export default function RepoList({ token, maxVisibleRows, onLogout, viewerLogin,
               terminalWidth={terminalWidth}
               maxHeight={contentHeight}
               onConfirm={(finalSelection) => {
+                // Persist deselections made in review to the source-of-truth
+                // selection, so backing out of the count prompt doesn't restore
+                // repos the user removed.
+                setSelectedRepos(finalSelection);
                 setBulkFinalSelection(finalSelection);
                 setBulkReviewOpen(false);
                 setBulkConfirmOpen(true);
