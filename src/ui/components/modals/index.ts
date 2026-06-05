@@ -1,3 +1,4 @@
+export { default as ArchiveFilterModal } from './ArchiveFilterModal';
 export { default as DeleteModal } from './DeleteModal';
 export { default as ArchiveModal } from './ArchiveModal';
 export { default as SyncModal } from './SyncModal';
