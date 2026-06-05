@@ -52,7 +52,7 @@ export default function BulkProgressModal({
               <Text color="cyan"><SlowSpinner /></Text>
             </Box>
             <Text>
-              {actionLabel} {state.completed + 1} of {state.total}
+              {actionLabel} {Math.min(state.completed + 1, state.total)} of {state.total}
               {state.currentRepo ? `: ${chalk.cyan(state.currentRepo.nameWithOwner)}` : '…'}
             </Text>
           </Box>

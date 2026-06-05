@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useRef, useState } from 'react';
 import { Box, Text, useInput } from 'ink';
 import chalk from 'chalk';
 import type { RepoNode } from '../../../types';
@@ -30,6 +30,12 @@ export default function BulkConfirmModal({
   const [codeVerified, setCodeVerified] = useState(action !== 'delete');
   const [codeError, setCodeError] = useState<string | null>(null);
 
+  // Guard against double submission: Enter is observed by both useInput and the
+  // hidden TextInput's onSubmit, so onConfirm/onCancel could otherwise fire twice.
+  const settledRef = useRef(false);
+  const confirmOnce = () => { if (settledRef.current) return; settledRef.current = true; onConfirm(); };
+  const cancelOnce = () => { if (settledRef.current) return; settledRef.current = true; onCancel(); };
+
   const actionLabel = action === 'delete' ? 'delete' : action === 'archive' ? 'archive' : 'unarchive';
   const actionLabelCap = actionLabel.charAt(0).toUpperCase() + actionLabel.slice(1);
   const actionColor: 'red' | 'yellow' | 'green' = action === 'delete' ? 'red' : action === 'archive' ? 'yellow' : 'green';
@@ -38,19 +44,19 @@ export default function BulkConfirmModal({
   useInput((input, key) => {
     if (!codeVerified) {
       // Code entry stage — handled by TextInput, only Esc to cancel
-      if (key.escape) { onCancel(); return; }
+      if (key.escape) { cancelOnce(); return; }
       return;
     }
 
-    if (key.escape || input.toLowerCase() === 'c') { onCancel(); return; }
+    if (key.escape || input.toLowerCase() === 'c') { cancelOnce(); return; }
     if (key.leftArrow) { setButtonFocus('confirm'); return; }
     if (key.rightArrow) { setButtonFocus('cancel'); return; }
     if (input.toLowerCase() === 'y' || (key.return && buttonFocus === 'confirm')) {
-      onConfirm();
+      confirmOnce();
       return;
     }
     if (key.return && buttonFocus === 'cancel') {
-      onCancel();
+      cancelOnce();
       return;
     }
   });
@@ -163,8 +169,8 @@ export default function BulkConfirmModal({
               value=""
               onChange={() => {}}
               onSubmit={() => {
-                if (buttonFocus === 'confirm') onConfirm();
-                else onCancel();
+                if (buttonFocus === 'confirm') confirmOnce();
+                else cancelOnce();
               }}
               placeholder=""
             />
