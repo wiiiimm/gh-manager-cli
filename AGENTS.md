@@ -199,6 +199,7 @@ First run prompts for a PAT if not provided via env vars. The token is validated
 - **Automation:** semantic-release handles version bumping and git tags
 - **Release process:** Automated via GitHub Actions on main branch push
 - **Change tracking:** All releases documented in [CHANGELOG.md](./CHANGELOG.md)
+- **Do NOT manually edit [CHANGELOG.md](./CHANGELOG.md):** it is generated automatically by the semantic-release GitHub Actions workflow (`.github/workflows/automated-release.yml`) from conventional commit messages on `main`. Manual edits cause merge conflicts and are overwritten on the next release. To influence the changelog, write a well-formed conventional commit / PR title instead. When a feature branch conflicts with `main` on CHANGELOG.md, resolve by taking `main`'s version.
 
 ### Code Standards
 - **TypeScript:** Strict mode with comprehensive type definitions
