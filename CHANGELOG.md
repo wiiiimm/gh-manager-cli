@@ -1,3 +1,10 @@
+# [1.42.0](https://github.com/wiiiimm/gh-manager-cli/compare/v1.41.0...v1.42.0) (2026-06-05)
+
+
+### Features
+
+* fuzzy repository search over full cached set (SWR-361) [semantic pr title] ([#55](https://github.com/wiiiimm/gh-manager-cli/issues/55)) ([042999d](https://github.com/wiiiimm/gh-manager-cli/commit/042999da6de2ce6b2688da84a3a4d698e0f7d16d))
+
 # [1.41.0](https://github.com/wiiiimm/gh-manager-cli/compare/v1.40.2...v1.41.0) (2026-06-05)
 
 
