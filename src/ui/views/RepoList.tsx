@@ -2554,15 +2554,15 @@ export default function RepoList({ token, maxVisibleRows, onLogout, viewerLogin,
         {/* Line 2: Search and filtering */}
         <Box width={terminalWidth} justifyContent="center">
           <Text color={theme.muted} dimColor={modalOpen ? true : undefined}>
-            / Search • S Sort • D Direction • T Density • Shift+T Theme • A Archive Filter{!starsMode && ' • V Visibility Filter'}{ownerContext === 'personal' && ' • Shift+S Stars'}
+            / Search • S Sort • D Direction • T Density • Shift+T Theme • A Archive Filter{!starsMode && ' • V Visibility Filter'}
           </Text>
         </Box>
-        {/* Line 3: Repository actions */}
+        {/* Line 3: Repository actions (stars toggle at start so it is never truncated) */}
         <Box width={terminalWidth} justifyContent="center">
           <Text color={theme.muted} dimColor={modalOpen ? true : undefined}>
             {starsMode ?
-              'I Info • C Copy URL • U Unstar Repository' :
-              'I Info • C Copy URL • Ctrl+S Un/Star • Ctrl+R Rename • Ctrl+A Un/Archive • Ctrl+V Change Visibility • Ctrl+F Sync Fork'
+              'Shift+S My Repos • I Info • C Copy URL • U Unstar Repository' :
+              `${ownerContext === 'personal' ? 'Shift+S Starred • ' : ''}I Info • C Copy URL • Ctrl+S Un/Star • Ctrl+R Rename • Ctrl+A Un/Archive • Ctrl+V Change Visibility • Ctrl+F Sync Fork`
             }
           </Text>
         </Box>

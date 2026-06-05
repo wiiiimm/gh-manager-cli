@@ -275,7 +275,8 @@ Launch the app, then use the keys below:
 - **Fork Status**: Always enabled - shows commits behind upstream for all forks
 - **Visibility Filter**: `V` opens modal (All, Public, Private/Internal for enterprise)
 - **Archive Filter**: `A` toggles archive filter (All → Unarchived → Archived)
-- **Stars Mode**: `Shift+S` (personal account only) to view starred repositories
+- **Stars Mode**: `Shift+S` (personal account only) to toggle between your own repos and your starred repos
+  - Footer hint shows `Shift+S Starred` in normal mode and `Shift+S My Repos` in starred mode
 
 ### Navigation & Account
 - **Open in browser**: Enter or `O`
