@@ -76,7 +76,8 @@ On first run, you'll be prompted to authenticate with GitHub (OAuth recommended)
 - **Live Pagination**: Infinite scroll with automatic page prefetching
 - **Interactive Sorting**: Modal-based sort selection (updated, pushed, name, stars) with modal-based direction selection
 - **Smart Search**: Server-side search through repository names and descriptions (3+ characters)
-- **Visibility Filtering**: Modal-based visibility filter (All, Public, Private/Internal for enterprise) with smart filtering
+- **Visibility Filter**: Modal-based visibility filter (All, Public, Private/Internal for enterprise) with smart filtering
+- **Archive Filter**: Toggle-based archive filter (`A` key cycles All → Unarchived → Archived) for quick filtering by archive status
 - **Fork Status Tracking**: Always shows commits behind upstream for forked repositories
 - **Stars Mode**: View and manage starred repositories (personal account only)
 - **Repository Actions**:
@@ -102,7 +103,7 @@ On first run, you'll be prompted to authenticate with GitHub (OAuth recommended)
 - **Rate Limit Monitoring**: Dual API rate limit display (GraphQL & REST) with real-time usage deltas and visual warnings
 
 ### Technical Features
-- **Preference Persistence**: UI settings (sort, density, visibility filter, fork tracking) saved between sessions
+- **Preference Persistence**: UI settings (sort, density, visibility filter, archive filter, fork tracking) saved between sessions
 - **Server-side Filtering**: Visibility filtering performed at GitHub API level for accurate pagination
 - **Cross-platform**: Works on macOS, Linux, and Windows
 - **Secure Storage**: Token stored with proper file permissions (0600)
@@ -271,6 +272,7 @@ Launch the app, then use the keys below:
 - **Display Density**: `T` to toggle compact/cozy/comfy
 - **Fork Status**: Always enabled - shows commits behind upstream for all forks
 - **Visibility Filter**: `V` opens modal (All, Public, Private/Internal for enterprise)
+- **Archive Filter**: `A` toggles archive filter (All → Unarchived → Archived)
 - **Stars Mode**: `Shift+S` (personal account only) to view starred repositories
 
 ### Navigation & Account
