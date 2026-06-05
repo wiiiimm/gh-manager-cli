@@ -1344,12 +1344,14 @@ export default function RepoList({ token, maxVisibleRows, onLogout, viewerLogin,
       return;
     }
 
-    // Sort modal: show sort options (S key when not in stars mode)
-    if (input && input.toUpperCase() === 'S' && !key.shift && !key.ctrl) {
+    // Sort modal: show sort options (S key when not in stars mode).
+    // Disabled while a fuzzy search is active — results are ranked by match
+    // relevance, so sort controls are intentionally not offered (SWR-361).
+    if (input && input.toUpperCase() === 'S' && !key.shift && !key.ctrl && !filterActive) {
       setSortMode(true);
       return;
     }
-    if (input && input.toUpperCase() === 'D') {
+    if (input && input.toUpperCase() === 'D' && !filterActive) {
       setSortDirectionMode(true);
       return;
     }
@@ -2284,7 +2286,7 @@ export default function RepoList({ token, maxVisibleRows, onLogout, viewerLogin,
                 </Box>
               )}
 
-              {!loading && visibleItems.length === 0 && (
+              {!loading && visibleItems.length === 0 && !(filterActive && hasNextPage && !starsMode) && (
                 <Box justifyContent="center" alignItems="center" flexGrow={1}>
                   <Text color="gray" dimColor>
                     {filter ? 'No repositories match your search' : 'No repositories found'}
@@ -2307,7 +2309,7 @@ export default function RepoList({ token, maxVisibleRows, onLogout, viewerLogin,
         {/* Line 2: Search and filtering */}
         <Box width={terminalWidth} justifyContent="center">
           <Text color="gray" dimColor={modalOpen ? true : undefined}>
-            / Search • S Sort • D Direction • T Density • A Archive Filter{!starsMode && ' • V Visibility Filter'}{ownerContext === 'personal' && ' • Shift+S Stars'}
+            / Search{!filterActive && ' • S Sort • D Direction'} • T Density • A Archive Filter{!starsMode && ' • V Visibility Filter'}{ownerContext === 'personal' && ' • Shift+S Stars'}
           </Text>
         </Box>
         {/* Line 3: Repository actions */}

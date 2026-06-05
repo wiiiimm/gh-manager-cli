@@ -52,7 +52,7 @@ export default function RepoListHeader({
         </Text>
       )}
       <Text color="gray" dimColor>
-        Sort: {sortKey} {sortDir === 'asc' ? '↑' : '↓'}
+        Sort: {filterActive ? 'relevance' : `${sortKey} ${sortDir === 'asc' ? '↑' : '↓'}`}
       </Text>
       <Text color="gray" dimColor>
         Fork Status - Commits Behind: {forkTracking ? 'ON' : 'OFF'}
@@ -67,8 +67,8 @@ export default function RepoListHeader({
           Archive: {archiveFilter === 'archived' ? 'Archived' : 'Unarchived'}
         </Text>
       )}
-      {filterActive && (
-        <Text color="cyan">Search: "{filter.trim()}"</Text>
+      {(filterActive || (starsMode && filter.trim().length > 0)) && (
+        <Text color="cyan">{starsMode ? 'Filter' : 'Search'}: "{filter.trim()}"</Text>
       )}
     </Box>
   );
