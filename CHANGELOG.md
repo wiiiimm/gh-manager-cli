@@ -1,3 +1,10 @@
+## [1.39.1](https://github.com/wiiiimm/gh-manager-cli/compare/v1.39.0...v1.39.1) (2026-06-05)
+
+
+### Bug Fixes
+
+* restore changelog body in GitHub release notes [semantic pr title] ([#46](https://github.com/wiiiimm/gh-manager-cli/issues/46)) ([62e20ad](https://github.com/wiiiimm/gh-manager-cli/commit/62e20ad795abb38cc370e25738182a1ba99fd6f7))
+
 # [1.39.0](https://github.com/wiiiimm/gh-manager-cli/compare/v1.38.1...v1.39.0) (2026-06-05)
 
 
