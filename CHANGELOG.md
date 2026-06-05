@@ -1,3 +1,10 @@
+# [1.39.0](https://github.com/wiiiimm/gh-manager-cli/compare/v1.38.1...v1.39.0) (2026-06-05)
+
+
+### Features
+
+* replace archive filter cycle with popup modal (A Archive Filter) ([#45](https://github.com/wiiiimm/gh-manager-cli/issues/45)) ([9299443](https://github.com/wiiiimm/gh-manager-cli/commit/92994433291bf196b6882c27409aa5ec49be0b35))
+
 ## [1.38.1](https://github.com/wiiiimm/gh-manager-cli/compare/v1.38.0...v1.38.1) (2026-06-05)
 
 
