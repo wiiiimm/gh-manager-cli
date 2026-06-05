@@ -12,8 +12,7 @@ describe('RepoListHeader', () => {
         sortDir="desc"
         forkTracking={true}
         filter=""
-        searchActive={false}
-        searchLoading={false}
+        filterActive={false}
       />
     );
 
@@ -32,13 +31,12 @@ describe('RepoListHeader', () => {
         sortDir="asc"
         forkTracking={false}
         filter=""
-        searchActive={false}
-        searchLoading={false}
+        filterActive={false}
       />
     );
 
     const output = lastFrame() || '';
-    expect(output).toContain('Organization: My Organization');
+    expect(output).toContain('Organisation: My Organization');
     expect(output).toContain('Sort: name ↑');
     expect(output).toContain('Fork Status - Commits Behind: OFF');
     unmount();
@@ -52,17 +50,16 @@ describe('RepoListHeader', () => {
         sortDir="desc"
         forkTracking={true}
         filter=""
-        searchActive={false}
-        searchLoading={false}
+        filterActive={false}
       />
     );
 
     const output = lastFrame() || '';
-    expect(output).toContain('Organization: my-org');
+    expect(output).toContain('Organisation: my-org');
     unmount();
   });
 
-  it('displays filter when provided and search is not active', () => {
+  it('displays search label when filter is active', () => {
     const { lastFrame, unmount } = render(
       <RepoListHeader
         ownerContext="personal"
@@ -70,18 +67,33 @@ describe('RepoListHeader', () => {
         sortDir="desc"
         forkTracking={true}
         filter="typescript"
-        searchActive={false}
-        searchLoading={false}
+        filterActive={true}
       />
     );
 
     const output = lastFrame() || '';
-    expect(output).toContain('Filter: "typescript"');
+    expect(output).toContain('Search: "typescript"');
+    unmount();
+  });
+
+  it('does not display search label when filter is not active', () => {
+    const { lastFrame, unmount } = render(
+      <RepoListHeader
+        ownerContext="personal"
+        sortKey="updated"
+        sortDir="desc"
+        forkTracking={true}
+        filter=""
+        filterActive={false}
+      />
+    );
+
+    const output = lastFrame() || '';
     expect(output).not.toContain('Search:');
     unmount();
   });
 
-  it('displays search instead of filter when search is active', () => {
+  it('displays search label when filter is active with multi-word query', () => {
     const { lastFrame, unmount } = render(
       <RepoListHeader
         ownerContext="personal"
@@ -89,33 +101,12 @@ describe('RepoListHeader', () => {
         sortDir="desc"
         forkTracking={true}
         filter="react hooks"
-        searchActive={true}
-        searchLoading={false}
+        filterActive={true}
       />
     );
 
     const output = lastFrame() || '';
     expect(output).toContain('Search: "react hooks"');
-    expect(output).not.toContain('Filter:');
-    unmount();
-  });
-
-  it('shows loading spinner when search is loading', () => {
-    const { lastFrame, unmount } = render(
-      <RepoListHeader
-        ownerContext="personal"
-        sortKey="updated"
-        sortDir="desc"
-        forkTracking={true}
-        filter="graphql"
-        searchActive={true}
-        searchLoading={true}
-      />
-    );
-
-    const output = lastFrame() || '';
-    expect(output).toContain('Search: "graphql"');
-    expect(output).toContain('Searching…');
     unmount();
   });
 
@@ -127,8 +118,7 @@ describe('RepoListHeader', () => {
         sortDir="asc"
         forkTracking={false}
         filter=""
-        searchActive={false}
-        searchLoading={false}
+        filterActive={false}
       />
     );
 
@@ -142,8 +132,7 @@ describe('RepoListHeader', () => {
         sortDir="desc"
         forkTracking={false}
         filter=""
-        searchActive={false}
-        searchLoading={false}
+        filterActive={false}
       />
     );
 
@@ -153,7 +142,7 @@ describe('RepoListHeader', () => {
 
   it('renders all sort keys correctly', () => {
     const sortKeys = ['updated', 'pushed', 'name', 'stars'];
-    
+
     for (const key of sortKeys) {
       const { lastFrame, unmount } = render(
         <RepoListHeader
@@ -162,8 +151,7 @@ describe('RepoListHeader', () => {
           sortDir="desc"
           forkTracking={false}
           filter=""
-          searchActive={false}
-          searchLoading={false}
+          filterActive={false}
         />
       );
 
@@ -180,15 +168,14 @@ describe('RepoListHeader', () => {
         sortDir="desc"
         forkTracking={false}
         filter=""
-        searchActive={false}
-        searchLoading={false}
+        filterActive={false}
       />
     );
 
     const output = lastFrame() || '';
     // Should not show any context label when undefined
     expect(output).not.toContain('Personal Account');
-    expect(output).not.toContain('Organization:');
+    expect(output).not.toContain('Organisation:');
     // But should still show other elements
     expect(output).toContain('Sort: updated ↓');
     unmount();

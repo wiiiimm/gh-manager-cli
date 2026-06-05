@@ -10,8 +10,7 @@ describe('RepoListHeader - Visibility Filter Display', () => {
     sortDir: 'desc' as const,
     forkTracking: true,
     filter: '',
-    searchActive: false,
-    searchLoading: false,
+    filterActive: false,
   };
 
   it('does not show visibility filter when set to "all"', () => {
@@ -64,18 +63,19 @@ describe('RepoListHeader - Visibility Filter Display', () => {
     unmount();
   });
 
-  it('displays visibility filter alongside other filters', () => {
+  it('displays visibility filter alongside active fuzzy search', () => {
     const { lastFrame, unmount } = render(
-      <RepoListHeader 
-        {...defaultProps} 
+      <RepoListHeader
+        {...defaultProps}
         visibilityFilter="public"
         filter="test"
+        filterActive={true}
       />
     );
 
     const output = lastFrame() || '';
     expect(output).toContain('Visibility: Public');
-    expect(output).toContain('Filter: "test"');
+    expect(output).toContain('Search: "test"');
     expect(output).toContain('Fork Status - Commits Behind: ON');
     unmount();
   });

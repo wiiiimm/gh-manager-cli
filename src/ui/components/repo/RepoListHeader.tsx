@@ -1,7 +1,8 @@
 import React from 'react';
 import { Box, Text } from 'ink';
 import { OwnerContext } from '../../../config/config';
-import { SlowSpinner } from '../common';
+import type { Theme } from '../../../config/themes';
+import { useTheme } from '../../hooks/useTheme';
 
 interface RepoListHeaderProps {
   ownerContext: OwnerContext;
@@ -9,12 +10,12 @@ interface RepoListHeaderProps {
   sortDir: 'asc' | 'desc';
   forkTracking: boolean;
   filter: string;
-  searchActive: boolean;
-  searchLoading: boolean;
+  filterActive: boolean;
   visibilityFilter?: 'all' | 'public' | 'private' | 'internal';
   archiveFilter?: 'all' | 'unarchived' | 'archived';
   isEnterprise?: boolean;
   starsMode?: boolean;
+  theme?: Theme;
 }
 
 export default function RepoListHeader({
@@ -23,17 +24,19 @@ export default function RepoListHeader({
   sortDir,
   forkTracking,
   filter,
-  searchActive,
-  searchLoading,
+  filterActive,
   visibilityFilter = 'all',
   archiveFilter = 'all',
   isEnterprise = false,
-  starsMode = false
+  starsMode = false,
+  theme: themeProp,
 }: RepoListHeaderProps) {
+  const { theme } = useTheme(themeProp?.name ?? 'default');
+
   const contextLabel = ownerContext === 'personal'
     ? 'Personal Account'
     : ownerContext?.type === 'organization'
-      ? `Organization: ${ownerContext.name ?? ownerContext.login}`
+      ? `Organisation: ${ownerContext.name ?? ownerContext.login}`
       : '';
 
   const visibilityLabel = visibilityFilter === 'public'
@@ -50,40 +53,29 @@ export default function RepoListHeader({
         <Text>{contextLabel}</Text>
       )}
       {starsMode && (
-        <Text color="yellow" bold>
+        <Text color={theme.warning} bold>
           ⭐ Stars Mode
         </Text>
       )}
-      <Text color="gray" dimColor>
-        Sort: {sortKey} {sortDir === 'asc' ? '↑' : '↓'}
+      <Text color={theme.muted} dimColor>
+        Sort: {filterActive ? 'relevance' : `${sortKey} ${sortDir === 'asc' ? '↑' : '↓'}`}
       </Text>
-      <Text color="gray" dimColor>
+      <Text color={theme.muted} dimColor>
         Fork Status - Commits Behind: {forkTracking ? 'ON' : 'OFF'}
       </Text>
       {!!visibilityLabel && !starsMode && (
-        <Text color="yellow">
+        <Text color={theme.warning}>
           Visibility: {visibilityLabel}
         </Text>
       )}
       {archiveFilter !== 'all' && (
-        <Text color="cyan">
+        <Text color={theme.primary}>
           Archive: {archiveFilter === 'archived' ? 'Archived' : 'Unarchived'}
         </Text>
       )}
-      {filter && !searchActive && (
-        <Text color="cyan">Filter: "{filter}"</Text>
-      )}
-      {searchActive && (
-        <>
-          <Text color="cyan">Search: "{filter.trim()}"</Text>
-          {searchLoading && (
-            <Box marginLeft={1}>
-              <Text color="cyan"><SlowSpinner /> Searching…</Text>
-            </Box>
-          )}
-        </>
+      {(filterActive || (starsMode && filter.trim().length > 0)) && (
+        <Text color={theme.primary}>{starsMode ? 'Filter' : 'Search'}: "{filter.trim()}"</Text>
       )}
     </Box>
   );
 }
-

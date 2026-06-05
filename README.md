@@ -75,7 +75,7 @@ On first run, you'll be prompted to authenticate with GitHub (OAuth recommended)
 - **Repository Listing**: Browse all your personal repositories with metadata (stars, forks, language, etc.)
 - **Background Fetch-All**: Loads your entire account in the background after the first page, so filtering/sorting/search are instant and complete
 - **Interactive Sorting**: Modal-based sort selection (updated, pushed, name, stars) with modal-based direction selection
-- **Smart Search**: Server-side search through repository names and descriptions (3+ characters)
+- **Fuzzy Search**: Instant typo-tolerant search over the full cached repository set — no network calls in the search path (powered by [fuse.js](https://www.fusejs.io/))
 - **Visibility Filter**: Modal-based visibility filter (All, Public, Private/Internal for enterprise) with smart filtering
 - **Archive Filter**: Toggle-based archive filter (`A` key cycles All → Unarchived → Archived) for quick filtering by archive status
 - **Fork Status Tracking**: Always shows commits behind upstream for forked repositories
@@ -100,6 +100,7 @@ On first run, you'll be prompted to authenticate with GitHub (OAuth recommended)
 ### User Interface & Experience
 - **Keyboard Navigation**: Full keyboard control (arrow keys, PageUp/Down, `Ctrl+G`/`G`)
 - **Display Density**: Toggle between compact/cozy/comfy spacing (`T`)
+- **Colour Themes**: Four themes (Default, Ocean, Forest, Monochrome) cycled with `Shift+T`, persisted across restarts
 - **Visual Indicators**: Fork status, private/internal/archived badges, language colors, visibility status
 - **Enterprise Support**: Full support for GitHub Enterprise with Internal repository visibility
 - **Organization Context**: Switch between personal and organization accounts with ENT badge for enterprise orgs
@@ -276,10 +277,12 @@ Launch the app, then use the keys below:
   - Stars: Number of stars
 - **Sort Direction**: `D` to open sort direction modal (ascending/descending)
 - **Display Density**: `T` to toggle compact/cozy/comfy
+- **Colour Theme**: `Shift+T` to cycle themes (Default → Ocean → Forest → Monochrome); selection persists across restarts
 - **Fork Status**: Always enabled - shows commits behind upstream for all forks
 - **Visibility Filter**: `V` opens modal (All, Public, Private/Internal for enterprise)
 - **Archive Filter**: `A` toggles archive filter (All → Unarchived → Archived)
-- **Stars Mode**: `Shift+S` (personal account only) to view starred repositories
+- **Stars Mode**: `Shift+S` (personal account only) to toggle between your own repos and your starred repos
+  - Footer hint shows `Shift+S Starred` in normal mode and `Shift+S My Repos` in starred mode
 
 ### Navigation & Account
 - **Open in browser**: Enter or `O`

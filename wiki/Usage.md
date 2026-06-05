@@ -21,8 +21,10 @@ Launch the app, then use the keys below to navigate and interact with your repos
 
 - **Top/Bottom**: `Ctrl+G` (top), `G` (bottom)
 - **Page Navigation**: ↑↓ Arrow keys, PageUp/PageDown
-- **Search**: `/` to enter search mode, type 3+ characters for server-side search
-  - Down arrow or Enter: Start browsing search results
+- **Search**: `/` to enter fuzzy-search mode, start typing immediately (no minimum character count)
+  - Results update instantly on each keystroke — no network calls, typo-tolerant
+  - While the background fetch-all is still in progress, a hint will indicate results may be incomplete
+  - Down arrow: Start browsing search results
   - Esc: Clear search and return to full repository list
 - **Sort**: `S` opens sort modal with options:
   - Updated: When the repository was last modified
