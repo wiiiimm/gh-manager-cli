@@ -14,6 +14,7 @@ import { UnstarModal } from '../components/modals/UnstarModal';
 import { RepoRow, FilterInput, RepoListHeader } from '../components/repo';
 import { SlowSpinner } from '../components/common';
 import { truncate, formatDate, copyToClipboard } from '../../lib/utils';
+import { fuzzySearch } from '../../lib/fuzzySearch';
 
 // Allow customizable repos per fetch via env var (1-50, default 15)
 const getPageSize = () => {
@@ -104,6 +105,11 @@ export default function RepoList({ token, maxVisibleRows, onLogout, viewerLogin,
   const [searchHasNextPage, setSearchHasNextPage] = useState(false);
   const [searchTotalCount, setSearchTotalCount] = useState<number>(0);
   const [searchLoading, setSearchLoading] = useState(false);
+
+  // Debounce timer for server-side search (~300 ms)
+  const serverSearchTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  // Stale-response guard: the trimmed query string of the most recent user keystroke
+  const activeSearchQueryRef = useRef<string>('');
   // Delete modal state
   const [deleteMode, setDeleteMode] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState<RepoNode | null>(null);
@@ -614,6 +620,13 @@ export default function RepoList({ token, maxVisibleRows, onLogout, viewerLogin,
     setOwnerContext(newContext);
     setCursor(0);
     setOrgSwitcherOpen(false);
+
+    // Cancel any pending debounced server search
+    if (serverSearchTimerRef.current) {
+      clearTimeout(serverSearchTimerRef.current);
+      serverSearchTimerRef.current = null;
+    }
+    activeSearchQueryRef.current = '';
     
     // Clear repository lists immediately when switching context
     setItems([]);
@@ -864,11 +877,14 @@ export default function RepoList({ token, maxVisibleRows, onLogout, viewerLogin,
   };
 
   // Server-side search fetch
-  const fetchSearchPage = async (after?: string | null, reset = false, policy?: 'cache-first' | 'network-only', searchQuery?: string) => {
+  // queryTag: the query string this request was initiated for; used to discard stale responses
+  const fetchSearchPage = async (after?: string | null, reset = false, policy?: 'cache-first' | 'network-only', searchQuery?: string, queryTag?: string) => {
     // Use provided searchQuery or fall back to filter state
     const query = searchQuery ?? filter;
+    // The tag identifies which user-typed query triggered this request
+    const tag = queryTag ?? query.trim();
     
-    addDebugMessage(`[fetchSearchPage] query="${query}", searchQuery="${searchQuery}", filter="${filter}"`);
+    addDebugMessage(`[fetchSearchPage] query="${query}", tag="${tag}", filter="${filter}"`);
     
     if (!viewerLogin) {
       addDebugMessage('❌ No viewerLogin for search');
@@ -896,6 +912,12 @@ export default function RepoList({ token, maxVisibleRows, onLogout, viewerLogin,
       if (page.nodes.length > 0) {
         addDebugMessage(`[fetchSearchPage] First result: ${page.nodes[0].name}`);
       }
+
+      // Stale-response guard: discard if the user has since changed the query
+      if (tag !== activeSearchQueryRef.current) {
+        addDebugMessage(`[fetchSearchPage] Discarding stale response for "${tag}" (current: "${activeSearchQueryRef.current}")`);
+        return;
+      }
       
       setSearchItems(prev => (reset || !after ? page.nodes : [...prev, ...page.nodes]));
       setSearchEndCursor(page.endCursor);
@@ -917,14 +939,20 @@ export default function RepoList({ token, maxVisibleRows, onLogout, viewerLogin,
       }
       setError(null);
     } catch (e: any) {
-      const errorMsg = `Failed to search: ${e.message || e}`;
-      addDebugMessage(`❌ Search error: ${e.message || e}`);
-      if (e.stack) {
-        addDebugMessage(`Stack: ${e.stack.split('\n')[0]}`);
+      // Only surface error if this is still the active query
+      if (tag === activeSearchQueryRef.current) {
+        const errorMsg = `Failed to search: ${e.message || e}`;
+        addDebugMessage(`❌ Search error: ${e.message || e}`);
+        if (e.stack) {
+          addDebugMessage(`Stack: ${e.stack.split('\n')[0]}`);
+        }
+        setError(errorMsg);
       }
-      setError(errorMsg);
     } finally {
-      setSearchLoading(false);
+      // Only clear the loading spinner when this is the most recent query to avoid premature clearance
+      if (tag === activeSearchQueryRef.current) {
+        setSearchLoading(false);
+      }
     }
   };
 
@@ -1312,8 +1340,13 @@ export default function RepoList({ token, maxVisibleRows, onLogout, viewerLogin,
     if (filterMode) {
       if (key.escape) {
         // Clear search and return to normal listing
+        if (serverSearchTimerRef.current) {
+          clearTimeout(serverSearchTimerRef.current);
+          serverSearchTimerRef.current = null;
+        }
         setFilterMode(false);
         setFilter('');
+        activeSearchQueryRef.current = '';
         setSearchItems([]);
         setSearchEndCursor(null);
         setSearchHasNextPage(false);
@@ -1323,8 +1356,8 @@ export default function RepoList({ token, maxVisibleRows, onLogout, viewerLogin,
         return;
       }
       // Down arrow in filter mode with results - exit filter mode and select first item
-      // Works for both search mode and stars mode filtering
-      if (key.downArrow && (searchActive || (starsMode && filter.trim().length > 0)) && visibleItems.length > 0) {
+      // Works for fuzzy (1+ chars), server search (3+ chars), and stars mode filtering
+      if (key.downArrow && (fuzzyActive || (starsMode && filter.trim().length > 0)) && visibleItems.length > 0) {
         setFilterMode(false);
         setCursor(0); // Select first item
         addDebugMessage('[DOWN] Exited filter mode and selected first result');
@@ -1335,8 +1368,13 @@ export default function RepoList({ token, maxVisibleRows, onLogout, viewerLogin,
     }
 
     // ESC key while viewing search results or filtered stars - clear filter and return to normal listing
-    if (key.escape && (searchActive || (starsMode && filter.trim().length > 0))) {
+    if (key.escape && (fuzzyActive || (starsMode && filter.trim().length > 0))) {
+      if (serverSearchTimerRef.current) {
+        clearTimeout(serverSearchTimerRef.current);
+        serverSearchTimerRef.current = null;
+      }
       setFilter('');
+      activeSearchQueryRef.current = '';
       if (!starsMode) {
         // Only clear search-related state in non-stars mode
         setSearchItems([]);
@@ -1395,7 +1433,18 @@ export default function RepoList({ token, maxVisibleRows, onLogout, viewerLogin,
       return;
     }
     if (input && input.toUpperCase() === 'R' && !key.ctrl) {
-      // Refresh - show loading screen (only if Ctrl is not pressed)
+      // Refresh - cancel any pending search and show loading screen
+      if (serverSearchTimerRef.current) {
+        clearTimeout(serverSearchTimerRef.current);
+        serverSearchTimerRef.current = null;
+      }
+      activeSearchQueryRef.current = '';
+      setFilter('');
+      setFilterMode(false);
+      setSearchItems([]);
+      setSearchEndCursor(null);
+      setSearchHasNextPage(false);
+      setSearchTotalCount(0);
       setCursor(0);
       setRefreshing(true);
       setSortingLoading(true); // Use same loading state for consistency
@@ -1676,7 +1725,10 @@ export default function RepoList({ token, maxVisibleRows, onLogout, viewerLogin,
   }, [filtered, sortKey, sortDir]);
 
   // In stars mode, we never do GitHub search - just local filtering
+  // serverSearchActive gates server-side search (≥3 chars), kept as `searchActive` for backwards compat
   const searchActive = !starsMode && filter.trim().length >= 3;
+  // fuzzyActive: any typing triggers instant fuzzy filtering of already-loaded repos
+  const fuzzyActive = !starsMode && filter.trim().length >= 1;
   
   // Apply visibility filter to search results too
   const filteredSearchItems = useMemo(() => {
@@ -1697,6 +1749,25 @@ export default function RepoList({ token, maxVisibleRows, onLogout, viewerLogin,
 
     return result;
   }, [searchItems, visibilityFilter, archiveFilter]);
+
+  // Fuzzy filter over already-loaded repos — instant, typo-tolerant, works from first char
+  const fuzzyItems = useMemo(() => {
+    if (!fuzzyActive) return [];
+    return fuzzySearch(items, filter.trim());
+  }, [items, filter, fuzzyActive]);
+
+  // Hybrid list = stable union of fuzzy(local) ∪ server results, deduped by id.
+  // Fuzzy-matched rows appear first (preserving their order); server-only additions
+  // are appended after so existing rows never reshuffle under the cursor.
+  const hybridItems = useMemo(() => {
+    if (!searchActive) {
+      // 1–2 chars: fuzzy only, no server results yet
+      return fuzzyItems;
+    }
+    const fuzzyIds = new Set(fuzzyItems.map(r => r.id));
+    const serverOnly = filteredSearchItems.filter(r => !fuzzyIds.has(r.id));
+    return [...fuzzyItems, ...serverOnly];
+  }, [fuzzyItems, filteredSearchItems, searchActive]);
   
   // Apply filter to starred items if in stars mode
   const filteredStarredItems = useMemo(() => {
@@ -1719,20 +1790,22 @@ export default function RepoList({ token, maxVisibleRows, onLogout, viewerLogin,
     return result;
   }, [starredItems, filter, archiveFilter]);
   
-  const visibleItems = starsMode ? filteredStarredItems : (searchActive ? filteredSearchItems : filteredAndSorted);
+  const visibleItems = starsMode ? filteredStarredItems : (fuzzyActive ? hybridItems : filteredAndSorted);
   
   // Debug log
   useEffect(() => {
-    if (searchActive) {
-      addDebugMessage(`[State] searchActive=${searchActive}, searchItems=${searchItems.length}, visibleItems=${visibleItems.length}, filter="${filter}"`);
+    if (fuzzyActive) {
+      addDebugMessage(`[State] fuzzyActive=${fuzzyActive}, searchActive=${searchActive}, fuzzyItems=${fuzzyItems.length}, searchItems=${searchItems.length}, visibleItems=${visibleItems.length}, filter="${filter}"`);
     }
-  }, [searchActive, searchItems.length, visibleItems.length, filter]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [fuzzyActive, searchActive, fuzzyItems.length, searchItems.length, visibleItems.length, filter]);
   
 
-  // Keep cursor in range when data changes
+  // Keep cursor in range when data changes (use visibleItems.length which covers all modes)
   useEffect(() => {
-    setCursor(c => Math.min(c, Math.max(0, (searchActive ? searchItems.length : items.length) - 1)));
-  }, [searchActive, searchItems.length, items.length]);
+    setCursor(c => Math.min(c, Math.max(0, visibleItems.length - 1)));
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [visibleItems.length]);
 
   // Calculate fixed heights for layout sections and list area
   const headerHeight = 2; // Header bar + margin
@@ -1804,46 +1877,64 @@ export default function RepoList({ token, maxVisibleRows, onLogout, viewerLogin,
   const modalOpen = deleteMode || archiveMode || syncMode || logoutMode || infoMode || visibilityMode || archiveFilterMode || sortMode || sortDirectionMode || changeVisibilityMode || copyUrlMode || renameMode;
 
   // Memoize header to prevent re-renders - must be before any returns
-  const headerBar = useMemo(() => (
-    <Box flexDirection="row" justifyContent="space-between" height={1} marginBottom={1}>
-      <Box flexDirection="row" gap={1}>
-        <Text color="cyan" bold={!modalOpen} dimColor={modalOpen}>
-          {'  '}{ownerContext === 'personal' 
-            ? 'Personal' 
-            : ownerContext.name || ownerContext.login}
-          {ownerContext !== 'personal' && isEnterpriseOrg && ' (ENT)'}
-        </Text>
-        <Text bold color={modalOpen ? 'gray' : undefined} dimColor={modalOpen ? true : undefined}>Repositories</Text>
-        <Text color="gray">({visibleItems.length}/{searchActive ? searchTotalCount : totalCount})</Text>
-        {(loading || searchLoading) && (
-          <Box width={2} flexShrink={0} flexGrow={0} marginLeft={1}>
-            <Text color="yellow">
-              <SlowSpinner />
-            </Text>
-          </Box>
+  const headerBar = useMemo(() => {
+    // Build the count/status text inline using chalk to avoid nested Text components
+    let countDisplay: string;
+    if (fuzzyActive && !searchActive) {
+      // 1–2 chars: instant fuzzy only, server search not yet engaged
+      countDisplay = chalk.gray(`(${visibleItems.length} local · type 3+ chars to search)`);
+    } else if (fuzzyActive && searchActive && searchLoading) {
+      // 3+ chars, server search in flight
+      countDisplay = chalk.gray(`(${visibleItems.length} local · `) + chalk.yellow('searching GitHub…') + chalk.gray(')');
+    } else if (searchActive) {
+      // 3+ chars, server search settled
+      countDisplay = chalk.gray(`(${visibleItems.length}/${searchTotalCount})`);
+    } else {
+      // Normal mode — no filter active
+      countDisplay = chalk.gray(`(${visibleItems.length}/${totalCount})`);
+    }
+
+    return (
+      <Box flexDirection="row" justifyContent="space-between" height={1} marginBottom={1}>
+        <Box flexDirection="row" gap={1}>
+          <Text color="cyan" bold={!modalOpen} dimColor={modalOpen}>
+            {'  '}{ownerContext === 'personal' 
+              ? 'Personal' 
+              : ownerContext.name || ownerContext.login}
+            {ownerContext !== 'personal' && isEnterpriseOrg && ' (ENT)'}
+          </Text>
+          <Text bold color={modalOpen ? 'gray' : undefined} dimColor={modalOpen ? true : undefined}>Repositories</Text>
+          <Text>{countDisplay}</Text>
+          {(loading || searchLoading) && (
+            <Box width={2} flexShrink={0} flexGrow={0} marginLeft={1}>
+              <Text color="yellow">
+                <SlowSpinner />
+              </Text>
+            </Box>
+          )}
+        </Box>
+        
+        {(rateLimit || restRateLimit) && (
+          <Text color={lowRate ? 'yellow' : 'gray'}>
+            GraphQL: {rateLimit ? `${rateLimit.remaining}/${rateLimit.limit}` : '---/---'}
+            {prevRateLimit !== undefined && rateLimit && prevRateLimit !== rateLimit.remaining && (
+              <Text color={rateLimit.remaining < prevRateLimit ? 'red' : 'green'}>
+                {` (${rateLimit.remaining - prevRateLimit > 0 ? '+' : ''}${rateLimit.remaining - prevRateLimit})`}
+              </Text>
+            )}
+            {' | '}
+            REST: {restRateLimit ? `${restRateLimit.core.remaining}/${restRateLimit.core.limit}` : '---/---'}
+            {prevRestRateLimit !== undefined && restRateLimit && prevRestRateLimit !== restRateLimit.core.remaining && (
+              <Text color={restRateLimit.core.remaining < prevRestRateLimit ? 'red' : 'green'}>
+                {` (${restRateLimit.core.remaining - prevRestRateLimit > 0 ? '+' : ''}${restRateLimit.core.remaining - prevRestRateLimit})`}
+              </Text>
+            )}
+            {'  '}
+          </Text>
         )}
       </Box>
-      
-      {(rateLimit || restRateLimit) && (
-        <Text color={lowRate ? 'yellow' : 'gray'}>
-          GraphQL: {rateLimit ? `${rateLimit.remaining}/${rateLimit.limit}` : '---/---'}
-          {prevRateLimit !== undefined && rateLimit && prevRateLimit !== rateLimit.remaining && (
-            <Text color={rateLimit.remaining < prevRateLimit ? 'red' : 'green'}>
-              {` (${rateLimit.remaining - prevRateLimit > 0 ? '+' : ''}${rateLimit.remaining - prevRateLimit})`}
-            </Text>
-          )}
-          {' | '}
-          REST: {restRateLimit ? `${restRateLimit.core.remaining}/${restRateLimit.core.limit}` : '---/---'}
-          {prevRestRateLimit !== undefined && restRateLimit && prevRestRateLimit !== restRateLimit.core.remaining && (
-            <Text color={restRateLimit.core.remaining < prevRestRateLimit ? 'red' : 'green'}>
-              {` (${restRateLimit.core.remaining - prevRestRateLimit > 0 ? '+' : ''}${restRateLimit.core.remaining - prevRestRateLimit})`}
-            </Text>
-          )}
-          {'  '}
-        </Text>
-      )}
-    </Box>
-  ), [visibleItems.length, searchActive, searchTotalCount, totalCount, loading, searchLoading, rateLimit, lowRate, modalOpen, prevRateLimit, ownerContext, isEnterpriseOrg, restRateLimit, prevRestRateLimit]);
+    );
+  }, [visibleItems.length, searchActive, fuzzyActive, searchTotalCount, totalCount, loading, searchLoading, rateLimit, lowRate, modalOpen, prevRateLimit, ownerContext, isEnterpriseOrg, restRateLimit, prevRestRateLimit]);
 
   if (error) {
     return (
@@ -2448,25 +2539,40 @@ export default function RepoList({ token, maxVisibleRows, onLogout, viewerLogin,
                 setFilter(val);
                 const q = (val || '').trim();
                 addDebugMessage(`[onChange] trimmed="${q}", len=${q.length}`);
+
+                // Always update the active query ref so stale responses are discarded
+                activeSearchQueryRef.current = q;
+
+                // Cancel any pending debounced server search
+                if (serverSearchTimerRef.current) {
+                  clearTimeout(serverSearchTimerRef.current);
+                  serverSearchTimerRef.current = null;
+                }
+
                 if (q.length >= 3) {
-                  // Kick off server search
-                  addDebugMessage(`[onChange] Triggering search for "${q}"`);
-                  let policy: 'cache-first' | 'network-only' = 'cache-first';
-                  try {
-                    const key = makeSearchKey({
-                      viewer: viewerLogin || 'unknown',
-                      q,
-                      sortKey,
-                      sortDir,
-                      pageSize: PAGE_SIZE,
-                      forkTracking,
-                    });
-                    policy = isFresh(key, 90 * 1000) ? 'cache-first' : 'network-only';
-                  } catch {}
-                  addDebugMessage(`[onChange] Calling fetchSearchPage with q="${q}"`);
-                  fetchSearchPage(null, true, policy, q);
+                  // Debounce the server-side search (~300 ms) to avoid per-keystroke requests
+                  addDebugMessage(`[onChange] Scheduling debounced server search for "${q}"`);
+                  serverSearchTimerRef.current = setTimeout(() => {
+                    serverSearchTimerRef.current = null;
+                    // Only fire if the query hasn't changed while we waited
+                    if (q !== activeSearchQueryRef.current) return;
+                    addDebugMessage(`[onChange] Debounce fired — triggering server search for "${q}"`);
+                    let policy: 'cache-first' | 'network-only' = 'cache-first';
+                    try {
+                      const key = makeSearchKey({
+                        viewer: viewerLogin || 'unknown',
+                        q,
+                        sortKey,
+                        sortDir,
+                        pageSize: PAGE_SIZE,
+                        forkTracking,
+                      });
+                      policy = isFresh(key, 90 * 1000) ? 'cache-first' : 'network-only';
+                    } catch {}
+                    fetchSearchPage(null, true, policy, q, q);
+                  }, 300);
                 } else {
-                  // Clear search results under threshold
+                  // Below server-search threshold: clear any previous server results
                   setSearchItems([]);
                   setSearchEndCursor(null);
                   setSearchHasNextPage(false);
@@ -2476,34 +2582,28 @@ export default function RepoList({ token, maxVisibleRows, onLogout, viewerLogin,
               onSubmit={() => {
                 setFilterMode(false);
               }}
-              placeholder={starsMode ? "Type to filter starred repositories..." : "Type to search (3+ chars for server search)..."}
+              placeholder={starsMode ? "Type to filter starred repositories..." : "Type to fuzzy-search (3+ chars also searches GitHub)..."}
             />
           </Box>
         )}
 
             {/* Repository list */}
             <Box flexDirection="column" height={listHeight}>
-              {(filterMode && filter.trim().length > 0 && filter.trim().length < 3) ? (
-                <Box justifyContent="center" alignItems="center" flexGrow={1}>
-                  <Text color="gray" dimColor>Type at least 3 characters to search</Text>
-                </Box>
-              ) : (
-                visibleItems.slice(windowed.start, windowed.end).map((repo, i) => {
-                  const idx = windowed.start + i;
-                  return (
-                    <RepoRow
-                      key={repo.nameWithOwner}
-                      repo={repo}
-                      selected={filterMode && searchActive ? false : idx === cursor}
-                      index={idx + 1}
-                      maxWidth={terminalWidth - 6}
-                      spacingLines={spacingLines}
-                      forkTracking={forkTracking}
-                      starsMode={starsMode}
-                    />
-                  );
-                })
-              )}
+              {visibleItems.slice(windowed.start, windowed.end).map((repo, i) => {
+                const idx = windowed.start + i;
+                return (
+                  <RepoRow
+                    key={repo.nameWithOwner}
+                    repo={repo}
+                    selected={filterMode && fuzzyActive ? false : idx === cursor}
+                    index={idx + 1}
+                    maxWidth={terminalWidth - 6}
+                    spacingLines={spacingLines}
+                    forkTracking={forkTracking}
+                    starsMode={starsMode}
+                  />
+                );
+              })}
               
               {/* Infinite scroll loading indicator */}
               {loadingMore && hasNextPage && (
@@ -2522,7 +2622,13 @@ export default function RepoList({ token, maxVisibleRows, onLogout, viewerLogin,
               {!loading && !searchLoading && visibleItems.length === 0 && (
                 <Box justifyContent="center" alignItems="center" flexGrow={1}>
                   <Text color="gray" dimColor>
-                    {searchActive ? 'No repositories match your search' : (filter ? 'No repositories match your filter' : 'No repositories found')}
+                    {fuzzyActive
+                      ? (searchActive
+                        ? 'No repositories match your search'
+                        : 'No local repositories match — type 3+ chars for server search')
+                      : (filter
+                        ? 'No repositories match your filter'
+                        : 'No repositories found')}
                   </Text>
                 </Box>
               )}

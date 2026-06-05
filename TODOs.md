@@ -226,6 +226,15 @@ Legend:
   - Organization context support: uses `org:` prefix for org searches ✓
   - Label changed from "Filter:" to "Search:" for clarity ✓
 
+- [x] Hybrid fuzzy + server-side search (SWR-350)
+  - Instant typo-tolerant fuzzy filtering from first character (Fuse.js) ✓
+  - Server-side search debounced ~300 ms to avoid per-keystroke API calls ✓
+  - Results are stable union: fuzzy(local) ∪ server results, deduped by id ✓
+  - Server-only rows appended after fuzzy rows — no reshuffling under cursor ✓
+  - Stale-response guard: out-of-order server pages are silently discarded ✓
+  - Loading indicator: `N local · searching GitHub…` while fetching, `(shown/total)` when settled ✓
+  - 1–2 char state: `(N local · type 3+ chars to search)` indicator ✓
+
 - [x] Sorting enhancements  
   - [x] Persist sort field + direction in config (implemented in UI preferences)
   - [x] Sort modal interface with descriptive options (updated, pushed, name, stars)

@@ -26,6 +26,9 @@ importers:
       env-paths:
         specifier: ^3.0.0
         version: 3.0.0
+      fuse.js:
+        specifier: ^7.4.1
+        version: 7.4.1
       graphql:
         specifier: ^16.11.0
         version: 16.11.0
@@ -1424,6 +1427,10 @@ packages:
   function-timeout@1.0.2:
     resolution: {integrity: sha512-939eZS4gJ3htTHAldmyyuzlrD58P03fHG49v2JfFXbV6OhvZKRC9j2yAtdHw/zrp2zXHuv05zMIy40F0ge7spA==}
     engines: {node: '>=18'}
+
+  fuse.js@7.4.1:
+    resolution: {integrity: sha512-AY7lKAXK71hi3WgUvDy6oZL67UEHOOtvCAwVdOXHyJd6ZzftBy7QqxuXt4HxmmAhYjmp/YCuOELZtIvAdlZ+fw==}
+    engines: {node: '>=10'}
 
   get-caller-file@2.0.5:
     resolution: {integrity: sha512-DyFP3BM/3YHTQOCUL/w0OZHR0lpKeGrxotcHWcqNEdnltqFwXVfhEBQ94eIo34AfQpo0rGki4cyIiftY06h2Fg==}
@@ -4050,6 +4057,8 @@ snapshots:
   function-bind@1.1.2: {}
 
   function-timeout@1.0.2: {}
+
+  fuse.js@7.4.1: {}
 
   get-caller-file@2.0.5: {}
 

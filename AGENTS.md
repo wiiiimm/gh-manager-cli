@@ -30,6 +30,9 @@ gh-manager-cli/
 │   ├── ui/
 │   │   ├── App.tsx            # Token bootstrap and routing
 │   │   └── RepoList.tsx       # Repository list UI, key handling, infinite scroll
+│   ├── lib/
+│   │   ├── fuzzySearch.ts     # Fuse.js-backed fuzzy search over locally-loaded repos
+│   │   └── utils.ts           # Shared utilities
 │   ├── github.ts              # Octokit GraphQL client and queries
 │   ├── config.ts              # Read/write config and token management
 │   └── types.ts               # TypeScript type definitions
@@ -55,12 +58,13 @@ gh-manager-cli/
 ### Main Script (`src/index.tsx`)
 - **Language:** TypeScript with React/Ink
 - **Dependencies:** 
-  - `@octokit/graphql` for GitHub API
-  - `ink` (React-based TUI)
-  - `chalk` for terminal colors
-  - `ink-spinner` for loading states
-  - `ink-text-input` for user input
-  - `env-paths` for cross-platform config storage
+- `@octokit/graphql` for GitHub API
+ - `ink` (React-based TUI)
+ - `chalk` for terminal colors
+ - `ink-spinner` for loading states
+ - `ink-text-input` for user input
+ - `env-paths` for cross-platform config storage
+ - `fuse.js` for typo-tolerant fuzzy search over locally-loaded repos
 - **Build:** tsup with esbuild
 
 ### Key Features
@@ -68,7 +72,7 @@ gh-manager-cli/
 - List personal and organization repos with metadata (name, description, stars, forks, etc.)
 - Full keyboard navigation with extensive shortcuts
 - Smart infinite scroll with 80% prefetch trigger
-- Server-side search with Apollo Client caching
+- Hybrid search: instant fuzzy (local) + debounced server-side search via Apollo Client caching
 - Repository actions: delete, archive/unarchive, change visibility, sync forks
 - Organization and Enterprise GitHub support
 - Modal-based UI for sorting, filtering, and actions
@@ -113,7 +117,7 @@ See the living roadmap in [TODOs.md](./TODOs.md) for the canonical, up-to-date l
 - PageUp/PageDown: jump ±10
 - `Ctrl+G`: jump to top
 - `G`: jump to bottom
-- `/`: search mode (3+ characters for server-side search, Esc cancels)
+- `/`: search mode — fuzzy-filters loaded repos from the first character (typo-tolerant); server-side search fires after a ~300 ms debounce at 3+ characters; results are the stable union of both sources; Esc cancels
 - `S`: sort modal (updated, pushed, name, stars)
 - `D`: toggle sort direction
 - `T`: toggle display density (compact/cozy/comfy)

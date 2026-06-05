@@ -75,7 +75,7 @@ On first run, you'll be prompted to authenticate with GitHub (OAuth recommended)
 - **Repository Listing**: Browse all your personal repositories with metadata (stars, forks, language, etc.)
 - **Live Pagination**: Infinite scroll with automatic page prefetching
 - **Interactive Sorting**: Modal-based sort selection (updated, pushed, name, stars) with modal-based direction selection
-- **Smart Search**: Server-side search through repository names and descriptions (3+ characters)
+- **Hybrid Search**: Instant typo-tolerant fuzzy search over already-loaded repositories (from the first character), combined with debounced server-side search (3+ characters) for full-account coverage. Results are a stable union — fuzzy matches never disappear when server pages arrive. A clear loading indicator shows `N local · searching GitHub…` while the server fetch is in flight.
 - **Visibility Filter**: Modal-based visibility filter (All, Public, Private/Internal for enterprise) with smart filtering
 - **Archive Filter**: Toggle-based archive filter (`A` key cycles All → Unarchived → Archived) for quick filtering by archive status
 - **Fork Status Tracking**: Always shows commits behind upstream for forked repositories
