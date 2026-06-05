@@ -72,7 +72,7 @@ gh-manager-cli/
 - Repository actions: delete, archive/unarchive, change visibility, sync forks
 - Organization and Enterprise GitHub support
 - Modal-based UI for sorting, filtering, and actions
-- Persistent UI preferences (sort, density, visibility filter, fork tracking)
+- Persistent UI preferences (sort, density, visibility filter, fork tracking, colour theme)
 - Real-time rate limit monitoring for GraphQL and REST APIs
 
 ### Planned Enhancements
@@ -120,6 +120,7 @@ See the living roadmap in [TODOs.md](./TODOs.md) for the canonical, up-to-date l
 - `S`: sort modal (updated, pushed, name, stars)
 - `D`: toggle sort direction
 - `T`: toggle display density (compact/cozy/comfy)
+- `Shift+T`: cycle colour theme (Default → Ocean → Forest → Monochrome); persists across restarts
 - `F`: toggle fork commit tracking
 - `V`: visibility filter modal (All, Public, Private/Internal)
 - `W`: organization switcher
@@ -198,6 +199,7 @@ First run prompts for a PAT if not provided via env vars. The token is validated
 - **Automation:** semantic-release handles version bumping and git tags
 - **Release process:** Automated via GitHub Actions on main branch push
 - **Change tracking:** All releases documented in [CHANGELOG.md](./CHANGELOG.md)
+- **Do NOT manually edit [CHANGELOG.md](./CHANGELOG.md):** it is generated automatically by the semantic-release GitHub Actions workflow (`.github/workflows/automated-release.yml`) from conventional commit messages on `main`. Manual edits cause merge conflicts and are overwritten on the next release. To influence the changelog, write a well-formed conventional commit / PR title instead. When a feature branch conflicts with `main` on CHANGELOG.md, resolve by taking `main`'s version.
 
 ### Code Standards
 - **TypeScript:** Strict mode with comprehensive type definitions

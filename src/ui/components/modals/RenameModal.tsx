@@ -1,17 +1,20 @@
 import React, { useState, useEffect } from 'react';
 import { Box, Text, useInput } from 'ink';
 import TextInput from 'ink-text-input';
-import chalk from 'chalk';
 import type { RepoNode } from '../../../types';
+import type { Theme } from '../../../config/themes';
+import { useTheme } from '../../hooks/useTheme';
 import { SlowSpinner } from '../common';
 
 interface RenameModalProps {
   repo: RepoNode | null;
   onRename: (repo: RepoNode, newName: string) => Promise<void>;
   onCancel: () => void;
+  theme?: Theme;
 }
 
-export default function RenameModal({ repo, onRename, onCancel }: RenameModalProps) {
+export default function RenameModal({ repo, onRename, onCancel, theme: themeProp }: RenameModalProps) {
+  const { theme } = useTheme(themeProp?.name ?? 'default');
   const [newName, setNewName] = useState('');
   const [renaming, setRenaming] = useState(false);
   const [renameError, setRenameError] = useState<string | null>(null);
@@ -69,20 +72,20 @@ export default function RenameModal({ repo, onRename, onCancel }: RenameModalPro
   const isDisabled = !newName.trim() || newName === repo.name;
 
   return (
-    <Box 
-      flexDirection="column" 
-      borderStyle="round" 
-      borderColor="cyan" 
-      paddingX={3} 
+    <Box
+      flexDirection="column"
+      borderStyle="round"
+      borderColor={theme.primary}
+      paddingX={3}
       paddingY={2}
       width={80}
     >
-      <Text bold color="cyan">Rename Repository</Text>
+      <Text bold color={theme.primary}>Rename Repository</Text>
       <Box height={1}><Text> </Text></Box>
-      
-      <Text color="gray">Current: {repo.nameWithOwner}</Text>
+
+      <Text color={theme.muted}>Current: {repo.nameWithOwner}</Text>
       <Box height={1}><Text> </Text></Box>
-      
+
       <Text>New name:</Text>
       <Box flexDirection="row" alignItems="center">
         <Text>{owner}/</Text>
@@ -93,35 +96,35 @@ export default function RenameModal({ repo, onRename, onCancel }: RenameModalPro
           focus={!renaming}
         />
       </Box>
-      
+
       {renaming ? (
         <Box marginTop={2} justifyContent="center">
           <Box flexDirection="row">
             <Box marginRight={1}>
               <SlowSpinner />
             </Box>
-            <Text color="cyan">Renaming repository...</Text>
+            <Text color={theme.primary}>Renaming repository...</Text>
           </Box>
         </Box>
       ) : (
         <>
           <Box marginTop={2}>
-            <Text color="gray">
-              {isDisabled ? 
-                'Enter a different name to rename' : 
+            <Text color={theme.muted}>
+              {isDisabled ?
+                'Enter a different name to rename' :
                 `Press Enter to rename to "${newName}"`
               }
             </Text>
           </Box>
           <Box marginTop={1}>
-            <Text color="gray">Press Esc to cancel</Text>
+            <Text color={theme.muted}>Press Esc to cancel</Text>
           </Box>
         </>
       )}
-      
+
       {renameError && (
         <Box marginTop={1}>
-          <Text color="red">{renameError}</Text>
+          <Text color={theme.error}>{renameError}</Text>
         </Box>
       )}
     </Box>
