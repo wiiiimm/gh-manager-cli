@@ -9,7 +9,7 @@
 - ✅ GitHub GraphQL API integration with Apollo Client caching
 - ✅ Interactive terminal UI with Ink
 - ✅ OAuth and PAT authentication with secure storage
-- ✅ Infinite scroll with smart prefetching
+- ✅ Background fetch-all (whole account cached after first page)
 - ✅ Repository management (delete, archive, visibility change)
 - ✅ GitHub Enterprise support with Internal visibility
 - ✅ Organization switching and context management
@@ -67,7 +67,7 @@ gh-manager-cli/
 - OAuth and PAT authentication: prompt → validate → persist (0600 perms on POSIX)
 - List personal and organization repos with metadata (name, description, stars, forks, etc.)
 - Full keyboard navigation with extensive shortcuts
-- Smart infinite scroll with 80% prefetch trigger
+- Background fetch-all: whole account loaded into the persisted cache after the first page
 - Server-side search with Apollo Client caching
 - Repository actions: delete, archive/unarchive, change visibility, sync forks
 - Organization and Enterprise GitHub support
@@ -103,9 +103,12 @@ See the living roadmap in [TODOs.md](./TODOs.md) for the canonical, up-to-date l
 ## GitHub API Details
 
 - GraphQL query against `viewer.repositories` with `ownerAffiliations: OWNER` and `orderBy: UPDATED_AT DESC`.
-- Page size: 50 per request.
-- On each page fetch, also read `totalCount` to reflect newly created repos.
-- Selected fields: name/nameWithOwner/description/visibility/isPrivate/isFork/isArchived/stargazerCount/forkCount/primaryLanguage/updatedAt/pushedAt/diskUsage.
+- Page size: 100 per request (default; configurable 1-100 via `REPOS_PER_FETCH`).
+- **Single pagination model — background fetch-all:** the first page renders immediately, then a background loop fetches every remaining page until `hasNextPage` is false, appending into the persisted cache. There is no scroll-position prefetch trigger for the owned/starred lists; the load is continuous and driven by the effect re-running as the list grows. (Server-side search remains lazy/per-query.)
+- Because the full set is cached, **sorting is client-side** (`filteredAndSorted`) with no server refetch on sort change; archive/visibility (private) filtering is also client-side.
+- On each page fetch, also read `totalCount` to reflect newly created repos and to show background-load progress (`loaded/total`).
+- Selected fields: name/nameWithOwner/description/visibility/isPrivate/isFork/isArchived/stargazerCount/forkCount/primaryLanguage/updatedAt/pushedAt/diskUsage, plus `parent { nameWithOwner }` and `defaultBranchRef { name }`.
+- **Light bulk query (SWR-360):** the list/search queries intentionally do NOT fetch per-repo commit history (`history.totalCount`). Computing that for each repo and its parent across 100 repos/page exceeds GitHub's per-query budget and returns HTTP 502. Consequently fork **"commits behind"** counts are not available from the bulk fetch — `parent { nameWithOwner }` still drives the "Fork of X" label, but the "(N behind)" indicator is populated by a separate on-demand enrichment pass (follow-up). `fetchRepositoryById` (single repo) still fetches the full history fields.
 
 ## Controls
 
