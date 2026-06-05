@@ -4,6 +4,8 @@ import TextInput from 'ink-text-input';
 import chalk from 'chalk';
 import { makeClient, fetchViewerReposPageUnified, searchRepositoriesUnified, deleteRepositoryRest, archiveRepositoryById, unarchiveRepositoryById, changeRepositoryVisibility, syncForkWithUpstream, getRepositoryFromCache, purgeApolloCacheFiles, inspectCacheStatus, updateCacheAfterDelete, updateCacheAfterArchive, updateCacheAfterVisibilityChange, updateCacheWithRepository, checkOrganizationIsEnterprise, OwnerAffiliation, fetchViewerOrganizations, fetchRestRateLimits, renameRepositoryById, updateCacheAfterRename, getStarredRepositories, starRepository, unstarRepository } from '../../services/github';
 import { getUIPrefs, storeUIPrefs, OwnerContext } from '../../config/config';
+import { type ThemeName, nextTheme, getTheme } from '../../config/themes';
+import { useTheme } from '../hooks/useTheme';
 import { makeApolloKey, makeSearchKey, isFresh, markFetched } from '../../services/apolloMeta';
 import type { RepoNode, RateLimitInfo, RestRateLimitInfo } from '../../types';
 import { exec } from 'child_process';
@@ -88,6 +90,12 @@ export default function RepoList({ token, maxVisibleRows, onLogout, viewerLogin,
   // Display density: 0 = compact (0 lines), 1 = cozy (1 line), 2 = comfy (2 lines)
   const [density, setDensity] = useState<0 | 1 | 2>(2);
   const [prefsLoaded, setPrefsLoaded] = useState(false);
+
+  // Theme state
+  const [themeName, setThemeName] = useState<ThemeName>('default');
+  const [themeToast, setThemeToast] = useState<string | null>(null);
+  const themeToastTimerRef = useRef<NodeJS.Timeout | null>(null);
+  const { theme, c: tc } = useTheme(themeName);
   
   // Organization context state
   const [ownerContext, setOwnerContext] = useState<OwnerContext>('personal');
@@ -552,12 +560,11 @@ export default function RepoList({ token, maxVisibleRows, onLogout, viewerLogin,
     }
   }
 
-  // Clear timer on unmount
+  // Clear timers on unmount
   useEffect(() => {
     return () => {
-      if (copyToastTimerRef.current) {
-        clearTimeout(copyToastTimerRef.current);
-      }
+      if (copyToastTimerRef.current) clearTimeout(copyToastTimerRef.current);
+      if (themeToastTimerRef.current) clearTimeout(themeToastTimerRef.current);
     };
   }, []);
   
@@ -949,6 +956,11 @@ export default function RepoList({ token, maxVisibleRows, onLogout, viewerLogin,
     // Load archive filter
     if (ui.archiveFilter && ['all', 'unarchived', 'archived'].includes(ui.archiveFilter)) {
       setArchiveFilter(ui.archiveFilter as ArchiveFilter);
+    }
+
+    // Load theme
+    if (ui.theme && ['default', 'ocean', 'forest', 'monochrome'].includes(ui.theme)) {
+      setThemeName(ui.theme);
     }
     
     // Load organization context
@@ -1575,8 +1587,21 @@ export default function RepoList({ token, maxVisibleRows, onLogout, viewerLogin,
       return;
     }
 
+    // Cycle theme (Shift+T)
+    if (key.shift && input === 'T') {
+      setThemeName((tn) => {
+        const next = nextTheme(tn);
+        storeUIPrefs({ theme: next });
+        if (themeToastTimerRef.current) clearTimeout(themeToastTimerRef.current);
+        setThemeToast(`Theme: ${getTheme(next).label}`);
+        themeToastTimerRef.current = setTimeout(() => setThemeToast(null), 2500);
+        return next;
+      });
+      return;
+    }
+
     // Toggle display density
-    if (input && input.toUpperCase() === 'T') {
+    if (input && input.toUpperCase() === 'T' && !key.shift) {
       setDensity((d) => {
         const next = (((d + 1) % 3) as 0 | 1 | 2);
         storeUIPrefs({ density: next });
@@ -1783,38 +1808,38 @@ export default function RepoList({ token, maxVisibleRows, onLogout, viewerLogin,
   const headerBar = useMemo(() => (
     <Box flexDirection="row" justifyContent="space-between" height={1} marginBottom={1}>
       <Box flexDirection="row" gap={1}>
-        <Text color="cyan" bold={!modalOpen} dimColor={modalOpen}>
-          {'  '}{ownerContext === 'personal' 
-            ? 'Personal' 
+        <Text color={theme.primary} bold={!modalOpen} dimColor={modalOpen}>
+          {'  '}{ownerContext === 'personal'
+            ? 'Personal'
             : ownerContext.name || ownerContext.login}
           {ownerContext !== 'personal' && isEnterpriseOrg && ' (ENT)'}
         </Text>
-        <Text bold color={modalOpen ? 'gray' : undefined} dimColor={modalOpen ? true : undefined}>Repositories</Text>
-        <Text color="gray">({visibleItems.length}/{searchActive ? searchTotalCount : totalCount})</Text>
+        <Text bold color={modalOpen ? theme.muted : undefined} dimColor={modalOpen ? true : undefined}>Repositories</Text>
+        <Text color={theme.muted}>({visibleItems.length}/{searchActive ? searchTotalCount : totalCount})</Text>
         {loadingMore && hasNextPage && !starsMode && !searchActive && totalCount > 0 && (
-          <Text color="cyan">{` · loading ${items.length}/${totalCount}`}</Text>
+          <Text color={theme.primary}>{` · loading ${items.length}/${totalCount}`}</Text>
         )}
         {(loading || searchLoading || loadingMore) && (
           <Box width={2} flexShrink={0} flexGrow={0} marginLeft={1}>
-            <Text color="yellow">
+            <Text color={theme.warning}>
               <SlowSpinner />
             </Text>
           </Box>
         )}
       </Box>
-      
+
       {(rateLimit || restRateLimit) && (
-        <Text color={lowRate ? 'yellow' : 'gray'}>
+        <Text color={lowRate ? theme.warning : theme.muted}>
           GraphQL: {rateLimit ? `${rateLimit.remaining}/${rateLimit.limit}` : '---/---'}
           {prevRateLimit !== undefined && rateLimit && prevRateLimit !== rateLimit.remaining && (
-            <Text color={rateLimit.remaining < prevRateLimit ? 'red' : 'green'}>
+            <Text color={rateLimit.remaining < prevRateLimit ? theme.error : theme.success}>
               {` (${rateLimit.remaining - prevRateLimit > 0 ? '+' : ''}${rateLimit.remaining - prevRateLimit})`}
             </Text>
           )}
           {' | '}
           REST: {restRateLimit ? `${restRateLimit.core.remaining}/${restRateLimit.core.limit}` : '---/---'}
           {prevRestRateLimit !== undefined && restRateLimit && prevRestRateLimit !== restRateLimit.core.remaining && (
-            <Text color={restRateLimit.core.remaining < prevRestRateLimit ? 'red' : 'green'}>
+            <Text color={restRateLimit.core.remaining < prevRestRateLimit ? theme.error : theme.success}>
               {` (${restRateLimit.core.remaining - prevRestRateLimit > 0 ? '+' : ''}${restRateLimit.core.remaining - prevRestRateLimit})`}
             </Text>
           )}
@@ -1822,7 +1847,7 @@ export default function RepoList({ token, maxVisibleRows, onLogout, viewerLogin,
         </Text>
       )}
     </Box>
-  ), [visibleItems.length, searchActive, searchTotalCount, totalCount, loading, searchLoading, rateLimit, lowRate, modalOpen, prevRateLimit, ownerContext, isEnterpriseOrg, restRateLimit, prevRestRateLimit]);
+  ), [visibleItems.length, searchActive, searchTotalCount, totalCount, loading, searchLoading, rateLimit, lowRate, modalOpen, prevRateLimit, ownerContext, isEnterpriseOrg, restRateLimit, prevRestRateLimit, theme]);
 
   if (error) {
     return (
@@ -1926,7 +1951,7 @@ export default function RepoList({ token, maxVisibleRows, onLogout, viewerLogin,
       )}
 
       {/* Main content container with border - fixed height */}
-      <Box borderStyle="single" borderColor={modalOpen ? 'gray' : 'yellow'} paddingX={1} paddingY={1} marginX={1} height={contentHeight + containerPadding + 2} flexDirection="column">
+      <Box borderStyle="single" borderColor={modalOpen ? theme.muted : theme.warning} paddingX={1} paddingY={1} marginX={1} height={contentHeight + containerPadding + 2} flexDirection="column">
         {deleteMode && deleteTarget ? (
           // Centered modal; hide list content while modal is open
           <Box height={contentHeight} alignItems="center" justifyContent="center">
@@ -1940,13 +1965,13 @@ export default function RepoList({ token, maxVisibleRows, onLogout, viewerLogin,
                         const langName = deleteTarget.primaryLanguage?.name || '';
                         const langColor = deleteTarget.primaryLanguage?.color || '#666666';
                         let line1 = '';
-                        line1 += chalk.white(deleteTarget.nameWithOwner);
-                        if (deleteTarget.isPrivate) line1 += chalk.yellow(' Private');
-                        if (deleteTarget.isArchived) line1 += chalk.gray.dim(' Archived');
-                        if (deleteTarget.isFork && deleteTarget.parent) line1 += chalk.blue(` Fork of ${deleteTarget.parent.nameWithOwner}`);
+                        line1 += tc.text(deleteTarget.nameWithOwner);
+                        if (deleteTarget.isPrivate) line1 += tc.private(' Private');
+                        if (deleteTarget.isArchived) line1 += tc.archived.dim(' Archived');
+                        if (deleteTarget.isFork && deleteTarget.parent) line1 += tc.fork(` Fork of ${deleteTarget.parent.nameWithOwner}`);
                         let line2 = '';
-                        if (langName) line2 += chalk.hex(langColor)('● ') + chalk.gray(`${langName}  `);
-                        line2 += chalk.gray(`★ ${deleteTarget.stargazerCount}  ⑂ ${deleteTarget.forkCount}  Updated ${formatDate(deleteTarget.updatedAt)}`);
+                        if (langName) line2 += chalk.hex(langColor)('● ') + tc.muted(`${langName}  `);
+                        line2 += tc.muted(`★ ${deleteTarget.stargazerCount}  ⑂ ${deleteTarget.forkCount}  Updated ${formatDate(deleteTarget.updatedAt)}`);
                         return (
                           <>
                             <Text>{line1}</Text>
@@ -2002,7 +2027,7 @@ export default function RepoList({ token, maxVisibleRows, onLogout, viewerLogin,
                       justifyContent="center"
                       flexDirection="column"
                     >
-                      <Text>{confirmFocus === 'delete' ? chalk.bgRed.white.bold(' Delete ') : chalk.red.bold('Delete')}</Text>
+                      <Text>{confirmFocus === 'delete' ? chalk.bgRed.white.bold(' Delete ') : tc.error.bold('Delete')}</Text>
                     </Box>
                     <Box
                       borderStyle="round"
@@ -2013,7 +2038,7 @@ export default function RepoList({ token, maxVisibleRows, onLogout, viewerLogin,
                       justifyContent="center"
                       flexDirection="column"
                     >
-                      <Text>{confirmFocus === 'cancel' ? chalk.bgGray.white.bold(' Cancel ') : chalk.gray.bold('Cancel')}</Text>
+                      <Text>{confirmFocus === 'cancel' ? tc.btnMuted(' Cancel ') : tc.muted.bold('Cancel')}</Text>
                     </Box>
                   </Box>
                   {/* Bottom prompt with dynamic Enter action and key hints (gray) */}
@@ -2073,9 +2098,9 @@ export default function RepoList({ token, maxVisibleRows, onLogout, viewerLogin,
                   flexDirection="column"
                 >
                   <Text>
-                    {archiveFocus === 'confirm' ? 
-                      chalk.bgGreen.white.bold(` ${archiveTarget.isArchived ? 'Unarchive' : 'Archive'} `) : 
-                      chalk.bold[archiveTarget.isArchived ? 'green' : 'yellow'](archiveTarget.isArchived ? 'Unarchive' : 'Archive')
+                    {archiveFocus === 'confirm' ?
+                      chalk.bgGreen.white.bold(` ${archiveTarget.isArchived ? 'Unarchive' : 'Archive'} `) :
+                      (archiveTarget.isArchived ? tc.success : tc.warning).bold(archiveTarget.isArchived ? 'Unarchive' : 'Archive')
                     }
                   </Text>
                 </Box>
@@ -2089,15 +2114,12 @@ export default function RepoList({ token, maxVisibleRows, onLogout, viewerLogin,
                   flexDirection="column"
                 >
                   <Text>
-                    {archiveFocus === 'cancel' ? 
-                      chalk.bgGray.white.bold(' Cancel ') : 
-                      chalk.gray.bold('Cancel')
-                    }
+                    {archiveFocus === 'cancel' ? tc.btnMuted(' Cancel ') : tc.muted.bold('Cancel')}
                   </Text>
                 </Box>
               </Box>
               <Box marginTop={1} flexDirection="row" justifyContent="center">
-                <Text color="gray">Press Enter to {archiveFocus === 'confirm' ? (archiveTarget.isArchived ? 'Unarchive' : 'Archive') : 'Cancel'} | Y to {archiveTarget.isArchived ? 'Unarchive' : 'Archive'} | C to Cancel</Text>
+                <Text color={theme.muted}>Press Enter to {archiveFocus === 'confirm' ? (archiveTarget.isArchived ? 'Unarchive' : 'Archive') : 'Cancel'} | Y to {archiveTarget.isArchived ? 'Unarchive' : 'Archive'} | C to Cancel</Text>
               </Box>
               <Box marginTop={1}>
                 <TextInput
@@ -2150,10 +2172,7 @@ export default function RepoList({ token, maxVisibleRows, onLogout, viewerLogin,
                   flexDirection="column"
                 >
                   <Text>
-                    {syncFocus === 'confirm' ? 
-                      chalk.bgBlue.white.bold(' Sync ') : 
-                      chalk.blue.bold('Sync')
-                    }
+                    {syncFocus === 'confirm' ? tc.btnPrimary(' Sync ') : tc.primary.bold('Sync')}
                   </Text>
                 </Box>
                 <Box
@@ -2166,15 +2185,12 @@ export default function RepoList({ token, maxVisibleRows, onLogout, viewerLogin,
                   flexDirection="column"
                 >
                   <Text>
-                    {syncFocus === 'cancel' ? 
-                      chalk.bgGray.white.bold(' Cancel ') : 
-                      chalk.gray.bold('Cancel')
-                    }
+                    {syncFocus === 'cancel' ? tc.btnMuted(' Cancel ') : tc.muted.bold('Cancel')}
                   </Text>
                 </Box>
               </Box>
               <Box marginTop={1} flexDirection="row" justifyContent="center">
-                <Text color="gray">Press Enter to {syncFocus === 'confirm' ? 'Sync' : 'Cancel'} | Y to Sync | C to Cancel</Text>
+                <Text color={theme.muted}>Press Enter to {syncFocus === 'confirm' ? 'Sync' : 'Cancel'} | Y to Sync | C to Cancel</Text>
               </Box>
               <Box marginTop={1}>
                 <TextInput
@@ -2191,25 +2207,25 @@ export default function RepoList({ token, maxVisibleRows, onLogout, viewerLogin,
               </Box>
               {syncError && (
                 <Box marginTop={1}>
-                  <Text color="magenta">{syncError}</Text>
+                  <Text color={theme.error}>{syncError}</Text>
                 </Box>
               )}
               {syncing && (
                 <Box marginTop={1}>
-                  <Text color="yellow">Syncing...</Text>
+                  <Text color={theme.warning}>Syncing...</Text>
                 </Box>
               )}
             </Box>
           </Box>
         ) : logoutMode ? (
           <Box height={contentHeight} alignItems="center" justifyContent="center">
-            <Box flexDirection="column" borderStyle="round" borderColor="cyan" paddingX={3} paddingY={2} width={Math.min(terminalWidth - 8, 80)}>
+            <Box flexDirection="column" borderStyle="round" borderColor={theme.primary} paddingX={3} paddingY={2} width={Math.min(terminalWidth - 8, 80)}>
               <Text bold>Logout Confirmation</Text>
-              <Text color="cyan">Are you sure you want to log out?</Text>
+              <Text color={theme.primary}>Are you sure you want to log out?</Text>
               <Box marginTop={1} flexDirection="row" justifyContent="center" gap={6}>
                 <Box
                   borderStyle="round"
-                  borderColor="cyan"
+                  borderColor={theme.primary}
                   height={3}
                   width={20}
                   alignItems="center"
@@ -2217,15 +2233,12 @@ export default function RepoList({ token, maxVisibleRows, onLogout, viewerLogin,
                   flexDirection="column"
                 >
                   <Text>
-                    {logoutFocus === 'confirm' ? 
-                      chalk.bgCyan.white.bold(' Logout ') : 
-                      chalk.cyan.bold('Logout')
-                    }
+                    {logoutFocus === 'confirm' ? tc.btnPrimary(' Logout ') : tc.primary.bold('Logout')}
                   </Text>
                 </Box>
                 <Box
                   borderStyle="round"
-                  borderColor={logoutFocus === 'cancel' ? 'white' : 'gray'}
+                  borderColor={logoutFocus === 'cancel' ? 'white' : theme.muted}
                   height={3}
                   width={20}
                   alignItems="center"
@@ -2233,15 +2246,12 @@ export default function RepoList({ token, maxVisibleRows, onLogout, viewerLogin,
                   flexDirection="column"
                 >
                   <Text>
-                    {logoutFocus === 'cancel' ? 
-                      chalk.bgGray.white.bold(' Cancel ') : 
-                      chalk.gray.bold('Cancel')
-                    }
+                    {logoutFocus === 'cancel' ? tc.btnMuted(' Cancel ') : tc.muted.bold('Cancel')}
                   </Text>
                 </Box>
               </Box>
               <Box marginTop={1} flexDirection="row" justifyContent="center">
-                <Text color="gray">Press Enter to {logoutFocus === 'confirm' ? 'Logout' : 'Cancel'} | Y to Logout | C to Cancel</Text>
+                <Text color={theme.muted}>Press Enter to {logoutFocus === 'confirm' ? 'Logout' : 'Cancel'} | Y to Logout | C to Cancel</Text>
               </Box>
             </Box>
           </Box>
@@ -2258,33 +2268,33 @@ export default function RepoList({ token, maxVisibleRows, onLogout, viewerLogin,
           <Box height={contentHeight} alignItems="center" justifyContent="center">
             {(() => {
               const repo = infoRepo || visibleItems[cursor];
-              if (!repo) return <Text color="red">No repository selected.</Text>;
+              if (!repo) return <Text color={theme.error}>No repository selected.</Text>;
               const langName = repo.primaryLanguage?.name || 'N/A';
               const langColor = repo.primaryLanguage?.color || '#666666';
               return (
-                <Box flexDirection="column" borderStyle="round" borderColor="magenta" paddingX={3} paddingY={2} width={Math.min(terminalWidth - 8, 90)}>
-                  <Text bold>Repository Info {infoRepo ? chalk.dim('(cached)') : ''}</Text>
+                <Box flexDirection="column" borderStyle="round" borderColor={theme.internal} paddingX={3} paddingY={2} width={Math.min(terminalWidth - 8, 90)}>
+                  <Text bold>Repository Info {infoRepo ? tc.muted('(cached)') : ''}</Text>
                   <Box height={1}><Text> </Text></Box>
-                  <Text>{chalk.bold(repo.nameWithOwner)}</Text>
-                  {repo.description && <Text color="gray">{repo.description}</Text>}
+                  <Text>{tc.text.bold(repo.nameWithOwner)}</Text>
+                  {repo.description && <Text color={theme.muted}>{repo.description}</Text>}
                   <Box height={1}><Text> </Text></Box>
                   <Text>
-                    {repo.visibility === 'PRIVATE' ? chalk.yellow('Private') : 
-                     repo.visibility === 'INTERNAL' ? chalk.magenta('Internal') : 
-                     chalk.green('Public')}
-                    {repo.isArchived ? chalk.gray('  Archived') : ''}
-                    {repo.isFork ? chalk.blue('  Fork') : ''}
+                    {repo.visibility === 'PRIVATE' ? tc.private('Private') :
+                     repo.visibility === 'INTERNAL' ? tc.internal('Internal') :
+                     tc.success('Public')}
+                    {repo.isArchived ? tc.archived('  Archived') : ''}
+                    {repo.isFork ? tc.fork('  Fork') : ''}
                   </Text>
                   <Text>
-                    {chalk.gray(`★ ${repo.stargazerCount}  ⑂ ${repo.forkCount}`)}
+                    {tc.muted(`★ ${repo.stargazerCount}  ⑂ ${repo.forkCount}`)}
                   </Text>
                   <Text>
-                    {chalk.hex(langColor)(`● `)}{chalk.gray(`${langName}`)}
+                    {chalk.hex(langColor)(`● `)}{tc.muted(`${langName}`)}
                   </Text>
-                  <Text color="gray">Updated: {formatDate(repo.updatedAt)} • Pushed: {formatDate(repo.pushedAt)}</Text>
-                  <Text color="gray">Size: {repo.diskUsage} KB</Text>
+                  <Text color={theme.muted}>Updated: {formatDate(repo.updatedAt)} • Pushed: {formatDate(repo.pushedAt)}</Text>
+                  <Text color={theme.muted}>Size: {repo.diskUsage} KB</Text>
                   <Box height={1}><Text> </Text></Box>
-                  <Text color="gray">Press Esc or I to close</Text>
+                  <Text color={theme.muted}>Press Esc or I to close</Text>
                 </Box>
               );
             })()}
@@ -2300,6 +2310,7 @@ export default function RepoList({ token, maxVisibleRows, onLogout, viewerLogin,
                 storeUIPrefs({ archiveFilter: filter });
               }}
               onCancel={() => setArchiveFilterMode(false)}
+              theme={theme}
             />
           </Box>
         ) : visibilityMode ? (
@@ -2314,6 +2325,7 @@ export default function RepoList({ token, maxVisibleRows, onLogout, viewerLogin,
                 storeUIPrefs({ visibilityFilter: filter });
               }}
               onCancel={() => setVisibilityMode(false)}
+              theme={theme}
             />
           </Box>
         ) : sortMode ? (
@@ -2328,6 +2340,7 @@ export default function RepoList({ token, maxVisibleRows, onLogout, viewerLogin,
                 // Will trigger refresh via useEffect
               }}
               onCancel={() => setSortMode(false)}
+              theme={theme}
             />
           </Box>
         ) : sortDirectionMode ? (
@@ -2343,6 +2356,7 @@ export default function RepoList({ token, maxVisibleRows, onLogout, viewerLogin,
                 // Will trigger refresh via useEffect
               }}
               onCancel={() => setSortDirectionMode(false)}
+              theme={theme}
             />
           </Box>
         ) : changeVisibilityMode && changeVisibilityTarget ? (
@@ -2357,6 +2371,7 @@ export default function RepoList({ token, maxVisibleRows, onLogout, viewerLogin,
               onClose={closeChangeVisibilityModal}
               changing={changingVisibility}
               error={changeVisibilityError}
+              theme={theme}
             />
           </Box>
         ) : renameMode && renameTarget ? (
@@ -2365,6 +2380,7 @@ export default function RepoList({ token, maxVisibleRows, onLogout, viewerLogin,
               repo={renameTarget}
               onRename={executeRename}
               onCancel={closeRenameModal}
+              theme={theme}
             />
           </Box>
         ) : copyUrlMode ? (
@@ -2374,6 +2390,7 @@ export default function RepoList({ token, maxVisibleRows, onLogout, viewerLogin,
               terminalWidth={terminalWidth}
               onClose={closeCopyUrlModal}
               onCopy={handleCopyUrl}
+              theme={theme}
             />
           </Box>
         ) : unstarMode && unstarTarget ? (
@@ -2385,6 +2402,7 @@ export default function RepoList({ token, maxVisibleRows, onLogout, viewerLogin,
               onCancel={closeUnstarModal}
               isUnstarring={unstarring}
               error={unstarError}
+              theme={theme}
             />
           </Box>
         ) : starMode && starTarget ? (
@@ -2397,6 +2415,7 @@ export default function RepoList({ token, maxVisibleRows, onLogout, viewerLogin,
               onCancel={closeStarModal}
               isStarring={starring}
               error={starError}
+              theme={theme}
             />
           </Box>
         ) : (
@@ -2414,6 +2433,7 @@ export default function RepoList({ token, maxVisibleRows, onLogout, viewerLogin,
               archiveFilter={archiveFilter}
               isEnterprise={isEnterpriseOrg}
               starsMode={starsMode}
+              theme={theme}
             />
 
             {/* Filter input */}
@@ -2479,6 +2499,7 @@ export default function RepoList({ token, maxVisibleRows, onLogout, viewerLogin,
                       spacingLines={spacingLines}
                       forkTracking={forkTracking}
                       starsMode={starsMode}
+                      theme={theme}
                     />
                   );
                 })
@@ -2528,20 +2549,20 @@ export default function RepoList({ token, maxVisibleRows, onLogout, viewerLogin,
       <Box marginTop={1} paddingX={1} flexDirection="column">
         {/* Line 1: Basic navigation */}
         <Box width={terminalWidth} justifyContent="center">
-          <Text color="gray" dimColor={modalOpen ? true : undefined}>
+          <Text color={theme.muted} dimColor={modalOpen ? true : undefined}>
             ↑↓ Navigate • Ctrl+G Top • G Bottom • ⏎/O Open • R Refresh
           </Text>
         </Box>
         {/* Line 2: Search and filtering */}
         <Box width={terminalWidth} justifyContent="center">
-          <Text color="gray" dimColor={modalOpen ? true : undefined}>
-            / Search • S Sort • D Direction • T Density • A Archive Filter{!starsMode && ' • V Visibility Filter'}{ownerContext === 'personal' && ' • Shift+S Stars'}
+          <Text color={theme.muted} dimColor={modalOpen ? true : undefined}>
+            / Search • S Sort • D Direction • T Density • Shift+T Theme • A Archive Filter{!starsMode && ' • V Visibility Filter'}{ownerContext === 'personal' && ' • Shift+S Stars'}
           </Text>
         </Box>
         {/* Line 3: Repository actions */}
         <Box width={terminalWidth} justifyContent="center">
-          <Text color="gray" dimColor={modalOpen ? true : undefined}>
-            {starsMode ? 
+          <Text color={theme.muted} dimColor={modalOpen ? true : undefined}>
+            {starsMode ?
               'I Info • C Copy URL • U Unstar Repository' :
               'I Info • C Copy URL • Ctrl+S Un/Star • Ctrl+R Rename • Ctrl+A Un/Archive • Ctrl+V Change Visibility • Ctrl+F Sync Fork'
             }
@@ -2549,13 +2570,13 @@ export default function RepoList({ token, maxVisibleRows, onLogout, viewerLogin,
         </Box>
         {/* Line 4: System controls */}
         <Box width={terminalWidth} justifyContent="center">
-          <Text color="gray" dimColor={modalOpen ? true : undefined}>
+          <Text color={theme.muted} dimColor={modalOpen ? true : undefined}>
             K Cache Info • W Org Switch • Del/Backspace Delete • Ctrl+L Logout • Q Quit
           </Text>
         </Box>
         {/* Line 5: Sponsorship */}
         <Box width={terminalWidth} justifyContent="center" marginTop={1}>
-          <Text color="yellow" dimColor={modalOpen ? true : undefined}>
+          <Text color={theme.warning} dimColor={modalOpen ? true : undefined}>
             💖 Sponsor on GitHub: github.com/sponsors/wiiiimm
           </Text>
         </Box>
@@ -2572,6 +2593,15 @@ export default function RepoList({ token, maxVisibleRows, onLogout, viewerLogin,
               <Text key={i} color="gray">{msg}</Text>
             ))
           )}
+        </Box>
+      )}
+
+      {/* Theme toast notification */}
+      {themeToast && (
+        <Box marginTop={1} justifyContent="center">
+          <Box borderStyle="round" borderColor={theme.primary} paddingX={2} paddingY={0}>
+            <Text color={theme.primary}>{themeToast}</Text>
+          </Box>
         </Box>
       )}
 

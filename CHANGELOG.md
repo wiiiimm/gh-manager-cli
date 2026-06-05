@@ -1,3 +1,13 @@
+## [Unreleased]
+
+### Added
+
+* Colour themes with `Shift+T` cycle keybinding and persisted preference ([SWR-354](https://linear.app/stealths/issue/SWR-354/color-themes-with-cycle-keybinding-and-persisted-preference))
+  * Four built-in themes: Default, Ocean, Forest, Monochrome (accessibility-friendly)
+  * `Shift+T` cycles to the next theme with a brief toast notification
+  * Theme selection persists across restarts via UI preferences
+  * Theme colors applied consistently across all components: list, rows, header, and all modals
+
 ## [1.40.1](https://github.com/wiiiimm/gh-manager-cli/compare/v1.40.0...v1.40.1) (2026-06-05)
 
 

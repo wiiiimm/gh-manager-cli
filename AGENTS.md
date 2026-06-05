@@ -72,7 +72,7 @@ gh-manager-cli/
 - Repository actions: delete, archive/unarchive, change visibility, sync forks
 - Organization and Enterprise GitHub support
 - Modal-based UI for sorting, filtering, and actions
-- Persistent UI preferences (sort, density, visibility filter, fork tracking)
+- Persistent UI preferences (sort, density, visibility filter, fork tracking, colour theme)
 - Real-time rate limit monitoring for GraphQL and REST APIs
 
 ### Planned Enhancements
@@ -120,6 +120,7 @@ See the living roadmap in [TODOs.md](./TODOs.md) for the canonical, up-to-date l
 - `S`: sort modal (updated, pushed, name, stars)
 - `D`: toggle sort direction
 - `T`: toggle display density (compact/cozy/comfy)
+- `Shift+T`: cycle colour theme (Default → Ocean → Forest → Monochrome); persists across restarts
 - `F`: toggle fork commit tracking
 - `V`: visibility filter modal (All, Public, Private/Internal)
 - `W`: organization switcher

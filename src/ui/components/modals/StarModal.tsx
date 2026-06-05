@@ -2,6 +2,8 @@ import React, { useEffect, useState } from 'react';
 import { Box, Text } from 'ink';
 import { useInput } from 'ink';
 import type { RepoNode } from '../../../types';
+import type { Theme } from '../../../config/themes';
+import { useTheme } from '../../hooks/useTheme';
 
 interface StarModalProps {
   visible: boolean;
@@ -11,6 +13,7 @@ interface StarModalProps {
   onCancel: () => void;
   isStarring?: boolean;
   error?: string | null;
+  theme?: Theme;
 }
 
 export function StarModal({
@@ -21,7 +24,9 @@ export function StarModal({
   onCancel,
   isStarring = false,
   error = null,
+  theme: themeProp,
 }: StarModalProps) {
+  const { theme } = useTheme(themeProp?.name ?? 'default');
   const [focusedButton, setFocusedButton] = useState<'cancel' | 'star'>('cancel');
 
   useInput((input, key) => {
@@ -71,13 +76,13 @@ export function StarModal({
     <Box
       flexDirection="column"
       borderStyle="round"
-      borderColor="yellow"
+      borderColor={theme.warning}
       paddingX={2}
       paddingY={1}
       marginTop={1}
     >
       <Box marginBottom={1}>
-        <Text bold color="yellow">
+        <Text bold color={theme.warning}>
           ⭐ {action} Repository
         </Text>
       </Box>
@@ -85,7 +90,7 @@ export function StarModal({
       <Box marginBottom={1}>
         <Text>
           Are you sure you want to {actionLower}{' '}
-          <Text bold color="cyan">
+          <Text bold color={theme.primary}>
             {repo.nameWithOwner}
           </Text>
           ?
@@ -116,7 +121,7 @@ export function StarModal({
 
       {isStarring ? (
         <Box>
-          <Text color="yellow">{actionGerund}...</Text>
+          <Text color={theme.warning}>{actionGerund}...</Text>
         </Box>
       ) : (
         <>
