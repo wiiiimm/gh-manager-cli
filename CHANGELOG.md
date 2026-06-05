@@ -1,3 +1,10 @@
+## [1.40.1](https://github.com/wiiiimm/gh-manager-cli/compare/v1.40.0...v1.40.1) (2026-06-05)
+
+
+### Bug Fixes
+
+* fill compact mode view with actual per-row heights [semantic pr title] ([#47](https://github.com/wiiiimm/gh-manager-cli/issues/47)) ([23de03f](https://github.com/wiiiimm/gh-manager-cli/commit/23de03f3df240bcebc3ac764a1bf76ab8b553c68))
+
 # [1.40.0](https://github.com/wiiiimm/gh-manager-cli/compare/v1.39.1...v1.40.0) (2026-06-05)
 
 
