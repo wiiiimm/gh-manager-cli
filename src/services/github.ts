@@ -492,11 +492,8 @@ export async function fetchViewerReposPageUnified(
                   updatedAt
                   pushedAt
                   diskUsage
-                  ${includeForkTracking ? `
-                  parent { nameWithOwner defaultBranchRef { name target { ... on Commit { history(first: 0) { totalCount } } } } }
-                  defaultBranchRef { name target { ... on Commit { history(first: 0) { totalCount } } } }` : `
                   parent { nameWithOwner }
-                  defaultBranchRef { name }`}
+                  defaultBranchRef { name }
                 }
               }
             }
@@ -529,11 +526,8 @@ export async function fetchViewerReposPageUnified(
                   updatedAt
                   pushedAt
                   diskUsage
-                  ${includeForkTracking ? `
-                  parent { nameWithOwner defaultBranchRef { name target { ... on Commit { history(first: 0) { totalCount } } } } }
-                  defaultBranchRef { name target { ... on Commit { history(first: 0) { totalCount } } } }` : `
                   parent { nameWithOwner }
-                  defaultBranchRef { name }`}
+                  defaultBranchRef { name }
                 }
               }
             }
@@ -643,11 +637,8 @@ export async function searchRepositoriesUnified(
               updatedAt
               pushedAt
               diskUsage
-              ${includeForkTracking ? `
-              parent { nameWithOwner defaultBranchRef { name target { ... on Commit { history(first: 0) { totalCount } } } } }
-              defaultBranchRef { name target { ... on Commit { history(first: 0) { totalCount } } } }` : `
               parent { nameWithOwner }
-              defaultBranchRef { name }`}
+              defaultBranchRef { name }
             }
           }
         }

@@ -20,11 +20,11 @@ const getPageSize = () => {
   const envValue = process.env.REPOS_PER_FETCH;
   if (envValue) {
     const parsed = parseInt(envValue, 10);
-    if (!isNaN(parsed) && parsed >= 1 && parsed <= 50) {
+    if (!isNaN(parsed) && parsed >= 1 && parsed <= 100) {
       return parsed;
     }
   }
-  return 15; // Default
+  return 100; // Default — large pages for background fetch-all (GitHub max is 100)
 };
 
 const PAGE_SIZE = getPageSize();
@@ -1004,31 +1004,12 @@ export default function RepoList({ token, maxVisibleRows, onLogout, viewerLogin,
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [client, prefsLoaded, ownerContext, ownerAffiliations]);
 
-  // Refresh from server when sorting changes
+  // Sorting changes.
+  // Owned repos sort entirely client-side (filteredAndSorted) over the full
+  // background-loaded set, so no server refetch is needed (SWR-360). Search still
+  // re-runs server-side because its result set is server-ordered and paginated.
   useEffect(() => {
-    // Skip initial mount
-    if (!searchActive) {
-      if (items.length > 0) {
-        let policy: 'cache-first' | 'network-only' = 'cache-first';
-        
-        // Determine organization login if in org context
-        const orgLogin = ownerContext !== 'personal' ? ownerContext.login : undefined;
-        
-        try {
-          const key = makeApolloKey({
-            viewer: viewerLogin || 'unknown',
-            sortKey,
-            sortDir,
-            pageSize: PAGE_SIZE,
-            forkTracking,
-            ownerContext: orgLogin ? `org:${orgLogin}` : 'personal',
-            affiliations: ownerAffiliations.join(',')
-          });
-          policy = isFresh(key) ? 'cache-first' : 'network-only';
-        } catch {}
-        fetchPage(null, true, true, undefined, policy);
-      }
-    } else {
+    if (searchActive) {
       // Re-run search with new sort
       if (!searchLoading && filter.trim().length >= 3) {
         let policy: 'cache-first' | 'network-only' = 'cache-first';
@@ -1761,7 +1742,12 @@ export default function RepoList({ token, maxVisibleRows, onLogout, viewerLogin,
     return { start, end };
   }, [visibleItems.length, cursor, listHeight, spacingLines]);
 
-  // Infinite scroll: prefetch when at 80% of loaded items, or immediately when filter hides all loaded items
+  // Single pagination model (SWR-360): background fetch-all.
+  // Owned repos and starred repos eagerly load the entire set in the background —
+  // each page completing re-runs this effect (items length changes) which fetches the
+  // next page until hasNextPage is false. No scroll-position gating. This makes
+  // filtering, sorting, and (future) fuzzy search complete and client-side.
+  // Search stays lazy/server-side (per-query, paginated near the end of the list).
   useEffect(() => {
     const prefetchThreshold = Math.floor(visibleItems.length * 0.8);
     const nearEnd = visibleItems.length > 0 && cursor >= prefetchThreshold;
@@ -1771,21 +1757,20 @@ export default function RepoList({ token, maxVisibleRows, onLogout, viewerLogin,
     // When an archive filter is active and all loaded items are filtered out, keep fetching.
     // Require rawItemsLength > 0 to avoid a spurious fetch on stale hasNextPage/endCursor.
     const filterDrainedPage = visibleItems.length === 0 && archiveFilter !== 'all' && rawItemsLength > 0;
-    const shouldFetch = nearEnd || filterDrainedPage;
 
     if (starsMode) {
-      if (!starredLoading && starredHasNextPage && shouldFetch) {
-        addDebugMessage(`[Infinite Scroll] Prefetching starred repos at ${cursor}/${visibleItems.length} (80% threshold: ${prefetchThreshold})`);
+      // Background-fill the entire starred set.
+      if (!starredLoading && starredHasNextPage) {
         fetchStarredRepositories(starredEndCursor);
       }
     } else if (searchActive) {
-      if (!searchLoading && searchHasNextPage && shouldFetch) {
-        addDebugMessage(`[Infinite Scroll] Prefetching search results at ${cursor}/${visibleItems.length} (80% threshold: ${prefetchThreshold})`);
+      // Search remains lazy: prefetch near the end or when a filter drains the page.
+      if (!searchLoading && searchHasNextPage && (nearEnd || filterDrainedPage)) {
         fetchSearchPage(searchEndCursor);
       }
     } else {
-      if (!loading && !loadingMore && hasNextPage && shouldFetch) {
-        addDebugMessage(`[Infinite Scroll] Prefetching repos at ${cursor}/${visibleItems.length} (80% threshold: ${prefetchThreshold})`);
+      // Background-fill the entire owned set.
+      if (!loading && !loadingMore && hasNextPage) {
         fetchPage(endCursor);
       }
     }
@@ -1815,7 +1800,10 @@ export default function RepoList({ token, maxVisibleRows, onLogout, viewerLogin,
         </Text>
         <Text bold color={modalOpen ? 'gray' : undefined} dimColor={modalOpen ? true : undefined}>Repositories</Text>
         <Text color="gray">({visibleItems.length}/{searchActive ? searchTotalCount : totalCount})</Text>
-        {(loading || searchLoading) && (
+        {loadingMore && hasNextPage && !starsMode && !searchActive && totalCount > 0 && (
+          <Text color="cyan">{` · loading ${items.length}/${totalCount}`}</Text>
+        )}
+        {(loading || searchLoading || loadingMore) && (
           <Box width={2} flexShrink={0} flexGrow={0} marginLeft={1}>
             <Text color="yellow">
               <SlowSpinner />
@@ -2505,8 +2493,22 @@ export default function RepoList({ token, maxVisibleRows, onLogout, viewerLogin,
                 })
               )}
               
-              {/* Infinite scroll loading indicator */}
-              {loadingMore && hasNextPage && (
+              {/* Background fetch-all progress indicator */}
+              {loadingMore && hasNextPage && !starsMode && !searchActive && (
+                <Box justifyContent="center" alignItems="center" marginTop={1}>
+                  <Box flexDirection="row">
+                    <Box width={2} flexShrink={0} flexGrow={0} marginRight={1}>
+                      <Text color="cyan">
+                        <SlowSpinner />
+                      </Text>
+                    </Box>
+                    <Text color="cyan">
+                      Loading repositories… {totalCount > 0 ? `(${items.length}/${totalCount})` : `(${items.length})`}
+                    </Text>
+                  </Box>
+                </Box>
+              )}
+              {loadingMore && hasNextPage && (starsMode || searchActive) && (
                 <Box justifyContent="center" alignItems="center" marginTop={1}>
                   <Box flexDirection="row">
                     <Box width={2} flexShrink={0} flexGrow={0} marginRight={1}>

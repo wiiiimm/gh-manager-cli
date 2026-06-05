@@ -22,7 +22,7 @@ Interactive terminal app to browse and manage your personal GitHub repositories.
 `gh-manager-cli` replaces tedious web clicking with powerful terminal commands:
 
 ### ❌ GitHub Website Pain Points → ✅ Our Solution
-- **Slow pagination** (20 repos/page) → View all repos instantly with smooth scrolling
+- **Slow pagination** (page-by-page) → Whole account loaded in the background, browse and search everything instantly
 - **Multiple clicks per action** → Single keypress for any operation  
 - **No bulk operations** → Archive, delete, or modify multiple repos at once
 - **Buried settings menus** → Direct keyboard shortcuts for everything
@@ -73,7 +73,7 @@ On first run, you'll be prompted to authenticate with GitHub (OAuth recommended)
 ### Core Repository Management
 - **Authentication**: GitHub OAuth (recommended) or Personal Access Token with secure storage
 - **Repository Listing**: Browse all your personal repositories with metadata (stars, forks, language, etc.)
-- **Live Pagination**: Infinite scroll with automatic page prefetching
+- **Background Fetch-All**: Loads your entire account in the background after the first page, so filtering/sorting/search are instant and complete
 - **Interactive Sorting**: Modal-based sort selection (updated, pushed, name, stars) with modal-based direction selection
 - **Smart Search**: Server-side search through repository names and descriptions (3+ characters)
 - **Visibility Filter**: Modal-based visibility filter (All, Public, Private/Internal for enterprise) with smart filtering
@@ -305,8 +305,9 @@ Status bar shows loaded count vs total. A rate-limit line displays `remaining/li
 ## Pagination Details
 
 - Uses GitHub GraphQL `viewer.repositories` with `ownerAffiliations: OWNER`, ordered by `UPDATED_AT DESC`.
-- Fetches 15 repos per page by default (configurable via `REPOS_PER_FETCH` environment variable, 1-50).
-- Updates `totalCount` each time and prefetches the next page when selection nears the end of loaded list.
+- **Background fetch-all:** the first page renders immediately, then the remaining repositories load in the background until the whole account is cached locally. Filtering, sorting, and search then operate over the complete set, client-side and instant.
+- Fetches 100 repos per page by default (configurable via `REPOS_PER_FETCH` environment variable, 1-100).
+- Reads `totalCount` from the first page and shows background-load progress (`loaded/total`) while filling. The list stays usable from the first page throughout; very large accounts simply take longer to finish loading.
 
 ## Development
 
