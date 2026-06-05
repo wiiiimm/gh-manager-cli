@@ -1,3 +1,10 @@
+# [1.41.0](https://github.com/wiiiimm/gh-manager-cli/compare/v1.40.2...v1.41.0) (2026-06-05)
+
+
+### Features
+
+* colour themes with Shift+T cycle keybinding and persisted preference (SWR-354) [semantic pr title] ([#56](https://github.com/wiiiimm/gh-manager-cli/issues/56)) ([1a307c6](https://github.com/wiiiimm/gh-manager-cli/commit/1a307c6a8442a0d295f8a92aeb98eb544eb80d51))
+
 ## [1.40.2](https://github.com/wiiiimm/gh-manager-cli/compare/v1.40.1...v1.40.2) (2026-06-05)
 
 
