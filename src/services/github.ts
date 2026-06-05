@@ -1540,7 +1540,13 @@ export async function enrichForksWithAheadBehind(
       `);
     });
 
-    if (queryParts.length === 0) continue;
+    if (queryParts.length === 0) {
+      // Every fork in this batch had an unparseable parent (no owner/name) —
+      // emit null rows so the function always returns exactly one entry per
+      // input fork, keeping the result contract complete for callers.
+      batch.forEach(fork => results.push({ id: fork.id, forkHistoryCount: null, parentHistoryCount: null }));
+      continue;
+    }
 
     const varDefs = Object.entries(variables)
       .map(([k]) => `$${k}: ID!`)
