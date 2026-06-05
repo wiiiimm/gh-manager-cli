@@ -2722,7 +2722,7 @@ export default function RepoList({ token, maxVisibleRows, onLogout, viewerLogin,
                     <RepoRow
                       key={repo.nameWithOwner}
                       repo={repo}
-                      selected={filterMode && searchActive ? false : idx === cursor}
+                      selected={filterMode ? false : idx === cursor}
                       index={idx + 1}
                       maxWidth={terminalWidth - 6}
                       spacingLines={spacingLines}
