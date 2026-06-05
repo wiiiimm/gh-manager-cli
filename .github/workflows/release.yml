@@ -184,6 +184,7 @@ jobs:
           # testing for the next version heading.
           if [ -f "CHANGELOG.md" ]; then
             CHANGELOG=$(awk -v ver="$VERSION" '
+              BEGIN { gsub(/\./, "\\.", ver) }   # match version dots literally, not as regex wildcards
               !started && $0 ~ ("^#+ \\[?" ver "\\]?") { started=1; print; next }
               started && /^#+ \[?[0-9]+\.[0-9]+\.[0-9]+\]?/ { exit }
               started { print }
