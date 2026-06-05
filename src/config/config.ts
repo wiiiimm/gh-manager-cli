@@ -1,6 +1,7 @@
 import fs from 'fs';
 import path from 'path';
 import envPaths from 'env-paths';
+import type { ThemeName } from './themes';
 
 type Density = 0 | 1 | 2;
 
@@ -14,6 +15,8 @@ interface UIPrefs {
   ownerAffiliations?: string[];
   ownerContext?: OwnerContext;
   visibilityFilter?: 'all' | 'public' | 'private';
+  archiveFilter?: 'all' | 'unarchived' | 'archived';
+  theme?: ThemeName;
 }
 
 export type TokenSource = 'pat' | 'oauth';
