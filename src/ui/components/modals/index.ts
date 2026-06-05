@@ -17,4 +17,5 @@ export { default as BulkConfirmModal } from './BulkConfirmModal';
 export { default as BulkProgressModal } from './BulkProgressModal';
 export type { BulkProgressState } from './BulkProgressModal';
 export { default as BulkActionPickerModal } from './BulkActionPickerModal';
+export { default as OpenInBrowserModal } from './OpenInBrowserModal';
 
