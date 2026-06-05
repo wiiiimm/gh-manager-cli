@@ -208,3 +208,34 @@ describe('computeWindow – comfy mode (spacingLines = 2)', () => {
     expect(computeWindow(items, 0, 20, 2)).toEqual({ start: 0, end: 4 });
   });
 });
+
+describe('computeWindow – out-of-range cursor safety', () => {
+  // A filter (archive/visibility) can shrink the visible list while the
+  // cursor still reflects the larger pre-filter length. computeWindow must
+  // never dereference a non-existent row in that case.
+  it('does not throw when cursor exceeds the item count (compact)', () => {
+    const items = makeItems(Array(5).fill(true));
+    expect(() => computeWindow(items, 99, 20, 0)).not.toThrow();
+    const { start, end } = computeWindow(items, 99, 20, 0);
+    expect(start).toBeGreaterThanOrEqual(0);
+    expect(end).toBeLessThanOrEqual(items.length);
+  });
+
+  it('does not throw when cursor exceeds the item count (cozy/comfy)', () => {
+    const items = makeItems(Array(5).fill(true));
+    expect(() => computeWindow(items, 99, 20, 1)).not.toThrow();
+    expect(() => computeWindow(items, 99, 20, 2)).not.toThrow();
+  });
+
+  it('handles a negative cursor without throwing', () => {
+    const items = makeItems(Array(5).fill(false));
+    expect(() => computeWindow(items, -3, 20, 0)).not.toThrow();
+    const { start } = computeWindow(items, -3, 20, 0);
+    expect(start).toBeGreaterThanOrEqual(0);
+  });
+
+  it('returns an empty window for an empty list', () => {
+    expect(computeWindow([], 0, 20, 0)).toEqual({ start: 0, end: 0 });
+    expect(computeWindow([], 5, 20, 1)).toEqual({ start: 0, end: 0 });
+  });
+});

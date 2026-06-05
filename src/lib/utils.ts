@@ -45,6 +45,13 @@ export function computeWindow(
 ): { start: number; end: number } {
   const total = items.length;
 
+  if (total === 0) return { start: 0, end: 0 };
+
+  // Defensive clamp: callers may pass a cursor derived from a different
+  // (pre-filter) list length, so guard against out-of-range indices before
+  // any rowHeight() dereference below.
+  cursor = Math.max(0, Math.min(cursor, total - 1));
+
   if (spacingLines > 0) {
     // Fixed row height for cozy / comfy densities
     const LINES_PER_REPO = 3 + spacingLines;

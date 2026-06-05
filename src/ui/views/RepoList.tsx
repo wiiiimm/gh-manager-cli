@@ -1729,10 +1729,13 @@ export default function RepoList({ token, maxVisibleRows, onLogout, viewerLogin,
   }, [searchActive, searchItems.length, visibleItems.length, filter]);
   
 
-  // Keep cursor in range when data changes
+  // Keep cursor in range when data changes. Clamp against the *visible*
+  // (post-filter) item count, otherwise an active archive/visibility filter
+  // can leave the cursor past the end of visibleItems and crash the window
+  // calculation when it dereferences a non-existent row.
   useEffect(() => {
-    setCursor(c => Math.min(c, Math.max(0, (searchActive ? searchItems.length : items.length) - 1)));
-  }, [searchActive, searchItems.length, items.length]);
+    setCursor(c => Math.min(c, Math.max(0, visibleItems.length - 1)));
+  }, [searchActive, searchItems.length, items.length, visibleItems.length]);
 
   // Calculate fixed heights for layout sections and list area
   const headerHeight = 2; // Header bar + margin
