@@ -216,6 +216,13 @@ First run prompts for a PAT if not provided via env vars. The token is validated
 - **main:** Production-ready code only
 - **Feature branches:** For new features and major changes
 
+### Linear Issue Linking (REQUIRED)
+Every change should trace back to a Linear issue. To guarantee GitHub ↔ Linear auto-linking:
+- **Branch name MUST include the Linear issue ID**, e.g. `feature/swr-360-background-fetch-all` (`<type>/swr-<id>-<slug>`).
+- **PR title MUST include the Linear issue ID**, e.g. `feat: background fetch-all pagination with light bulk query (SWR-360)`.
+- If no Linear issue exists for the work yet, **create one first**, then name the branch and PR with its ID.
+- This is what links the PR back to the Linear issue and surfaces progress there — do not open a PR without the ID in both places.
+
 ### Commit Message Format
 **REQUIRED:** All commits MUST follow the [Conventional Commits](https://www.conventionalcommits.org/) specification:
 ```
