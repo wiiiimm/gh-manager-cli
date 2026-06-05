@@ -1,15 +1,18 @@
 import React, { useState } from 'react';
 import { Box, Text, useInput } from 'ink';
-import chalk from 'chalk';
 import type { RepoNode } from '../../../types';
+import type { Theme } from '../../../config/themes';
+import { useTheme } from '../../hooks/useTheme';
 
 interface OpenInBrowserModalProps {
   repo: RepoNode;
   onOpen: (url: string) => void;
   onCancel: () => void;
+  theme?: Theme;
 }
 
-export default function OpenInBrowserModal({ repo, onOpen, onCancel }: OpenInBrowserModalProps) {
+export default function OpenInBrowserModal({ repo, onOpen, onCancel, theme: themeProp }: OpenInBrowserModalProps) {
+  const { theme, c } = useTheme(themeProp?.name ?? 'default');
   const [focus, setFocus] = useState<'this' | 'upstream'>('this');
 
   const forkUrl = `https://github.com/${repo.nameWithOwner}`;
@@ -50,16 +53,16 @@ export default function OpenInBrowserModal({ repo, onOpen, onCancel }: OpenInBro
     <Box
       flexDirection="column"
       borderStyle="round"
-      borderColor="cyan"
+      borderColor={theme.primary}
       paddingX={3}
       paddingY={2}
       width={62}
     >
-      <Text bold color="cyan">Open in Browser</Text>
+      <Text bold color={theme.primary}>Open in Browser</Text>
       <Box height={1}><Text> </Text></Box>
       <Text bold>{repo.nameWithOwner}</Text>
       {repo.parent && (
-        <Text color="gray">Fork of {repo.parent.nameWithOwner}</Text>
+        <Text color={theme.muted}>Fork of {repo.parent.nameWithOwner}</Text>
       )}
       <Box height={1}><Text> </Text></Box>
       <Text>Which repository would you like to open?</Text>
@@ -69,21 +72,21 @@ export default function OpenInBrowserModal({ repo, onOpen, onCancel }: OpenInBro
         <Box paddingX={2} paddingY={1}>
           <Text>
             {focus === 'this'
-              ? chalk.bgCyan.white.bold(' This Repository ')
-              : chalk.cyan.bold('This Repository')}
+              ? c.primary.inverse.bold(' This Repository ')
+              : c.primary.bold('This Repository')}
           </Text>
         </Box>
         <Box paddingX={2} paddingY={1}>
           <Text>
             {focus === 'upstream'
-              ? chalk.bgGreen.white.bold(' Parent/Upstream ')
-              : chalk.green.bold('Parent/Upstream')}
+              ? c.success.inverse.bold(' Parent/Upstream ')
+              : c.success.bold('Parent/Upstream')}
           </Text>
         </Box>
       </Box>
 
       <Box marginTop={1} flexDirection="row" justifyContent="center">
-        <Text color="gray">
+        <Text color={theme.muted}>
           ←/→ Choose • Enter to Open • T This • U Upstream • C/Esc Cancel
         </Text>
       </Box>

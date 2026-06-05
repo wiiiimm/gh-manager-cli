@@ -2409,6 +2409,7 @@ export default function RepoList({ token, maxVisibleRows, onLogout, viewerLogin,
                 setOpenInBrowserMode(false);
                 setOpenInBrowserTarget(null);
               }}
+              theme={theme}
             />
           </Box>
         ) : (
