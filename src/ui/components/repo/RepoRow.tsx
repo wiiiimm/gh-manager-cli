@@ -94,7 +94,7 @@ export default function RepoRow({
   const spacingBelow = spacingLines - spacingAbove;
 
   return (
-    <Box flexDirection="column" backgroundColor={selected ? 'gray' : undefined}>
+    <Box flexDirection="column" backgroundColor={selected ? theme.selectedBg : undefined}>
       {spacingAbove > 0 && (
         <Box height={spacingAbove}>
           <Text> </Text>
