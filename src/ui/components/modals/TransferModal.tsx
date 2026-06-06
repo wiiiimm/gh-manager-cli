@@ -13,6 +13,13 @@ interface TransferModalProps {
   theme?: Theme;
 }
 
+/**
+ * Two-stage modal for transferring a repository to another owner.
+ *
+ * Stage one collects a sanitised destination owner (username or organisation); stage two
+ * shows a confirmation (Cancel focused by default) before initiating the transfer. GitHub
+ * errors are surfaced inline. Esc cancels at any point. Guards against double-submit.
+ */
 export default function TransferModal({ repo, onTransfer, onCancel, theme: themeProp }: TransferModalProps) {
   const { theme, c } = useTheme(themeProp?.name ?? 'default');
   const [newOwner, setNewOwner] = useState('');

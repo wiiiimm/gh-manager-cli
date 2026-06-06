@@ -524,7 +524,11 @@ export default function RepoList({ token, maxVisibleRows, onLogout, viewerLogin,
     }
   }
 
-  // Shared create-repository execution function
+  /**
+   * Create a repository in the current context, then refresh the list so it appears.
+   * Clears any client-side filters (search, archived-only, mismatched visibility) that
+   * would otherwise hide the new repo. Throws on failure so the modal can show the error.
+   */
   async function executeCreate(name: string, visibility: 'PUBLIC' | 'PRIVATE' | 'INTERNAL') {
     if (!name.trim()) return;
 
@@ -582,7 +586,10 @@ export default function RepoList({ token, maxVisibleRows, onLogout, viewerLogin,
     setTransferTarget(null);
   }
 
-  // Shared transfer-repository execution function
+  /**
+   * Transfer a repository to another owner, then optimistically remove it from the list
+   * and evict it from the cache. Throws on failure so the modal can show the error.
+   */
   async function executeTransfer(repo: RepoNode, newOwner: string) {
     if (!repo || !newOwner.trim()) return;
 

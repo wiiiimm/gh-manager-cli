@@ -727,6 +727,7 @@ export async function deleteRepositoryRest(
 // GitHub GraphQL does not support creating repos. Use REST:
 //   - Personal: POST /user/repos
 //   - Organisation: POST /orgs/{org}/repos
+/** Options describing the repository to create via {@link createRepositoryRest}. */
 export interface CreateRepositoryOptions {
   name: string;
   visibility: 'PUBLIC' | 'PRIVATE' | 'INTERNAL';
@@ -734,6 +735,18 @@ export interface CreateRepositoryOptions {
   org?: string; // when provided, create under the organisation instead of the viewer
 }
 
+/**
+ * Create a repository via the GitHub REST API.
+ *
+ * Posts to `/user/repos` for the viewer, or `/orgs/{org}/repos` when `options.org`
+ * is set. Maps the requested visibility to the REST body (`private` boolean, or
+ * `visibility: 'internal'` for enterprise organisations).
+ *
+ * @param token GitHub access token with repo-creation scope.
+ * @param options The new repository's name, visibility, optional description and org.
+ * @returns The created repository's `nameWithOwner` and web `url`.
+ * @throws Error with a GitHub-derived message on a non-201 response or network failure.
+ */
 export async function createRepositoryRest(
   token: string,
   options: CreateRepositoryOptions
@@ -802,6 +815,19 @@ export async function createRepositoryRest(
 // GitHub GraphQL does not support transferring repos. Use REST:
 //   POST /repos/{owner}/{repo}/transfer with { new_owner }
 // The transfer is asynchronous: GitHub returns 202 Accepted on success.
+/**
+ * Transfer a repository to another owner via the GitHub REST API.
+ *
+ * The transfer is asynchronous — GitHub returns `202 Accepted` to acknowledge the
+ * request and processes it in the background, so success here means *initiated*,
+ * not completed.
+ *
+ * @param token GitHub access token with admin rights on the repository.
+ * @param owner Current owner (user or organisation) of the repository.
+ * @param repo Repository name.
+ * @param newOwner Destination owner (username or organisation login).
+ * @throws Error with a GitHub-derived message on a non-202/200 response or network failure.
+ */
 export async function transferRepositoryRest(
   token: string,
   owner: string,

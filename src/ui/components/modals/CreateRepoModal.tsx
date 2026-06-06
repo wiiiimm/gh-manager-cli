@@ -19,6 +19,13 @@ interface CreateRepoModalProps {
   theme?: Theme;
 }
 
+/**
+ * Modal for creating a new repository in the current (personal or organisation) context.
+ *
+ * Prompts for a sanitised repository name shown after the `ownerSlug/` prefix, lets the
+ * user cycle visibility with Tab (Private/Public, plus Internal for enterprise orgs), and
+ * surfaces GitHub errors inline. Enter creates, Esc cancels. Guards against double-submit.
+ */
 export default function CreateRepoModal({ ownerSlug, isOrg, isEnterprise, onCreate, onCancel, theme: themeProp }: CreateRepoModalProps) {
   const { theme, c } = useTheme(themeProp?.name ?? 'default');
   const [name, setName] = useState('');
