@@ -536,14 +536,15 @@ export default function RepoList({ token, maxVisibleRows, onLogout, viewerLogin,
     setCreateMode(false);
 
     // The list refresh sends the active visibility filter to the API as a
-    // privacy parameter. If the new repo's visibility wouldn't pass that
-    // filter (e.g. a private repo while the Public filter is on), it would be
-    // omitted from the refreshed data and creation would look like it failed.
-    // Reset the filter to 'all' in that case so the new repo is visible.
+    // privacy parameter. If the new repo's visibility wouldn't be returned
+    // under that filter, it would be omitted from the refreshed data and
+    // creation would look like it failed. Note INTERNAL repos are NOT returned
+    // by the API's privacy: PRIVATE filter (even though the client 'private'
+    // filter shows them), so INTERNAL only passes when the filter is 'all'.
     const passesVisibilityFilter =
       visibilityFilter === 'all' ||
       (visibilityFilter === 'public' && visibility === 'PUBLIC') ||
-      (visibilityFilter === 'private' && (visibility === 'PRIVATE' || visibility === 'INTERNAL'));
+      (visibilityFilter === 'private' && visibility === 'PRIVATE');
 
     // Refresh from the network so the new repository shows up in the list
     setCursor(0);
@@ -552,10 +553,14 @@ export default function RepoList({ token, maxVisibleRows, onLogout, viewerLogin,
     try { await purgeApolloCacheFiles(); } catch {}
 
     if (!passesVisibilityFilter) {
-      // Changing the filter triggers the visibilityFilter effect to refetch
-      // from the network (with privacy cleared), so avoid a duplicate fetch here.
+      // Reset the filter to 'all' so the new repo is visible, and fetch with an
+      // explicit 'all' privacy override. We refetch directly (rather than relying
+      // on the visibilityFilter effect, which no-ops when items is empty) and
+      // pre-sync previousVisibilityFilter so that effect doesn't double-fetch.
+      previousVisibilityFilter.current = 'all';
       storeUIPrefs({ visibilityFilter: 'all' });
       setVisibilityFilter('all');
+      fetchPage(null, true, true, undefined, 'network-only', 'all');
     } else {
       fetchPage(null, true, true, undefined, 'network-only');
     }
@@ -911,7 +916,10 @@ export default function RepoList({ token, maxVisibleRows, onLogout, viewerLogin,
     reset = false,
     isSortChange = false,
     overrideForkTracking?: boolean,
-    policy?: 'cache-first' | 'network-only'
+    policy?: 'cache-first' | 'network-only',
+    // Force the API privacy parameter instead of deriving it from
+    // visibilityFilter. 'all' clears it (returns every visibility).
+    privacyOverride?: 'PUBLIC' | 'PRIVATE' | 'all'
   ) => {
     logger.info('fetchPage called', {
       after,
@@ -942,7 +950,9 @@ export default function RepoList({ token, maxVisibleRows, onLogout, viewerLogin,
       
       // Map visibility filter to API privacy parameter
       let privacy: 'PUBLIC' | 'PRIVATE' | undefined;
-      if (visibilityFilter === 'public') privacy = 'PUBLIC';
+      if (privacyOverride !== undefined) {
+        privacy = privacyOverride === 'all' ? undefined : privacyOverride;
+      } else if (visibilityFilter === 'public') privacy = 'PUBLIC';
       else if (visibilityFilter === 'private') privacy = 'PRIVATE';
       // Note: GitHub API doesn't support filtering by INTERNAL at the API level
       

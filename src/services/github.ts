@@ -754,16 +754,22 @@ export async function createRepositoryRest(
 
   logger.info('Creating repository', { name, visibility, org: org ?? null, url });
 
-  const res = await fetch(url, {
-    method: 'POST',
-    headers: {
-      'Authorization': `token ${token}`,
-      'Accept': 'application/vnd.github+json',
-      'Content-Type': 'application/json',
-      'User-Agent': 'gh-manager-cli'
-    },
-    body: JSON.stringify(body)
-  } as any);
+  let res: Response;
+  try {
+    res = await fetch(url, {
+      method: 'POST',
+      headers: {
+        'Authorization': `token ${token}`,
+        'Accept': 'application/vnd.github+json',
+        'Content-Type': 'application/json',
+        'User-Agent': 'gh-manager-cli'
+      },
+      body: JSON.stringify(body)
+    } as any);
+  } catch (networkError: any) {
+    logger.error('Network error during repository creation', { error: networkError.message, name, org: org ?? null });
+    throw new Error(`Network error whilst creating repository: ${networkError.message}`);
+  }
 
   if (res.status === 201) {
     const data = await res.json();
@@ -806,16 +812,22 @@ export async function transferRepositoryRest(
 
   logger.info('Transferring repository', { owner, repo, newOwner, url });
 
-  const res = await fetch(url, {
-    method: 'POST',
-    headers: {
-      'Authorization': `token ${token}`,
-      'Accept': 'application/vnd.github+json',
-      'Content-Type': 'application/json',
-      'User-Agent': 'gh-manager-cli'
-    },
-    body: JSON.stringify({ new_owner: newOwner })
-  } as any);
+  let res: Response;
+  try {
+    res = await fetch(url, {
+      method: 'POST',
+      headers: {
+        'Authorization': `token ${token}`,
+        'Accept': 'application/vnd.github+json',
+        'Content-Type': 'application/json',
+        'User-Agent': 'gh-manager-cli'
+      },
+      body: JSON.stringify({ new_owner: newOwner })
+    } as any);
+  } catch (networkError: any) {
+    logger.error('Network error during repository transfer', { error: networkError.message, owner, repo, newOwner });
+    throw new Error(`Network error whilst transferring repository: ${networkError.message}`);
+  }
 
   // 202 Accepted = transfer initiated. Some responses may also return 200.
   if (res.status === 202 || res.status === 200) {
