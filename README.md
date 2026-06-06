@@ -92,7 +92,7 @@ On first run, you'll be prompted to authenticate with GitHub (OAuth recommended)
   - Star/unstar repositories (`Ctrl+S`) - Toggle star status for any repository
   - Sync forks with upstream (`Ctrl+F`) with ahead/behind counts and automatic conflict detection
 - **Bulk Operations** (`M` to enter multi-select mode):
-  - Select multiple repositories with `Space`, select all visible with `Ctrl+A`
+  - Select multiple repositories with `Space`
   - Run bulk delete, archive, or unarchive on all selected repos
   - Selections persist across search, filter, and sort changes (select from different searches, then bulk-act)
   - Two-step confirmation: review list with ability to unselect, then a count prompt before executing — bulk delete additionally requires typing a 4-character verification code

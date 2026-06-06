@@ -538,21 +538,6 @@ export default function RepoList({ token, maxVisibleRows, onLogout, viewerLogin,
     });
   }
 
-  function toggleAllVisibleSelection() {
-    setSelectedRepos(prev => {
-      const next = new Map(prev);
-      const allVisibleSelected = visibleItems.every(r => next.has(r.id));
-      if (allVisibleSelected) {
-        // Deselect all visible
-        for (const r of visibleItems) next.delete(r.id);
-      } else {
-        // Select all visible
-        for (const r of visibleItems) next.set(r.id, r);
-      }
-      return next;
-    });
-  }
-
   // Bulk operation execution
   async function executeBulkOperation(repos: RepoNode[], action: BulkAction) {
     const total = repos.length;
@@ -1467,11 +1452,6 @@ export default function RepoList({ token, maxVisibleRows, onLogout, viewerLogin,
         if (repo) toggleRepoSelection(repo);
         return;
       }
-      // Ctrl+A: select/deselect ALL visible repos
-      if (key.ctrl && (input === 'a' || input === 'A')) {
-        toggleAllVisibleSelection();
-        return;
-      }
       // X: clear all selections
       if (input && input.toUpperCase() === 'X' && !key.ctrl) {
         setSelectedRepos(new Map());
@@ -1560,7 +1540,7 @@ export default function RepoList({ token, maxVisibleRows, onLogout, viewerLogin,
     }
 
     // Archive/unarchive modal (Ctrl+A) — only in single-select mode
-    // In multi-select mode, Ctrl+A is handled above (select/deselect all visible)
+    // In multi-select mode, Ctrl+A is intentionally a no-op
     if (key.ctrl && (input === 'a' || input === 'A') && !multiSelectMode) {
       const repo = visibleItems[cursor];
       if (repo) {
@@ -2691,7 +2671,9 @@ export default function RepoList({ token, maxVisibleRows, onLogout, viewerLogin,
                   {`[MULTI-SELECT] ${selectedRepos.size > 0 ? `${selectedRepos.size} selected` : 'No selection'}`}
                 </Text>
                 <Text color="gray">
-                  Space select · Ctrl+A all · X clear · Enter/B action · M/Esc exit
+                  {selectedRepos.size > 0
+                    ? 'Space select · X clear · Enter/B action · M/Esc exit'
+                    : 'Space select · M/Esc exit'}
                 </Text>
               </Box>
             )}
@@ -2823,7 +2805,9 @@ export default function RepoList({ token, maxVisibleRows, onLogout, viewerLogin,
           <Box width={terminalWidth} justifyContent="center">
             <Text color={multiSelectMode ? 'cyan' : 'gray'} dimColor={!multiSelectMode}>
               {multiSelectMode
-                ? `M/Esc exit multi-select • Space select • Ctrl+A all • X clear • Enter/B action (${selectedRepos.size} selected)`
+                ? (selectedRepos.size > 0
+                    ? `M/Esc exit multi-select • Space select • X clear • Enter/B action (${selectedRepos.size} selected)`
+                    : 'M/Esc exit multi-select • Space select (no selection)')
                 : 'M Multi-select mode (bulk delete/archive)'
               }
             </Text>

@@ -71,13 +71,12 @@ Multi-select mode lets you select multiple repositories and run a bulk action (d
 ### Selection Controls (inside multi-select mode)
 
 - **`Space`** — toggle selection on the highlighted repository
-- **`Ctrl+A`** — select or deselect all currently-visible repositories
 - **`X`** — clear all selections without exiting multi-select mode
 
 ### Running a Bulk Action
 
 1. Enter multi-select mode with `M`
-2. Select repositories with `Space` (or `Ctrl+A` for all visible)
+2. Select repositories with `Space`
 3. Press **`Enter`** or **`B`** to open the action picker (Delete / Archive / Unarchive)
    - Alternatively, press **`Del`/`Backspace`** to go directly to bulk delete
 4. **Review list (Confirmation 1)**: A scrollable list of all selected repos appears.

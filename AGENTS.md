@@ -148,7 +148,6 @@ See the living roadmap in [TODOs.md](./TODOs.md) for the canonical, up-to-date l
 **Within multi-select mode:**
 
 - `Space`: toggle selection on the cursor row
-- `Ctrl+A`: select/deselect all currently-visible repositories (overrides single-repo archive)
 - `X`: clear all selections (stays in multi-select mode)
 - `Enter` or `B`: open bulk action picker (Delete / Archive / Unarchive)
 - `Del` / `Backspace`: shortcut to bulk delete directly
