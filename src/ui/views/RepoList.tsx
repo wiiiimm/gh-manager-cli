@@ -2,7 +2,7 @@ import React, { useEffect, useMemo, useState, useRef, useCallback } from 'react'
 import { Box, Text, useApp, useInput, useStdout, Spacer, Newline } from 'ink';
 import TextInput from 'ink-text-input';
 import chalk from 'chalk';
-import { makeClient, fetchViewerReposPageUnified, deleteRepositoryRest, archiveRepositoryById, unarchiveRepositoryById, changeRepositoryVisibility, syncForkWithUpstream, getRepositoryFromCache, purgeApolloCacheFiles, inspectCacheStatus, updateCacheAfterDelete, updateCacheAfterArchive, updateCacheAfterVisibilityChange, updateCacheWithRepository, checkOrganizationIsEnterprise, OwnerAffiliation, fetchViewerOrganizations, fetchRestRateLimits, renameRepositoryById, updateCacheAfterRename, getStarredRepositories, starRepository, unstarRepository, enrichForksWithAheadBehind, fetchRepositoryByOwnerAndName, createRepositoryRest } from '../../services/github';
+import { makeClient, fetchViewerReposPageUnified, deleteRepositoryRest, archiveRepositoryById, unarchiveRepositoryById, changeRepositoryVisibility, syncForkWithUpstream, getRepositoryFromCache, purgeApolloCacheFiles, inspectCacheStatus, updateCacheAfterDelete, updateCacheAfterArchive, updateCacheAfterVisibilityChange, updateCacheWithRepository, checkOrganizationIsEnterprise, OwnerAffiliation, fetchViewerOrganizations, fetchRestRateLimits, renameRepositoryById, updateCacheAfterRename, getStarredRepositories, starRepository, unstarRepository, enrichForksWithAheadBehind, fetchRepositoryByOwnerAndName, createRepositoryRest, transferRepositoryRest } from '../../services/github';
 import { getUIPrefs, storeUIPrefs, OwnerContext } from '../../config/config';
 import { type ThemeName, nextTheme, getTheme } from '../../config/themes';
 import { useTheme } from '../hooks/useTheme';
@@ -12,7 +12,7 @@ import type { RepoNode, RateLimitInfo, RestRateLimitInfo } from '../../types';
 import { exec } from 'child_process';
 import OrgSwitcher from '../OrgSwitcher';
 import { logger } from '../../lib/logger';
-import { ArchiveFilterModal, DeleteModal, ArchiveModal, SyncModal, InfoModal, LogoutModal, VisibilityModal, SortModal, SortDirectionModal, ChangeVisibilityModal, CopyUrlModal, RenameModal, StarModal, OpenInBrowserModal, CreateRepoModal } from '../components/modals';
+import { ArchiveFilterModal, DeleteModal, ArchiveModal, SyncModal, InfoModal, LogoutModal, VisibilityModal, SortModal, SortDirectionModal, ChangeVisibilityModal, CopyUrlModal, RenameModal, StarModal, OpenInBrowserModal, CreateRepoModal, TransferModal } from '../components/modals';
 import { UnstarModal } from '../components/modals/UnstarModal';
 import { RepoRow, FilterInput, RepoListHeader } from '../components/repo';
 import { SlowSpinner } from '../components/common';
@@ -137,6 +137,10 @@ export default function RepoList({ token, maxVisibleRows, onLogout, viewerLogin,
 
   // Create repository modal state
   const [createMode, setCreateMode] = useState(false);
+
+  // Transfer repository modal state
+  const [transferMode, setTransferMode] = useState(false);
+  const [transferTarget, setTransferTarget] = useState<RepoNode | null>(null);
 
   // Copy URL modal state
   const [copyUrlMode, setCopyUrlMode] = useState(false);
@@ -537,6 +541,31 @@ export default function RepoList({ token, maxVisibleRows, onLogout, viewerLogin,
     setSortingLoading(true);
     try { await purgeApolloCacheFiles(); } catch {}
     fetchPage(null, true, true, undefined, 'network-only');
+  }
+
+  function closeTransferModal() {
+    setTransferMode(false);
+    setTransferTarget(null);
+  }
+
+  // Shared transfer-repository execution function
+  async function executeTransfer(repo: RepoNode, newOwner: string) {
+    if (!repo || !newOwner.trim()) return;
+
+    const [owner, name] = (repo.nameWithOwner || '').split('/');
+    const targetId = (repo as any).id;
+
+    // Throws on failure so the modal can surface the GitHub error message
+    await transferRepositoryRest(token, owner, name, newOwner.trim());
+
+    // The repo no longer belongs to the current owner — drop it from the list
+    await updateCacheAfterDelete(token, targetId);
+    setItems(prev => prev.filter((r: any) => r.id !== targetId));
+    setTotalCount(c => Math.max(0, c - 1));
+    setCursor(c => Math.max(0, Math.min(c, visibleItems.length - 2)));
+
+    trackSuccessfulOperation();
+    closeTransferModal();
   }
 
   // Timer ref for copy toast
@@ -1265,6 +1294,11 @@ export default function RepoList({ token, maxVisibleRows, onLogout, viewerLogin,
       return; // CreateRepoModal component handles its own keyboard input
     }
 
+    // When transfer repository modal is open, trap inputs for modal
+    if (transferMode) {
+      return; // TransferModal component handles its own keyboard input
+    }
+
     // When open-in-browser modal is open, trap inputs for modal
     if (openInBrowserMode) {
       return; // OpenInBrowserModal component handles its own keyboard input
@@ -1508,6 +1542,18 @@ export default function RepoList({ token, maxVisibleRows, onLogout, viewerLogin,
     if (key.ctrl && (input === 'n' || input === 'N')) {
       if (!starsMode) {
         setCreateMode(true);
+      }
+      return;
+    }
+
+    // Transfer repository modal (Ctrl+T) - not available in stars mode
+    if (key.ctrl && (input === 't' || input === 'T')) {
+      if (!starsMode) {
+        const repo = visibleItems[cursor];
+        if (repo) {
+          setTransferTarget(repo);
+          setTransferMode(true);
+        }
       }
       return;
     }
@@ -1795,7 +1841,7 @@ export default function RepoList({ token, maxVisibleRows, onLogout, viewerLogin,
 
   const lowRate = (rateLimit && rateLimit.remaining <= Math.ceil(rateLimit.limit * 0.1)) || 
                    (restRateLimit && restRateLimit.core.remaining <= Math.ceil(restRateLimit.core.limit * 0.1));
-  const modalOpen = deleteMode || archiveMode || syncMode || logoutMode || infoMode || visibilityMode || archiveFilterMode || sortMode || sortDirectionMode || changeVisibilityMode || copyUrlMode || renameMode || openInBrowserMode || createMode;
+  const modalOpen = deleteMode || archiveMode || syncMode || logoutMode || infoMode || visibilityMode || archiveFilterMode || sortMode || sortDirectionMode || changeVisibilityMode || copyUrlMode || renameMode || openInBrowserMode || createMode || transferMode;
 
   // Memoize header to prevent re-renders - must be before any returns
   const headerBar = useMemo(() => (
@@ -2407,6 +2453,15 @@ export default function RepoList({ token, maxVisibleRows, onLogout, viewerLogin,
               theme={theme}
             />
           </Box>
+        ) : transferMode && transferTarget ? (
+          <Box height={contentHeight} alignItems="center" justifyContent="center">
+            <TransferModal
+              repo={transferTarget}
+              onTransfer={executeTransfer}
+              onCancel={closeTransferModal}
+              theme={theme}
+            />
+          </Box>
         ) : copyUrlMode ? (
           <Box height={contentHeight} alignItems="center" justifyContent="center">
             <CopyUrlModal
@@ -2579,7 +2634,7 @@ export default function RepoList({ token, maxVisibleRows, onLogout, viewerLogin,
           <Text color={theme.muted} dimColor={modalOpen ? true : undefined}>
             {starsMode ?
               'Shift+S My Repos • I Info • C Copy URL • U Unstar Repository' :
-              `${ownerContext === 'personal' ? 'Shift+S Starred • ' : ''}I Info • C Copy URL • Ctrl+S Un/Star • Ctrl+R Rename • Ctrl+A Un/Archive • Ctrl+V Change Visibility • Ctrl+F Sync Fork • P Jump to upstream`
+              `${ownerContext === 'personal' ? 'Shift+S Starred • ' : ''}I Info • C Copy URL • Ctrl+S Un/Star • Ctrl+R Rename • Ctrl+T Transfer • Ctrl+A Un/Archive • Ctrl+V Change Visibility • Ctrl+F Sync Fork • P Jump to upstream`
             }
           </Text>
         </Box>

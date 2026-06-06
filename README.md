@@ -86,6 +86,7 @@ On first run, you'll be prompted to authenticate with GitHub (OAuth recommended)
   - Jump to upstream (`P`) — moves cursor to the parent if loaded; otherwise fetches and shows it
   - Create new repository (`Ctrl+N`) — prompts for a name (with the personal/org slug shown in front), choose visibility with `Tab`, and surfaces GitHub errors inline
   - Rename repository (`Ctrl+R`) with inline validation and automatic cache update
+  - Transfer repository to another owner (`Ctrl+T`) — prompts for the destination owner, shows a confirmation, and surfaces GitHub errors inline
   - Copy repository URL to clipboard (`C`) with SSH/HTTPS options
   - Delete repository (`Del` or `Backspace`) with secure two-step confirmation
   - Archive/unarchive repositories (`Ctrl+A`) with confirmation prompts
@@ -303,6 +304,10 @@ Launch the app, then use the keys below:
 - **Star/Unstar**: `Ctrl+S` to toggle star status for any repository
 - **Sync fork**: `Ctrl+F` (for forks only, shows ahead/behind counts and handles conflicts)
 - **Rename repository**: `Ctrl+R` with inline validation
+- **Transfer repository**: `Ctrl+T` to transfer ownership to another user or organisation
+  - Prompts for the destination owner (`new-owner/<repo>` preview)
+  - Two-step flow with a confirmation prompt before transferring
+  - GitHub errors (e.g. insufficient permissions) are shown inline
 - **Copy URL**: `C` to copy repository URL to clipboard (SSH/HTTPS options)
 
 ### General

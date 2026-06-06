@@ -793,6 +793,55 @@ export async function createRepositoryRest(
   throw new Error(msg);
 }
 
+// GitHub GraphQL does not support transferring repos. Use REST:
+//   POST /repos/{owner}/{repo}/transfer with { new_owner }
+// The transfer is asynchronous: GitHub returns 202 Accepted on success.
+export async function transferRepositoryRest(
+  token: string,
+  owner: string,
+  repo: string,
+  newOwner: string
+): Promise<void> {
+  const url = `https://api.github.com/repos/${owner}/${repo}/transfer`;
+
+  logger.info('Transferring repository', { owner, repo, newOwner, url });
+
+  const res = await fetch(url, {
+    method: 'POST',
+    headers: {
+      'Authorization': `token ${token}`,
+      'Accept': 'application/vnd.github+json',
+      'Content-Type': 'application/json',
+      'User-Agent': 'gh-manager-cli'
+    },
+    body: JSON.stringify({ new_owner: newOwner })
+  } as any);
+
+  // 202 Accepted = transfer initiated. Some responses may also return 200.
+  if (res.status === 202 || res.status === 200) {
+    logger.info('Successfully initiated repository transfer', { owner, repo, newOwner, status: res.status });
+    return;
+  }
+
+  let msg = `Failed to transfer repository (status ${res.status})`;
+  try {
+    const errBody = await res.json();
+    if (errBody?.message) msg = errBody.message;
+    if (Array.isArray(errBody?.errors) && errBody.errors.length > 0) {
+      const details = errBody.errors
+        .map((e: any) => e.message || (e.field ? `${e.field}: ${e.code}` : e.code))
+        .filter(Boolean)
+        .join('; ');
+      if (details) msg += ` (${details})`;
+    }
+  } catch {
+    // ignore body parse errors
+  }
+
+  logger.error('Failed to transfer repository', { status: res.status, error: msg, owner, repo, newOwner });
+  throw new Error(msg);
+}
+
 // Fetch starred repositories
 export async function getStarredRepositories(
   client: ReturnType<typeof makeClient>,
