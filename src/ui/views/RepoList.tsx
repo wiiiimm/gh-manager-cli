@@ -1546,8 +1546,8 @@ export default function RepoList({ token, maxVisibleRows, onLogout, viewerLogin,
       return;
     }
 
-    // Transfer repository modal (Ctrl+T) - not available in stars mode
-    if (key.ctrl && (input === 't' || input === 'T')) {
+    // Transfer repository modal (Shift+M for Move) - not available in stars mode
+    if (key.shift && input === 'M') {
       if (!starsMode) {
         const repo = visibleItems[cursor];
         if (repo) {
@@ -2634,7 +2634,7 @@ export default function RepoList({ token, maxVisibleRows, onLogout, viewerLogin,
           <Text color={theme.muted} dimColor={modalOpen ? true : undefined}>
             {starsMode ?
               'Shift+S My Repos • I Info • C Copy URL • U Unstar Repository' :
-              `${ownerContext === 'personal' ? 'Shift+S Starred • ' : ''}I Info • C Copy URL • Ctrl+S Un/Star • Ctrl+R Rename • Ctrl+T Transfer • Ctrl+A Un/Archive • Ctrl+V Change Visibility • Ctrl+F Sync Fork • P Jump to upstream`
+              `${ownerContext === 'personal' ? 'Shift+S Starred • ' : ''}I Info • C Copy URL • Ctrl+S Un/Star • Ctrl+R Rename • Shift+M Transfer • Ctrl+A Un/Archive • Ctrl+V Change Visibility • Ctrl+F Sync Fork • P Jump to upstream`
             }
           </Text>
         </Box>
