@@ -727,6 +727,31 @@ export async function deleteRepositoryRest(
 // GitHub GraphQL does not support creating repos. Use REST:
 //   - Personal: POST /user/repos
 //   - Organisation: POST /orgs/{org}/repos
+/**
+ * Parse a failed GitHub REST response into a human-readable error message,
+ * combining the top-level `message` with any per-field `errors[]` details.
+ *
+ * @param res The non-OK fetch Response.
+ * @param defaultMessage Fallback message used when the body can't be parsed.
+ */
+async function parseGitHubRestError(res: Response, defaultMessage: string): Promise<string> {
+  let msg = defaultMessage;
+  try {
+    const errBody = await res.json();
+    if (errBody?.message) msg = errBody.message;
+    if (Array.isArray(errBody?.errors) && errBody.errors.length > 0) {
+      const details = errBody.errors
+        .map((e: any) => e.message || (e.field ? `${e.field}: ${e.code}` : e.code))
+        .filter(Boolean)
+        .join('; ');
+      if (details) msg += ` (${details})`;
+    }
+  } catch {
+    // ignore body parse errors
+  }
+  return msg;
+}
+
 /** Options describing the repository to create via {@link createRepositoryRest}. */
 export interface CreateRepositoryOptions {
   name: string;
@@ -793,20 +818,7 @@ export async function createRepositoryRest(
     return { nameWithOwner: data.full_name, url: data.html_url };
   }
 
-  let msg = `Failed to create repository (status ${res.status})`;
-  try {
-    const errBody = await res.json();
-    if (errBody?.message) msg = errBody.message;
-    if (Array.isArray(errBody?.errors) && errBody.errors.length > 0) {
-      const details = errBody.errors
-        .map((e: any) => e.message || (e.field ? `${e.field}: ${e.code}` : e.code))
-        .filter(Boolean)
-        .join('; ');
-      if (details) msg += ` (${details})`;
-    }
-  } catch {
-    // ignore body parse errors
-  }
+  const msg = await parseGitHubRestError(res, `Failed to create repository (status ${res.status})`);
 
   logger.error('Failed to create repository', { status: res.status, error: msg, name, org: org ?? null });
   throw new Error(msg);
@@ -861,20 +873,7 @@ export async function transferRepositoryRest(
     return;
   }
 
-  let msg = `Failed to transfer repository (status ${res.status})`;
-  try {
-    const errBody = await res.json();
-    if (errBody?.message) msg = errBody.message;
-    if (Array.isArray(errBody?.errors) && errBody.errors.length > 0) {
-      const details = errBody.errors
-        .map((e: any) => e.message || (e.field ? `${e.field}: ${e.code}` : e.code))
-        .filter(Boolean)
-        .join('; ');
-      if (details) msg += ` (${details})`;
-    }
-  } catch {
-    // ignore body parse errors
-  }
+  const msg = await parseGitHubRestError(res, `Failed to transfer repository (status ${res.status})`);
 
   logger.error('Failed to transfer repository', { status: res.status, error: msg, owner, repo, newOwner });
   throw new Error(msg);
