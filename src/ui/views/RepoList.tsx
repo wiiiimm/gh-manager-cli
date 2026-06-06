@@ -1607,12 +1607,6 @@ export default function RepoList({ token, maxVisibleRows, onLogout, viewerLogin,
       }
       return;
     }
-    
-    // Organization switcher (W for Workspace/Who)
-    if (input && input.toUpperCase() === 'W') {
-      setOrgSwitcherOpen(true);
-      return;
-    }
 
     // Sort modal: show sort options (S key when not in stars mode).
     // Disabled while a fuzzy search is active — results are ranked by match

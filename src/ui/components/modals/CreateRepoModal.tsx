@@ -73,14 +73,17 @@ export default function CreateRepoModal({ ownerSlug, isOrg, isEnterprise, onCrea
       await onCreate(name.trim(), visibility);
     } catch (e: any) {
       setError(e.message || 'Failed to create repository');
+    } finally {
       setCreating(false);
       submittingRef.current = false;
     }
   };
 
-  // GitHub repo names allow: alphanumeric, hyphen, underscore, period
+  // GitHub repo names allow alphanumerics, hyphen, underscore and period, but
+  // cannot start with a dot — strip disallowed chars and any leading dots so we
+  // don't make a doomed API round-trip for names like ".hidden" or "..".
   const handleNameChange = (value: string) => {
-    setName(value.replace(/[^a-zA-Z0-9\-_.]/g, ''));
+    setName(value.replace(/[^a-zA-Z0-9\-_.]/g, '').replace(/^\.+/, ''));
   };
 
   const visLabel = (v: Visibility) => (v === 'PUBLIC' ? 'Public' : v === 'PRIVATE' ? 'Private' : 'Internal');

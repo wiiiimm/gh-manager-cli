@@ -82,6 +82,7 @@ export default function TransferModal({ repo, onTransfer, onCancel, theme: theme
       await onTransfer(repo, newOwner.trim());
     } catch (e: any) {
       setError(e.message || 'Failed to transfer repository');
+    } finally {
       setTransferring(false);
       submittingRef.current = false;
     }
