@@ -12,4 +12,5 @@ export { default as CopyUrlModal } from './CopyUrlModal';
 export { default as RenameModal } from './RenameModal';
 export { StarModal } from './StarModal';
 export { default as OpenInBrowserModal } from './OpenInBrowserModal';
+export { default as CreateRepoModal } from './CreateRepoModal';
 

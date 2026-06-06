@@ -724,6 +724,75 @@ export async function deleteRepositoryRest(
   throw new Error(msg);
 }
 
+// GitHub GraphQL does not support creating repos. Use REST:
+//   - Personal: POST /user/repos
+//   - Organisation: POST /orgs/{org}/repos
+export interface CreateRepositoryOptions {
+  name: string;
+  visibility: 'PUBLIC' | 'PRIVATE' | 'INTERNAL';
+  description?: string;
+  org?: string; // when provided, create under the organisation instead of the viewer
+}
+
+export async function createRepositoryRest(
+  token: string,
+  options: CreateRepositoryOptions
+): Promise<{ nameWithOwner: string; url: string }> {
+  const { name, visibility, description, org } = options;
+  const url = org
+    ? `https://api.github.com/orgs/${org}/repos`
+    : `https://api.github.com/user/repos`;
+
+  const body: Record<string, any> = { name };
+  if (visibility === 'INTERNAL') {
+    // Internal visibility is only valid for org repos within an enterprise
+    body.visibility = 'internal';
+  } else {
+    body.private = visibility === 'PRIVATE';
+  }
+  if (description) body.description = description;
+
+  logger.info('Creating repository', { name, visibility, org: org ?? null, url });
+
+  const res = await fetch(url, {
+    method: 'POST',
+    headers: {
+      'Authorization': `token ${token}`,
+      'Accept': 'application/vnd.github+json',
+      'Content-Type': 'application/json',
+      'User-Agent': 'gh-manager-cli'
+    },
+    body: JSON.stringify(body)
+  } as any);
+
+  if (res.status === 201) {
+    const data = await res.json();
+    logger.info('Successfully created repository', {
+      nameWithOwner: data.full_name,
+      url: data.html_url
+    });
+    return { nameWithOwner: data.full_name, url: data.html_url };
+  }
+
+  let msg = `Failed to create repository (status ${res.status})`;
+  try {
+    const errBody = await res.json();
+    if (errBody?.message) msg = errBody.message;
+    if (Array.isArray(errBody?.errors) && errBody.errors.length > 0) {
+      const details = errBody.errors
+        .map((e: any) => e.message || (e.field ? `${e.field}: ${e.code}` : e.code))
+        .filter(Boolean)
+        .join('; ');
+      if (details) msg += ` (${details})`;
+    }
+  } catch {
+    // ignore body parse errors
+  }
+
+  logger.error('Failed to create repository', { status: res.status, error: msg, name, org: org ?? null });
+  throw new Error(msg);
+}
+
 // Fetch starred repositories
 export async function getStarredRepositories(
   client: ReturnType<typeof makeClient>,

@@ -2,7 +2,7 @@ import React, { useEffect, useMemo, useState, useRef, useCallback } from 'react'
 import { Box, Text, useApp, useInput, useStdout, Spacer, Newline } from 'ink';
 import TextInput from 'ink-text-input';
 import chalk from 'chalk';
-import { makeClient, fetchViewerReposPageUnified, deleteRepositoryRest, archiveRepositoryById, unarchiveRepositoryById, changeRepositoryVisibility, syncForkWithUpstream, getRepositoryFromCache, purgeApolloCacheFiles, inspectCacheStatus, updateCacheAfterDelete, updateCacheAfterArchive, updateCacheAfterVisibilityChange, updateCacheWithRepository, checkOrganizationIsEnterprise, OwnerAffiliation, fetchViewerOrganizations, fetchRestRateLimits, renameRepositoryById, updateCacheAfterRename, getStarredRepositories, starRepository, unstarRepository, enrichForksWithAheadBehind, fetchRepositoryByOwnerAndName } from '../../services/github';
+import { makeClient, fetchViewerReposPageUnified, deleteRepositoryRest, archiveRepositoryById, unarchiveRepositoryById, changeRepositoryVisibility, syncForkWithUpstream, getRepositoryFromCache, purgeApolloCacheFiles, inspectCacheStatus, updateCacheAfterDelete, updateCacheAfterArchive, updateCacheAfterVisibilityChange, updateCacheWithRepository, checkOrganizationIsEnterprise, OwnerAffiliation, fetchViewerOrganizations, fetchRestRateLimits, renameRepositoryById, updateCacheAfterRename, getStarredRepositories, starRepository, unstarRepository, enrichForksWithAheadBehind, fetchRepositoryByOwnerAndName, createRepositoryRest } from '../../services/github';
 import { getUIPrefs, storeUIPrefs, OwnerContext } from '../../config/config';
 import { type ThemeName, nextTheme, getTheme } from '../../config/themes';
 import { useTheme } from '../hooks/useTheme';
@@ -12,7 +12,7 @@ import type { RepoNode, RateLimitInfo, RestRateLimitInfo } from '../../types';
 import { exec } from 'child_process';
 import OrgSwitcher from '../OrgSwitcher';
 import { logger } from '../../lib/logger';
-import { ArchiveFilterModal, DeleteModal, ArchiveModal, SyncModal, InfoModal, LogoutModal, VisibilityModal, SortModal, SortDirectionModal, ChangeVisibilityModal, CopyUrlModal, RenameModal, StarModal, OpenInBrowserModal } from '../components/modals';
+import { ArchiveFilterModal, DeleteModal, ArchiveModal, SyncModal, InfoModal, LogoutModal, VisibilityModal, SortModal, SortDirectionModal, ChangeVisibilityModal, CopyUrlModal, RenameModal, StarModal, OpenInBrowserModal, CreateRepoModal } from '../components/modals';
 import { UnstarModal } from '../components/modals/UnstarModal';
 import { RepoRow, FilterInput, RepoListHeader } from '../components/repo';
 import { SlowSpinner } from '../components/common';
@@ -134,6 +134,9 @@ export default function RepoList({ token, maxVisibleRows, onLogout, viewerLogin,
   // Rename modal state
   const [renameMode, setRenameMode] = useState(false);
   const [renameTarget, setRenameTarget] = useState<RepoNode | null>(null);
+
+  // Create repository modal state
+  const [createMode, setCreateMode] = useState(false);
 
   // Copy URL modal state
   const [copyUrlMode, setCopyUrlMode] = useState(false);
@@ -515,6 +518,25 @@ export default function RepoList({ token, maxVisibleRows, onLogout, viewerLogin,
     } catch (error: any) {
       throw error; // Let the modal handle the error
     }
+  }
+
+  // Shared create-repository execution function
+  async function executeCreate(name: string, visibility: 'PUBLIC' | 'PRIVATE' | 'INTERNAL') {
+    if (!name.trim()) return;
+
+    const org = ownerContext !== 'personal' ? ownerContext.login : undefined;
+
+    // Throws on failure so the modal can surface the GitHub error message
+    await createRepositoryRest(token, { name: name.trim(), visibility, org });
+
+    setCreateMode(false);
+
+    // Refresh from the network so the new repository shows up in the list
+    setCursor(0);
+    setRefreshing(true);
+    setSortingLoading(true);
+    try { await purgeApolloCacheFiles(); } catch {}
+    fetchPage(null, true, true, undefined, 'network-only');
   }
 
   // Timer ref for copy toast
@@ -1238,6 +1260,11 @@ export default function RepoList({ token, maxVisibleRows, onLogout, viewerLogin,
       return; // RenameModal component handles its own keyboard input
     }
 
+    // When create repository modal is open, trap inputs for modal
+    if (createMode) {
+      return; // CreateRepoModal component handles its own keyboard input
+    }
+
     // When open-in-browser modal is open, trap inputs for modal
     if (openInBrowserMode) {
       return; // OpenInBrowserModal component handles its own keyboard input
@@ -1473,6 +1500,14 @@ export default function RepoList({ token, maxVisibleRows, onLogout, viewerLogin,
       if (repo) {
         setRenameMode(true);
         setRenameTarget(repo);
+      }
+      return;
+    }
+
+    // Create repository modal (Ctrl+N) - not available in stars mode
+    if (key.ctrl && (input === 'n' || input === 'N')) {
+      if (!starsMode) {
+        setCreateMode(true);
       }
       return;
     }
@@ -1760,7 +1795,7 @@ export default function RepoList({ token, maxVisibleRows, onLogout, viewerLogin,
 
   const lowRate = (rateLimit && rateLimit.remaining <= Math.ceil(rateLimit.limit * 0.1)) || 
                    (restRateLimit && restRateLimit.core.remaining <= Math.ceil(restRateLimit.core.limit * 0.1));
-  const modalOpen = deleteMode || archiveMode || syncMode || logoutMode || infoMode || visibilityMode || archiveFilterMode || sortMode || sortDirectionMode || changeVisibilityMode || copyUrlMode || renameMode || openInBrowserMode;
+  const modalOpen = deleteMode || archiveMode || syncMode || logoutMode || infoMode || visibilityMode || archiveFilterMode || sortMode || sortDirectionMode || changeVisibilityMode || copyUrlMode || renameMode || openInBrowserMode || createMode;
 
   // Memoize header to prevent re-renders - must be before any returns
   const headerBar = useMemo(() => (
@@ -2361,6 +2396,17 @@ export default function RepoList({ token, maxVisibleRows, onLogout, viewerLogin,
               theme={theme}
             />
           </Box>
+        ) : createMode ? (
+          <Box height={contentHeight} alignItems="center" justifyContent="center">
+            <CreateRepoModal
+              ownerSlug={ownerContext === 'personal' ? (viewerLogin || 'me') : ownerContext.login}
+              isOrg={ownerContext !== 'personal'}
+              isEnterprise={isEnterpriseOrg}
+              onCreate={executeCreate}
+              onCancel={() => setCreateMode(false)}
+              theme={theme}
+            />
+          </Box>
         ) : copyUrlMode ? (
           <Box height={contentHeight} alignItems="center" justifyContent="center">
             <CopyUrlModal
@@ -2540,7 +2586,7 @@ export default function RepoList({ token, maxVisibleRows, onLogout, viewerLogin,
         {/* Line 4: System controls */}
         <Box width={terminalWidth} justifyContent="center">
           <Text color={theme.muted} dimColor={modalOpen ? true : undefined}>
-            K Cache Info • W Org Switch • Del/Backspace Delete • Ctrl+L Logout • Q Quit
+            K Cache Info • W Org Switch • Ctrl+N New Repo • Del/Backspace Delete • Ctrl+L Logout • Q Quit
           </Text>
         </Box>
         {/* Line 5: Sponsorship */}
