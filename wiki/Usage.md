@@ -59,19 +59,19 @@ Launch the app, then use the keys below to navigate and interact with your repos
 - **Rename repository**: `Ctrl+R` with inline validation
 - **Copy URL**: `C` to copy repository URL to clipboard (SSH/HTTPS options)
 
-## Multi-select Mode (Bulk Operations)
+## Bulk Select Mode (Bulk Operations)
 
-Multi-select mode lets you select multiple repositories and run a bulk action (star/unstar, archive/unarchive, visibility change, or delete) against all of them at once. The actions reuse the same global shortcuts as single-repo mode; while in multi-select mode every other shortcut is disabled.
+Bulk Select mode lets you select multiple repositories and run a bulk action (star/unstar, archive/unarchive, visibility change, or delete) against all of them at once. The actions reuse the same global shortcuts as single-repo mode; while in bulk select mode every other shortcut is disabled.
 
-### Entering Multi-select Mode
+### Entering Bulk Select Mode
 
-- **`M`** — toggle multi-select mode on/off
-- **`Esc`** — exit multi-select mode (clears selection)
+- **`B`** — toggle bulk select (bulk) mode on/off
+- **`Esc`** — exit bulk select mode (clears selection)
 
-### Selection Controls (inside multi-select mode)
+### Selection Controls (inside bulk select mode)
 
 - **`Space`** — toggle selection on the highlighted repository
-- **`S`** — unselect all (clears selection without exiting multi-select mode)
+- **`X`** — unselect all (clears selection without exiting bulk select mode)
 - Navigation (↑↓, PageUp/Down, `Ctrl+G`, `G`) still works
 
 ### Bulk Action Shortcuts (require at least one selected repo)
@@ -83,7 +83,7 @@ Multi-select mode lets you select multiple repositories and run a bulk action (s
 
 ### Running a Bulk Action
 
-1. Enter multi-select mode with `M`
+1. Enter bulk select mode with `B`
 2. Select repositories with `Space`
 3. Press the action shortcut above (e.g. `Ctrl+A` for archive)
 4. **Intent/target (only when needed)**:
@@ -94,13 +94,13 @@ Multi-select mode lets you select multiple repositories and run a bulk action (s
 6. **Count prompt (Confirmation 2)**: Confirms "About to {action} {N} repositories." (Cancel/Proceed, Esc cancels.)
 7. **Delete only (Confirmation 3)**: enter a 4-character verification code.
 8. Progress is shown per-repo; partial failures are reported at the end.
-9. On completion, selections are cleared and multi-select mode exits automatically.
+9. On completion, selections are cleared and bulk select mode exits automatically.
 
 ### Persistence
 
 Selections persist across search and filter changes — you can search for one set, select some repos, search for something else, select more, and all prior selections remain intact. Selections are cleared only when:
 
-- You exit multi-select mode (`M` or `Esc`)
+- You exit bulk select mode (`B` or `Esc`)
 - You switch organisation/scope
 - You toggle Stars mode
 - The bulk operation completes

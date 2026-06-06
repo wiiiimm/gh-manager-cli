@@ -1511,8 +1511,8 @@ export default function RepoList({ token, maxVisibleRows, onLogout, viewerLogin,
       return;
     }
 
-    // Multi-select mode: M toggles, Esc exits
-    if (input && input.toUpperCase() === 'M' && !key.ctrl && !key.shift) {
+    // Multi-select (bulk) mode: B toggles, Esc exits
+    if (input && input.toUpperCase() === 'B' && !key.ctrl && !key.shift) {
       if (multiSelectMode) {
         exitMultiSelectMode(true);
       } else {
@@ -1546,8 +1546,8 @@ export default function RepoList({ token, maxVisibleRows, onLogout, viewerLogin,
         if (repo) toggleRepoSelection(repo);
         return;
       }
-      // S: unselect all (clear current selection, stay in bulk mode)
-      if (!key.ctrl && input && input.toUpperCase() === 'S') {
+      // X: unselect all (clear current selection, stay in bulk mode)
+      if (!key.ctrl && input && input.toUpperCase() === 'X') {
         setSelectedRepos(new Map());
         return;
       }
@@ -2795,12 +2795,12 @@ export default function RepoList({ token, maxVisibleRows, onLogout, viewerLogin,
             {multiSelectMode && (
               <Box marginBottom={1} flexDirection="row" justifyContent="space-between">
                 <Text color="cyan" bold>
-                  {`[MULTI-SELECT] ${selectedRepos.size > 0 ? `${selectedRepos.size} selected` : 'No selection'}`}
+                  {`[BULK SELECT] ${selectedRepos.size > 0 ? `${selectedRepos.size} selected` : 'No selection'}`}
                 </Text>
                 <Text color="gray">
                   {selectedRepos.size > 0
-                    ? 'Space select · S unselect all · Ctrl+S star · Ctrl+A archive · Ctrl+V visibility · Del delete · M/Esc exit'
-                    : 'Space select · M/Esc exit'}
+                    ? 'Space select · X unselect all · Ctrl+S star · Ctrl+A archive · Ctrl+V visibility · Del delete · B/Esc exit'
+                    : 'Space select · B/Esc exit'}
                 </Text>
               </Box>
             )}
@@ -2933,9 +2933,9 @@ export default function RepoList({ token, maxVisibleRows, onLogout, viewerLogin,
             <Text color={multiSelectMode ? 'cyan' : 'gray'} dimColor={!multiSelectMode}>
               {multiSelectMode
                 ? (selectedRepos.size > 0
-                    ? `Space select • S unselect all • Ctrl+S star • Ctrl+A archive • Ctrl+V visibility • Del delete • M/Esc exit (${selectedRepos.size} selected)`
-                    : 'M/Esc exit multi-select • Space select (no selection)')
-                : 'M Multi-select mode (bulk star/archive/visibility/delete)'
+                    ? `Space select • X unselect all • Ctrl+S star • Ctrl+A archive • Ctrl+V visibility • Del delete • B/Esc exit (${selectedRepos.size} selected)`
+                    : 'B/Esc exit bulk select • Space select (no selection)')
+                : 'B Bulk Select mode (star/archive/visibility/delete)'
               }
             </Text>
           </Box>

@@ -16,7 +16,7 @@
 - ✅ Fork synchronization with upstream
 - ✅ Semantic release automation and CI/CD workflows
 - ✅ Automated changelog generation and PR title management
-- ✅ Multi-select mode with bulk delete and archive/unarchive operations
+- ✅ Bulk Select mode with bulk star, archive/unarchive, visibility, and delete operations
 - 🔧 Automated test suite expansion (ongoing)
 - 🔧 Cross-terminal rendering optimization
 
@@ -140,15 +140,15 @@ See the living roadmap in [TODOs.md](./TODOs.md) for the canonical, up-to-date l
 - `R`: refresh list (purges cache)
 - `Q`: quit (Esc cancels an open modal or exits search mode; does not quit)
 
-### Multi-select Mode
+### Bulk Select Mode
 
-- `M`: enter/exit multi-select mode (exits and clears selection)
-- `Esc`: exit multi-select mode (clears selection)
+- `B`: enter/exit Bulk Select mode (exits and clears selection)
+- `Esc`: exit bulk select mode (clears selection)
 
-**Within multi-select mode** (every other shortcut is disabled; only navigation + the keys below work):
+**Within bulk select mode** (every other shortcut is disabled; only navigation + the keys below work):
 
 - `Space`: toggle selection on the cursor row
-- `S`: unselect all (clears selection, stays in multi-select mode)
+- `X`: unselect all (clears selection, stays in bulk select mode)
 - `Ctrl+S`: bulk star/unstar the selected repos
 - `Ctrl+A`: bulk archive/unarchive the selected repos
 - `Ctrl+V`: bulk visibility update for the selected repos
@@ -166,7 +166,7 @@ Bulk actions reuse the same global shortcuts as single-repo mode and require at 
 2. Count prompt (Confirmation 2) — "About to {action} {N} repos"; Cancel/Proceed, Esc cancels.
 3. Delete only — a separate verification-code modal (type a 4-character code).
 4. Sequential execution with per-repo progress; partial-failure reporting at the end.
-5. Selection cleared and multi-select mode exits on completion.
+5. Selection cleared and bulk select mode exits on completion.
 
 **Persistence:** Selections survive search and filter/sort changes (stored as full node objects by id). Cleared on org/scope switch and stars mode toggle.
 
