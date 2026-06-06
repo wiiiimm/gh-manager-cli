@@ -535,6 +535,17 @@ export default function RepoList({ token, maxVisibleRows, onLogout, viewerLogin,
 
     setCreateMode(false);
 
+    // Clear any client-side filters that could hide the newly created repo from
+    // the refreshed list: an active fuzzy search (the query likely won't match
+    // the new name) and an archived-only filter (a new repo is always
+    // unarchived). The visibility filter is reconciled separately below.
+    setFilter('');
+    setFilterMode(false);
+    if (archiveFilter === 'archived') {
+      storeUIPrefs({ archiveFilter: 'all' });
+      setArchiveFilter('all');
+    }
+
     // The list refresh sends the active visibility filter to the API as a
     // privacy parameter. If the new repo's visibility wouldn't be returned
     // under that filter, it would be omitted from the refreshed data and
@@ -581,7 +592,11 @@ export default function RepoList({ token, maxVisibleRows, onLogout, viewerLogin,
     // Throws on failure so the modal can surface the GitHub error message
     await transferRepositoryRest(token, owner, name, newOwner.trim());
 
-    // The repo no longer belongs to the current owner — drop it from the list
+    // GitHub transfers are asynchronous (202 Accepted = queued), so we optimistically
+    // drop the repo from the list for immediate feedback, consistent with the delete
+    // flow. We deliberately do NOT auto-refresh afterwards: a network refetch during
+    // the brief processing window could still return the repo under the current owner
+    // and make it flicker back. It stays removed until the user manually refreshes.
     await updateCacheAfterDelete(token, targetId);
     setItems(prev => prev.filter((r: any) => r.id !== targetId));
     setTotalCount(c => Math.max(0, c - 1));
