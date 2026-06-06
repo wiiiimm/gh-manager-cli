@@ -823,7 +823,6 @@ export default function RepoList({ token, maxVisibleRows, onLogout, viewerLogin,
   // Visibility filter - 'all' | 'public' | 'private'
   type VisibilityFilter = 'all' | 'public' | 'private';
   const [visibilityFilter, setVisibilityFilter] = useState<VisibilityFilter>('all');
-  const previousVisibilityFilter = useRef<VisibilityFilter>('all');
 
   // Archive filter - 'all' | 'unarchived' | 'archived'
   type ArchiveFilter = 'all' | 'unarchived' | 'archived';
@@ -870,13 +869,9 @@ export default function RepoList({ token, maxVisibleRows, onLogout, viewerLogin,
       
       // Determine organization login if in org context
       const orgLogin = ownerContext !== 'personal' ? ownerContext.login : undefined;
-      
-      // Map visibility filter to API privacy parameter
-      let privacy: 'PUBLIC' | 'PRIVATE' | undefined;
-      if (visibilityFilter === 'public') privacy = 'PUBLIC';
-      else if (visibilityFilter === 'private') privacy = 'PRIVATE';
-      // Note: GitHub API doesn't support filtering by INTERNAL at the API level
-      
+
+      // Visibility is filtered entirely client-side (SWR-366), so we always
+      // fetch the complete set and never pass a privacy narrowing to the API.
       const page = await fetchViewerReposPageUnified(
         token,
         PAGE_SIZE,
@@ -885,8 +880,7 @@ export default function RepoList({ token, maxVisibleRows, onLogout, viewerLogin,
         overrideForkTracking ?? forkTracking,
         policy ?? (after ? 'network-only' : 'cache-first'),
         ownerAffiliations,
-        orgLogin,
-        privacy
+        orgLogin
       );
       
       // A fresh list load (refresh, sort change, org switch, first page)
@@ -1044,20 +1038,8 @@ export default function RepoList({ token, maxVisibleRows, onLogout, viewerLogin,
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [client, prefsLoaded, ownerContext, ownerAffiliations]);
 
-  // Sorting changes.
-  // Refresh from server when visibility filter changes
-  useEffect(() => {
-    // Skip initial mount and 'all' filter (no server filtering needed)
-    if (visibilityFilter !== 'all' || (previousVisibilityFilter.current && previousVisibilityFilter.current !== visibilityFilter)) {
-      if (items.length > 0) {
-        fetchPage(null, true, true, undefined, 'network-only');
-      }
-    }
-
-    // Update previous ref
-    previousVisibilityFilter.current = visibilityFilter;
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [visibilityFilter]);
+  // Visibility filter is applied entirely client-side over the full cached set
+  // (SWR-366) — no server refetch is needed, so changing it never hits the API.
 
   // Handle organization context switching
   // Organization context handler is defined above (function handleOrgContextChange)
@@ -1623,13 +1605,14 @@ export default function RepoList({ token, maxVisibleRows, onLogout, viewerLogin,
   const filtered = useMemo(() => {
     let result = items;
     
-    // Apply visibility filter locally
-    // Match GitHub's behavior: Private filter includes both PRIVATE and INTERNAL
+    // Apply visibility filter locally over the full cached set (SWR-366).
+    // Match GitHub's behaviour: Private filter includes both PRIVATE and INTERNAL.
     if (visibilityFilter === 'private') {
-      // Show both PRIVATE and INTERNAL repos (matching GitHub's behavior)
+      // Show both PRIVATE and INTERNAL repos (matching GitHub's behaviour)
       result = result.filter(r => r.visibility === 'PRIVATE' || r.visibility === 'INTERNAL');
+    } else if (visibilityFilter === 'public') {
+      result = result.filter(r => r.visibility === 'PUBLIC');
     }
-    // Note: Public filtering is done at the API level and works correctly
     
     // Apply archive filter
     if (archiveFilter === 'archived') {
