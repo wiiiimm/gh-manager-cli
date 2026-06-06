@@ -2,7 +2,7 @@ import React from 'react';
 import { Box, Text } from 'ink';
 import chalk from 'chalk';
 import type { RepoNode } from '../../../types';
-import type { BulkAction } from './BulkReviewModal';
+import type { BulkActionColor } from './bulkActions';
 import { SlowSpinner } from '../common';
 
 export interface BulkProgressState {
@@ -15,19 +15,24 @@ export interface BulkProgressState {
 
 interface BulkProgressModalProps {
   state: BulkProgressState;
-  action: BulkAction;
+  /** Short title label, e.g. "Delete", "Make Private". */
+  actionLabel: string;
+  /** Present-continuous form, e.g. "Deleting". */
+  gerund: string;
+  /** Past-tense verb, e.g. "deleted". */
+  pastVerb: string;
+  actionColor: BulkActionColor;
   terminalWidth?: number;
 }
 
 export default function BulkProgressModal({
   state,
-  action,
+  actionLabel,
+  gerund,
+  pastVerb,
+  actionColor,
   terminalWidth = 80,
 }: BulkProgressModalProps) {
-  const actionLabel = action === 'delete' ? 'Deleting' : action === 'archive' ? 'Archiving' : 'Unarchiving';
-  const actionDone = action === 'delete' ? 'deleted' : action === 'archive' ? 'archived' : 'unarchived';
-  const actionColor: 'red' | 'yellow' | 'green' = action === 'delete' ? 'red' : action === 'archive' ? 'yellow' : 'green';
-
   const succeeded = state.completed - state.failed.length;
   const modalWidth = Math.min(terminalWidth - 4, 68);
 
@@ -41,7 +46,7 @@ export default function BulkProgressModal({
       width={modalWidth}
     >
       <Text bold color={state.done ? (state.failed.length === 0 ? 'green' : 'yellow') : actionColor}>
-        Bulk {action === 'delete' ? 'Delete' : action === 'archive' ? 'Archive' : 'Unarchive'} Progress
+        Bulk {actionLabel} Progress
       </Text>
       <Box height={1}><Text> </Text></Box>
 
@@ -52,7 +57,7 @@ export default function BulkProgressModal({
               <Text color="cyan"><SlowSpinner /></Text>
             </Box>
             <Text>
-              {actionLabel} {Math.min(state.completed + 1, state.total)} of {state.total}
+              {gerund} {Math.min(state.completed + 1, state.total)} of {state.total}
               {state.currentRepo ? `: ${chalk.cyan(state.currentRepo.nameWithOwner)}` : '…'}
             </Text>
           </Box>
@@ -69,12 +74,12 @@ export default function BulkProgressModal({
         <>
           {state.failed.length === 0 ? (
             <Text color="green">
-              ✓ All {state.total} repositor{state.total === 1 ? 'y' : 'ies'} {actionDone} successfully.
+              ✓ All {state.total} repositor{state.total === 1 ? 'y' : 'ies'} {pastVerb} successfully.
             </Text>
           ) : (
             <>
               <Text color="yellow">
-                {succeeded}/{state.total} repositor{state.total === 1 ? 'y' : 'ies'} {actionDone} successfully.
+                {succeeded}/{state.total} repositor{state.total === 1 ? 'y' : 'ies'} {pastVerb} successfully.
               </Text>
               <Box marginTop={1} flexDirection="column">
                 <Text color="red">{state.failed.length} failed:</Text>

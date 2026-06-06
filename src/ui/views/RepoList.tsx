@@ -12,8 +12,8 @@ import type { RepoNode, RateLimitInfo, RestRateLimitInfo } from '../../types';
 import { exec } from 'child_process';
 import OrgSwitcher from '../OrgSwitcher';
 import { logger } from '../../lib/logger';
-import { ArchiveFilterModal, DeleteModal, ArchiveModal, SyncModal, InfoModal, LogoutModal, VisibilityModal, SortModal, SortDirectionModal, ChangeVisibilityModal, CopyUrlModal, RenameModal, StarModal, BulkReviewModal, BulkConfirmModal, BulkProgressModal, BulkActionPickerModal, OpenInBrowserModal } from '../components/modals';
-import type { BulkAction, BulkProgressState } from '../components/modals';
+import { ArchiveFilterModal, DeleteModal, ArchiveModal, SyncModal, InfoModal, LogoutModal, VisibilityModal, SortModal, SortDirectionModal, ChangeVisibilityModal, CopyUrlModal, RenameModal, StarModal, BulkReviewModal, BulkConfirmModal, BulkDeleteCodeModal, BulkIntentModal, BulkVisibilityModal, BulkProgressModal, OpenInBrowserModal, bulkActionMeta } from '../components/modals';
+import type { BulkAction, BulkVisibilityTarget, BulkProgressState } from '../components/modals';
 import { UnstarModal } from '../components/modals/UnstarModal';
 import { RepoRow, FilterInput, RepoListHeader } from '../components/repo';
 import { SlowSpinner } from '../components/common';
@@ -194,10 +194,14 @@ export default function RepoList({ token, maxVisibleRows, onLogout, viewerLogin,
   // Selection stored as Map<id, RepoNode> so nodes persist across search/filter changes
   const [selectedRepos, setSelectedRepos] = useState<Map<string, RepoNode>>(new Map());
   // Bulk operation flow state
-  const [bulkActionPickerOpen, setBulkActionPickerOpen] = useState(false);
   const [bulkAction, setBulkAction] = useState<BulkAction | null>(null);
+  const [bulkVisibilityTarget, setBulkVisibilityTarget] = useState<BulkVisibilityTarget | null>(null);
+  // Step 0 modals: mixed-state intent (star/archive) and visibility target picker
+  const [bulkIntentKind, setBulkIntentKind] = useState<'archive' | 'star' | null>(null);
+  const [bulkVisibilityOpen, setBulkVisibilityOpen] = useState(false);
   const [bulkReviewOpen, setBulkReviewOpen] = useState(false);
   const [bulkConfirmOpen, setBulkConfirmOpen] = useState(false);
+  const [bulkDeleteCodeOpen, setBulkDeleteCodeOpen] = useState(false);
   const [bulkProgressOpen, setBulkProgressOpen] = useState(false);
   const [bulkFinalSelection, setBulkFinalSelection] = useState<Map<string, RepoNode>>(new Map());
   const [bulkProgress, setBulkProgress] = useState<BulkProgressState>({
@@ -539,7 +543,11 @@ export default function RepoList({ token, maxVisibleRows, onLogout, viewerLogin,
   }
 
   // Bulk operation execution
-  async function executeBulkOperation(repos: RepoNode[], action: BulkAction) {
+  async function executeBulkOperation(
+    repos: RepoNode[],
+    action: BulkAction,
+    visTarget?: BulkVisibilityTarget | null,
+  ) {
     const total = repos.length;
     setBulkProgress({ total, completed: 0, failed: [], currentRepo: null, done: false });
     setBulkProgressOpen(true);
@@ -567,6 +575,21 @@ export default function RepoList({ token, maxVisibleRows, onLogout, viewerLogin,
           await updateCacheAfterArchive(token, repo.id, false);
           const updateRepo = (r: RepoNode) => r.id === repo.id ? { ...r, isArchived: false } : r;
           setItems(prev => prev.map(updateRepo));
+        } else if (action === 'star' || action === 'unstar') {
+          const wantStarred = action === 'star';
+          if (wantStarred) await starRepository(client, repo.id);
+          else await unstarRepository(client, repo.id);
+          const updateRepo = (r: RepoNode) => r.id === repo.id
+            ? { ...r, viewerHasStarred: wantStarred, stargazerCount: r.stargazerCount + (wantStarred ? (r.viewerHasStarred ? 0 : 1) : (r.viewerHasStarred ? -1 : 0)) }
+            : r;
+          setItems(prev => prev.map(updateRepo));
+        } else if (action === 'visibility' && visTarget) {
+          await changeRepositoryVisibility(client, repo.id, visTarget, token);
+          await updateCacheAfterVisibilityChange(token, repo.id, visTarget);
+          const updateRepo = (r: RepoNode) => r.id === repo.id
+            ? { ...r, visibility: visTarget, isPrivate: visTarget !== 'PUBLIC' }
+            : r;
+          setItems(prev => prev.map(updateRepo));
         }
         trackSuccessfulOperation();
       } catch (e: any) {
@@ -577,17 +600,63 @@ export default function RepoList({ token, maxVisibleRows, onLogout, viewerLogin,
     }
 
     setBulkProgress(prev => ({ ...prev, currentRepo: null, done: true, failed: [...failed] }));
-    // Clear selection after operation
+    // Clear selection and exit multi-select. bulkAction/visibilityTarget are kept
+    // until the user dismisses the (now "done") progress modal, since its labels
+    // depend on them — they're reset in the dismiss handler.
     setSelectedRepos(new Map());
     setMultiSelectMode(false);
     // Adjust cursor
     setCursor(c => Math.max(0, Math.min(c, visibleItems.length - 1)));
   }
 
-  // Open bulk action picker
-  function openBulkActionPicker() {
+  // ---- Bulk action starters (driven by the global keys in multi-select mode) ----
+
+  // Cancel/reset the whole bulk flow back to plain multi-select mode.
+  function resetBulkFlow() {
+    setBulkIntentKind(null);
+    setBulkVisibilityOpen(false);
+    setBulkReviewOpen(false);
+    setBulkConfirmOpen(false);
+    setBulkDeleteCodeOpen(false);
+    setBulkAction(null);
+    setBulkVisibilityTarget(null);
+    setBulkFinalSelection(new Map());
+  }
+
+  // Step 1 entry: lock in the action and open the review/unselect modal.
+  function beginBulkReview(action: BulkAction) {
     if (selectedRepos.size === 0) return;
-    setBulkActionPickerOpen(true);
+    setBulkAction(action);
+    setBulkReviewOpen(true);
+  }
+
+  function startBulkDelete() {
+    beginBulkReview('delete');
+  }
+
+  function startBulkArchive() {
+    const repos = Array.from(selectedRepos.values());
+    if (repos.length === 0) return;
+    const allArchived = repos.every(r => r.isArchived);
+    const noneArchived = repos.every(r => !r.isArchived);
+    if (allArchived) beginBulkReview('unarchive');
+    else if (noneArchived) beginBulkReview('archive');
+    else setBulkIntentKind('archive'); // mixed → ask intent
+  }
+
+  function startBulkStar() {
+    const repos = Array.from(selectedRepos.values());
+    if (repos.length === 0) return;
+    const allStarred = repos.every(r => r.viewerHasStarred);
+    const noneStarred = repos.every(r => !r.viewerHasStarred);
+    if (allStarred) beginBulkReview('unstar');
+    else if (noneStarred) beginBulkReview('star');
+    else setBulkIntentKind('star'); // mixed → ask intent
+  }
+
+  function startBulkVisibility() {
+    if (selectedRepos.size === 0) return;
+    setBulkVisibilityOpen(true); // always ask for the target
   }
 
   // Shared rename execution function
@@ -1167,15 +1236,24 @@ export default function RepoList({ token, maxVisibleRows, onLogout, viewerLogin,
     if (bulkProgressOpen && bulkProgress.done) {
       setBulkProgressOpen(false);
       setBulkProgress({ total: 0, completed: 0, failed: [], currentRepo: null, done: false });
+      // Now safe to clear the action/target the progress labels depended on.
+      setBulkAction(null);
+      setBulkVisibilityTarget(null);
+      setBulkFinalSelection(new Map());
       return;
     }
 
     // Block all other input while bulk is in progress
     if (bulkProgressOpen) return;
 
-    // Bulk action picker modal
-    if (bulkActionPickerOpen) {
-      return; // BulkActionPickerModal handles its own input
+    // Step 0: mixed-state intent picker (star/archive)
+    if (bulkIntentKind) {
+      return; // BulkIntentModal handles its own input
+    }
+
+    // Step 0: visibility target picker
+    if (bulkVisibilityOpen) {
+      return; // BulkVisibilityModal handles its own input
     }
 
     // Bulk review modal (Confirmation 1)
@@ -1186,6 +1264,11 @@ export default function RepoList({ token, maxVisibleRows, onLogout, viewerLogin,
     // Bulk confirm modal (Confirmation 2)
     if (bulkConfirmOpen) {
       return; // BulkConfirmModal handles its own input
+    }
+
+    // Bulk delete verification-code modal (Confirmation 3, delete only)
+    if (bulkDeleteCodeOpen) {
+      return; // BulkDeleteCodeModal handles its own input
     }
 
     // Handle input when in error state
@@ -1444,31 +1527,45 @@ export default function RepoList({ token, maxVisibleRows, onLogout, viewerLogin,
       return;
     }
 
-    // Multi-select specific key handlers
+    // Multi-select specific key handlers.
+    // In bulk mode the global action keys (Ctrl+S/A/V, Del) drive the bulk
+    // versions, navigation + Space still work, and every other trigger is
+    // disabled (we return at the end of this block).
     if (multiSelectMode) {
+      // Navigation stays available
+      if (key.downArrow) { setCursor(c => Math.min(c + 1, visibleItems.length - 1)); return; }
+      if (key.upArrow) { setCursor(c => Math.max(c - 1, 0)); return; }
+      if (key.pageDown) { setCursor(c => Math.min(c + 10, visibleItems.length - 1)); return; }
+      if (key.pageUp) { setCursor(c => Math.max(c - 10, 0)); return; }
+      if (key.ctrl && (input === 'g' || input === 'G')) { setCursor(0); return; }
+      if (!key.ctrl && input && input.toUpperCase() === 'G') { setCursor(visibleItems.length - 1); return; }
+
       // Space: toggle selection on cursor row
       if (input === ' ') {
         const repo = visibleItems[cursor];
         if (repo) toggleRepoSelection(repo);
         return;
       }
-      // X: clear all selections
-      if (input && input.toUpperCase() === 'X' && !key.ctrl) {
+      // S: unselect all (clear current selection, stay in bulk mode)
+      if (!key.ctrl && input && input.toUpperCase() === 'S') {
         setSelectedRepos(new Map());
         return;
       }
-      // Enter or B: open bulk action picker if anything is selected
-      if ((key.return || (input && input.toUpperCase() === 'B' && !key.ctrl)) && selectedRepos.size > 0) {
-        openBulkActionPicker();
-        return;
+
+      // Bulk action triggers — only when something is selected
+      if (selectedRepos.size > 0) {
+        // Ctrl+S: bulk star/unstar
+        if (key.ctrl && (input === 's' || input === 'S')) { startBulkStar(); return; }
+        // Ctrl+A: bulk archive/unarchive
+        if (key.ctrl && (input === 'a' || input === 'A')) { startBulkArchive(); return; }
+        // Ctrl+V: bulk visibility update
+        if (key.ctrl && (input === 'v' || input === 'V')) { startBulkVisibility(); return; }
+        // Del/Backspace: bulk delete
+        if (key.delete || key.backspace) { startBulkDelete(); return; }
       }
-      // Del/Backspace: quick bulk delete
-      if ((key.delete || key.backspace) && selectedRepos.size > 0) {
-        setBulkAction('delete');
-        setBulkReviewOpen(true);
-        setBulkActionPickerOpen(false);
-        return;
-      }
+
+      // Disable all other triggers while in bulk mode
+      return;
     }
 
     // Quit only on 'Q' (Esc is reserved for cancel/close in modals and filter)
@@ -1933,7 +2030,10 @@ export default function RepoList({ token, maxVisibleRows, onLogout, viewerLogin,
 
   const lowRate = (rateLimit && rateLimit.remaining <= Math.ceil(rateLimit.limit * 0.1)) || 
                    (restRateLimit && restRateLimit.core.remaining <= Math.ceil(restRateLimit.core.limit * 0.1));
-  const modalOpen = deleteMode || archiveMode || syncMode || logoutMode || infoMode || visibilityMode || archiveFilterMode || sortMode || sortDirectionMode || changeVisibilityMode || copyUrlMode || renameMode || bulkActionPickerOpen || bulkReviewOpen || bulkConfirmOpen || bulkProgressOpen || openInBrowserMode;
+  const modalOpen = deleteMode || archiveMode || syncMode || logoutMode || infoMode || visibilityMode || archiveFilterMode || sortMode || sortDirectionMode || changeVisibilityMode || copyUrlMode || renameMode || bulkIntentKind !== null || bulkVisibilityOpen || bulkReviewOpen || bulkConfirmOpen || bulkDeleteCodeOpen || bulkProgressOpen || openInBrowserMode;
+
+  // Display metadata for the in-flight bulk action (label/colour/verbs).
+  const bulkMeta = bulkAction ? bulkActionMeta(bulkAction, bulkVisibilityTarget ?? undefined) : null;
 
   // Memoize header to prevent re-renders - must be before any returns
   const headerBar = useMemo(() => (
@@ -2569,36 +2669,54 @@ export default function RepoList({ token, maxVisibleRows, onLogout, viewerLogin,
               theme={theme}
             />
           </Box>
-        ) : bulkProgressOpen ? (
+        ) : bulkProgressOpen && bulkMeta ? (
           <Box height={contentHeight} alignItems="center" justifyContent="center">
             <BulkProgressModal
               state={bulkProgress}
-              action={bulkAction ?? 'delete'}
+              actionLabel={bulkMeta.label}
+              gerund={bulkMeta.gerund}
+              pastVerb={bulkMeta.pastVerb}
+              actionColor={bulkMeta.color}
               terminalWidth={terminalWidth}
             />
           </Box>
-        ) : bulkConfirmOpen && bulkAction ? (
+        ) : bulkDeleteCodeOpen ? (
+          <Box height={contentHeight} alignItems="center" justifyContent="center">
+            <BulkDeleteCodeModal
+              count={bulkFinalSelection.size}
+              terminalWidth={terminalWidth}
+              onConfirm={() => {
+                setBulkDeleteCodeOpen(false);
+                executeBulkOperation(Array.from(bulkFinalSelection.values()), 'delete');
+              }}
+              onCancel={resetBulkFlow}
+            />
+          </Box>
+        ) : bulkConfirmOpen && bulkAction && bulkMeta ? (
           <Box height={contentHeight} alignItems="center" justifyContent="center">
             <BulkConfirmModal
-              repos={Array.from(bulkFinalSelection.values())}
-              action={bulkAction}
+              count={bulkFinalSelection.size}
+              actionLabel={bulkMeta.label}
+              actionColor={bulkMeta.color}
+              actionVerb={bulkMeta.label.toLowerCase()}
               terminalWidth={terminalWidth}
               onConfirm={() => {
                 setBulkConfirmOpen(false);
-                executeBulkOperation(Array.from(bulkFinalSelection.values()), bulkAction);
+                if (bulkAction === 'delete') {
+                  setBulkDeleteCodeOpen(true); // step 3: verification code
+                } else {
+                  executeBulkOperation(Array.from(bulkFinalSelection.values()), bulkAction, bulkVisibilityTarget);
+                }
               }}
-              onCancel={() => {
-                setBulkConfirmOpen(false);
-                setBulkFinalSelection(new Map());
-                setBulkAction(null);
-              }}
+              onCancel={resetBulkFlow}
             />
           </Box>
-        ) : bulkReviewOpen && bulkAction ? (
+        ) : bulkReviewOpen && bulkAction && bulkMeta ? (
           <Box height={contentHeight} alignItems="center" justifyContent="center">
             <BulkReviewModal
               selectedRepos={selectedRepos}
-              action={bulkAction}
+              actionLabel={bulkMeta.label}
+              actionColor={bulkMeta.color}
               terminalWidth={terminalWidth}
               maxHeight={contentHeight}
               onConfirm={(finalSelection) => {
@@ -2610,25 +2728,34 @@ export default function RepoList({ token, maxVisibleRows, onLogout, viewerLogin,
                 setBulkReviewOpen(false);
                 setBulkConfirmOpen(true);
               }}
-              onCancel={() => {
-                setBulkReviewOpen(false);
-                setBulkAction(null);
-              }}
+              onCancel={resetBulkFlow}
             />
           </Box>
-        ) : bulkActionPickerOpen ? (
+        ) : bulkVisibilityOpen ? (
           <Box height={contentHeight} alignItems="center" justifyContent="center">
-            <BulkActionPickerModal
-              selectionCount={selectedRepos.size}
+            <BulkVisibilityModal
+              count={selectedRepos.size}
+              isEnterprise={isEnterpriseOrg}
               terminalWidth={terminalWidth}
-              onSelect={(action) => {
-                setBulkAction(action);
-                setBulkActionPickerOpen(false);
-                setBulkReviewOpen(true);
+              onChoose={(target) => {
+                setBulkVisibilityTarget(target);
+                setBulkVisibilityOpen(false);
+                beginBulkReview('visibility');
               }}
-              onCancel={() => {
-                setBulkActionPickerOpen(false);
+              onCancel={resetBulkFlow}
+            />
+          </Box>
+        ) : bulkIntentKind ? (
+          <Box height={contentHeight} alignItems="center" justifyContent="center">
+            <BulkIntentModal
+              kind={bulkIntentKind}
+              count={selectedRepos.size}
+              terminalWidth={terminalWidth}
+              onChoose={(action) => {
+                setBulkIntentKind(null);
+                beginBulkReview(action);
               }}
+              onCancel={resetBulkFlow}
             />
           </Box>
         ) : openInBrowserMode && openInBrowserTarget ? (
@@ -2672,7 +2799,7 @@ export default function RepoList({ token, maxVisibleRows, onLogout, viewerLogin,
                 </Text>
                 <Text color="gray">
                   {selectedRepos.size > 0
-                    ? 'Space select · X clear · Enter/B action · M/Esc exit'
+                    ? 'Space select · S unselect all · Ctrl+S star · Ctrl+A archive · Ctrl+V visibility · Del delete · M/Esc exit'
                     : 'Space select · M/Esc exit'}
                 </Text>
               </Box>
@@ -2806,9 +2933,9 @@ export default function RepoList({ token, maxVisibleRows, onLogout, viewerLogin,
             <Text color={multiSelectMode ? 'cyan' : 'gray'} dimColor={!multiSelectMode}>
               {multiSelectMode
                 ? (selectedRepos.size > 0
-                    ? `M/Esc exit multi-select • Space select • X clear • Enter/B action (${selectedRepos.size} selected)`
+                    ? `Space select • S unselect all • Ctrl+S star • Ctrl+A archive • Ctrl+V visibility • Del delete • M/Esc exit (${selectedRepos.size} selected)`
                     : 'M/Esc exit multi-select • Space select (no selection)')
-                : 'M Multi-select mode (bulk delete/archive)'
+                : 'M Multi-select mode (bulk star/archive/visibility/delete)'
               }
             </Text>
           </Box>

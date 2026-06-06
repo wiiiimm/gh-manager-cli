@@ -145,20 +145,28 @@ See the living roadmap in [TODOs.md](./TODOs.md) for the canonical, up-to-date l
 - `M`: enter/exit multi-select mode (exits and clears selection)
 - `Esc`: exit multi-select mode (clears selection)
 
-**Within multi-select mode:**
+**Within multi-select mode** (every other shortcut is disabled; only navigation + the keys below work):
 
 - `Space`: toggle selection on the cursor row
-- `X`: clear all selections (stays in multi-select mode)
-- `Enter` or `B`: open bulk action picker (Delete / Archive / Unarchive)
-- `Del` / `Backspace`: shortcut to bulk delete directly
+- `S`: unselect all (clears selection, stays in multi-select mode)
+- `Ctrl+S`: bulk star/unstar the selected repos
+- `Ctrl+A`: bulk archive/unarchive the selected repos
+- `Ctrl+V`: bulk visibility update for the selected repos
+- `Del` / `Backspace`: bulk delete the selected repos
+- Navigation (arrows, PageUp/Down, `Ctrl+G`, `G`) still works
+
+Bulk actions reuse the same global shortcuts as single-repo mode and require at least one selected repo. There is no separate action-picker modal.
 
 **Bulk operation flow:**
 
-1. Action picker → choose Delete, Archive, or Unarchive
-2. Review list (Confirmation 1) — scrollable list of all selected repos; `Space` to unselect; Tab/Enter to proceed
-3. Count prompt (Confirmation 2) — "About to {action} {N} repos"; bulk delete requires a 4-char code
-4. Sequential execution with per-repo progress; partial-failure reporting at the end
-5. Selection cleared and multi-select mode exits on completion
+0. Intent/target (only when needed):
+   - Star and archive are toggles. If all selected repos share the same state, the opposite state is applied directly. If the selection is mixed, an intent modal asks the explicit target (e.g. "Archive all" vs "Unarchive all", "Star all" vs "Unstar all").
+   - Visibility always shows a target picker (Public / Private / Internal — Internal only for enterprise orgs).
+1. Review list (Confirmation 1) — scrollable list of all selected repos; `Space` to unselect; Tab/Enter to proceed. Dismisses on Esc/Cancel or when the list empties.
+2. Count prompt (Confirmation 2) — "About to {action} {N} repos"; Cancel/Proceed, Esc cancels.
+3. Delete only — a separate verification-code modal (type a 4-character code).
+4. Sequential execution with per-repo progress; partial-failure reporting at the end.
+5. Selection cleared and multi-select mode exits on completion.
 
 **Persistence:** Selections survive search and filter/sort changes (stored as full node objects by id). Cleared on org/scope switch and stars mode toggle.
 

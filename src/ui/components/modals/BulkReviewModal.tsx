@@ -2,12 +2,12 @@ import React, { useState } from 'react';
 import { Box, Text, useInput } from 'ink';
 import chalk from 'chalk';
 import type { RepoNode } from '../../../types';
-
-export type BulkAction = 'delete' | 'archive' | 'unarchive';
+import type { BulkActionColor } from './bulkActions';
 
 interface BulkReviewModalProps {
   selectedRepos: Map<string, RepoNode>;
-  action: BulkAction;
+  actionLabel: string;
+  actionColor: BulkActionColor;
   onConfirm: (finalSelection: Map<string, RepoNode>) => void;
   onCancel: () => void;
   terminalWidth?: number;
@@ -16,7 +16,8 @@ interface BulkReviewModalProps {
 
 export default function BulkReviewModal({
   selectedRepos,
-  action,
+  actionLabel,
+  actionColor,
   onConfirm,
   onCancel,
   terminalWidth = 80,
@@ -35,8 +36,8 @@ export default function BulkReviewModal({
   const listStart = Math.max(0, listCursor - Math.floor(maxListHeight / 2));
   const listEnd = Math.min(localRepos.length, listStart + maxListHeight);
 
-  const actionLabel = action === 'delete' ? 'Delete' : action === 'archive' ? 'Archive' : 'Unarchive';
-  const actionColor = action === 'delete' ? 'red' : action === 'archive' ? 'yellow' : 'green';
+  const bgColor = `bg${actionColor.charAt(0).toUpperCase()}${actionColor.slice(1)}` as
+    'bgRed' | 'bgYellow' | 'bgGreen' | 'bgCyan' | 'bgMagenta';
 
   useInput((input, key) => {
     if (key.escape || input.toLowerCase() === 'c') {
@@ -169,8 +170,8 @@ export default function BulkReviewModal({
             >
               <Text>
                 {focusArea === 'buttons' && buttonFocus === 'confirm'
-                  ? chalk[`bg${actionColor.charAt(0).toUpperCase() + actionColor.slice(1)}` as 'bgRed' | 'bgYellow' | 'bgGreen'].black.bold(` ${actionLabel} all `)
-                  : chalk[actionColor as 'red' | 'yellow' | 'green'].bold(`${actionLabel} all`)
+                  ? chalk[bgColor].black.bold(` ${actionLabel} all `)
+                  : chalk[actionColor].bold(`${actionLabel} all`)
                 }
               </Text>
             </Box>

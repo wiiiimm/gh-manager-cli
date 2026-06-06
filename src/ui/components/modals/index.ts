@@ -12,10 +12,12 @@ export { default as CopyUrlModal } from './CopyUrlModal';
 export { default as RenameModal } from './RenameModal';
 export { StarModal } from './StarModal';
 export { default as BulkReviewModal } from './BulkReviewModal';
-export type { BulkAction } from './BulkReviewModal';
 export { default as BulkConfirmModal } from './BulkConfirmModal';
+export { default as BulkDeleteCodeModal } from './BulkDeleteCodeModal';
+export { default as BulkIntentModal } from './BulkIntentModal';
+export { default as BulkVisibilityModal } from './BulkVisibilityModal';
 export { default as BulkProgressModal } from './BulkProgressModal';
 export type { BulkProgressState } from './BulkProgressModal';
-export { default as BulkActionPickerModal } from './BulkActionPickerModal';
+export type { BulkAction, BulkVisibilityTarget, BulkActionColor } from './bulkActions';
+export { bulkActionMeta } from './bulkActions';
 export { default as OpenInBrowserModal } from './OpenInBrowserModal';
-

@@ -61,7 +61,7 @@ Launch the app, then use the keys below to navigate and interact with your repos
 
 ## Multi-select Mode (Bulk Operations)
 
-Multi-select mode lets you select multiple repositories and run a bulk action (delete, archive, or unarchive) against all of them at once.
+Multi-select mode lets you select multiple repositories and run a bulk action (star/unstar, archive/unarchive, visibility change, or delete) against all of them at once. The actions reuse the same global shortcuts as single-repo mode; while in multi-select mode every other shortcut is disabled.
 
 ### Entering Multi-select Mode
 
@@ -71,20 +71,30 @@ Multi-select mode lets you select multiple repositories and run a bulk action (d
 ### Selection Controls (inside multi-select mode)
 
 - **`Space`** — toggle selection on the highlighted repository
-- **`X`** — clear all selections without exiting multi-select mode
+- **`S`** — unselect all (clears selection without exiting multi-select mode)
+- Navigation (↑↓, PageUp/Down, `Ctrl+G`, `G`) still works
+
+### Bulk Action Shortcuts (require at least one selected repo)
+
+- **`Ctrl+S`** — bulk star/unstar
+- **`Ctrl+A`** — bulk archive/unarchive
+- **`Ctrl+V`** — bulk visibility update
+- **`Del`/`Backspace`** — bulk delete
 
 ### Running a Bulk Action
 
 1. Enter multi-select mode with `M`
 2. Select repositories with `Space`
-3. Press **`Enter`** or **`B`** to open the action picker (Delete / Archive / Unarchive)
-   - Alternatively, press **`Del`/`Backspace`** to go directly to bulk delete
-4. **Review list (Confirmation 1)**: A scrollable list of all selected repos appears.
+3. Press the action shortcut above (e.g. `Ctrl+A` for archive)
+4. **Intent/target (only when needed)**:
+   - Star and archive auto-detect a safe toggle. If the selection has a mixed state, an intent modal asks the explicit target (e.g. "Archive all" vs "Unarchive all").
+   - Visibility always prompts for the destination: Public / Private / Internal (Internal only for enterprise orgs).
+5. **Review list (Confirmation 1)**: A scrollable list of all selected repos appears.
    - Use ↑↓ to navigate; `Space` to unselect individual entries before proceeding.
-5. **Count prompt (Confirmation 2)**: Confirms "You are about to {action} {N} repositories."
-   - For bulk delete: enter a 4-character verification code first.
-6. Progress is shown per-repo; partial failures are reported at the end.
-7. On completion, selections are cleared and multi-select mode exits automatically.
+6. **Count prompt (Confirmation 2)**: Confirms "About to {action} {N} repositories." (Cancel/Proceed, Esc cancels.)
+7. **Delete only (Confirmation 3)**: enter a 4-character verification code.
+8. Progress is shown per-repo; partial failures are reported at the end.
+9. On completion, selections are cleared and multi-select mode exits automatically.
 
 ### Persistence
 
