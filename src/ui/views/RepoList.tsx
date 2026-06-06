@@ -525,9 +525,14 @@ export default function RepoList({ token, maxVisibleRows, onLogout, viewerLogin,
   }
 
   /**
-   * Create a repository in the current context, then refresh the list so it appears.
-   * Clears any client-side filters (search, archived-only, mismatched visibility) that
-   * would otherwise hide the new repo. Throws on failure so the modal can show the error.
+   * Create a repository in the current context, then make it appear in the list.
+   *
+   * The new repo's node is fetched and inserted directly into `items` (and the
+   * cache) so it shows immediately — independent of sort/pagination and of whether
+   * any background refresh succeeds. `filteredAndSorted` re-sorts client-side, so
+   * it lands in the right position even when it wouldn't be on the first server
+   * page. Client-side filters that would hide it are cleared/reconciled first.
+   * Throws on failure so the modal can show the error.
    */
   async function executeCreate(name: string, visibility: 'PUBLIC' | 'PRIVATE' | 'INTERNAL') {
     if (!name.trim()) return;
@@ -535,14 +540,12 @@ export default function RepoList({ token, maxVisibleRows, onLogout, viewerLogin,
     const org = ownerContext !== 'personal' ? ownerContext.login : undefined;
 
     // Throws on failure so the modal can surface the GitHub error message
-    await createRepositoryRest(token, { name: name.trim(), visibility, org });
+    const { nameWithOwner } = await createRepositoryRest(token, { name: name.trim(), visibility, org });
 
-    setCreateMode(false);
-
-    // Clear any client-side filters that could hide the newly created repo from
-    // the refreshed list: an active fuzzy search (the query likely won't match
-    // the new name) and an archived-only filter (a new repo is always
-    // unarchived). The visibility filter is reconciled separately below.
+    // Clear any client-side filters that could hide the newly created repo:
+    // an active fuzzy search (the query likely won't match the new name) and an
+    // archived-only filter (a new repo is always unarchived). Visibility filter
+    // is reconciled below.
     setFilter('');
     setFilterMode(false);
     if (archiveFilter === 'archived') {
@@ -550,34 +553,38 @@ export default function RepoList({ token, maxVisibleRows, onLogout, viewerLogin,
       setArchiveFilter('all');
     }
 
-    // The list refresh sends the active visibility filter to the API as a
-    // privacy parameter. If the new repo's visibility wouldn't be returned
-    // under that filter, it would be omitted from the refreshed data and
-    // creation would look like it failed. Note INTERNAL repos are NOT returned
-    // by the API's privacy: PRIVATE filter (even though the client 'private'
-    // filter shows them), so INTERNAL only passes when the filter is 'all'.
+    // If the new repo's visibility wouldn't pass the active visibility filter,
+    // reset to 'all' so it isn't filtered out of the list. Note INTERNAL is not
+    // matched by the 'private' filter for API purposes.
     const passesVisibilityFilter =
       visibilityFilter === 'all' ||
       (visibilityFilter === 'public' && visibility === 'PUBLIC') ||
       (visibilityFilter === 'private' && visibility === 'PRIVATE');
-
-    // Refresh from the network so the new repository shows up in the list
-    setCursor(0);
-    setRefreshing(true);
-    setSortingLoading(true);
-    try { await purgeApolloCacheFiles(); } catch {}
-
     if (!passesVisibilityFilter) {
-      // Reset the filter to 'all' so the new repo is visible, and fetch with an
-      // explicit 'all' privacy override. We refetch directly (rather than relying
-      // on the visibilityFilter effect, which no-ops when items is empty) and
-      // pre-sync previousVisibilityFilter so that effect doesn't double-fetch.
       previousVisibilityFilter.current = 'all';
       storeUIPrefs({ visibilityFilter: 'all' });
       setVisibilityFilter('all');
-      fetchPage(null, true, true, undefined, 'network-only', 'all');
+    }
+
+    // Fetch the freshly created repo node and insert it so it's visible right
+    // away. If the lookup fails, fall back to a full network refresh.
+    const [owner, repoName] = (nameWithOwner || '').split('/');
+    const created = await fetchRepositoryByOwnerAndName(client, owner, repoName);
+
+    setCursor(0);
+    setCreateMode(false);
+
+    if (created) {
+      await updateCacheWithRepository(token, created);
+      const createdId = (created as any).id;
+      setItems(prev => (prev.some((r: any) => r.id === createdId) ? prev : [created, ...prev]));
+      setTotalCount(c => c + 1);
     } else {
-      fetchPage(null, true, true, undefined, 'network-only');
+      // Couldn't resolve the new node — refresh from the network so it still appears.
+      setRefreshing(true);
+      setSortingLoading(true);
+      try { await purgeApolloCacheFiles(); } catch {}
+      fetchPage(null, true, true, undefined, 'network-only', passesVisibilityFilter ? undefined : 'all');
     }
   }
 

@@ -71,8 +71,8 @@ export default function CreateRepoModal({ ownerSlug, isOrg, isEnterprise, onCrea
       setCreating(true);
       setError(null);
       await onCreate(name.trim(), visibility);
-    } catch (e: any) {
-      setError(e.message || 'Failed to create repository');
+    } catch (e: unknown) {
+      setError(e instanceof Error ? e.message : 'Failed to create repository');
     } finally {
       setCreating(false);
       submittingRef.current = false;

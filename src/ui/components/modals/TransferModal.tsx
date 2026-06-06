@@ -80,17 +80,20 @@ export default function TransferModal({ repo, onTransfer, onCancel, theme: theme
       setTransferring(true);
       setError(null);
       await onTransfer(repo, newOwner.trim());
-    } catch (e: any) {
-      setError(e.message || 'Failed to transfer repository');
+    } catch (e: unknown) {
+      setError(e instanceof Error ? e.message : 'Failed to transfer repository');
     } finally {
       setTransferring(false);
       submittingRef.current = false;
     }
   };
 
-  // GitHub owner logins allow alphanumeric characters and single hyphens
+  // GitHub owner logins allow alphanumeric characters and single hyphens, and
+  // cannot start with a hyphen — strip invalid chars and any leading hyphens.
+  // (We intentionally don't strip trailing hyphens here: doing so on every
+  // keystroke would prevent typing hyphenated names like "my-org".)
   const handleOwnerChange = (value: string) => {
-    setNewOwner(value.replace(/[^a-zA-Z0-9-]/g, ''));
+    setNewOwner(value.replace(/[^a-zA-Z0-9-]/g, '').replace(/^-+/, ''));
   };
 
   const isInputDisabled = !newOwner.trim() || newOwner.trim().toLowerCase() === owner.toLowerCase();
