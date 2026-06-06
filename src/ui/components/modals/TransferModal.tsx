@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import { Box, Text, useInput } from 'ink';
 import TextInput from 'ink-text-input';
 import type { RepoNode } from '../../../types';
@@ -21,6 +21,8 @@ export default function TransferModal({ repo, onTransfer, onCancel, theme: theme
   const [focus, setFocus] = useState<'transfer' | 'cancel'>('cancel');
   const [transferring, setTransferring] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  // Synchronous guard against double-submission (state updates are async)
+  const submittingRef = useRef(false);
 
   const owner = repo ? repo.nameWithOwner.split('/')[0] : '';
 
@@ -65,7 +67,8 @@ export default function TransferModal({ repo, onTransfer, onCancel, theme: theme
   });
 
   const handleTransferConfirm = async () => {
-    if (transferring || !repo || !newOwner.trim()) return;
+    if (transferring || submittingRef.current || !repo || !newOwner.trim()) return;
+    submittingRef.current = true;
     try {
       setTransferring(true);
       setError(null);
@@ -73,6 +76,7 @@ export default function TransferModal({ repo, onTransfer, onCancel, theme: theme
     } catch (e: any) {
       setError(e.message || 'Failed to transfer repository');
       setTransferring(false);
+      submittingRef.current = false;
     }
   };
 

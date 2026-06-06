@@ -535,12 +535,30 @@ export default function RepoList({ token, maxVisibleRows, onLogout, viewerLogin,
 
     setCreateMode(false);
 
+    // The list refresh sends the active visibility filter to the API as a
+    // privacy parameter. If the new repo's visibility wouldn't pass that
+    // filter (e.g. a private repo while the Public filter is on), it would be
+    // omitted from the refreshed data and creation would look like it failed.
+    // Reset the filter to 'all' in that case so the new repo is visible.
+    const passesVisibilityFilter =
+      visibilityFilter === 'all' ||
+      (visibilityFilter === 'public' && visibility === 'PUBLIC') ||
+      (visibilityFilter === 'private' && (visibility === 'PRIVATE' || visibility === 'INTERNAL'));
+
     // Refresh from the network so the new repository shows up in the list
     setCursor(0);
     setRefreshing(true);
     setSortingLoading(true);
     try { await purgeApolloCacheFiles(); } catch {}
-    fetchPage(null, true, true, undefined, 'network-only');
+
+    if (!passesVisibilityFilter) {
+      // Changing the filter triggers the visibilityFilter effect to refetch
+      // from the network (with privacy cleared), so avoid a duplicate fetch here.
+      storeUIPrefs({ visibilityFilter: 'all' });
+      setVisibilityFilter('all');
+    } else {
+      fetchPage(null, true, true, undefined, 'network-only');
+    }
   }
 
   function closeTransferModal() {
@@ -2641,7 +2659,7 @@ export default function RepoList({ token, maxVisibleRows, onLogout, viewerLogin,
         {/* Line 4: System controls */}
         <Box width={terminalWidth} justifyContent="center">
           <Text color={theme.muted} dimColor={modalOpen ? true : undefined}>
-            K Cache Info • W Org Switch • Ctrl+N New Repo • Del/Backspace Delete • Ctrl+L Logout • Q Quit
+            K Cache Info • W Org Switch{!starsMode ? ' • Ctrl+N New Repo' : ''} • Del/Backspace Delete • Ctrl+L Logout • Q Quit
           </Text>
         </Box>
         {/* Line 5: Sponsorship */}

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import { Box, Text, useInput } from 'ink';
 import TextInput from 'ink-text-input';
 import type { Theme } from '../../../config/themes';
@@ -25,6 +25,9 @@ export default function CreateRepoModal({ ownerSlug, isOrg, isEnterprise, onCrea
   const [visibility, setVisibility] = useState<Visibility>('PRIVATE');
   const [creating, setCreating] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  // Synchronous guard: `creating` state updates asynchronously, so two quick
+  // Enter presses could fire two create requests before the state is observed.
+  const submittingRef = useRef(false);
 
   // Internal visibility is only available for enterprise organisations
   const visibilities: Visibility[] = (isOrg && isEnterprise)
@@ -55,7 +58,8 @@ export default function CreateRepoModal({ ownerSlug, isOrg, isEnterprise, onCrea
   });
 
   const handleCreateConfirm = async () => {
-    if (!name.trim() || creating) return;
+    if (!name.trim() || creating || submittingRef.current) return;
+    submittingRef.current = true;
     try {
       setCreating(true);
       setError(null);
@@ -63,6 +67,7 @@ export default function CreateRepoModal({ ownerSlug, isOrg, isEnterprise, onCrea
     } catch (e: any) {
       setError(e.message || 'Failed to create repository');
       setCreating(false);
+      submittingRef.current = false;
     }
   };
 

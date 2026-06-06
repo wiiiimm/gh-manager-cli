@@ -47,9 +47,9 @@ Launch the app, then use the keys below to navigate and interact with your repos
 
 ## Repository Actions
 
-- **Create repository**: `Ctrl+N` to create a new repository in the current context (personal or org)
+- **Create repository**: `Ctrl+N` to create a new repository in the current context (personal or organisation)
   - Prompts for a name with the owner slug (`owner/`) shown in front
-  - `Tab` cycles visibility (Private/Public, plus Internal for enterprise orgs)
+  - `Tab` cycles visibility (Private/Public, plus Internal for enterprise organisations)
   - Enter to create; GitHub errors (e.g. name already exists) are shown inline
 - **Repository info**: `I` to view detailed metadata (size, language, timestamps)
 - **Cache info**: `K` to inspect Apollo cache status
