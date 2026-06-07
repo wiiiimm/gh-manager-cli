@@ -1,3 +1,10 @@
+## [1.48.1](https://github.com/wiiiimm/gh-manager-cli/compare/v1.48.0...v1.48.1) (2026-06-07)
+
+
+### Bug Fixes
+
+* keep bulk review visibility badge inline with highlight background (SWR-374) [semantic pr title] ([#77](https://github.com/wiiiimm/gh-manager-cli/issues/77)) ([db85578](https://github.com/wiiiimm/gh-manager-cli/commit/db855789f2770fb41df99ebe056f9beb41521314))
+
 # [1.48.0](https://github.com/wiiiimm/gh-manager-cli/compare/v1.47.0...v1.48.0) (2026-06-07)
 
 
