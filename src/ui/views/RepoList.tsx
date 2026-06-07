@@ -2125,7 +2125,7 @@ export default function RepoList({ token, maxVisibleRows, onLogout, viewerLogin,
   const footerHeight = 4; // Footer with border + margin (flexible height)
   const containerPadding = 2; // Top and bottom padding inside container
   const contentHeight = Math.max(1, availableHeight - headerHeight - footerHeight - containerPadding);
-  const listHeight = Math.max(1, contentHeight - (filterMode ? 2 : 0) - 2);
+  const listHeight = Math.max(1, contentHeight - (filterMode ? 2 : 0) - (multiSelectMode ? 2 : 0) - 2);
 
   const spacingLines = density; // map density to spacer lines
 
@@ -2953,18 +2953,24 @@ export default function RepoList({ token, maxVisibleRows, onLogout, viewerLogin,
             />
 
             {/* Multi-select mode status bar */}
-            {multiSelectMode && (
-              <Box marginBottom={1} flexDirection="row" justifyContent="space-between">
-                <Text color="cyan" bold>
-                  {`[BULK SELECT] ${selectedRepos.size > 0 ? `${selectedRepos.size} selected` : 'No selection'}`}
-                </Text>
-                <Text color="gray">
-                  {selectedRepos.size > 0
-                    ? 'Space select · X unselect all · Ctrl+S star · Ctrl+A archive · Ctrl+V visibility · Del delete · B/Esc exit'
-                    : 'Space select · B/Esc exit'}
-                </Text>
-              </Box>
-            )}
+            {multiSelectMode && (() => {
+              const hiddenCount = filterActive
+                ? [...selectedRepos.keys()].filter(id => !visibleItems.some(r => r.id === id)).length
+                : 0;
+              const selectionLabel = selectedRepos.size > 0
+                ? `${selectedRepos.size} selected${hiddenCount > 0 ? ` (${hiddenCount} not shown in search)` : ''}`
+                : 'No selection';
+              return (
+                <Box marginBottom={1} flexDirection="row" justifyContent="space-between">
+                  <Text color="cyan" bold>{`[BULK SELECT] ${selectionLabel}`}</Text>
+                  <Text color="gray">
+                    {selectedRepos.size > 0
+                      ? 'Space select · X unselect all · Ctrl+S star · Ctrl+A archive · Ctrl+V visibility · Del delete · B/Esc exit'
+                      : 'Space select · B/Esc exit'}
+                  </Text>
+                </Box>
+              );
+            })()}
 
             {/* Filter input */}
             {filterMode && (
@@ -3094,7 +3100,12 @@ export default function RepoList({ token, maxVisibleRows, onLogout, viewerLogin,
             <Text color={multiSelectMode ? 'cyan' : 'gray'} dimColor={!multiSelectMode}>
               {multiSelectMode
                 ? (selectedRepos.size > 0
-                    ? `Space select • X unselect all • Ctrl+S star • Ctrl+A archive • Ctrl+V visibility • Del delete • B/Esc exit (${selectedRepos.size} selected)`
+                    ? (() => {
+                        const hiddenCount = filterActive
+                          ? [...selectedRepos.keys()].filter(id => !visibleItems.some(r => r.id === id)).length
+                          : 0;
+                        return `Space select • X unselect all • Ctrl+S star • Ctrl+A archive • Ctrl+V visibility • Del delete • B/Esc exit (${selectedRepos.size} selected${hiddenCount > 0 ? `, ${hiddenCount} not in search` : ''})`;
+                      })()
                     : 'B/Esc exit bulk select • Space select (no selection)')
                 : 'B Bulk Select mode (star/archive/visibility/delete)'
               }

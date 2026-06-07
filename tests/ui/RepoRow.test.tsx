@@ -37,5 +37,63 @@ describe('RepoRow', () => {
     expect(output).toMatch(/TypeScript/);
     unmount();
   });
+
+  it('does not show a checkbox when multiSelectMode is false', () => {
+    const { lastFrame, unmount } = render(
+      <RepoRow
+        repo={repoStub}
+        selected={false}
+        index={1}
+        maxWidth={80}
+        spacingLines={0}
+        forkTracking={false}
+        multiSelectMode={false}
+      />
+    );
+
+    const output = lastFrame() || '';
+    expect(output).not.toContain('[');
+    expect(output).not.toContain('✓');
+    unmount();
+  });
+
+  it('shows unchecked checkbox when multiSelectMode is true and not checked', () => {
+    const { lastFrame, unmount } = render(
+      <RepoRow
+        repo={repoStub}
+        selected={false}
+        index={1}
+        maxWidth={80}
+        spacingLines={0}
+        forkTracking={false}
+        multiSelectMode={true}
+        isChecked={false}
+      />
+    );
+
+    const output = lastFrame() || '';
+    expect(output).toContain('[ ]');
+    expect(output).not.toContain('✓');
+    unmount();
+  });
+
+  it('shows checked checkbox when multiSelectMode is true and checked', () => {
+    const { lastFrame, unmount } = render(
+      <RepoRow
+        repo={repoStub}
+        selected={false}
+        index={1}
+        maxWidth={80}
+        spacingLines={0}
+        forkTracking={false}
+        multiSelectMode={true}
+        isChecked={true}
+      />
+    );
+
+    const output = lastFrame() || '';
+    expect(output).toContain('[✓]');
+    unmount();
+  });
 });
 
