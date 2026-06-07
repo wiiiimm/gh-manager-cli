@@ -1,3 +1,10 @@
+# [1.45.0](https://github.com/wiiiimm/gh-manager-cli/compare/v1.44.0...v1.45.0) (2026-06-07)
+
+
+### Features
+
+* add repository creation (Ctrl+N) and transfer (Shift+M) ([#60](https://github.com/wiiiimm/gh-manager-cli/issues/60)) ([2e9c271](https://github.com/wiiiimm/gh-manager-cli/commit/2e9c2711b985be9373a94483e0bd0b420dc48aec))
+
 # [1.43.0](https://github.com/wiiiimm/gh-manager-cli/compare/v1.42.0...v1.43.0) (2026-06-05)
 
 
