@@ -219,6 +219,14 @@ First run prompts for a PAT if not provided via env vars. The token is validated
 3. **UI Testing:** Various window sizes and content lengths
 4. **Build Testing:** Ensure production build works correctly
 
+### Automated Tests (REQUIRED)
+- **Runner:** Vitest + `ink-testing-library`. Run with `pnpm test` (CI) or `pnpm test:watch` (dev). Tests live in `tests/`, mirroring `src/` (e.g. modal tests in `tests/ui/`).
+- **Every new feature ships with new test cases.** Adding or changing a feature without adding/updating tests is incomplete work — the same PR that introduces behaviour must cover it. At minimum, a new component/modal needs: a render test, a happy-path action test, and a guard/edge-case test. A bug fix needs a test that fails before the fix and passes after.
+- **Every async action modal MUST ignore input while the request is in flight, and MUST have a test that proves it.** Guard the `useInput` handler (and any `TextInput` `onSubmit`) with an early `if (<loadingState>) return;`, then assert that keypresses during the in-flight state call neither `onCancel` nor the action again (see `tests/ui/ArchiveModal.test.tsx` → `ignores input while archiving is in progress`, and the matching tests for Delete/Transfer/Rename/Sync/Create/Star/Unstar/ChangeVisibility modals).
+- **Driving `useInput` in tests:** mock `ink`'s `useInput` (`vi.fn()`) and capture the callback. Ink hands the hook a *fresh closure on every re-render*, so after any state change `await new Promise(r => setTimeout(r, 0))` to let the re-render flush before firing the next key — otherwise you race a stale closure. Never capture the callback by value into a helper; read the latest via a getter.
+- **Driving `ink-text-input` in tests:** the real component enables raw mode and throws under the test stdin, so stub it. To simulate typing, capture its props via `vi.hoisted` and call `onChange`/`onSubmit` directly. For modals that generate a random verification code (Delete, Transfer), `vi.spyOn(Math, 'random').mockReturnValue(0)` makes the code deterministically `AAAA`, and flush once after `render()` so the mount effect generates it.
+- **British English** in any user-facing strings asserted by tests, matching the app.
+
 ## Git Management
 
 ### Branch Strategy
@@ -285,10 +293,12 @@ const fullText = `${coloredName}\n${coloredDescription}\n${metadataLine}`;
 ### Adding New Features
 1. Create feature branch
 2. Update relevant components in `src/`
-3. Test across different terminals
-4. Update TypeScript types if needed
-5. Commit with conventional message
-6. Create PR (title will be auto-formatted)
+3. **Add/extend automated tests for the new behaviour** (`tests/`) — required, not optional (see Automated Tests above)
+4. Test across different terminals
+5. Update TypeScript types if needed
+6. Run `pnpm test` and ensure it passes
+7. Commit with conventional message
+8. Create PR (title will be auto-formatted)
 
 ### Task Tracking
 - The single source of truth for work items is [TODOs.md](./TODOs.md).
@@ -329,12 +339,13 @@ pnpm build              # Ensure build still works
 When working on this project:
 
 1. **Always test changes** in multiple terminals before considering complete
-2. **Use chalk for colors** instead of Ink's color props to avoid nesting issues
-3. **Follow TypeScript strictly** - no any types without justification
-4. **ALWAYS use semantic commit messages** - This is REQUIRED for every commit
-5. **Update this file** when adding major features or changing architecture
-6. **Consider terminal constraints** - not all ANSI features work everywhere
-7. **Keep it fast** - terminal UIs should feel instant
+2. **Always add automated tests for new features/fixes** - required in the same change; never ship behaviour without `tests/` coverage (see Automated Tests)
+3. **Use chalk for colors** instead of Ink's color props to avoid nesting issues
+4. **Follow TypeScript strictly** - no any types without justification
+5. **ALWAYS use semantic commit messages** - This is REQUIRED for every commit
+6. **Update this file** when adding major features or changing architecture
+7. **Consider terminal constraints** - not all ANSI features work everywhere
+8. **Keep it fast** - terminal UIs should feel instant
 
 ### Commit Requirements
 Every single commit MUST follow semantic format:

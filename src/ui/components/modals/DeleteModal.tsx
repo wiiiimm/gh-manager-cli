@@ -38,8 +38,9 @@ export default function DeleteModal({ repo, onDelete, onCancel }: DeleteModalPro
 
   // Handle keyboard input for the confirmation stage
   useInput((input, key) => {
+    if (deleting) return; // Ignore input while the delete request is in flight
     if (!deleteConfirmStage) return; // Only handle input in confirmation stage
-    
+
     if (key.escape || input.toLowerCase() === 'c') {
       onCancel();
       return;

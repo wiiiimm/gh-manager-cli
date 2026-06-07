@@ -31,6 +31,7 @@ export function StarModal({
 
   useInput((input, key) => {
     if (!visible) return;
+    if (isStarring) return; // Ignore input while the star/unstar request is in flight
 
     if (key.escape || input === 'c' || input === 'C') {
       onCancel();

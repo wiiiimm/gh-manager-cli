@@ -307,6 +307,11 @@ describe('ArchiveModal', () => {
     // Trigger archive
     inputCallback('y', {});
 
+    // Let the re-render flush so `inputCallback` points at the guarded closure
+    // (the one that observes `archiving === true`). Without this, the test races
+    // the state update and the stale callback still routes input to onCancel.
+    await new Promise(resolve => setTimeout(resolve, 0));
+
     // Try to cancel while archiving - should be ignored by component logic
     inputCallback('c', {});
     inputCallback('', { escape: true });
