@@ -2,7 +2,7 @@ import React, { useEffect, useMemo, useState, useRef, useCallback } from 'react'
 import { Box, Text, useApp, useInput, useStdout, Spacer, Newline } from 'ink';
 import TextInput from 'ink-text-input';
 import chalk from 'chalk';
-import { makeClient, fetchViewerReposPageUnified, deleteRepositoryRest, archiveRepositoryById, unarchiveRepositoryById, changeRepositoryVisibility, syncForkWithUpstream, getRepositoryFromCache, purgeApolloCacheFiles, inspectCacheStatus, updateCacheAfterDelete, updateCacheAfterArchive, updateCacheAfterVisibilityChange, updateCacheWithRepository, checkOrganizationIsEnterprise, OwnerAffiliation, fetchViewerOrganizations, fetchRestRateLimits, renameRepositoryById, updateCacheAfterRename, getStarredRepositories, starRepository, unstarRepository, enrichForksWithAheadBehind, fetchRepositoryByOwnerAndName } from '../../services/github';
+import { makeClient, fetchViewerReposPageUnified, deleteRepositoryRest, archiveRepositoryById, unarchiveRepositoryById, changeRepositoryVisibility, syncForkWithUpstream, getRepositoryFromCache, purgeApolloCacheFiles, inspectCacheStatus, updateCacheAfterDelete, updateCacheAfterArchive, updateCacheAfterVisibilityChange, updateCacheWithRepository, checkOrganizationIsEnterprise, OwnerAffiliation, fetchViewerOrganizations, fetchRestRateLimits, renameRepositoryById, updateCacheAfterRename, getStarredRepositories, starRepository, unstarRepository, enrichForksWithAheadBehind, fetchRepositoryByOwnerAndName, createRepositoryRest, transferRepositoryRest } from '../../services/github';
 import { getUIPrefs, storeUIPrefs, OwnerContext } from '../../config/config';
 import { type ThemeName, nextTheme, getTheme } from '../../config/themes';
 import { useTheme } from '../hooks/useTheme';
@@ -12,7 +12,7 @@ import type { RepoNode, RateLimitInfo, RestRateLimitInfo } from '../../types';
 import { exec } from 'child_process';
 import OrgSwitcher from '../OrgSwitcher';
 import { logger } from '../../lib/logger';
-import { ArchiveFilterModal, DeleteModal, ArchiveModal, SyncModal, InfoModal, LogoutModal, VisibilityModal, SortModal, SortDirectionModal, ChangeVisibilityModal, CopyUrlModal, RenameModal, StarModal, OpenInBrowserModal } from '../components/modals';
+import { ArchiveFilterModal, DeleteModal, ArchiveModal, SyncModal, InfoModal, LogoutModal, VisibilityModal, SortModal, SortDirectionModal, ChangeVisibilityModal, CopyUrlModal, RenameModal, StarModal, OpenInBrowserModal, CreateRepoModal, TransferModal } from '../components/modals';
 import { UnstarModal } from '../components/modals/UnstarModal';
 import { RepoRow, FilterInput, RepoListHeader } from '../components/repo';
 import { SlowSpinner } from '../components/common';
@@ -134,6 +134,13 @@ export default function RepoList({ token, maxVisibleRows, onLogout, viewerLogin,
   // Rename modal state
   const [renameMode, setRenameMode] = useState(false);
   const [renameTarget, setRenameTarget] = useState<RepoNode | null>(null);
+
+  // Create repository modal state
+  const [createMode, setCreateMode] = useState(false);
+
+  // Transfer repository modal state
+  const [transferMode, setTransferMode] = useState(false);
+  const [transferTarget, setTransferTarget] = useState<RepoNode | null>(null);
 
   // Copy URL modal state
   const [copyUrlMode, setCopyUrlMode] = useState(false);
@@ -517,6 +524,111 @@ export default function RepoList({ token, maxVisibleRows, onLogout, viewerLogin,
     }
   }
 
+  /**
+   * Create a repository in the current context, then make it appear in the list.
+   *
+   * The new repo's node is fetched and inserted directly into `items` (and the
+   * cache) so it shows immediately — independent of sort/pagination and of whether
+   * any background refresh succeeds. `filteredAndSorted` re-sorts client-side, so
+   * it lands in the right position even when it wouldn't be on the first server
+   * page. Client-side filters that would hide it are cleared/reconciled first.
+   * Throws on failure so the modal can show the error.
+   */
+  async function executeCreate(name: string, visibility: 'PUBLIC' | 'PRIVATE' | 'INTERNAL') {
+    if (!name.trim()) return;
+
+    const org = ownerContext !== 'personal' ? ownerContext.login : undefined;
+
+    // Throws on failure so the modal can surface the GitHub error message
+    const { nameWithOwner } = await createRepositoryRest(token, { name: name.trim(), visibility, org });
+
+    // Clear any client-side filters that could hide the newly created repo:
+    // an active fuzzy search (the query likely won't match the new name) and an
+    // archived-only filter (a new repo is always unarchived). Visibility filter
+    // is reconciled below.
+    setFilter('');
+    setFilterMode(false);
+    if (archiveFilter === 'archived') {
+      storeUIPrefs({ archiveFilter: 'all' });
+      setArchiveFilter('all');
+    }
+
+    // If the new repo's visibility wouldn't pass the active visibility filter,
+    // reset to 'all' so it isn't filtered out of the list. The client-side
+    // 'private' filter includes both PRIVATE and INTERNAL (matching GitHub and
+    // executeVisibilityChange), so an INTERNAL repo passes it.
+    const passesVisibilityFilter =
+      visibilityFilter === 'all' ||
+      (visibilityFilter === 'public' && visibility === 'PUBLIC') ||
+      (visibilityFilter === 'private' && (visibility === 'PRIVATE' || visibility === 'INTERNAL'));
+    if (!passesVisibilityFilter) {
+      previousVisibilityFilter.current = 'all';
+      storeUIPrefs({ visibilityFilter: 'all' });
+      setVisibilityFilter('all');
+    }
+
+    // Fetch the freshly created repo node and insert it so it's visible right
+    // away. A just-created repo can briefly be missing from GraphQL (replication
+    // lag), so retry once before falling back to a full network refresh.
+    const [owner, repoName] = (nameWithOwner || '').split('/');
+    let created = await fetchRepositoryByOwnerAndName(client, owner, repoName);
+    if (!created) {
+      await new Promise(resolve => setTimeout(resolve, 600));
+      created = await fetchRepositoryByOwnerAndName(client, owner, repoName);
+    }
+
+    setCreateMode(false);
+    // Queue the new repo for cursor focus. Its index in the visible list depends
+    // on the active sort/filter, so it isn't necessarily at the top — an effect
+    // resolves the actual position once the repo appears (see pendingFocusRef).
+    pendingFocusRef.current = nameWithOwner;
+
+    if (created) {
+      await updateCacheWithRepository(token, created);
+      const createdId = (created as any).id;
+      setItems(prev => (prev.some((r: any) => r.id === createdId) ? prev : [created, ...prev]));
+      setTotalCount(c => c + 1);
+    } else {
+      // Couldn't resolve the new node — refresh from the network so it still appears.
+      setRefreshing(true);
+      setSortingLoading(true);
+      try { await purgeApolloCacheFiles(); } catch {}
+      fetchPage(null, true, true, undefined, 'network-only', passesVisibilityFilter ? undefined : 'all');
+    }
+  }
+
+  function closeTransferModal() {
+    setTransferMode(false);
+    setTransferTarget(null);
+  }
+
+  /**
+   * Transfer a repository to another owner, then optimistically remove it from the list
+   * and evict it from the cache. Throws on failure so the modal can show the error.
+   */
+  async function executeTransfer(repo: RepoNode, newOwner: string) {
+    if (!repo || !newOwner.trim()) return;
+
+    const [owner, name] = (repo.nameWithOwner || '').split('/');
+    const targetId = (repo as any).id;
+
+    // Throws on failure so the modal can surface the GitHub error message
+    await transferRepositoryRest(token, owner, name, newOwner.trim());
+
+    // GitHub transfers are asynchronous (202 Accepted = queued), so we optimistically
+    // drop the repo from the list for immediate feedback, consistent with the delete
+    // flow. We deliberately do NOT auto-refresh afterwards: a network refetch during
+    // the brief processing window could still return the repo under the current owner
+    // and make it flicker back. It stays removed until the user manually refreshes.
+    await updateCacheAfterDelete(token, targetId);
+    setItems(prev => prev.filter((r: any) => r.id !== targetId));
+    setTotalCount(c => Math.max(0, c - 1));
+    setCursor(c => Math.max(0, Math.min(c, visibleItems.length - 2)));
+
+    trackSuccessfulOperation();
+    closeTransferModal();
+  }
+
   // Timer ref for copy toast
   const copyToastTimerRef = useRef<NodeJS.Timeout | null>(null);
 
@@ -813,10 +925,14 @@ export default function RepoList({ token, maxVisibleRows, onLogout, viewerLogin,
   async function jumpToUpstreamRepo(parentNameWithOwner: string) {
     const [parentOwner, parentName] = parentNameWithOwner.split('/');
     if (!parentOwner || !parentName) return;
-    const repo = await fetchRepositoryByOwnerAndName(client, parentOwner, parentName);
-    if (repo) {
-      setInfoRepo(repo);
-      setInfoMode(true);
+    try {
+      const repo = await fetchRepositoryByOwnerAndName(client, parentOwner, parentName);
+      if (repo) {
+        setInfoRepo(repo);
+        setInfoMode(true);
+      }
+    } catch (err: any) {
+      logger.error('Failed to fetch upstream repository', { error: err?.message, parentNameWithOwner });
     }
   }
 
@@ -824,6 +940,10 @@ export default function RepoList({ token, maxVisibleRows, onLogout, viewerLogin,
   type VisibilityFilter = 'all' | 'public' | 'private';
   const [visibilityFilter, setVisibilityFilter] = useState<VisibilityFilter>('all');
   const previousVisibilityFilter = useRef<VisibilityFilter>('all');
+  // nameWithOwner of a repo queued to receive cursor focus once it appears in
+  // the (re-sorted/filtered) visible list — e.g. a freshly created repo, whose
+  // position depends on the active sort rather than always being at the top.
+  const pendingFocusRef = useRef<string | null>(null);
 
   // Archive filter - 'all' | 'unarchived' | 'archived'
   type ArchiveFilter = 'all' | 'unarchived' | 'archived';
@@ -842,7 +962,10 @@ export default function RepoList({ token, maxVisibleRows, onLogout, viewerLogin,
     reset = false,
     isSortChange = false,
     overrideForkTracking?: boolean,
-    policy?: 'cache-first' | 'network-only'
+    policy?: 'cache-first' | 'network-only',
+    // Force the API privacy parameter instead of deriving it from
+    // visibilityFilter. 'all' clears it (returns every visibility).
+    privacyOverride?: 'PUBLIC' | 'PRIVATE' | 'all'
   ) => {
     logger.info('fetchPage called', {
       after,
@@ -873,7 +996,9 @@ export default function RepoList({ token, maxVisibleRows, onLogout, viewerLogin,
       
       // Map visibility filter to API privacy parameter
       let privacy: 'PUBLIC' | 'PRIVATE' | undefined;
-      if (visibilityFilter === 'public') privacy = 'PUBLIC';
+      if (privacyOverride !== undefined) {
+        privacy = privacyOverride === 'all' ? undefined : privacyOverride;
+      } else if (visibilityFilter === 'public') privacy = 'PUBLIC';
       else if (visibilityFilter === 'private') privacy = 'PRIVATE';
       // Note: GitHub API doesn't support filtering by INTERNAL at the API level
       
@@ -1238,6 +1363,16 @@ export default function RepoList({ token, maxVisibleRows, onLogout, viewerLogin,
       return; // RenameModal component handles its own keyboard input
     }
 
+    // When create repository modal is open, trap inputs for modal
+    if (createMode) {
+      return; // CreateRepoModal component handles its own keyboard input
+    }
+
+    // When transfer repository modal is open, trap inputs for modal
+    if (transferMode) {
+      return; // TransferModal component handles its own keyboard input
+    }
+
     // When open-in-browser modal is open, trap inputs for modal
     if (openInBrowserMode) {
       return; // OpenInBrowserModal component handles its own keyboard input
@@ -1476,10 +1611,24 @@ export default function RepoList({ token, maxVisibleRows, onLogout, viewerLogin,
       }
       return;
     }
-    
-    // Organization switcher (W for Workspace/Who)
-    if (input && input.toUpperCase() === 'W') {
-      setOrgSwitcherOpen(true);
+
+    // Create repository modal (Ctrl+N) - not available in stars mode
+    if (key.ctrl && (input === 'n' || input === 'N')) {
+      if (!starsMode) {
+        setCreateMode(true);
+      }
+      return;
+    }
+
+    // Transfer repository modal (Shift+M for Move) - not available in stars mode
+    if (key.shift && input === 'M') {
+      if (!starsMode) {
+        const repo = visibleItems[cursor];
+        if (repo) {
+          setTransferTarget(repo);
+          setTransferMode(true);
+        }
+      }
       return;
     }
 
@@ -1709,6 +1858,19 @@ export default function RepoList({ token, maxVisibleRows, onLogout, viewerLogin,
     setCursor(c => Math.min(c, Math.max(0, visibleItems.length - 1)));
   }, [filterActive, items.length, visibleItems.length]);
 
+  // Move the cursor to a repo queued for focus (e.g. just created) once it
+  // appears in the visible list. Its position depends on the active sort/filter,
+  // so we resolve the real index here rather than assuming the top.
+  useEffect(() => {
+    const target = pendingFocusRef.current;
+    if (!target) return;
+    const idx = visibleItems.findIndex(r => r.nameWithOwner === target);
+    if (idx >= 0) {
+      setCursor(idx);
+      pendingFocusRef.current = null;
+    }
+  }, [visibleItems]);
+
   // Calculate fixed heights for layout sections and list area
   const headerHeight = 2; // Header bar + margin
   const footerHeight = 4; // Footer with border + margin (flexible height)
@@ -1760,7 +1922,7 @@ export default function RepoList({ token, maxVisibleRows, onLogout, viewerLogin,
 
   const lowRate = (rateLimit && rateLimit.remaining <= Math.ceil(rateLimit.limit * 0.1)) || 
                    (restRateLimit && restRateLimit.core.remaining <= Math.ceil(restRateLimit.core.limit * 0.1));
-  const modalOpen = deleteMode || archiveMode || syncMode || logoutMode || infoMode || visibilityMode || archiveFilterMode || sortMode || sortDirectionMode || changeVisibilityMode || copyUrlMode || renameMode || openInBrowserMode;
+  const modalOpen = deleteMode || archiveMode || syncMode || logoutMode || infoMode || visibilityMode || archiveFilterMode || sortMode || sortDirectionMode || changeVisibilityMode || copyUrlMode || renameMode || openInBrowserMode || createMode || transferMode;
 
   // Memoize header to prevent re-renders - must be before any returns
   const headerBar = useMemo(() => (
@@ -2361,6 +2523,26 @@ export default function RepoList({ token, maxVisibleRows, onLogout, viewerLogin,
               theme={theme}
             />
           </Box>
+        ) : createMode ? (
+          <Box height={contentHeight} alignItems="center" justifyContent="center">
+            <CreateRepoModal
+              ownerSlug={ownerContext === 'personal' ? (viewerLogin || 'me') : ownerContext.login}
+              isOrg={ownerContext !== 'personal'}
+              isEnterprise={isEnterpriseOrg}
+              onCreate={executeCreate}
+              onCancel={() => setCreateMode(false)}
+              theme={theme}
+            />
+          </Box>
+        ) : transferMode && transferTarget ? (
+          <Box height={contentHeight} alignItems="center" justifyContent="center">
+            <TransferModal
+              repo={transferTarget}
+              onTransfer={executeTransfer}
+              onCancel={closeTransferModal}
+              theme={theme}
+            />
+          </Box>
         ) : copyUrlMode ? (
           <Box height={contentHeight} alignItems="center" justifyContent="center">
             <CopyUrlModal
@@ -2533,14 +2715,14 @@ export default function RepoList({ token, maxVisibleRows, onLogout, viewerLogin,
           <Text color={theme.muted} dimColor={modalOpen ? true : undefined}>
             {starsMode ?
               'Shift+S My Repos • I Info • C Copy URL • U Unstar Repository' :
-              `${ownerContext === 'personal' ? 'Shift+S Starred • ' : ''}I Info • C Copy URL • Ctrl+S Un/Star • Ctrl+R Rename • Ctrl+A Un/Archive • Ctrl+V Change Visibility • Ctrl+F Sync Fork • P Jump to upstream`
+              `${ownerContext === 'personal' ? 'Shift+S Starred • ' : ''}I Info • C Copy URL • Ctrl+S Un/Star • Ctrl+R Rename • Shift+M Transfer • Ctrl+A Un/Archive • Ctrl+V Change Visibility • Ctrl+F Sync Fork • P Jump to upstream`
             }
           </Text>
         </Box>
         {/* Line 4: System controls */}
         <Box width={terminalWidth} justifyContent="center">
           <Text color={theme.muted} dimColor={modalOpen ? true : undefined}>
-            K Cache Info • W Org Switch • Del/Backspace Delete • Ctrl+L Logout • Q Quit
+            K Cache Info • W Org Switch{!starsMode ? ' • Ctrl+N New Repo' : ''} • Del/Backspace Delete • Ctrl+L Logout • Q Quit
           </Text>
         </Box>
         {/* Line 5: Sponsorship */}

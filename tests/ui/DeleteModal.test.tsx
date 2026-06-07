@@ -17,16 +17,16 @@ const repoStub: RepoNode = {
 } as any;
 
 describe('DeleteModal Logic', () => {
-  it('generates a 6-character verification code', () => {
+  it('generates a 4-character verification code', () => {
     // This tests the logic that would generate the code
     const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
     let code = '';
-    for (let i = 0; i < 6; i++) {
+    for (let i = 0; i < 4; i++) {
       code += chars.charAt(Math.floor(Math.random() * chars.length));
     }
-    
-    expect(code).toHaveLength(6);
-    expect(code).toMatch(/^[ABCDEFGHJKLMNPQRSTUVWXYZ23456789]{6}$/);
+
+    expect(code).toHaveLength(4);
+    expect(code).toMatch(/^[ABCDEFGHJKLMNPQRSTUVWXYZ23456789]{4}$/);
   });
 
   it('verification code excludes similar-looking characters', () => {

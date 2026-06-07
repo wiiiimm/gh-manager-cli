@@ -47,6 +47,10 @@ Launch the app, then use the keys below to navigate and interact with your repos
 
 ## Repository Actions
 
+- **Create repository**: `Ctrl+N` to create a new repository in the current context (personal or organisation)
+  - Prompts for a name with the owner slug (`owner/`) shown in front
+  - `Tab` cycles visibility (Private/Public, plus Internal for enterprise organisations)
+  - Enter to create; GitHub errors (e.g. name already exists) are shown inline
 - **Repository info**: `I` to view detailed metadata (size, language, timestamps)
 - **Cache info**: `K` to inspect Apollo cache status
 - **Archive/Unarchive**: `Ctrl+A` with confirmation prompt
@@ -57,6 +61,10 @@ Launch the app, then use the keys below to navigate and interact with your repos
 - **Star/Unstar**: `Ctrl+S` to toggle star status for any repository
 - **Sync fork**: `Ctrl+F` (for forks only, shows commit status and handles conflicts)
 - **Rename repository**: `Ctrl+R` with inline validation
+- **Transfer repository**: `Shift+M` (Move) to transfer ownership to another user or organisation
+  - Prompts for the destination owner, then requires typing a randomly generated verification code (like delete), followed by a final confirmation before transferring
+  - GitHub errors (e.g. insufficient permissions) are shown inline
+  - Transferred repository is removed from the list
 - **Copy URL**: `C` to copy repository URL to clipboard (SSH/HTTPS options)
 
 ## General

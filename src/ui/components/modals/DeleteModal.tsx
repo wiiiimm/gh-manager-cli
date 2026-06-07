@@ -19,12 +19,13 @@ export default function DeleteModal({ repo, onDelete, onCancel }: DeleteModalPro
   const [deleteConfirmStage, setDeleteConfirmStage] = useState(false); // true after code verified
   const [confirmFocus, setConfirmFocus] = useState<'delete' | 'cancel'>('delete');
 
-  // Generate a random 6-character code when the modal opens
+  // Generate a random 4-character code when the modal opens.
+  // Code is uppercase-only (and matched case-insensitively) — see handleCodeSubmit.
   useEffect(() => {
     if (repo) {
       const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'; // Omit similar-looking chars
       let code = '';
-      for (let i = 0; i < 6; i++) {
+      for (let i = 0; i < 4; i++) {
         code += chars.charAt(Math.floor(Math.random() * chars.length));
       }
       setDeleteCode(code);
@@ -77,7 +78,18 @@ export default function DeleteModal({ repo, onDelete, onCancel }: DeleteModalPro
     }
   };
 
-  // Handle the verification code submission
+  // Uppercase as the user types and auto-advance the moment the full code
+  // matches — no Enter required.
+  const handleCodeChange = (value: string) => {
+    const up = value.toUpperCase();
+    setTypedCode(up);
+    if (up === deleteCode) {
+      setDeleteError(null);
+      setDeleteConfirmStage(true);
+    }
+  };
+
+  // Enter fallback: advance on a correct code, otherwise surface the error
   const handleCodeSubmit = () => {
     if (typedCode.toUpperCase() === deleteCode) {
       setDeleteConfirmStage(true);
@@ -114,7 +126,7 @@ export default function DeleteModal({ repo, onDelete, onCancel }: DeleteModalPro
             <Text>Verification code: </Text>
             <TextInput
               value={typedCode}
-              onChange={setTypedCode}
+              onChange={handleCodeChange}
               onSubmit={handleCodeSubmit}
             />
           </Box>

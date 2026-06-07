@@ -1,10 +1,3 @@
-# [1.44.0](https://github.com/wiiiimm/gh-manager-cli/compare/v1.43.0...v1.44.0) (2026-06-05)
-
-
-### Features
-
-* theme-aware selected-row highlight with better contrast (SWR-364) ([#59](https://github.com/wiiiimm/gh-manager-cli/issues/59)) ([1b71cb2](https://github.com/wiiiimm/gh-manager-cli/commit/1b71cb2144b0773bb0d9538e3f30141e53346890)), closes [#1f4a57](https://github.com/wiiiimm/gh-manager-cli/issues/1f4a57) [#11294d](https://github.com/wiiiimm/gh-manager-cli/issues/11294d) [#14391f](https://github.com/wiiiimm/gh-manager-cli/issues/14391f) [#333333](https://github.com/wiiiimm/gh-manager-cli/issues/333333)
-
 # [1.43.0](https://github.com/wiiiimm/gh-manager-cli/compare/v1.42.0...v1.43.0) (2026-06-05)
 
 
