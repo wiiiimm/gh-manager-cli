@@ -6,7 +6,8 @@ export type BulkAction =
   | 'unarchive'
   | 'star'
   | 'unstar'
-  | 'visibility';
+  | 'visibility'
+  | 'transfer';
 
 export type BulkVisibilityTarget = 'PUBLIC' | 'PRIVATE' | 'INTERNAL';
 
@@ -50,5 +51,7 @@ export function bulkActionMeta(action: BulkAction, visibilityTarget?: BulkVisibi
       const color: BulkActionColor = target === 'PUBLIC' ? 'green' : target === 'PRIVATE' ? 'yellow' : 'cyan';
       return { label: `Make ${name}`, gerund: `Making ${name}`, color, pastVerb: `made ${name.toLowerCase()}` };
     }
+    case 'transfer':
+      return { label: 'Transfer', gerund: 'Transferring', color: 'yellow', pastVerb: 'transferred' };
   }
 }

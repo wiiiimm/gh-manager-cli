@@ -69,7 +69,7 @@ Launch the app, then use the keys below to navigate and interact with your repos
 
 ## Bulk Select Mode (Bulk Operations)
 
-Bulk Select mode lets you select multiple repositories and run a bulk action (star/unstar, archive/unarchive, visibility change, or delete) against all of them at once. The actions reuse the same global shortcuts as single-repo mode; while in bulk select mode every other shortcut is disabled.
+Bulk Select mode lets you select multiple repositories and run a bulk action (star/unstar, archive/unarchive, visibility change, transfer/move, or delete) against all of them at once. The actions reuse the same global shortcuts as single-repo mode; while in bulk select mode every other shortcut is disabled.
 
 ### Entering Bulk Select Mode
 
@@ -87,6 +87,7 @@ Bulk Select mode lets you select multiple repositories and run a bulk action (st
 - **`Ctrl+S`** — bulk star/unstar
 - **`Ctrl+A`** — bulk archive/unarchive
 - **`Ctrl+V`** — bulk visibility update
+- **`Shift+M`** — bulk transfer (move) to another owner/org
 - **`Del`/`Backspace`** — bulk delete
 
 ### Running a Bulk Action
@@ -94,15 +95,16 @@ Bulk Select mode lets you select multiple repositories and run a bulk action (st
 1. Enter bulk select mode with `B`
 2. Select repositories with `Space`
 3. Press the action shortcut above (e.g. `Ctrl+A` for archive)
-4. **Intent/target (only when needed)**:
+4. **Intent/target (only when needed, before review)**:
    - Star and archive auto-detect a safe toggle. If the selection has a mixed state, an intent modal asks the explicit target (e.g. "Archive all" vs "Unarchive all").
    - Visibility always prompts for the destination: Public / Private / Internal (Internal only for enterprise orgs).
 5. **Review list (Confirmation 1)**: A scrollable list of all selected repos appears.
    - Use ↑↓ to navigate; `Space` to unselect individual entries before proceeding.
-6. **Count prompt (Confirmation 2)**: Confirms "About to {action} {N} repositories." (Cancel/Proceed, Esc cancels.)
-7. **Delete only (Confirmation 3)**: enter a 4-character verification code.
-8. Progress is shown per-repo; partial failures are reported at the end.
-9. On completion, selections are cleared and bulk select mode exits automatically.
+6. **Destination owner (Transfer only)**: after review, transfer prompts for a destination owner (must differ from the current owner).
+7. **Count prompt (Confirmation 2)**: Confirms "About to {action} {N} repositories" (transfer also shows "to {owner}"). (Cancel/Proceed, Esc cancels.)
+8. **Delete and Transfer only (Confirmation 3)**: enter a 4-character verification code.
+9. Progress is shown per-repo; partial failures are reported at the end.
+10. On completion, selections are cleared and bulk select mode exits automatically. Transferred repos are removed from the current list.
 
 ### Persistence
 

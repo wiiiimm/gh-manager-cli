@@ -14,6 +14,8 @@ export { StarModal } from './StarModal';
 export { default as BulkReviewModal } from './BulkReviewModal';
 export { default as BulkConfirmModal } from './BulkConfirmModal';
 export { default as BulkDeleteCodeModal } from './BulkDeleteCodeModal';
+export { default as BulkTransferCodeModal } from './BulkTransferCodeModal';
+export { default as BulkTransferDestinationModal } from './BulkTransferDestinationModal';
 export { default as BulkIntentModal } from './BulkIntentModal';
 export { default as BulkVisibilityModal } from './BulkVisibilityModal';
 export { default as BulkProgressModal } from './BulkProgressModal';

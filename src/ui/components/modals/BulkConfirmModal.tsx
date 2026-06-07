@@ -9,6 +9,8 @@ interface BulkConfirmModalProps {
   actionColor: BulkActionColor;
   /** Lower-case verb phrase used inline, e.g. "delete", "make private". */
   actionVerb: string;
+  /** Optional destination owner, shown for transfer ("… to {destination}"). */
+  destination?: string;
   onConfirm: () => void;
   onCancel: () => void;
   terminalWidth?: number;
@@ -19,6 +21,7 @@ export default function BulkConfirmModal({
   actionLabel,
   actionColor,
   actionVerb,
+  destination,
   onConfirm,
   onCancel,
   terminalWidth = 80,
@@ -69,7 +72,14 @@ export default function BulkConfirmModal({
         {' '}
         <Text bold>{count}</Text>
         {' '}
-        repositor{count === 1 ? 'y' : 'ies'}.
+        repositor{count === 1 ? 'y' : 'ies'}
+        {destination ? (
+          <Text>
+            {' to '}
+            <Text bold color={actionColor}>{destination}</Text>
+          </Text>
+        ) : null}
+        .
       </Text>
 
       <Box height={1}><Text> </Text></Box>

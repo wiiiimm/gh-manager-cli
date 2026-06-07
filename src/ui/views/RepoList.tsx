@@ -12,7 +12,7 @@ import type { RepoNode, RateLimitInfo, RestRateLimitInfo } from '../../types';
 import { exec } from 'child_process';
 import OrgSwitcher from '../OrgSwitcher';
 import { logger } from '../../lib/logger';
-import { ArchiveFilterModal, DeleteModal, ArchiveModal, SyncModal, InfoModal, LogoutModal, VisibilityModal, SortModal, SortDirectionModal, ChangeVisibilityModal, CopyUrlModal, RenameModal, StarModal, BulkReviewModal, BulkConfirmModal, BulkDeleteCodeModal, BulkIntentModal, BulkVisibilityModal, BulkProgressModal, OpenInBrowserModal, CreateRepoModal, TransferModal, bulkActionMeta } from '../components/modals';
+import { ArchiveFilterModal, DeleteModal, ArchiveModal, SyncModal, InfoModal, LogoutModal, VisibilityModal, SortModal, SortDirectionModal, ChangeVisibilityModal, CopyUrlModal, RenameModal, StarModal, BulkReviewModal, BulkConfirmModal, BulkDeleteCodeModal, BulkTransferCodeModal, BulkTransferDestinationModal, BulkIntentModal, BulkVisibilityModal, BulkProgressModal, OpenInBrowserModal, CreateRepoModal, TransferModal, bulkActionMeta } from '../components/modals';
 import type { BulkAction, BulkVisibilityTarget, BulkProgressState } from '../components/modals';
 import { UnstarModal } from '../components/modals/UnstarModal';
 import { RepoRow, FilterInput, RepoListHeader } from '../components/repo';
@@ -209,6 +209,9 @@ export default function RepoList({ token, maxVisibleRows, onLogout, viewerLogin,
   const [bulkReviewOpen, setBulkReviewOpen] = useState(false);
   const [bulkConfirmOpen, setBulkConfirmOpen] = useState(false);
   const [bulkDeleteCodeOpen, setBulkDeleteCodeOpen] = useState(false);
+  const [bulkTransferDestinationOpen, setBulkTransferDestinationOpen] = useState(false);
+  const [bulkTransferCodeOpen, setBulkTransferCodeOpen] = useState(false);
+  const [bulkTransferDest, setBulkTransferDest] = useState('');
   const [bulkProgressOpen, setBulkProgressOpen] = useState(false);
   const [bulkFinalSelection, setBulkFinalSelection] = useState<Map<string, RepoNode>>(new Map());
   const [bulkProgress, setBulkProgress] = useState<BulkProgressState>({
@@ -554,6 +557,7 @@ export default function RepoList({ token, maxVisibleRows, onLogout, viewerLogin,
     repos: RepoNode[],
     action: BulkAction,
     visTarget?: BulkVisibilityTarget | null,
+    transferDest?: string,
   ) {
     const total = repos.length;
     setBulkProgress({ total, completed: 0, failed: [], currentRepo: null, done: false });
@@ -601,6 +605,18 @@ export default function RepoList({ token, maxVisibleRows, onLogout, viewerLogin,
             ? { ...r, visibility: visTarget, isPrivate: visTarget !== 'PUBLIC' }
             : r;
           setItems(prev => prev.map(updateRepo));
+        } else if (action === 'transfer' && transferDest) {
+          const [owner, repoName] = repo.nameWithOwner.split('/');
+          await transferRepositoryRest(token, owner, repoName, transferDest);
+          // Transferred repo changes owner — remove from current list like delete
+          await updateCacheAfterDelete(token, repo.id);
+          setItems(prev => prev.filter(r => r.id !== repo.id));
+          setTotalCount(c => Math.max(0, c - 1));
+        } else {
+          // No branch matched (e.g. visibility without a target, or transfer
+          // without a destination). Never mark such a repo as successfully
+          // processed — surface it as a failure instead of a silent no-op.
+          throw new Error(`Missing required parameter for bulk ${action}`);
         }
         trackSuccessfulOperation();
       } catch (e: any) {
@@ -626,6 +642,9 @@ export default function RepoList({ token, maxVisibleRows, onLogout, viewerLogin,
   function resetBulkFlow() {
     setBulkIntentKind(null);
     setBulkVisibilityOpen(false);
+    setBulkTransferDestinationOpen(false);
+    setBulkTransferCodeOpen(false);
+    setBulkTransferDest('');
     setBulkReviewOpen(false);
     setBulkConfirmOpen(false);
     setBulkDeleteCodeOpen(false);
@@ -668,6 +687,18 @@ export default function RepoList({ token, maxVisibleRows, onLogout, viewerLogin,
   function startBulkVisibility() {
     if (selectedRepos.size === 0) return;
     setBulkVisibilityOpen(true); // always ask for the target
+  }
+
+  function startBulkTransfer() {
+    if (selectedRepos.size === 0) return;
+    // Transfer is owner-scoped and meaningless in starred mode (selection may
+    // contain repos owned by others). Mirror the single-repo guard, which is
+    // disabled in starred mode.
+    if (starsMode) return;
+    // Step 1: review/unselect the selection first (mirrors the other bulk
+    // actions). The destination prompt comes after review — see the
+    // BulkReviewModal onConfirm transfer branch.
+    beginBulkReview('transfer');
   }
 
   // Shared rename execution function
@@ -1374,6 +1405,16 @@ export default function RepoList({ token, maxVisibleRows, onLogout, viewerLogin,
       return; // BulkDeleteCodeModal handles its own input
     }
 
+    // Bulk transfer destination prompt (transfer only)
+    if (bulkTransferDestinationOpen) {
+      return; // BulkTransferDestinationModal handles its own input
+    }
+
+    // Bulk transfer verification-code modal (Confirmation 3, transfer only)
+    if (bulkTransferCodeOpen) {
+      return; // BulkTransferCodeModal handles its own input
+    }
+
     // Handle input when in error state
     if (error) {
       // Quit on 'Q'
@@ -1673,6 +1714,9 @@ export default function RepoList({ token, maxVisibleRows, onLogout, viewerLogin,
         if (key.ctrl && (input === 'a' || input === 'A')) { startBulkArchive(); return; }
         // Ctrl+V: bulk visibility update
         if (key.ctrl && (input === 'v' || input === 'V')) { startBulkVisibility(); return; }
+        // Shift+M: bulk transfer (move) to another owner
+        // Match the single-repo transfer binding (key.shift && 'M') for consistency
+        if (key.shift && input === 'M') { startBulkTransfer(); return; }
         // Del/Backspace: bulk delete
         if (key.delete || key.backspace) { startBulkDelete(); return; }
       }
@@ -2171,7 +2215,7 @@ export default function RepoList({ token, maxVisibleRows, onLogout, viewerLogin,
 
   const lowRate = (rateLimit && rateLimit.remaining <= Math.ceil(rateLimit.limit * 0.1)) || 
                    (restRateLimit && restRateLimit.core.remaining <= Math.ceil(restRateLimit.core.limit * 0.1));
-  const modalOpen = deleteMode || archiveMode || syncMode || logoutMode || infoMode || visibilityMode || archiveFilterMode || sortMode || sortDirectionMode || changeVisibilityMode || copyUrlMode || renameMode || bulkIntentKind !== null || bulkVisibilityOpen || bulkReviewOpen || bulkConfirmOpen || bulkDeleteCodeOpen || bulkProgressOpen || openInBrowserMode || createMode || transferMode;
+  const modalOpen = deleteMode || archiveMode || syncMode || logoutMode || infoMode || visibilityMode || archiveFilterMode || sortMode || sortDirectionMode || changeVisibilityMode || copyUrlMode || renameMode || bulkIntentKind !== null || bulkVisibilityOpen || bulkReviewOpen || bulkConfirmOpen || bulkDeleteCodeOpen || bulkTransferDestinationOpen || bulkTransferCodeOpen || bulkProgressOpen || openInBrowserMode || createMode || transferMode;
 
   // Display metadata for the in-flight bulk action (label/colour/verbs).
   const bulkMeta = bulkAction ? bulkActionMeta(bulkAction, bulkVisibilityTarget ?? undefined) : null;
@@ -2853,6 +2897,19 @@ export default function RepoList({ token, maxVisibleRows, onLogout, viewerLogin,
               onCancel={resetBulkFlow}
             />
           </Box>
+        ) : bulkTransferCodeOpen ? (
+          <Box height={contentHeight} alignItems="center" justifyContent="center">
+            <BulkTransferCodeModal
+              count={bulkFinalSelection.size}
+              destination={bulkTransferDest}
+              terminalWidth={terminalWidth}
+              onConfirm={() => {
+                setBulkTransferCodeOpen(false);
+                executeBulkOperation(Array.from(bulkFinalSelection.values()), 'transfer', null, bulkTransferDest);
+              }}
+              onCancel={resetBulkFlow}
+            />
+          </Box>
         ) : bulkConfirmOpen && bulkAction && bulkMeta ? (
           <Box height={contentHeight} alignItems="center" justifyContent="center">
             <BulkConfirmModal
@@ -2860,11 +2917,14 @@ export default function RepoList({ token, maxVisibleRows, onLogout, viewerLogin,
               actionLabel={bulkMeta.label}
               actionColor={bulkMeta.color}
               actionVerb={bulkMeta.label.toLowerCase()}
+              destination={bulkAction === 'transfer' ? bulkTransferDest : undefined}
               terminalWidth={terminalWidth}
               onConfirm={() => {
                 setBulkConfirmOpen(false);
                 if (bulkAction === 'delete') {
                   setBulkDeleteCodeOpen(true); // step 3: verification code
+                } else if (bulkAction === 'transfer') {
+                  setBulkTransferCodeOpen(true); // step 3: verification code
                 } else {
                   executeBulkOperation(Array.from(bulkFinalSelection.values()), bulkAction, bulkVisibilityTarget);
                 }
@@ -2887,7 +2947,13 @@ export default function RepoList({ token, maxVisibleRows, onLogout, viewerLogin,
                 setSelectedRepos(finalSelection);
                 setBulkFinalSelection(finalSelection);
                 setBulkReviewOpen(false);
-                setBulkConfirmOpen(true);
+                if (bulkAction === 'transfer') {
+                  // Transfer collects the destination owner after review,
+                  // before the count/code confirmation.
+                  setBulkTransferDestinationOpen(true);
+                } else {
+                  setBulkConfirmOpen(true);
+                }
               }}
               onCancel={resetBulkFlow}
             />
@@ -2902,6 +2968,22 @@ export default function RepoList({ token, maxVisibleRows, onLogout, viewerLogin,
                 setBulkVisibilityTarget(target);
                 setBulkVisibilityOpen(false);
                 beginBulkReview('visibility');
+              }}
+              onCancel={resetBulkFlow}
+            />
+          </Box>
+        ) : bulkTransferDestinationOpen ? (
+          <Box height={contentHeight} alignItems="center" justifyContent="center">
+            <BulkTransferDestinationModal
+              count={bulkFinalSelection.size}
+              currentOwner={ownerContext !== 'personal' ? ownerContext.login : (viewerLogin ?? '')}
+              terminalWidth={terminalWidth}
+              onChoose={(dest) => {
+                setBulkTransferDest(dest);
+                setBulkTransferDestinationOpen(false);
+                // Review already ran (it precedes the destination prompt for
+                // transfer); proceed to the count confirmation.
+                setBulkConfirmOpen(true);
               }}
               onCancel={resetBulkFlow}
             />
@@ -2960,7 +3042,7 @@ export default function RepoList({ token, maxVisibleRows, onLogout, viewerLogin,
                 </Text>
                 <Text color="gray">
                   {selectedRepos.size > 0
-                    ? 'Space select · X unselect all · Ctrl+S star · Ctrl+A archive · Ctrl+V visibility · Del delete · B/Esc exit'
+                    ? `Space select · X unselect all · Ctrl+S star · Ctrl+A archive · Ctrl+V visibility${starsMode ? '' : ' · Shift+M transfer'} · Del delete · B/Esc exit`
                     : 'Space select · B/Esc exit'}
                 </Text>
               </Box>
@@ -3094,7 +3176,7 @@ export default function RepoList({ token, maxVisibleRows, onLogout, viewerLogin,
             <Text color={multiSelectMode ? 'cyan' : 'gray'} dimColor={!multiSelectMode}>
               {multiSelectMode
                 ? (selectedRepos.size > 0
-                    ? `Space select • X unselect all • Ctrl+S star • Ctrl+A archive • Ctrl+V visibility • Del delete • B/Esc exit (${selectedRepos.size} selected)`
+                    ? `Space select • X unselect all • Ctrl+S star • Ctrl+A archive • Ctrl+V visibility${starsMode ? '' : ' • Shift+M transfer'} • Del delete • B/Esc exit (${selectedRepos.size} selected)`
                     : 'B/Esc exit bulk select • Space select (no selection)')
                 : 'B Bulk Select mode (star/archive/visibility/delete)'
               }
