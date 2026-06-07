@@ -1,3 +1,10 @@
+## [1.46.1](https://github.com/wiiiimm/gh-manager-cli/compare/v1.46.0...v1.46.1) (2026-06-07)
+
+
+### Performance Improvements
+
+* make visibility filter fully client-side (SWR-366) [semantic pr title] ([#61](https://github.com/wiiiimm/gh-manager-cli/issues/61)) ([02c6064](https://github.com/wiiiimm/gh-manager-cli/commit/02c6064dbb2854a943f0580297661589dabc9545))
+
 # [1.46.0](https://github.com/wiiiimm/gh-manager-cli/compare/v1.45.1...v1.46.0) (2026-06-07)
 
 
