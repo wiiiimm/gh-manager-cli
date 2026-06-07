@@ -47,11 +47,14 @@ describe('GitHub Sponsorship Configuration', () => {
 
   it('should have comprehensive sponsorship documentation', () => {
     expect(existsSync(sponsorshipDocsPath)).toBe(true);
-    
+
+    // The guide was rewritten to focus solely on Buy Me a Coffee (SWR-367), so
+    // assert the current single-platform structure rather than the old
+    // multi-platform headings (Ko-fi / Custom URLs).
     const content = readFileSync(sponsorshipDocsPath, 'utf8');
-    expect(content).toContain('GitHub Sponsorship Platforms Guide');
-    expect(content).toContain('Ko-fi (Buy Me Coffee Alternative)');
-    expect(content).toContain('Custom URLs (Including Buy Me a Coffee)');
+    expect(content).toContain('GitHub Sponsorship Configuration Guide');
+    expect(content).toContain('Buy Me a Coffee');
+    expect(content).toContain('Why Support This Project?');
   });
 
   it('should have proper YAML structure', () => {
@@ -71,14 +74,15 @@ describe('GitHub Sponsorship Configuration', () => {
     expect(commentedPlatforms.length).toBeGreaterThan(0);
   });
 
-  it('should reference sponsorship documentation in README', () => {
+  it('should have a Support & Sponsorship section in README', () => {
     const readmePath = join(process.cwd(), 'README.md');
     const content = readFileSync(readmePath, 'utf8');
-    
+
+    // README sponsorship section was simplified to the active platforms only
+    // (SWR-367): GitHub Sponsors + Buy Me a Coffee. Ko-fi and the
+    // SPONSORSHIP_PLATFORMS.md link are no longer referenced here.
     expect(content).toContain('Support & Sponsorship');
     expect(content).toContain('GitHub Sponsors');
-    expect(content).toContain('Ko-fi');
     expect(content).toContain('Buy Me a Coffee');
-    expect(content).toContain('SPONSORSHIP_PLATFORMS.md');
   });
 });

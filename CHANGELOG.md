@@ -1,3 +1,45 @@
+# [1.47.0](https://github.com/wiiiimm/gh-manager-cli/compare/v1.46.1...v1.47.0) (2026-06-07)
+
+
+### Features
+
+* bulk transfer (move) repos to another owner/org — Bulk Select action (SWR-369) [semantic pr title] ([#70](https://github.com/wiiiimm/gh-manager-cli/issues/70)) ([1dd444a](https://github.com/wiiiimm/gh-manager-cli/commit/1dd444a32e7ffc1492320d80197c089d845352a5))
+
+## [1.46.1](https://github.com/wiiiimm/gh-manager-cli/compare/v1.46.0...v1.46.1) (2026-06-07)
+
+
+### Performance Improvements
+
+* make visibility filter fully client-side (SWR-366) [semantic pr title] ([#61](https://github.com/wiiiimm/gh-manager-cli/issues/61)) ([02c6064](https://github.com/wiiiimm/gh-manager-cli/commit/02c6064dbb2854a943f0580297661589dabc9545))
+
+# [1.46.0](https://github.com/wiiiimm/gh-manager-cli/compare/v1.45.1...v1.46.0) (2026-06-07)
+
+
+### Features
+
+* Bulk Select mode with bulk star, archive/unarchive, visibility, and delete operations (SWR-353) ([#54](https://github.com/wiiiimm/gh-manager-cli/issues/54)) ([9245324](https://github.com/wiiiimm/gh-manager-cli/commit/924532494c7222393415bea14bf5553435c2abb2))
+
+## [1.45.1](https://github.com/wiiiimm/gh-manager-cli/compare/v1.45.0...v1.45.1) (2026-06-07)
+
+
+### Bug Fixes
+
+* ignore modal input while async actions are in flight, add guard tests (SWR-368) [semantic pr title] ([#64](https://github.com/wiiiimm/gh-manager-cli/issues/64)) ([97d2e4e](https://github.com/wiiiimm/gh-manager-cli/commit/97d2e4e25fc5d10cd2305ffb3f594b3f0b094e20)), closes [#65](https://github.com/wiiiimm/gh-manager-cli/issues/65)
+
+# [1.45.0](https://github.com/wiiiimm/gh-manager-cli/compare/v1.44.0...v1.45.0) (2026-06-07)
+
+
+### Features
+
+* add repository creation (Ctrl+N) and transfer (Shift+M) ([#60](https://github.com/wiiiimm/gh-manager-cli/issues/60)) ([2e9c271](https://github.com/wiiiimm/gh-manager-cli/commit/2e9c2711b985be9373a94483e0bd0b420dc48aec))
+
+# [1.43.0](https://github.com/wiiiimm/gh-manager-cli/compare/v1.42.0...v1.43.0) (2026-06-05)
+
+
+### Features
+
+* fork ahead/behind enrichment, jump-to-upstream (P), and open-in-browser chooser (SWR-362) [semantic pr title] ([#53](https://github.com/wiiiimm/gh-manager-cli/issues/53)) ([ffd7b16](https://github.com/wiiiimm/gh-manager-cli/commit/ffd7b1644f7fad93721b6ab7287c0c3a1990f9e6))
+
 # [1.42.0](https://github.com/wiiiimm/gh-manager-cli/compare/v1.41.0...v1.42.0) (2026-06-05)
 
 

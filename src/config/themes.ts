@@ -11,6 +11,13 @@ export interface Theme {
   muted: string;
   text: string;
   selected: string;
+  /**
+   * Background colour for the highlighted/selected row. Deliberately darker
+   * than the foreground text so bright selected text stays high-contrast.
+   * Hex is used for precise per-theme tones; chalk/Ink downsamples it to the
+   * nearest ANSI colour on terminals without truecolour support.
+   */
+  selectedBg: string;
   private: string;
   archived: string;
   internal: string;
@@ -30,6 +37,7 @@ export const THEMES: Record<ThemeName, Theme> = {
     muted: 'gray',
     text: 'white',
     selected: 'cyan',
+    selectedBg: '#1f4a57', // dark teal — contrasts the cyan/white selected text
     private: 'yellow',
     archived: 'gray',
     internal: 'magenta',
@@ -47,6 +55,7 @@ export const THEMES: Record<ThemeName, Theme> = {
     muted: 'blue',
     text: 'whiteBright',
     selected: 'blueBright',
+    selectedBg: '#11294d', // deep blue — sits behind the bright blue/white text
     private: 'cyan',
     archived: 'blue',
     internal: 'magenta',
@@ -64,6 +73,7 @@ export const THEMES: Record<ThemeName, Theme> = {
     muted: 'gray',
     text: 'white',
     selected: 'green',
+    selectedBg: '#14391f', // deep forest green behind the green/white text
     private: 'yellow',
     archived: 'gray',
     internal: 'magenta',
@@ -81,6 +91,7 @@ export const THEMES: Record<ThemeName, Theme> = {
     muted: 'gray',
     text: 'white',
     selected: 'whiteBright',
+    selectedBg: '#333333', // neutral dark grey — darker than the old bright grey
     private: 'white',
     archived: 'gray',
     internal: 'white',

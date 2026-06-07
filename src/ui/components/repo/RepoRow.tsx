@@ -15,6 +15,8 @@ interface RepoRowProps {
   dim?: boolean;
   forkTracking: boolean;
   starsMode?: boolean;
+  multiSelectMode?: boolean;
+  isChecked?: boolean;
   theme?: Theme;
 }
 
@@ -27,25 +29,40 @@ export default function RepoRow({
   dim,
   forkTracking,
   starsMode = false,
+  multiSelectMode = false,
+  isChecked = false,
   theme: themeProp,
 }: RepoRowProps) {
   const { theme, c } = useTheme(themeProp?.name ?? 'default');
   const langName = repo.primaryLanguage?.name || '';
   const langColor = repo.primaryLanguage?.color || '#666666';
 
+  // Calculate ahead/behind for forks - only show if tracking is enabled AND enriched data is available
   const hasCommitData = repo.isFork && repo.parent && repo.defaultBranchRef && repo.parent.defaultBranchRef
     && repo.parent.defaultBranchRef.target?.history && repo.defaultBranchRef.target?.history;
 
-  const commitsBehind = hasCommitData
-    ? (repo.parent.defaultBranchRef.target.history.totalCount - repo.defaultBranchRef.target.history.totalCount)
-    : 0;
+  const forkCount = hasCommitData ? repo.defaultBranchRef.target.history.totalCount : 0;
+  const parentCount = hasCommitData ? repo.parent.defaultBranchRef.target.history.totalCount : 0;
+  const commitsBehind = hasCommitData ? Math.max(0, parentCount - forkCount) : 0;
+  const commitsAhead = hasCommitData ? Math.max(0, forkCount - parentCount) : 0;
 
-  const showCommitsBehind = forkTracking && hasCommitData;
+  const showCommitData = forkTracking && hasCommitData;
+
 
   // Build colored line 1
   let line1 = '';
   const numColor = selected ? c.selected : c.muted;
   const nameColor = selected ? c.selected.bold : c.text;
+
+  // Multi-select checkbox prefix
+  if (multiSelectMode) {
+    if (isChecked) {
+      line1 += c.success('[✓] ');
+    } else {
+      line1 += c.muted('[ ] ');
+    }
+  }
+
   line1 += numColor(`${String(index).padStart(3, ' ')}.`);
   if (repo.viewerHasStarred) {
     line1 += c.warning(' ⭐');
@@ -63,11 +80,14 @@ export default function RepoRow({
   if (repo.isArchived) line1 += ' ' + chalk.bgGray.whiteBright(' Archived ') + ' ';
   if (repo.isFork && repo.parent) {
     line1 += c.fork(` Fork of ${repo.parent.nameWithOwner}`);
-    if (showCommitsBehind) {
-      if (commitsBehind > 0) {
-        line1 += c.warning(` (${commitsBehind} behind)`);
+    if (showCommitData) {
+      const parts: string[] = [];
+      if (commitsAhead > 0) parts.push(c.success(`${commitsAhead} ahead`));
+      if (commitsBehind > 0) parts.push(c.warning(`${commitsBehind} behind`));
+      if (parts.length > 0) {
+        line1 += c.muted(` (${parts.join(', ')})`);
       } else {
-        line1 += c.success(` (0 behind)`);
+        line1 += c.success(` (up to date)`);
       }
     }
   }
@@ -88,7 +108,7 @@ export default function RepoRow({
   const spacingBelow = spacingLines - spacingAbove;
 
   return (
-    <Box flexDirection="column" backgroundColor={selected ? 'gray' : undefined}>
+    <Box flexDirection="column" backgroundColor={selected ? theme.selectedBg : undefined}>
       {spacingAbove > 0 && (
         <Box height={spacingAbove}>
           <Text> </Text>
