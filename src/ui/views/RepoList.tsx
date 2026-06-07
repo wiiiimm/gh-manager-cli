@@ -17,7 +17,7 @@ import type { BulkAction, BulkVisibilityTarget, BulkProgressState } from '../com
 import { UnstarModal } from '../components/modals/UnstarModal';
 import { RepoRow, FilterInput, RepoListHeader } from '../components/repo';
 import { SlowSpinner } from '../components/common';
-import { truncate, formatDate, copyToClipboard, computeWindow } from '../../lib/utils';
+import { truncate, formatDate, copyToClipboard, computeWindow, matchesVisibilityFilter, type VisibilityFilter } from '../../lib/utils';
 
 // Allow customizable repos per fetch via env var (1-50, default 15)
 const getPageSize = () => {
@@ -757,10 +757,7 @@ export default function RepoList({ token, maxVisibleRows, onLogout, viewerLogin,
     // reset to 'all' so it isn't filtered out of the list. The client-side
     // 'private' filter includes both PRIVATE and INTERNAL (matching GitHub and
     // executeVisibilityChange), so an INTERNAL repo passes it.
-    const passesVisibilityFilter =
-      visibilityFilter === 'all' ||
-      (visibilityFilter === 'public' && visibility === 'PUBLIC') ||
-      (visibilityFilter === 'private' && (visibility === 'PRIVATE' || visibility === 'INTERNAL'));
+    const passesVisibilityFilter = matchesVisibilityFilter(visibility, visibilityFilter);
     if (!passesVisibilityFilter) {
       storeUIPrefs({ visibilityFilter: 'all' });
       setVisibilityFilter('all');
@@ -1137,8 +1134,8 @@ export default function RepoList({ token, maxVisibleRows, onLogout, viewerLogin,
     }
   }
 
-  // Visibility filter - 'all' | 'public' | 'private'
-  type VisibilityFilter = 'all' | 'public' | 'private';
+  // Visibility filter - 'all' | 'public' | 'private' (VisibilityFilter type
+  // shared from lib/utils, see import above)
   const [visibilityFilter, setVisibilityFilter] = useState<VisibilityFilter>('all');
   // nameWithOwner of a repo queued to receive cursor focus once it appears in
   // the (re-sorted/filtered) visible list — e.g. a freshly created repo, whose
@@ -2065,14 +2062,12 @@ export default function RepoList({ token, maxVisibleRows, onLogout, viewerLogin,
     let result = items;
     
     // Apply visibility filter locally over the full cached set (SWR-366).
-    // Match GitHub's behaviour: Private filter includes both PRIVATE and INTERNAL.
-    if (visibilityFilter === 'private') {
-      // Show both PRIVATE and INTERNAL repos (matching GitHub's behaviour)
-      result = result.filter(r => r.visibility === 'PRIVATE' || r.visibility === 'INTERNAL');
-    } else if (visibilityFilter === 'public') {
-      result = result.filter(r => r.visibility === 'PUBLIC');
+    // matchesVisibilityFilter encodes GitHub's behaviour (Private includes
+    // PRIVATE and INTERNAL); 'all' is a no-op.
+    if (visibilityFilter !== 'all') {
+      result = result.filter(r => matchesVisibilityFilter(r.visibility, visibilityFilter));
     }
-    
+
     // Apply archive filter
     if (archiveFilter === 'archived') {
       result = result.filter(r => r.isArchived);
@@ -2110,10 +2105,8 @@ export default function RepoList({ token, maxVisibleRows, onLogout, viewerLogin,
   const fuzzyItems = useMemo(() => {
     if (!filterActive) return [];
     let results = fuzzySearch(items, filter);
-    if (visibilityFilter === 'private') {
-      results = results.filter(r => r.visibility === 'PRIVATE' || r.visibility === 'INTERNAL');
-    } else if (visibilityFilter === 'public') {
-      results = results.filter(r => r.visibility === 'PUBLIC');
+    if (visibilityFilter !== 'all') {
+      results = results.filter(r => matchesVisibilityFilter(r.visibility, visibilityFilter));
     }
     if (archiveFilter === 'archived') results = results.filter(r => r.isArchived);
     else if (archiveFilter === 'unarchived') results = results.filter(r => !r.isArchived);

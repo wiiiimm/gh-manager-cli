@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { truncate, formatDate, computeWindow } from '../src/lib/utils';
+import { truncate, formatDate, computeWindow, matchesVisibilityFilter } from '../src/lib/utils';
 
 describe('truncate', () => {
   it('returns string unchanged if shorter than max', () => {
@@ -237,5 +237,32 @@ describe('computeWindow – out-of-range cursor safety', () => {
   it('returns an empty window for an empty list', () => {
     expect(computeWindow([], 0, 20, 0)).toEqual({ start: 0, end: 0 });
     expect(computeWindow([], 5, 20, 1)).toEqual({ start: 0, end: 0 });
+  });
+});
+
+describe('matchesVisibilityFilter', () => {
+  it('passes every visibility when the filter is "all"', () => {
+    expect(matchesVisibilityFilter('PUBLIC', 'all')).toBe(true);
+    expect(matchesVisibilityFilter('PRIVATE', 'all')).toBe(true);
+    expect(matchesVisibilityFilter('INTERNAL', 'all')).toBe(true);
+  });
+
+  it('passes only PUBLIC repos when the filter is "public"', () => {
+    expect(matchesVisibilityFilter('PUBLIC', 'public')).toBe(true);
+    expect(matchesVisibilityFilter('PRIVATE', 'public')).toBe(false);
+    expect(matchesVisibilityFilter('INTERNAL', 'public')).toBe(false);
+  });
+
+  it('passes PRIVATE and INTERNAL when the filter is "private" (matching GitHub)', () => {
+    expect(matchesVisibilityFilter('PRIVATE', 'private')).toBe(true);
+    expect(matchesVisibilityFilter('INTERNAL', 'private')).toBe(true);
+    expect(matchesVisibilityFilter('PUBLIC', 'private')).toBe(false);
+  });
+
+  it('treats unknown visibility values as non-matching for specific filters', () => {
+    expect(matchesVisibilityFilter('', 'public')).toBe(false);
+    expect(matchesVisibilityFilter('SECRET', 'private')).toBe(false);
+    // …but the "all" filter still passes them through
+    expect(matchesVisibilityFilter('SECRET', 'all')).toBe(true);
   });
 });

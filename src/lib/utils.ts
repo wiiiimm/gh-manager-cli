@@ -176,3 +176,20 @@ export async function copyToClipboard(text: string): Promise<void> {
   }
 }
 
+/** Visibility filter states used across the repository list (SWR-366). */
+export type VisibilityFilter = 'all' | 'public' | 'private';
+
+/**
+ * Whether a repository of the given visibility passes a visibility filter.
+ *
+ * Visibility is filtered client-side over the full cached set (SWR-366). This
+ * encodes the single source of truth for that rule, matching GitHub's own
+ * behaviour: the "private" filter includes both PRIVATE and INTERNAL
+ * repositories, and "all" passes everything.
+ */
+export function matchesVisibilityFilter(visibility: string, filter: VisibilityFilter): boolean {
+  if (filter === 'public') return visibility === 'PUBLIC';
+  if (filter === 'private') return visibility === 'PRIVATE' || visibility === 'INTERNAL';
+  return true; // 'all'
+}
+
