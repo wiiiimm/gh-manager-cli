@@ -12,7 +12,11 @@ vi.mock('ink', async () => {
   return { ...actual, useInput: vi.fn() };
 });
 
-function repo(id: string, nameWithOwner: string): RepoNode {
+function repo(
+  id: string,
+  nameWithOwner: string,
+  overrides: Partial<RepoNode> = {},
+): RepoNode {
   return {
     id,
     nameWithOwner,
@@ -20,6 +24,7 @@ function repo(id: string, nameWithOwner: string): RepoNode {
     isPrivate: false,
     visibility: 'PUBLIC',
     isArchived: false,
+    ...overrides,
   } as unknown as RepoNode;
 }
 
@@ -52,6 +57,50 @@ describe('BulkReviewModal', () => {
     expect(out).toContain('me/alpha');
     expect(out).toContain('me/beta');
     expect(out).toContain('2 repositories selected');
+    unmount();
+  });
+
+  it('keeps the visibility badge inline with the name on the highlighted row, sharing the highlight background', () => {
+    // The first repo is the highlighted (cursor) row by default. Regression for
+    // SWR-374: the badge must not wrap to the next line and must sit inside the
+    // background-highlighted segment.
+    const { lastFrame, unmount } = render(
+      <BulkReviewModal
+        selectedRepos={makeSelection(
+          repo('1', 'me/secret', { isPrivate: true, visibility: 'PRIVATE' }),
+          repo('2', 'me/beta'),
+        )}
+        actionLabel="Delete"
+        actionColor="red"
+        onConfirm={() => {}}
+        onCancel={() => {}}
+      />,
+    );
+    const out = lastFrame() || '';
+    const nameLine = out.split('\n').find(l => l.includes('me/secret')) || '';
+    // Same visual line as the name (would be on a separate wrapped line if broken).
+    expect(nameLine).toContain('Private');
+    // bgCyan open code ([46m) is present on that line → badge is highlighted.
+    expect(nameLine).toContain('[46m');
+    unmount();
+  });
+
+  it('shows the Internal badge inline for an internal repo on the highlighted row', () => {
+    const { lastFrame, unmount } = render(
+      <BulkReviewModal
+        selectedRepos={makeSelection(
+          repo('1', 'org/intra', { visibility: 'INTERNAL' }),
+        )}
+        actionLabel="Archive"
+        actionColor="yellow"
+        onConfirm={() => {}}
+        onCancel={() => {}}
+      />,
+    );
+    const out = lastFrame() || '';
+    const nameLine = out.split('\n').find(l => l.includes('org/intra')) || '';
+    expect(nameLine).toContain('Internal');
+    expect(nameLine).toContain('[46m');
     unmount();
   });
 
