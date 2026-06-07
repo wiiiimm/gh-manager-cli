@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { Box, Text, useInput } from 'ink';
 import TextInput from 'ink-text-input';
 import chalk from 'chalk';
@@ -15,6 +15,9 @@ export default function DeleteModal({ repo, onDelete, onCancel }: DeleteModalPro
   const [deleteCode, setDeleteCode] = useState('');
   const [typedCode, setTypedCode] = useState('');
   const [deleting, setDeleting] = useState(false);
+  // Synchronous mirror of `deleting` so input is guarded in the same tick as submit,
+  // before React re-renders (see ArchiveModal for the rationale).
+  const deletingRef = useRef(false);
   const [deleteError, setDeleteError] = useState<string | null>(null);
   const [deleteConfirmStage, setDeleteConfirmStage] = useState(false); // true after code verified
   const [confirmFocus, setConfirmFocus] = useState<'delete' | 'cancel'>('delete');
@@ -38,8 +41,9 @@ export default function DeleteModal({ repo, onDelete, onCancel }: DeleteModalPro
 
   // Handle keyboard input for the confirmation stage
   useInput((input, key) => {
+    if (deletingRef.current) return; // Ignore input while the delete request is in flight
     if (!deleteConfirmStage) return; // Only handle input in confirmation stage
-    
+
     if (key.escape || input.toLowerCase() === 'c') {
       onCancel();
       return;
@@ -66,14 +70,16 @@ export default function DeleteModal({ repo, onDelete, onCancel }: DeleteModalPro
 
   // Handle the delete confirmation
   const handleDeleteConfirm = async () => {
-    if (!repo || deleting) return;
-    
+    if (!repo || deletingRef.current) return;
+
     try {
+      deletingRef.current = true;
       setDeleting(true);
       setDeleteError(null);
       await onDelete(repo);
     } catch (e: any) {
       setDeleteError(e.message || 'Failed to delete repository');
+      deletingRef.current = false;
       setDeleting(false);
     }
   };

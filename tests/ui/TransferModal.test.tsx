@@ -1,5 +1,5 @@
 import React from 'react';
-import { describe, it, expect, vi, beforeEach, type Mock } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach, type Mock } from 'vitest';
 import { render } from 'ink-testing-library';
 import type { Key } from 'ink';
 import TransferModal from '../../src/ui/components/modals/TransferModal';
@@ -22,10 +22,12 @@ vi.mock('ink', async () => {
 });
 
 // ink-text-input internally calls the real ink useInput (which enables raw mode
-// and throws `stdin.ref is not a function` under the test stdin). Stub it to a
-// no-op so the surrounding modal can render; typed input isn't exercised here.
+// and throws `stdin.ref is not a function` under the test stdin). Stub it so the
+// surrounding modal can render, and capture the latest props so tests can drive
+// the destination-owner / verification-code inputs via onChange.
+const h = vi.hoisted(() => ({ textInputProps: null as { onChange?: (v: string) => void } | null }));
 vi.mock('ink-text-input', () => ({
-  default: () => null
+  default: (props: { onChange?: (v: string) => void }) => { h.textInputProps = props; return null; }
 }));
 
 describe('TransferModal', () => {
@@ -132,5 +134,74 @@ describe('TransferModal', () => {
     expect('ab23'.toUpperCase() === code).toBe(true);
     expect('AB23'.toUpperCase() === code).toBe(true);
     expect('zzzz'.toUpperCase() === code).toBe(false);
+  });
+
+  // Drive the full input -> code -> confirm flow by simulating typing through the
+  // captured TextInput. Math.random -> 0 makes the verification code 'AAAA'.
+  describe('staged flow', () => {
+    let randomSpy: ReturnType<typeof vi.spyOn>;
+    const CODE = 'AAAA';
+
+    beforeEach(() => {
+      h.textInputProps = null;
+      randomSpy = vi.spyOn(Math, 'random').mockReturnValue(0);
+    });
+
+    afterEach(() => {
+      randomSpy.mockRestore();
+    });
+
+    // Walk the modal from the owner-input stage to the final confirmation stage.
+    // `getCb` returns the latest input callback — Ink hands useInput a fresh
+    // closure on every re-render, so capturing it by value here would go stale.
+    const advanceToConfirm = async (getCb: () => InkInputHandler) => {
+      // Let the mount effect generate the verification code (deterministically 'AAAA').
+      await new Promise(resolve => setTimeout(resolve, 0));
+      h.textInputProps?.onChange?.('neworg');           // destination owner
+      await new Promise(resolve => setTimeout(resolve, 0));
+      getCb()('', { return: true });                     // input -> code stage
+      await new Promise(resolve => setTimeout(resolve, 0));
+      h.textInputProps?.onChange?.(CODE);                // type the verification code
+      await new Promise(resolve => setTimeout(resolve, 0));
+    };
+
+    it('advances through the code stage to the final confirmation', async () => {
+      let inputCallback!: InkInputHandler;
+      mockUseInput.mockImplementation((cb: InkInputHandler) => { inputCallback = cb; });
+
+      const { lastFrame, unmount } = render(
+        <TransferModal repo={mockRepo} onTransfer={async () => {}} onCancel={() => {}} />
+      );
+
+      await advanceToConfirm(() => inputCallback);
+
+      expect(lastFrame() || '').toContain('hands ownership to');
+      unmount();
+    });
+
+    it('ignores input while transferring is in progress', async () => {
+      const onTransfer = vi.fn(() => new Promise<void>(() => {})); // never resolves
+      const onCancel = vi.fn();
+      let inputCallback!: InkInputHandler;
+      mockUseInput.mockImplementation((cb: InkInputHandler) => { inputCallback = cb; });
+
+      const { unmount } = render(
+        <TransferModal repo={mockRepo} onTransfer={onTransfer} onCancel={onCancel} />
+      );
+
+      await advanceToConfirm(() => inputCallback);
+
+      // Confirm the transfer, then in the SAME tick try to cancel/re-submit. The
+      // synchronous submittingRef guard must swallow these without a re-render.
+      inputCallback('y', {});
+      inputCallback('', { escape: true });
+      inputCallback('c', {});
+      inputCallback('', { return: true });
+
+      expect(onCancel).not.toHaveBeenCalled();
+      expect(onTransfer).toHaveBeenCalledTimes(1);
+      expect(onTransfer).toHaveBeenCalledWith(mockRepo, 'neworg');
+      unmount();
+    });
   });
 });

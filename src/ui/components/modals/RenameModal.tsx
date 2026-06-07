@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { Box, Text, useInput } from 'ink';
 import TextInput from 'ink-text-input';
 import type { RepoNode } from '../../../types';
@@ -17,6 +17,9 @@ export default function RenameModal({ repo, onRename, onCancel, theme: themeProp
   const { theme } = useTheme(themeProp?.name ?? 'default');
   const [newName, setNewName] = useState('');
   const [renaming, setRenaming] = useState(false);
+  // Synchronous mirror of `renaming` so input is guarded in the same tick as submit,
+  // before React re-renders (see ArchiveModal for the rationale).
+  const renamingRef = useRef(false);
   const [renameError, setRenameError] = useState<string | null>(null);
 
   // Initialize with current repo name when modal opens
@@ -29,7 +32,7 @@ export default function RenameModal({ repo, onRename, onCancel, theme: themeProp
 
   // Handle keyboard input for submit/cancel
   useInput((input, key) => {
-    if (renaming) return; // Ignore input while renaming
+    if (renamingRef.current) return; // Ignore input while renaming
     
     if (key.escape) {
       onCancel();
@@ -46,14 +49,16 @@ export default function RenameModal({ repo, onRename, onCancel, theme: themeProp
 
   // Handle the rename confirmation
   const handleRenameConfirm = async () => {
-    if (!repo || renaming || !newName.trim() || newName === repo.name) return;
-    
+    if (!repo || renamingRef.current || !newName.trim() || newName === repo.name) return;
+
     try {
+      renamingRef.current = true;
       setRenaming(true);
       setRenameError(null);
       await onRename(repo, newName.trim());
     } catch (e: any) {
       setRenameError(e.message || 'Failed to rename repository');
+      renamingRef.current = false;
       setRenaming(false);
     }
   };
