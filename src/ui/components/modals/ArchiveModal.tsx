@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useRef, useState } from 'react';
 import { Box, Text, useInput } from 'ink';
 import chalk from 'chalk';
 import type { RepoNode } from '../../../types';
@@ -12,12 +12,13 @@ interface ArchiveModalProps {
 
 export default function ArchiveModal({ repo, onArchive, onCancel }: ArchiveModalProps) {
   const [archiving, setArchiving] = useState(false);
+  const archivingRef = useRef(false);
   const [archiveError, setArchiveError] = useState<string | null>(null);
   const [archiveFocus, setArchiveFocus] = useState<'confirm' | 'cancel'>('confirm');
 
   // Handle keyboard input
   useInput((input, key) => {
-    if (archiving) return; // Ignore input while archiving
+    if (archivingRef.current) return; // Ignore input while archiving, even before React re-renders
     
     if (key.escape || input.toLowerCase() === 'c') {
       onCancel();
@@ -45,14 +46,16 @@ export default function ArchiveModal({ repo, onArchive, onCancel }: ArchiveModal
 
   // Handle the archive confirmation
   const handleArchiveConfirm = async () => {
-    if (!repo || archiving) return;
+    if (!repo || archivingRef.current) return;
     
     try {
+      archivingRef.current = true;
       setArchiving(true);
       setArchiveError(null);
       await onArchive(repo);
     } catch (e: any) {
       setArchiveError(e.message || `Failed to ${repo.isArchived ? 'unarchive' : 'archive'} repository`);
+      archivingRef.current = false;
       setArchiving(false);
     }
   };
