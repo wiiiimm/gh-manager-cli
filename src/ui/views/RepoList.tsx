@@ -1393,6 +1393,16 @@ export default function RepoList({ token, maxVisibleRows, onLogout, viewerLogin,
       return; // BulkDeleteCodeModal handles its own input
     }
 
+    // Bulk transfer destination prompt (transfer only)
+    if (bulkTransferDestinationOpen) {
+      return; // BulkTransferDestinationModal handles its own input
+    }
+
+    // Bulk transfer verification-code modal (Confirmation 3, transfer only)
+    if (bulkTransferCodeOpen) {
+      return; // BulkTransferCodeModal handles its own input
+    }
+
     // Handle input when in error state
     if (error) {
       // Quit on 'Q'
@@ -1693,7 +1703,8 @@ export default function RepoList({ token, maxVisibleRows, onLogout, viewerLogin,
         // Ctrl+V: bulk visibility update
         if (key.ctrl && (input === 'v' || input === 'V')) { startBulkVisibility(); return; }
         // Shift+M: bulk transfer (move) to another owner
-        if (!key.ctrl && input === 'M') { startBulkTransfer(); return; }
+        // Match the single-repo transfer binding (key.shift && 'M') for consistency
+        if (key.shift && input === 'M') { startBulkTransfer(); return; }
         // Del/Backspace: bulk delete
         if (key.delete || key.backspace) { startBulkDelete(); return; }
       }
@@ -2192,7 +2203,7 @@ export default function RepoList({ token, maxVisibleRows, onLogout, viewerLogin,
 
   const lowRate = (rateLimit && rateLimit.remaining <= Math.ceil(rateLimit.limit * 0.1)) || 
                    (restRateLimit && restRateLimit.core.remaining <= Math.ceil(restRateLimit.core.limit * 0.1));
-  const modalOpen = deleteMode || archiveMode || syncMode || logoutMode || infoMode || visibilityMode || archiveFilterMode || sortMode || sortDirectionMode || changeVisibilityMode || copyUrlMode || renameMode || bulkIntentKind !== null || bulkVisibilityOpen || bulkReviewOpen || bulkConfirmOpen || bulkDeleteCodeOpen || bulkProgressOpen || openInBrowserMode || createMode || transferMode;
+  const modalOpen = deleteMode || archiveMode || syncMode || logoutMode || infoMode || visibilityMode || archiveFilterMode || sortMode || sortDirectionMode || changeVisibilityMode || copyUrlMode || renameMode || bulkIntentKind !== null || bulkVisibilityOpen || bulkReviewOpen || bulkConfirmOpen || bulkDeleteCodeOpen || bulkTransferDestinationOpen || bulkTransferCodeOpen || bulkProgressOpen || openInBrowserMode || createMode || transferMode;
 
   // Display metadata for the in-flight bulk action (label/colour/verbs).
   const bulkMeta = bulkAction ? bulkActionMeta(bulkAction, bulkVisibilityTarget ?? undefined) : null;

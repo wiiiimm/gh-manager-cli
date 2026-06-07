@@ -69,7 +69,7 @@ Launch the app, then use the keys below to navigate and interact with your repos
 
 ## Bulk Select Mode (Bulk Operations)
 
-Bulk Select mode lets you select multiple repositories and run a bulk action (star/unstar, archive/unarchive, visibility change, or delete) against all of them at once. The actions reuse the same global shortcuts as single-repo mode; while in bulk select mode every other shortcut is disabled.
+Bulk Select mode lets you select multiple repositories and run a bulk action (star/unstar, archive/unarchive, visibility change, transfer/move, or delete) against all of them at once. The actions reuse the same global shortcuts as single-repo mode; while in bulk select mode every other shortcut is disabled.
 
 ### Entering Bulk Select Mode
 
