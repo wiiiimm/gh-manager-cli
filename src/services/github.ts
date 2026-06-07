@@ -191,14 +191,12 @@ export async function fetchViewerReposPage(
   orderBy?: { field: string; direction: string },
   includeForkTracking: boolean = true,
   ownerAffiliations: OwnerAffiliation[] = ['OWNER'],
-  organizationLogin?: string,
-  privacy?: 'PUBLIC' | 'PRIVATE'
+  organizationLogin?: string
 ): Promise<ReposPageResult> {
-  logger.debug('Using Octokit client for fetching repos', { 
-    first, 
-    after, 
-    organizationLogin, 
-    privacy 
+  logger.debug('Using Octokit client for fetching repos', {
+    first,
+    after,
+    organizationLogin
   });
   // Default to UPDATED_AT DESC if not specified
   const sortField = orderBy?.field || 'UPDATED_AT';
@@ -216,7 +214,6 @@ export async function fetchViewerReposPage(
         $sortField: RepositoryOrderField!
         $sortDirection: OrderDirection!
         $orgLogin: String!
-        $privacy: RepositoryPrivacy
       ) {
         rateLimit {
           limit
@@ -228,7 +225,6 @@ export async function fetchViewerReposPage(
             first: $first
             after: $after
             orderBy: { field: $sortField, direction: $sortDirection }
-            privacy: $privacy
           ) {
             totalCount
             pageInfo {
@@ -299,7 +295,6 @@ export async function fetchViewerReposPage(
       sortField,
       sortDirection,
       orgLogin: organizationLogin,
-      privacy: privacy ?? null,
     });
     
     const data = res.organization.repositories;
@@ -320,7 +315,6 @@ export async function fetchViewerReposPage(
       $sortField: RepositoryOrderField!
       $sortDirection: OrderDirection!
       $affiliations: [RepositoryAffiliation!]!
-      $privacy: RepositoryPrivacy
     ) {
       rateLimit {
         limit
@@ -333,7 +327,6 @@ export async function fetchViewerReposPage(
           first: $first
           after: $after
           orderBy: { field: $sortField, direction: $sortDirection }
-          privacy: $privacy
         ) {
           totalCount
           pageInfo {
@@ -400,7 +393,6 @@ export async function fetchViewerReposPage(
       sortField,
       sortDirection,
       affiliations: ownerAffiliations,
-      privacy: privacy ?? null,
     });
     
     const data = res.viewer.repositories;
@@ -432,20 +424,18 @@ export async function fetchViewerReposPageUnified(
   includeForkTracking: boolean = true,
   fetchPolicy: 'cache-first' | 'network-only' = 'cache-first',
   ownerAffiliations: OwnerAffiliation[] = ['OWNER'],
-  organizationLogin?: string,
-  privacy?: 'PUBLIC' | 'PRIVATE'
+  organizationLogin?: string
 ): Promise<ReposPageResult> {
   const isApolloEnabled = true; // Apollo is the default, with Octokit as fallback
   const debug = process.env.GH_MANAGER_DEBUG === '1';
   const isOrgContext = !!organizationLogin;
-  
+
   logger.info('Fetching repositories', {
     fetchPolicy,
     isOrgContext,
     organizationLogin,
     first,
     after,
-    privacy,
     ownerAffiliations
   });
   
@@ -463,16 +453,16 @@ export async function fetchViewerReposPageUnified(
       
       // Different query based on context (personal vs organization)
       let q;
-      let variables: any = { first, after: after ?? null, sortField, sortDirection, privacy: privacy ?? null };
+      let variables: any = { first, after: after ?? null, sortField, sortDirection };
       
       if (isOrgContext) {
         // Organization context
         variables.orgLogin = organizationLogin;
         q = (ap.gql as any)`
-          query OrgRepos($first: Int!, $after: String, $sortField: RepositoryOrderField!, $sortDirection: OrderDirection!, $orgLogin: String!, $privacy: RepositoryPrivacy) {
+          query OrgRepos($first: Int!, $after: String, $sortField: RepositoryOrderField!, $sortDirection: OrderDirection!, $orgLogin: String!) {
             rateLimit { limit remaining resetAt }
             organization(login: $orgLogin) {
-              repositories(first: $first, after: $after, orderBy: { field: $sortField, direction: $sortDirection }, privacy: $privacy) {
+              repositories(first: $first, after: $after, orderBy: { field: $sortField, direction: $sortDirection }) {
                 totalCount
                 pageInfo { endCursor hasNextPage }
                 nodes {
@@ -503,10 +493,10 @@ export async function fetchViewerReposPageUnified(
         // Personal context
         variables.affiliations = ownerAffiliations;
         q = (ap.gql as any)`
-          query ViewerRepos($first: Int!, $after: String, $sortField: RepositoryOrderField!, $sortDirection: OrderDirection!, $affiliations: [RepositoryAffiliation!]!, $privacy: RepositoryPrivacy) {
+          query ViewerRepos($first: Int!, $after: String, $sortField: RepositoryOrderField!, $sortDirection: OrderDirection!, $affiliations: [RepositoryAffiliation!]!) {
             rateLimit { limit remaining resetAt }
             viewer {
-              repositories(ownerAffiliations: $affiliations, first: $first, after: $after, orderBy: { field: $sortField, direction: $sortDirection }, privacy: $privacy) {
+              repositories(ownerAffiliations: $affiliations, first: $first, after: $after, orderBy: { field: $sortField, direction: $sortDirection }) {
                 totalCount
                 pageInfo { endCursor hasNextPage }
                 nodes {
@@ -588,7 +578,7 @@ export async function fetchViewerReposPageUnified(
   logger.warn('Falling back to Octokit client');
   if (debug) console.log('📡 Using Octokit fallback...');
   const octo = makeClient(token);
-  return fetchViewerReposPage(octo, first, after, orderBy, includeForkTracking, ownerAffiliations, organizationLogin, privacy);
+  return fetchViewerReposPage(octo, first, after, orderBy, includeForkTracking, ownerAffiliations, organizationLogin);
 }
 
 // Server-side search repositories for the viewer (Apollo-first, network-only by default)

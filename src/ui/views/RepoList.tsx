@@ -593,21 +593,14 @@ export default function RepoList({ token, maxVisibleRows, onLogout, viewerLogin,
         } else if (action === 'visibility' && visTarget) {
           await changeRepositoryVisibility(client, repo.id, visTarget, token);
           await updateCacheAfterVisibilityChange(token, repo.id, visTarget);
-          // Mirror the single-repo path: drop repos that no longer match the
-          // active visibility filter (the 'public' filter isn't reactive in
-          // `filtered`, so an in-place update would leave them wrongly visible).
-          const shouldRemove =
-            (visibilityFilter === 'public' && visTarget !== 'PUBLIC') ||
-            (visibilityFilter === 'private' && visTarget !== 'PRIVATE' && visTarget !== 'INTERNAL');
-          if (shouldRemove) {
-            setItems(prev => prev.filter(r => r.id !== repo.id));
-            setTotalCount(c => Math.max(0, c - 1));
-          } else {
-            const updateRepo = (r: RepoNode) => r.id === repo.id
-              ? { ...r, visibility: visTarget, isPrivate: visTarget !== 'PUBLIC' }
-              : r;
-            setItems(prev => prev.map(updateRepo));
-          }
+          // Update visibility in place and keep the repo in the full cached set
+          // (SWR-366). `filtered` reactively hides repos that no longer match the
+          // active visibility filter (both 'public' and 'private'), so they stay
+          // available when the filter changes — never prune here.
+          const updateRepo = (r: RepoNode) => r.id === repo.id
+            ? { ...r, visibility: visTarget, isPrivate: visTarget !== 'PUBLIC' }
+            : r;
+          setItems(prev => prev.map(updateRepo));
         }
         trackSuccessfulOperation();
       } catch (e: any) {
@@ -864,29 +857,16 @@ export default function RepoList({ token, maxVisibleRows, onLogout, viewerLogin,
       
       // Update Apollo cache
       await updateCacheAfterVisibilityChange(token, id, newVisibility as 'PUBLIC' | 'PRIVATE' | 'INTERNAL');
-      
-      // Check if the repo should be removed based on current visibility filter
-      // Note: 'private' filter includes both PRIVATE and INTERNAL
-      const shouldRemove = 
-        (visibilityFilter === 'public' && newVisibility !== 'PUBLIC') ||
-        (visibilityFilter === 'private' && newVisibility !== 'PRIVATE' && newVisibility !== 'INTERNAL');
-      
-      if (shouldRemove) {
-        // Remove the repo from the list if it doesn't match the filter
-        setItems(prev => prev.filter((r: any) => r.id !== id));
 
-        // Update counts
-        setTotalCount(c => Math.max(0, c - 1));
+      // Update the repo's visibility in place and keep it in the full cached set
+      // (SWR-366). Visibility filtering is reactive over `items` in `filtered`, so
+      // a repo that no longer matches the active filter is hidden automatically and
+      // reappears when the filter changes — never prune it here (cursor is clamped
+      // by the visibleItems effect).
+      const isPrivate = newVisibility === 'PRIVATE';
+      const updateRepo = (r: any) => (r.id === id ? { ...r, visibility: newVisibility, isPrivate } : r);
+      setItems(prev => prev.map(updateRepo));
 
-        // Adjust cursor if needed
-        setCursor(c => Math.max(0, Math.min(c, items.length - 2)));
-      } else {
-        // Update the repo in place if it still matches the filter
-        const isPrivate = newVisibility === 'PRIVATE';
-        const updateRepo = (r: any) => (r.id === id ? { ...r, visibility: newVisibility, isPrivate } : r);
-        setItems(prev => prev.map(updateRepo));
-      }
-      
       closeChangeVisibilityModal();
     } catch (e: any) {
       setChangingVisibility(false);
