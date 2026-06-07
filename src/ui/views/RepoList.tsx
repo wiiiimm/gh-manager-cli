@@ -18,7 +18,7 @@ import { UnstarModal } from '../components/modals/UnstarModal';
 import { RepoRow, FilterInput, RepoListHeader } from '../components/repo';
 import { SlowSpinner } from '../components/common';
 import { truncate, formatDate, copyToClipboard, computeWindow } from '../../lib/utils';
-import { trackOperation } from '../../lib/session';
+import { trackOperation, bulkActionToOperation } from '../../lib/session';
 
 // Allow customizable repos per fetch via env var (1-50, default 15)
 const getPageSize = () => {
@@ -624,6 +624,7 @@ export default function RepoList({ token, maxVisibleRows, onLogout, viewerLogin,
           // processed — surface it as a failure instead of a silent no-op.
           throw new Error(`Missing required parameter for bulk ${action}`);
         }
+        trackOperation(bulkActionToOperation(action));
         trackSuccessfulOperation();
       } catch (e: any) {
         failed.push({ repo, error: e.message || 'Unknown error' });
@@ -843,6 +844,7 @@ export default function RepoList({ token, maxVisibleRows, onLogout, viewerLogin,
     setTotalCount(c => Math.max(0, c - 1));
     setCursor(c => Math.max(0, Math.min(c, visibleItems.length - 2)));
 
+    trackOperation('transfer');
     trackSuccessfulOperation();
     closeTransferModal();
   }

@@ -6,7 +6,8 @@ export type OperationType =
   | 'syncFork'
   | 'rename'
   | 'star'
-  | 'unstar';
+  | 'unstar'
+  | 'transfer';
 
 interface OperationCounts {
   delete: number;
@@ -17,6 +18,7 @@ interface OperationCounts {
   rename: number;
   star: number;
   unstar: number;
+  transfer: number;
 }
 
 const startTime = new Date();
@@ -29,6 +31,7 @@ const counts: OperationCounts = {
   rename: 0,
   star: 0,
   unstar: 0,
+  transfer: 0,
 };
 
 export function trackOperation(type: OperationType): void {
@@ -63,7 +66,18 @@ const OPERATION_LABELS: Record<OperationType, string> = {
   rename: 'renamed',
   star: 'starred',
   unstar: 'unstarred',
+  transfer: 'transferred',
 };
+
+// Map a bulk (multi-select) action to its session OperationType. Kept here so
+// both the single-repo handlers and the bulk loop record the same per-type
+// counts in the end-of-session summary. 'visibility' is the only name that
+// differs from its OperationType ('visibilityChange'); the rest are identical.
+export function bulkActionToOperation(
+  action: 'delete' | 'archive' | 'unarchive' | 'star' | 'unstar' | 'visibility' | 'transfer',
+): OperationType {
+  return action === 'visibility' ? 'visibilityChange' : action;
+}
 
 export function formatSessionSummary(): string {
   const durationMs = Date.now() - startTime.getTime();
