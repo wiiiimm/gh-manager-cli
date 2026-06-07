@@ -17,7 +17,7 @@ import type { BulkAction, BulkVisibilityTarget, BulkProgressState } from '../com
 import { UnstarModal } from '../components/modals/UnstarModal';
 import { RepoRow, FilterInput, RepoListHeader } from '../components/repo';
 import { SlowSpinner } from '../components/common';
-import { truncate, formatDate, copyToClipboard, computeWindow, matchesVisibilityFilter } from '../../lib/utils';
+import { truncate, formatDate, copyToClipboard, computeWindow, matchesVisibilityFilter, type VisibilityFilter } from '../../lib/utils';
 
 // Allow customizable repos per fetch via env var (1-50, default 15)
 const getPageSize = () => {
@@ -1103,8 +1103,8 @@ export default function RepoList({ token, maxVisibleRows, onLogout, viewerLogin,
     }
   }
 
-  // Visibility filter - 'all' | 'public' | 'private'
-  type VisibilityFilter = 'all' | 'public' | 'private';
+  // Visibility filter - 'all' | 'public' | 'private' (VisibilityFilter type
+  // shared from lib/utils, see import above)
   const [visibilityFilter, setVisibilityFilter] = useState<VisibilityFilter>('all');
   // nameWithOwner of a repo queued to receive cursor focus once it appears in
   // the (re-sorted/filtered) visible list — e.g. a freshly created repo, whose
