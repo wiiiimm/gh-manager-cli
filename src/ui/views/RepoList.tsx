@@ -593,10 +593,21 @@ export default function RepoList({ token, maxVisibleRows, onLogout, viewerLogin,
         } else if (action === 'visibility' && visTarget) {
           await changeRepositoryVisibility(client, repo.id, visTarget, token);
           await updateCacheAfterVisibilityChange(token, repo.id, visTarget);
-          const updateRepo = (r: RepoNode) => r.id === repo.id
-            ? { ...r, visibility: visTarget, isPrivate: visTarget !== 'PUBLIC' }
-            : r;
-          setItems(prev => prev.map(updateRepo));
+          // Mirror the single-repo path: drop repos that no longer match the
+          // active visibility filter (the 'public' filter isn't reactive in
+          // `filtered`, so an in-place update would leave them wrongly visible).
+          const shouldRemove =
+            (visibilityFilter === 'public' && visTarget !== 'PUBLIC') ||
+            (visibilityFilter === 'private' && visTarget !== 'PRIVATE' && visTarget !== 'INTERNAL');
+          if (shouldRemove) {
+            setItems(prev => prev.filter(r => r.id !== repo.id));
+            setTotalCount(c => Math.max(0, c - 1));
+          } else {
+            const updateRepo = (r: RepoNode) => r.id === repo.id
+              ? { ...r, visibility: visTarget, isPrivate: visTarget !== 'PUBLIC' }
+              : r;
+            setItems(prev => prev.map(updateRepo));
+          }
         }
         trackSuccessfulOperation();
       } catch (e: any) {

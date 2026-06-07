@@ -60,6 +60,12 @@ export default function BulkReviewModal({
         if (repo) {
           const next = new Map(localSelection);
           next.delete(repo.id);
+          // Dismiss the modal once the selection is emptied (per spec) instead
+          // of leaving an empty list with only an "Esc to cancel" message.
+          if (next.size === 0) {
+            onCancel();
+            return;
+          }
           setLocalSelection(next);
           setListCursor(c => Math.min(c, Math.max(0, next.size - 1)));
         }
