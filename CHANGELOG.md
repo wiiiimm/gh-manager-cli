@@ -1,9 +1,9 @@
-## [Unreleased]
+## [1.46.1](https://github.com/wiiiimm/gh-manager-cli/compare/v1.46.0...v1.46.1) (2026-06-07)
 
-### Added
 
-- Bulk transfer (move) repositories to another owner/org from Bulk Select mode (`Shift+M`): destination prompt → review → count confirm → 4-char verification code → sequential execution with per-repo progress and partial-failure reporting ([SWR-369](https://linear.app/stealths/issue/SWR-369/bulk-transfer-move-repos-to-another-ownerorg-bulk-select-action))
-- Shared `BulkCodeModal` component — generic verification-code step now reused by both bulk delete and bulk transfer
+### Performance Improvements
+
+* make visibility filter fully client-side (SWR-366) [semantic pr title] ([#61](https://github.com/wiiiimm/gh-manager-cli/issues/61)) ([02c6064](https://github.com/wiiiimm/gh-manager-cli/commit/02c6064dbb2854a943f0580297661589dabc9545))
 
 # [1.46.0](https://github.com/wiiiimm/gh-manager-cli/compare/v1.45.1...v1.46.0) (2026-06-07)
 

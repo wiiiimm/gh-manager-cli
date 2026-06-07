@@ -597,21 +597,14 @@ export default function RepoList({ token, maxVisibleRows, onLogout, viewerLogin,
         } else if (action === 'visibility' && visTarget) {
           await changeRepositoryVisibility(client, repo.id, visTarget, token);
           await updateCacheAfterVisibilityChange(token, repo.id, visTarget);
-          // Mirror the single-repo path: drop repos that no longer match the
-          // active visibility filter (the 'public' filter isn't reactive in
-          // `filtered`, so an in-place update would leave them wrongly visible).
-          const shouldRemove =
-            (visibilityFilter === 'public' && visTarget !== 'PUBLIC') ||
-            (visibilityFilter === 'private' && visTarget !== 'PRIVATE' && visTarget !== 'INTERNAL');
-          if (shouldRemove) {
-            setItems(prev => prev.filter(r => r.id !== repo.id));
-            setTotalCount(c => Math.max(0, c - 1));
-          } else {
-            const updateRepo = (r: RepoNode) => r.id === repo.id
-              ? { ...r, visibility: visTarget, isPrivate: visTarget !== 'PUBLIC' }
-              : r;
-            setItems(prev => prev.map(updateRepo));
-          }
+          // Update visibility in place and keep the repo in the full cached set
+          // (SWR-366). `filtered` reactively hides repos that no longer match the
+          // active visibility filter (both 'public' and 'private'), so they stay
+          // available when the filter changes — never prune here.
+          const updateRepo = (r: RepoNode) => r.id === repo.id
+            ? { ...r, visibility: visTarget, isPrivate: visTarget !== 'PUBLIC' }
+            : r;
+          setItems(prev => prev.map(updateRepo));
         } else if (action === 'transfer' && transferDest) {
           const [owner, repoName] = repo.nameWithOwner.split('/');
           await transferRepositoryRest(token, owner, repoName, transferDest);
@@ -757,19 +750,29 @@ export default function RepoList({ token, maxVisibleRows, onLogout, viewerLogin,
       (visibilityFilter === 'public' && visibility === 'PUBLIC') ||
       (visibilityFilter === 'private' && (visibility === 'PRIVATE' || visibility === 'INTERNAL'));
     if (!passesVisibilityFilter) {
-      previousVisibilityFilter.current = 'all';
       storeUIPrefs({ visibilityFilter: 'all' });
       setVisibilityFilter('all');
     }
 
     // Fetch the freshly created repo node and insert it so it's visible right
     // away. A just-created repo can briefly be missing from GraphQL (replication
-    // lag), so retry once before falling back to a full network refresh.
+    // lag), so retry once before falling back to a full network refresh. The repo
+    // already exists at this point (createRepositoryRest succeeded), so treat any
+    // lookup error like a missing node — fall back to the refresh branch rather
+    // than bubbling it up and wrongly reporting the create as failed.
     const [owner, repoName] = (nameWithOwner || '').split('/');
-    let created = await fetchRepositoryByOwnerAndName(client, owner, repoName);
-    if (!created) {
-      await new Promise(resolve => setTimeout(resolve, 600));
+    let created: Awaited<ReturnType<typeof fetchRepositoryByOwnerAndName>> = null;
+    try {
       created = await fetchRepositoryByOwnerAndName(client, owner, repoName);
+      if (!created) {
+        await new Promise(resolve => setTimeout(resolve, 600));
+        created = await fetchRepositoryByOwnerAndName(client, owner, repoName);
+      }
+    } catch (err: any) {
+      logger.warn('Created repository lookup failed; falling back to refresh', {
+        error: err?.message,
+        nameWithOwner
+      });
     }
 
     setCreateMode(false);
@@ -788,7 +791,7 @@ export default function RepoList({ token, maxVisibleRows, onLogout, viewerLogin,
       setRefreshing(true);
       setSortingLoading(true);
       try { await purgeApolloCacheFiles(); } catch {}
-      fetchPage(null, true, true, undefined, 'network-only', passesVisibilityFilter ? undefined : 'all');
+      fetchPage(null, true, true, undefined, 'network-only');
     }
   }
 
@@ -884,29 +887,16 @@ export default function RepoList({ token, maxVisibleRows, onLogout, viewerLogin,
       
       // Update Apollo cache
       await updateCacheAfterVisibilityChange(token, id, newVisibility as 'PUBLIC' | 'PRIVATE' | 'INTERNAL');
-      
-      // Check if the repo should be removed based on current visibility filter
-      // Note: 'private' filter includes both PRIVATE and INTERNAL
-      const shouldRemove = 
-        (visibilityFilter === 'public' && newVisibility !== 'PUBLIC') ||
-        (visibilityFilter === 'private' && newVisibility !== 'PRIVATE' && newVisibility !== 'INTERNAL');
-      
-      if (shouldRemove) {
-        // Remove the repo from the list if it doesn't match the filter
-        setItems(prev => prev.filter((r: any) => r.id !== id));
 
-        // Update counts
-        setTotalCount(c => Math.max(0, c - 1));
+      // Update the repo's visibility in place and keep it in the full cached set
+      // (SWR-366). Visibility filtering is reactive over `items` in `filtered`, so
+      // a repo that no longer matches the active filter is hidden automatically and
+      // reappears when the filter changes — never prune it here (cursor is clamped
+      // by the visibleItems effect).
+      const isPrivate = newVisibility === 'PRIVATE';
+      const updateRepo = (r: any) => (r.id === id ? { ...r, visibility: newVisibility, isPrivate } : r);
+      setItems(prev => prev.map(updateRepo));
 
-        // Adjust cursor if needed
-        setCursor(c => Math.max(0, Math.min(c, items.length - 2)));
-      } else {
-        // Update the repo in place if it still matches the filter
-        const isPrivate = newVisibility === 'PRIVATE';
-        const updateRepo = (r: any) => (r.id === id ? { ...r, visibility: newVisibility, isPrivate } : r);
-        setItems(prev => prev.map(updateRepo));
-      }
-      
       closeChangeVisibilityModal();
     } catch (e: any) {
       setChangingVisibility(false);
@@ -1138,7 +1128,6 @@ export default function RepoList({ token, maxVisibleRows, onLogout, viewerLogin,
   // Visibility filter - 'all' | 'public' | 'private'
   type VisibilityFilter = 'all' | 'public' | 'private';
   const [visibilityFilter, setVisibilityFilter] = useState<VisibilityFilter>('all');
-  const previousVisibilityFilter = useRef<VisibilityFilter>('all');
   // nameWithOwner of a repo queued to receive cursor focus once it appears in
   // the (re-sorted/filtered) visible list — e.g. a freshly created repo, whose
   // position depends on the active sort rather than always being at the top.
@@ -1161,10 +1150,7 @@ export default function RepoList({ token, maxVisibleRows, onLogout, viewerLogin,
     reset = false,
     isSortChange = false,
     overrideForkTracking?: boolean,
-    policy?: 'cache-first' | 'network-only',
-    // Force the API privacy parameter instead of deriving it from
-    // visibilityFilter. 'all' clears it (returns every visibility).
-    privacyOverride?: 'PUBLIC' | 'PRIVATE' | 'all'
+    policy?: 'cache-first' | 'network-only'
   ) => {
     logger.info('fetchPage called', {
       after,
@@ -1192,15 +1178,9 @@ export default function RepoList({ token, maxVisibleRows, onLogout, viewerLogin,
       
       // Determine organization login if in org context
       const orgLogin = ownerContext !== 'personal' ? ownerContext.login : undefined;
-      
-      // Map visibility filter to API privacy parameter
-      let privacy: 'PUBLIC' | 'PRIVATE' | undefined;
-      if (privacyOverride !== undefined) {
-        privacy = privacyOverride === 'all' ? undefined : privacyOverride;
-      } else if (visibilityFilter === 'public') privacy = 'PUBLIC';
-      else if (visibilityFilter === 'private') privacy = 'PRIVATE';
-      // Note: GitHub API doesn't support filtering by INTERNAL at the API level
-      
+
+      // Visibility is filtered entirely client-side (SWR-366), so we always
+      // fetch the complete set and never pass a privacy narrowing to the API.
       const page = await fetchViewerReposPageUnified(
         token,
         PAGE_SIZE,
@@ -1209,8 +1189,7 @@ export default function RepoList({ token, maxVisibleRows, onLogout, viewerLogin,
         overrideForkTracking ?? forkTracking,
         policy ?? (after ? 'network-only' : 'cache-first'),
         ownerAffiliations,
-        orgLogin,
-        privacy
+        orgLogin
       );
       
       // A fresh list load (refresh, sort change, org switch, first page)
@@ -1368,20 +1347,8 @@ export default function RepoList({ token, maxVisibleRows, onLogout, viewerLogin,
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [client, prefsLoaded, ownerContext, ownerAffiliations]);
 
-  // Sorting changes.
-  // Refresh from server when visibility filter changes
-  useEffect(() => {
-    // Skip initial mount and 'all' filter (no server filtering needed)
-    if (visibilityFilter !== 'all' || (previousVisibilityFilter.current && previousVisibilityFilter.current !== visibilityFilter)) {
-      if (items.length > 0) {
-        fetchPage(null, true, true, undefined, 'network-only');
-      }
-    }
-
-    // Update previous ref
-    previousVisibilityFilter.current = visibilityFilter;
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [visibilityFilter]);
+  // Visibility filter is applied entirely client-side over the full cached set
+  // (SWR-366) — no server refetch is needed, so changing it never hits the API.
 
   // Handle organization context switching
   // Organization context handler is defined above (function handleOrgContextChange)
@@ -2074,13 +2041,14 @@ export default function RepoList({ token, maxVisibleRows, onLogout, viewerLogin,
   const filtered = useMemo(() => {
     let result = items;
     
-    // Apply visibility filter locally
-    // Match GitHub's behavior: Private filter includes both PRIVATE and INTERNAL
+    // Apply visibility filter locally over the full cached set (SWR-366).
+    // Match GitHub's behaviour: Private filter includes both PRIVATE and INTERNAL.
     if (visibilityFilter === 'private') {
-      // Show both PRIVATE and INTERNAL repos (matching GitHub's behavior)
+      // Show both PRIVATE and INTERNAL repos (matching GitHub's behaviour)
       result = result.filter(r => r.visibility === 'PRIVATE' || r.visibility === 'INTERNAL');
+    } else if (visibilityFilter === 'public') {
+      result = result.filter(r => r.visibility === 'PUBLIC');
     }
-    // Note: Public filtering is done at the API level and works correctly
     
     // Apply archive filter
     if (archiveFilter === 'archived') {
