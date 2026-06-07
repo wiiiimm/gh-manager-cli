@@ -695,7 +695,10 @@ export default function RepoList({ token, maxVisibleRows, onLogout, viewerLogin,
     // contain repos owned by others). Mirror the single-repo guard, which is
     // disabled in starred mode.
     if (starsMode) return;
-    setBulkTransferDestinationOpen(true); // step 0: collect destination
+    // Step 1: review/unselect the selection first (mirrors the other bulk
+    // actions). The destination prompt comes after review — see the
+    // BulkReviewModal onConfirm transfer branch.
+    beginBulkReview('transfer');
   }
 
   // Shared rename execution function
@@ -2944,7 +2947,13 @@ export default function RepoList({ token, maxVisibleRows, onLogout, viewerLogin,
                 setSelectedRepos(finalSelection);
                 setBulkFinalSelection(finalSelection);
                 setBulkReviewOpen(false);
-                setBulkConfirmOpen(true);
+                if (bulkAction === 'transfer') {
+                  // Transfer collects the destination owner after review,
+                  // before the count/code confirmation.
+                  setBulkTransferDestinationOpen(true);
+                } else {
+                  setBulkConfirmOpen(true);
+                }
               }}
               onCancel={resetBulkFlow}
             />
@@ -2966,13 +2975,15 @@ export default function RepoList({ token, maxVisibleRows, onLogout, viewerLogin,
         ) : bulkTransferDestinationOpen ? (
           <Box height={contentHeight} alignItems="center" justifyContent="center">
             <BulkTransferDestinationModal
-              count={selectedRepos.size}
+              count={bulkFinalSelection.size}
               currentOwner={ownerContext !== 'personal' ? ownerContext.login : (viewerLogin ?? '')}
               terminalWidth={terminalWidth}
               onChoose={(dest) => {
                 setBulkTransferDest(dest);
                 setBulkTransferDestinationOpen(false);
-                beginBulkReview('transfer');
+                // Review already ran (it precedes the destination prompt for
+                // transfer); proceed to the count confirmation.
+                setBulkConfirmOpen(true);
               }}
               onCancel={resetBulkFlow}
             />

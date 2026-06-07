@@ -316,7 +316,7 @@ Launch the app, then use the keys below:
   - Requires typing a randomly generated verification code (like delete), then a final confirmation before transferring
   - GitHub errors (e.g. insufficient permissions) are shown inline
 - **Bulk Transfer (Bulk Select mode)**: `Shift+M` within Bulk Select mode to move multiple repos at once
-  - Flow: destination owner prompt → review list (unselect) → count prompt → 4-character verification code → sequential execution with per-repo progress
+  - Flow: review list (unselect) → destination owner prompt → count prompt → 4-character verification code → sequential execution with per-repo progress
   - Transferred repos are removed from the current list; partial-failure report shown at completion
 - **Copy URL**: `C` to copy repository URL to clipboard (SSH/HTTPS options)
 
