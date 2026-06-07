@@ -130,15 +130,29 @@ export default function BulkReviewModal({
           {localRepos.slice(listStart, listEnd).map((repo, relIdx) => {
             const absIdx = listStart + relIdx;
             const isCursorRow = focusArea === 'list' && absIdx === listCursor;
+            // Visibility / archived badges, composed up-front so the highlighted
+            // row can include them inside its background segment — they must stay
+            // inline with the name rather than wrapping onto the next line.
+            const visText = repo.isPrivate
+              ? ' Private'
+              : repo.visibility === 'INTERNAL'
+                ? ' Internal'
+                : '';
+            const archText = repo.isArchived ? ' Archived' : '';
             let line = '';
             if (isCursorRow) {
-              line += chalk.bgCyan.black(` ✓ ${repo.nameWithOwner.padEnd(Math.max(0, modalWidth - 10))} `);
+              // One highlighted segment: name + badges + trailing pad, so the
+              // background spans the whole row and the badges never wrap.
+              const content = ` ✓ ${repo.nameWithOwner}${visText}${archText} `;
+              const target = Math.max(0, modalWidth - 6);
+              const padded =
+                content.length < target ? content + ' '.repeat(target - content.length) : content;
+              line += chalk.bgCyan.black(padded);
             } else {
               line += chalk.cyan(' ✓ ') + chalk.white(repo.nameWithOwner);
+              if (visText) line += (repo.isPrivate ? chalk.yellow : chalk.magenta)(visText);
+              if (archText) line += chalk.gray(archText);
             }
-            if (repo.isPrivate) line += chalk.yellow(' Private');
-            else if (repo.visibility === 'INTERNAL') line += chalk.magenta(' Internal');
-            if (repo.isArchived) line += chalk.gray(' Archived');
             return (
               <Box key={repo.id}>
                 <Text>{line}</Text>
