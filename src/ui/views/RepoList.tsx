@@ -686,6 +686,10 @@ export default function RepoList({ token, maxVisibleRows, onLogout, viewerLogin,
 
   function startBulkTransfer() {
     if (selectedRepos.size === 0) return;
+    // Transfer is owner-scoped and meaningless in starred mode (selection may
+    // contain repos owned by others). Mirror the single-repo guard, which is
+    // disabled in starred mode.
+    if (starsMode) return;
     setBulkTransferDestinationOpen(true); // step 0: collect destination
   }
 
@@ -3021,7 +3025,7 @@ export default function RepoList({ token, maxVisibleRows, onLogout, viewerLogin,
                 </Text>
                 <Text color="gray">
                   {selectedRepos.size > 0
-                    ? 'Space select · X unselect all · Ctrl+S star · Ctrl+A archive · Ctrl+V visibility · Del delete · B/Esc exit'
+                    ? `Space select · X unselect all · Ctrl+S star · Ctrl+A archive · Ctrl+V visibility${starsMode ? '' : ' · Shift+M transfer'} · Del delete · B/Esc exit`
                     : 'Space select · B/Esc exit'}
                 </Text>
               </Box>
@@ -3155,7 +3159,7 @@ export default function RepoList({ token, maxVisibleRows, onLogout, viewerLogin,
             <Text color={multiSelectMode ? 'cyan' : 'gray'} dimColor={!multiSelectMode}>
               {multiSelectMode
                 ? (selectedRepos.size > 0
-                    ? `Space select • X unselect all • Ctrl+S star • Ctrl+A archive • Ctrl+V visibility • Del delete • B/Esc exit (${selectedRepos.size} selected)`
+                    ? `Space select • X unselect all • Ctrl+S star • Ctrl+A archive • Ctrl+V visibility${starsMode ? '' : ' • Shift+M transfer'} • Del delete • B/Esc exit (${selectedRepos.size} selected)`
                     : 'B/Esc exit bulk select • Space select (no selection)')
                 : 'B Bulk Select mode (star/archive/visibility/delete)'
               }
