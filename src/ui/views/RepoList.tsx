@@ -920,10 +920,14 @@ export default function RepoList({ token, maxVisibleRows, onLogout, viewerLogin,
   async function jumpToUpstreamRepo(parentNameWithOwner: string) {
     const [parentOwner, parentName] = parentNameWithOwner.split('/');
     if (!parentOwner || !parentName) return;
-    const repo = await fetchRepositoryByOwnerAndName(client, parentOwner, parentName);
-    if (repo) {
-      setInfoRepo(repo);
-      setInfoMode(true);
+    try {
+      const repo = await fetchRepositoryByOwnerAndName(client, parentOwner, parentName);
+      if (repo) {
+        setInfoRepo(repo);
+        setInfoMode(true);
+      }
+    } catch (err: any) {
+      logger.error('Failed to fetch upstream repository', { error: err?.message, parentNameWithOwner });
     }
   }
 
