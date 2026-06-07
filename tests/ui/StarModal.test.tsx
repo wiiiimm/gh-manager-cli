@@ -51,6 +51,38 @@ describe('StarModal', () => {
     unmount();
   });
 
+  it('calls onConfirm when S is pressed', () => {
+    const onConfirm = vi.fn();
+    const onCancel = vi.fn();
+    let inputCallback!: InkInputHandler;
+    mockUseInput.mockImplementation((cb: InkInputHandler) => { inputCallback = cb; });
+
+    const { unmount } = render(
+      <StarModal visible repo={mockRepo} isStarred={false} onConfirm={onConfirm} onCancel={onCancel} />
+    );
+
+    inputCallback('s', {});
+    expect(onConfirm).toHaveBeenCalledTimes(1);
+    expect(onCancel).not.toHaveBeenCalled();
+    unmount();
+  });
+
+  it('calls onCancel when C is pressed', () => {
+    const onConfirm = vi.fn();
+    const onCancel = vi.fn();
+    let inputCallback!: InkInputHandler;
+    mockUseInput.mockImplementation((cb: InkInputHandler) => { inputCallback = cb; });
+
+    const { unmount } = render(
+      <StarModal visible repo={mockRepo} isStarred={false} onConfirm={onConfirm} onCancel={onCancel} />
+    );
+
+    inputCallback('c', {});
+    expect(onCancel).toHaveBeenCalledTimes(1);
+    expect(onConfirm).not.toHaveBeenCalled();
+    unmount();
+  });
+
   it('shows the loading state while starring', () => {
     mockUseInput.mockImplementation(() => {});
 

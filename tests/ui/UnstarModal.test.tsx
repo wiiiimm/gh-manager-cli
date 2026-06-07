@@ -62,6 +62,38 @@ describe('UnstarModal', () => {
     unmount();
   });
 
+  it('calls onConfirm when U is pressed', () => {
+    const onConfirm = vi.fn();
+    const onCancel = vi.fn();
+    let inputCallback!: InkInputHandler;
+    mockUseInput.mockImplementation((cb: InkInputHandler) => { inputCallback = cb; });
+
+    const { unmount } = render(
+      <UnstarModal visible repo={mockRepo} onConfirm={onConfirm} onCancel={onCancel} />
+    );
+
+    inputCallback('u', {});
+    expect(onConfirm).toHaveBeenCalledTimes(1);
+    expect(onCancel).not.toHaveBeenCalled();
+    unmount();
+  });
+
+  it('calls onCancel when C is pressed', () => {
+    const onConfirm = vi.fn();
+    const onCancel = vi.fn();
+    let inputCallback!: InkInputHandler;
+    mockUseInput.mockImplementation((cb: InkInputHandler) => { inputCallback = cb; });
+
+    const { unmount } = render(
+      <UnstarModal visible repo={mockRepo} onConfirm={onConfirm} onCancel={onCancel} />
+    );
+
+    inputCallback('c', {});
+    expect(onCancel).toHaveBeenCalledTimes(1);
+    expect(onConfirm).not.toHaveBeenCalled();
+    unmount();
+  });
+
   it('shows the loading state while unstarring', () => {
     mockUseInput.mockImplementation(() => {});
 

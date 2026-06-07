@@ -53,6 +53,22 @@ describe('SyncModal', () => {
     unmount();
   });
 
+  it('calls onCancel when C is pressed', () => {
+    const onSync = vi.fn(async () => {});
+    const onCancel = vi.fn();
+    let inputCallback!: InkInputHandler;
+    mockUseInput.mockImplementation((cb: InkInputHandler) => { inputCallback = cb; });
+
+    const { unmount } = render(
+      <SyncModal repo={mockRepo} onSync={onSync} onCancel={onCancel} />
+    );
+
+    inputCallback('c', {});
+    expect(onCancel).toHaveBeenCalledTimes(1);
+    expect(onSync).not.toHaveBeenCalled();
+    unmount();
+  });
+
   it('shows the loading state while syncing', async () => {
     const onSync = vi.fn(() => new Promise<void>(() => {})); // never resolves
     let inputCallback!: InkInputHandler;
