@@ -724,6 +724,161 @@ export async function deleteRepositoryRest(
   throw new Error(msg);
 }
 
+// GitHub GraphQL does not support creating repos. Use REST:
+//   - Personal: POST /user/repos
+//   - Organisation: POST /orgs/{org}/repos
+/**
+ * Parse a failed GitHub REST response into a human-readable error message,
+ * combining the top-level `message` with any per-field `errors[]` details.
+ *
+ * @param res The non-OK fetch Response.
+ * @param defaultMessage Fallback message used when the body can't be parsed.
+ */
+async function parseGitHubRestError(res: Response, defaultMessage: string): Promise<string> {
+  let msg = defaultMessage;
+  try {
+    const errBody = await res.json();
+    if (errBody?.message) msg = errBody.message;
+    if (Array.isArray(errBody?.errors) && errBody.errors.length > 0) {
+      const details = errBody.errors
+        .map((e: any) => e.message || (e.field ? `${e.field}: ${e.code}` : e.code))
+        .filter(Boolean)
+        .join('; ');
+      if (details) msg += ` (${details})`;
+    }
+  } catch {
+    // ignore body parse errors
+  }
+  return msg;
+}
+
+/** Options describing the repository to create via {@link createRepositoryRest}. */
+export interface CreateRepositoryOptions {
+  name: string;
+  visibility: 'PUBLIC' | 'PRIVATE' | 'INTERNAL';
+  description?: string;
+  org?: string; // when provided, create under the organisation instead of the viewer
+}
+
+/**
+ * Create a repository via the GitHub REST API.
+ *
+ * Posts to `/user/repos` for the viewer, or `/orgs/{org}/repos` when `options.org`
+ * is set. Maps the requested visibility to the REST body (`private` boolean, or
+ * `visibility: 'internal'` for enterprise organisations).
+ *
+ * @param token GitHub access token with repo-creation scope.
+ * @param options The new repository's name, visibility, optional description and org.
+ * @returns The created repository's `nameWithOwner` and web `url`.
+ * @throws Error with a GitHub-derived message on a non-201 response or network failure.
+ */
+export async function createRepositoryRest(
+  token: string,
+  options: CreateRepositoryOptions
+): Promise<{ nameWithOwner: string; url: string }> {
+  const { name, visibility, description, org } = options;
+  const url = org
+    ? `https://api.github.com/orgs/${org}/repos`
+    : `https://api.github.com/user/repos`;
+
+  const body: Record<string, any> = { name };
+  if (visibility === 'INTERNAL') {
+    // Internal visibility is only valid for org repos within an enterprise
+    body.visibility = 'internal';
+  } else {
+    body.private = visibility === 'PRIVATE';
+  }
+  if (description) body.description = description;
+
+  logger.info('Creating repository', { name, visibility, org: org ?? null, url });
+
+  let res: Response;
+  try {
+    res = await fetch(url, {
+      method: 'POST',
+      headers: {
+        'Authorization': `token ${token}`,
+        'Accept': 'application/vnd.github+json',
+        'Content-Type': 'application/json',
+        'User-Agent': 'gh-manager-cli'
+      },
+      body: JSON.stringify(body)
+    } as any);
+  } catch (networkError: any) {
+    logger.error('Network error during repository creation', { error: networkError.message, name, org: org ?? null });
+    throw new Error(`Network error whilst creating repository: ${networkError.message}`);
+  }
+
+  if (res.status === 201) {
+    const data = await res.json();
+    logger.info('Successfully created repository', {
+      nameWithOwner: data.full_name,
+      url: data.html_url
+    });
+    return { nameWithOwner: data.full_name, url: data.html_url };
+  }
+
+  const msg = await parseGitHubRestError(res, `Failed to create repository (status ${res.status})`);
+
+  logger.error('Failed to create repository', { status: res.status, error: msg, name, org: org ?? null });
+  throw new Error(msg);
+}
+
+// GitHub GraphQL does not support transferring repos. Use REST:
+//   POST /repos/{owner}/{repo}/transfer with { new_owner }
+// The transfer is asynchronous: GitHub returns 202 Accepted on success.
+/**
+ * Transfer a repository to another owner via the GitHub REST API.
+ *
+ * The transfer is asynchronous — GitHub returns `202 Accepted` to acknowledge the
+ * request and processes it in the background, so success here means *initiated*,
+ * not completed.
+ *
+ * @param token GitHub access token with admin rights on the repository.
+ * @param owner Current owner (user or organisation) of the repository.
+ * @param repo Repository name.
+ * @param newOwner Destination owner (username or organisation login).
+ * @throws Error with a GitHub-derived message on a non-202/200 response or network failure.
+ */
+export async function transferRepositoryRest(
+  token: string,
+  owner: string,
+  repo: string,
+  newOwner: string
+): Promise<void> {
+  const url = `https://api.github.com/repos/${owner}/${repo}/transfer`;
+
+  logger.info('Transferring repository', { owner, repo, newOwner, url });
+
+  let res: Response;
+  try {
+    res = await fetch(url, {
+      method: 'POST',
+      headers: {
+        'Authorization': `token ${token}`,
+        'Accept': 'application/vnd.github+json',
+        'Content-Type': 'application/json',
+        'User-Agent': 'gh-manager-cli'
+      },
+      body: JSON.stringify({ new_owner: newOwner })
+    } as any);
+  } catch (networkError: any) {
+    logger.error('Network error during repository transfer', { error: networkError.message, owner, repo, newOwner });
+    throw new Error(`Network error whilst transferring repository: ${networkError.message}`);
+  }
+
+  // 202 Accepted = transfer initiated. Some responses may also return 200.
+  if (res.status === 202 || res.status === 200) {
+    logger.info('Successfully initiated repository transfer', { owner, repo, newOwner, status: res.status });
+    return;
+  }
+
+  const msg = await parseGitHubRestError(res, `Failed to transfer repository (status ${res.status})`);
+
+  logger.error('Failed to transfer repository', { status: res.status, error: msg, owner, repo, newOwner });
+  throw new Error(msg);
+}
+
 // Fetch starred repositories
 export async function getStarredRepositories(
   client: ReturnType<typeof makeClient>,

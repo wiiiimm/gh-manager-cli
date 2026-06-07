@@ -1,9 +1,23 @@
-# [1.44.0](https://github.com/wiiiimm/gh-manager-cli/compare/v1.43.0...v1.44.0) (2026-06-05)
+# [1.46.0](https://github.com/wiiiimm/gh-manager-cli/compare/v1.45.1...v1.46.0) (2026-06-07)
 
 
 ### Features
 
-* theme-aware selected-row highlight with better contrast (SWR-364) ([#59](https://github.com/wiiiimm/gh-manager-cli/issues/59)) ([1b71cb2](https://github.com/wiiiimm/gh-manager-cli/commit/1b71cb2144b0773bb0d9538e3f30141e53346890)), closes [#1f4a57](https://github.com/wiiiimm/gh-manager-cli/issues/1f4a57) [#11294d](https://github.com/wiiiimm/gh-manager-cli/issues/11294d) [#14391f](https://github.com/wiiiimm/gh-manager-cli/issues/14391f) [#333333](https://github.com/wiiiimm/gh-manager-cli/issues/333333)
+* Bulk Select mode with bulk star, archive/unarchive, visibility, and delete operations (SWR-353) ([#54](https://github.com/wiiiimm/gh-manager-cli/issues/54)) ([9245324](https://github.com/wiiiimm/gh-manager-cli/commit/924532494c7222393415bea14bf5553435c2abb2))
+
+## [1.45.1](https://github.com/wiiiimm/gh-manager-cli/compare/v1.45.0...v1.45.1) (2026-06-07)
+
+
+### Bug Fixes
+
+* ignore modal input while async actions are in flight, add guard tests (SWR-368) [semantic pr title] ([#64](https://github.com/wiiiimm/gh-manager-cli/issues/64)) ([97d2e4e](https://github.com/wiiiimm/gh-manager-cli/commit/97d2e4e25fc5d10cd2305ffb3f594b3f0b094e20)), closes [#65](https://github.com/wiiiimm/gh-manager-cli/issues/65)
+
+# [1.45.0](https://github.com/wiiiimm/gh-manager-cli/compare/v1.44.0...v1.45.0) (2026-06-07)
+
+
+### Features
+
+* add repository creation (Ctrl+N) and transfer (Shift+M) ([#60](https://github.com/wiiiimm/gh-manager-cli/issues/60)) ([2e9c271](https://github.com/wiiiimm/gh-manager-cli/commit/2e9c2711b985be9373a94483e0bd0b420dc48aec))
 
 # [1.43.0](https://github.com/wiiiimm/gh-manager-cli/compare/v1.42.0...v1.43.0) (2026-06-05)
 
