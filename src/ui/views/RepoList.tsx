@@ -554,12 +554,13 @@ export default function RepoList({ token, maxVisibleRows, onLogout, viewerLogin,
     }
 
     // If the new repo's visibility wouldn't pass the active visibility filter,
-    // reset to 'all' so it isn't filtered out of the list. Note INTERNAL is not
-    // matched by the 'private' filter for API purposes.
+    // reset to 'all' so it isn't filtered out of the list. The client-side
+    // 'private' filter includes both PRIVATE and INTERNAL (matching GitHub and
+    // executeVisibilityChange), so an INTERNAL repo passes it.
     const passesVisibilityFilter =
       visibilityFilter === 'all' ||
       (visibilityFilter === 'public' && visibility === 'PUBLIC') ||
-      (visibilityFilter === 'private' && visibility === 'PRIVATE');
+      (visibilityFilter === 'private' && (visibility === 'PRIVATE' || visibility === 'INTERNAL'));
     if (!passesVisibilityFilter) {
       previousVisibilityFilter.current = 'all';
       storeUIPrefs({ visibilityFilter: 'all' });
@@ -571,8 +572,11 @@ export default function RepoList({ token, maxVisibleRows, onLogout, viewerLogin,
     const [owner, repoName] = (nameWithOwner || '').split('/');
     const created = await fetchRepositoryByOwnerAndName(client, owner, repoName);
 
-    setCursor(0);
     setCreateMode(false);
+    // Queue the new repo for cursor focus. Its index in the visible list depends
+    // on the active sort/filter, so it isn't necessarily at the top — an effect
+    // resolves the actual position once the repo appears (see pendingFocusRef).
+    pendingFocusRef.current = nameWithOwner;
 
     if (created) {
       await updateCacheWithRepository(token, created);
@@ -927,6 +931,10 @@ export default function RepoList({ token, maxVisibleRows, onLogout, viewerLogin,
   type VisibilityFilter = 'all' | 'public' | 'private';
   const [visibilityFilter, setVisibilityFilter] = useState<VisibilityFilter>('all');
   const previousVisibilityFilter = useRef<VisibilityFilter>('all');
+  // nameWithOwner of a repo queued to receive cursor focus once it appears in
+  // the (re-sorted/filtered) visible list — e.g. a freshly created repo, whose
+  // position depends on the active sort rather than always being at the top.
+  const pendingFocusRef = useRef<string | null>(null);
 
   // Archive filter - 'all' | 'unarchived' | 'archived'
   type ArchiveFilter = 'all' | 'unarchived' | 'archived';
@@ -1840,6 +1848,19 @@ export default function RepoList({ token, maxVisibleRows, onLogout, viewerLogin,
   useEffect(() => {
     setCursor(c => Math.min(c, Math.max(0, visibleItems.length - 1)));
   }, [filterActive, items.length, visibleItems.length]);
+
+  // Move the cursor to a repo queued for focus (e.g. just created) once it
+  // appears in the visible list. Its position depends on the active sort/filter,
+  // so we resolve the real index here rather than assuming the top.
+  useEffect(() => {
+    const target = pendingFocusRef.current;
+    if (!target) return;
+    const idx = visibleItems.findIndex(r => r.nameWithOwner === target);
+    if (idx >= 0) {
+      setCursor(idx);
+      pendingFocusRef.current = null;
+    }
+  }, [visibleItems]);
 
   // Calculate fixed heights for layout sections and list area
   const headerHeight = 2; // Header bar + margin
