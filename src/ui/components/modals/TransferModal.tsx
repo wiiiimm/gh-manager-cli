@@ -202,7 +202,7 @@ export default function TransferModal({ repo, onTransfer, onCancel, theme: theme
             Transfer {c.text.bold(repo.nameWithOwner)} {'→'} {c.warning.bold(`${newOwner}/${repo.name}`)}
           </Text>
           <Box height={1}><Text> </Text></Box>
-          <Text>To confirm, please type <Text color={theme.warning} bold>{transferCode}</Text> below:</Text>
+          <Text>{`To confirm, please type ${c.warning.bold(transferCode)} below:`}</Text>
           <Box marginTop={1} flexDirection="row" alignItems="center">
             <Text>Verification code: </Text>
             <TextInput

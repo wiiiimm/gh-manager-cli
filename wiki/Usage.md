@@ -64,6 +64,7 @@ Launch the app, then use the keys below to navigate and interact with your repos
 - **Transfer repository**: `Shift+M` (Move) to transfer ownership to another user or organisation
   - Prompts for the destination owner, then requires typing a randomly generated verification code (like delete), followed by a final confirmation before transferring
   - GitHub errors (e.g. insufficient permissions) are shown inline
+  - Transferred repository is removed from the list
 - **Copy URL**: `C` to copy repository URL to clipboard (SSH/HTTPS options)
 
 ## General
