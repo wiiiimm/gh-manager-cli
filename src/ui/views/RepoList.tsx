@@ -737,12 +737,23 @@ export default function RepoList({ token, maxVisibleRows, onLogout, viewerLogin,
 
     // Fetch the freshly created repo node and insert it so it's visible right
     // away. A just-created repo can briefly be missing from GraphQL (replication
-    // lag), so retry once before falling back to a full network refresh.
+    // lag), so retry once before falling back to a full network refresh. The repo
+    // already exists at this point (createRepositoryRest succeeded), so treat any
+    // lookup error like a missing node — fall back to the refresh branch rather
+    // than bubbling it up and wrongly reporting the create as failed.
     const [owner, repoName] = (nameWithOwner || '').split('/');
-    let created = await fetchRepositoryByOwnerAndName(client, owner, repoName);
-    if (!created) {
-      await new Promise(resolve => setTimeout(resolve, 600));
+    let created: Awaited<ReturnType<typeof fetchRepositoryByOwnerAndName>> = null;
+    try {
       created = await fetchRepositoryByOwnerAndName(client, owner, repoName);
+      if (!created) {
+        await new Promise(resolve => setTimeout(resolve, 600));
+        created = await fetchRepositoryByOwnerAndName(client, owner, repoName);
+      }
+    } catch (err: any) {
+      logger.warn('Created repository lookup failed; falling back to refresh', {
+        error: err?.message,
+        nameWithOwner
+      });
     }
 
     setCreateMode(false);
