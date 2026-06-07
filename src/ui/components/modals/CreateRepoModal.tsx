@@ -42,7 +42,9 @@ export default function CreateRepoModal({ ownerSlug, isOrg, isEnterprise, onCrea
     : ['PRIVATE', 'PUBLIC'];
 
   useInput((input, key) => {
-    if (creating) return;
+    // submittingRef flips synchronously in handleCreateConfirm, so input is
+    // guarded in the same tick as submit — before `creating` state re-renders.
+    if (submittingRef.current) return;
 
     if (key.escape) {
       onCancel();

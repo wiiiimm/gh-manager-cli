@@ -60,6 +60,7 @@ export const ChangeVisibilityModal: React.FC<ChangeVisibilityModalProps> = ({
 
   useInput((input, key) => {
     if (!isOpen) return;
+    if (changing) return; // Ignore input while the visibility change is in flight
 
     if (key.escape || input?.toLowerCase() === 'c') {
       onClose();
@@ -246,6 +247,7 @@ export const ChangeVisibilityModal: React.FC<ChangeVisibilityModalProps> = ({
           value=""
           onChange={() => { /* noop */ }}
           onSubmit={() => {
+            if (changing) return; // Ignore Enter while the change is in flight
             if (isFork || focusedButton === 'cancel') {
               onClose();
             } else {

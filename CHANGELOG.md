@@ -1,3 +1,10 @@
+## [1.45.1](https://github.com/wiiiimm/gh-manager-cli/compare/v1.45.0...v1.45.1) (2026-06-07)
+
+
+### Bug Fixes
+
+* ignore modal input while async actions are in flight, add guard tests (SWR-368) [semantic pr title] ([#64](https://github.com/wiiiimm/gh-manager-cli/issues/64)) ([97d2e4e](https://github.com/wiiiimm/gh-manager-cli/commit/97d2e4e25fc5d10cd2305ffb3f594b3f0b094e20)), closes [#65](https://github.com/wiiiimm/gh-manager-cli/issues/65)
+
 # [1.45.0](https://github.com/wiiiimm/gh-manager-cli/compare/v1.44.0...v1.45.0) (2026-06-07)
 
 
