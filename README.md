@@ -93,6 +93,13 @@ On first run, you'll be prompted to authenticate with GitHub (OAuth recommended)
   - Change repository visibility (`Ctrl+V`) - Switch between Public, Private, and Internal (enterprise only)
   - Star/unstar repositories (`Ctrl+S`) - Toggle star status for any repository
   - Sync forks with upstream (`Ctrl+F`) with ahead/behind counts and automatic conflict detection
+- **Bulk Operations** (`B` to enter Bulk Select mode):
+  - Select multiple repositories with `Space`; `X` unselects all (while every other shortcut is disabled in bulk mode)
+  - Bulk actions reuse the global shortcuts: `Ctrl+S` star/unstar, `Ctrl+A` archive/unarchive, `Ctrl+V` visibility, `Del` delete
+  - Star and archive auto-detect a safe toggle; if the selection is mixed, an intent modal asks the explicit target. Visibility always prompts for the destination (Public / Private / Internal for enterprise orgs)
+  - Selections persist across search, filter, and sort changes (select from different searches, then bulk-act)
+  - Confirmation flow: review list with ability to unselect → count prompt → (delete only) a 4-character verification code
+  - Per-repo progress reporting with partial-failure summary
 
 ### User Interface & Experience
 - **Keyboard Navigation**: Full keyboard control (arrow keys, PageUp/Down, `Ctrl+G`/`G`)

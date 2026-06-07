@@ -16,6 +16,7 @@
 - ✅ Fork synchronization with upstream
 - ✅ Semantic release automation and CI/CD workflows
 - ✅ Automated changelog generation and PR title management
+- ✅ Bulk Select mode with bulk star, archive/unarchive, visibility, and delete operations
 - 🔧 Automated test suite expansion (ongoing)
 - 🔧 Cross-terminal rendering optimization
 
@@ -78,7 +79,6 @@ gh-manager-cli/
 ### Planned Enhancements
 See the living roadmap in [TODOs.md](./TODOs.md) for the canonical, up-to-date list. Key near-term items include:
 - Repository renaming
-- Bulk selection and actions
 - Copy repository URL to clipboard
 - Optional OS keychain support (via `keytar`)
 
@@ -141,6 +141,36 @@ See the living roadmap in [TODOs.md](./TODOs.md) for the canonical, up-to-date l
   - Footer hint shows `Shift+S Starred` in normal mode and `Shift+S My Repos` in starred mode; hidden in org context
 - `R`: refresh list (purges cache)
 - `Q`: quit (Esc cancels an open modal or exits search mode; does not quit)
+
+### Bulk Select Mode
+
+- `B`: enter/exit Bulk Select mode (exits and clears selection)
+- `Esc`: exit bulk select mode (clears selection)
+
+**Within bulk select mode** (every other shortcut is disabled; only navigation + the keys below work):
+
+- `Space`: toggle selection on the cursor row
+- `X`: unselect all (clears selection, stays in bulk select mode)
+- `Ctrl+S`: bulk star/unstar the selected repos
+- `Ctrl+A`: bulk archive/unarchive the selected repos
+- `Ctrl+V`: bulk visibility update for the selected repos
+- `Del` / `Backspace`: bulk delete the selected repos
+- Navigation (arrows, PageUp/Down, `Ctrl+G`, `G`) still works
+
+Bulk actions reuse the same global shortcuts as single-repo mode and require at least one selected repo. There is no separate action-picker modal.
+
+**Bulk operation flow:**
+
+0. Intent/target (only when needed):
+   - Star and archive are toggles. If all selected repos share the same state, the opposite state is applied directly. If the selection is mixed, an intent modal asks the explicit target (e.g. "Archive all" vs "Unarchive all", "Star all" vs "Unstar all").
+   - Visibility always shows a target picker (Public / Private / Internal — Internal only for enterprise orgs).
+1. Review list (Confirmation 1) — scrollable list of all selected repos; `Space` to unselect; Tab/Enter to proceed. Dismisses on Esc/Cancel or when the list empties.
+2. Count prompt (Confirmation 2) — "About to {action} {N} repos"; Cancel/Proceed, Esc cancels.
+3. Delete only — a separate verification-code modal (type a 4-character code).
+4. Sequential execution with per-repo progress; partial-failure reporting at the end.
+5. Selection cleared and bulk select mode exits on completion.
+
+**Persistence:** Selections survive search and filter/sort changes (stored as full node objects by id). Cleared on org/scope switch and stars mode toggle.
 
 ### Modal UX Convention (preferred)
 - Left/Right: move focus between buttons (e.g., Delete, Cancel)

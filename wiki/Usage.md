@@ -67,6 +67,52 @@ Launch the app, then use the keys below to navigate and interact with your repos
   - Transferred repository is removed from the list
 - **Copy URL**: `C` to copy repository URL to clipboard (SSH/HTTPS options)
 
+## Bulk Select Mode (Bulk Operations)
+
+Bulk Select mode lets you select multiple repositories and run a bulk action (star/unstar, archive/unarchive, visibility change, or delete) against all of them at once. The actions reuse the same global shortcuts as single-repo mode; while in bulk select mode every other shortcut is disabled.
+
+### Entering Bulk Select Mode
+
+- **`B`** — toggle bulk select (bulk) mode on/off
+- **`Esc`** — exit bulk select mode (clears selection)
+
+### Selection Controls (inside bulk select mode)
+
+- **`Space`** — toggle selection on the highlighted repository
+- **`X`** — unselect all (clears selection without exiting bulk select mode)
+- Navigation (↑↓, PageUp/Down, `Ctrl+G`, `G`) still works
+
+### Bulk Action Shortcuts (require at least one selected repo)
+
+- **`Ctrl+S`** — bulk star/unstar
+- **`Ctrl+A`** — bulk archive/unarchive
+- **`Ctrl+V`** — bulk visibility update
+- **`Del`/`Backspace`** — bulk delete
+
+### Running a Bulk Action
+
+1. Enter bulk select mode with `B`
+2. Select repositories with `Space`
+3. Press the action shortcut above (e.g. `Ctrl+A` for archive)
+4. **Intent/target (only when needed)**:
+   - Star and archive auto-detect a safe toggle. If the selection has a mixed state, an intent modal asks the explicit target (e.g. "Archive all" vs "Unarchive all").
+   - Visibility always prompts for the destination: Public / Private / Internal (Internal only for enterprise orgs).
+5. **Review list (Confirmation 1)**: A scrollable list of all selected repos appears.
+   - Use ↑↓ to navigate; `Space` to unselect individual entries before proceeding.
+6. **Count prompt (Confirmation 2)**: Confirms "About to {action} {N} repositories." (Cancel/Proceed, Esc cancels.)
+7. **Delete only (Confirmation 3)**: enter a 4-character verification code.
+8. Progress is shown per-repo; partial failures are reported at the end.
+9. On completion, selections are cleared and bulk select mode exits automatically.
+
+### Persistence
+
+Selections persist across search and filter changes — you can search for one set, select some repos, search for something else, select more, and all prior selections remain intact. Selections are cleared only when:
+
+- You exit bulk select mode (`B` or `Esc`)
+- You switch organisation/scope
+- You toggle Stars mode
+- The bulk operation completes
+
 ## General
 
 - **Esc**: Cancels modals, clears search, or returns to normal listing (does not quit)

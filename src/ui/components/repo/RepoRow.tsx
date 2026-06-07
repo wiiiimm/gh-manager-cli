@@ -15,6 +15,8 @@ interface RepoRowProps {
   dim?: boolean;
   forkTracking: boolean;
   starsMode?: boolean;
+  multiSelectMode?: boolean;
+  isChecked?: boolean;
   theme?: Theme;
 }
 
@@ -27,6 +29,8 @@ export default function RepoRow({
   dim,
   forkTracking,
   starsMode = false,
+  multiSelectMode = false,
+  isChecked = false,
   theme: themeProp,
 }: RepoRowProps) {
   const { theme, c } = useTheme(themeProp?.name ?? 'default');
@@ -49,6 +53,16 @@ export default function RepoRow({
   let line1 = '';
   const numColor = selected ? c.selected : c.muted;
   const nameColor = selected ? c.selected.bold : c.text;
+
+  // Multi-select checkbox prefix
+  if (multiSelectMode) {
+    if (isChecked) {
+      line1 += c.success('[✓] ');
+    } else {
+      line1 += c.muted('[ ] ');
+    }
+  }
+
   line1 += numColor(`${String(index).padStart(3, ' ')}.`);
   if (repo.viewerHasStarred) {
     line1 += c.warning(' ⭐');
