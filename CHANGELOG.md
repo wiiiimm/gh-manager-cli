@@ -1,3 +1,10 @@
+# [1.48.0](https://github.com/wiiiimm/gh-manager-cli/compare/v1.47.0...v1.48.0) (2026-06-07)
+
+
+### Features
+
+* session usage summary shown on quit with operation tracking (SWR-19) [semantic pr title] ([#58](https://github.com/wiiiimm/gh-manager-cli/issues/58)) ([ad03cee](https://github.com/wiiiimm/gh-manager-cli/commit/ad03cee22f4699092892bc233786dd48f3eb8e21))
+
 # [1.47.0](https://github.com/wiiiimm/gh-manager-cli/compare/v1.46.1...v1.47.0) (2026-06-07)
 
 
