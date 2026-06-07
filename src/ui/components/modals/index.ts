@@ -21,3 +21,5 @@ export type { BulkProgressState } from './BulkProgressModal';
 export type { BulkAction, BulkVisibilityTarget, BulkActionColor } from './bulkActions';
 export { bulkActionMeta } from './bulkActions';
 export { default as OpenInBrowserModal } from './OpenInBrowserModal';
+export { default as CreateRepoModal } from './CreateRepoModal';
+export { default as TransferModal } from './TransferModal';

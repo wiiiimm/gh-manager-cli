@@ -84,7 +84,9 @@ On first run, you'll be prompted to authenticate with GitHub (OAuth recommended)
   - View detailed info (`I`) - Shows repository metadata, language, size, and timestamps
   - Open in browser (Enter/`O`) — for forks a chooser lets you open this repo or the upstream
   - Jump to upstream (`P`) — moves cursor to the parent if loaded; otherwise fetches and shows it
+  - Create new repository (`Ctrl+N`) — prompts for a name (with the personal/organisation slug shown in front), choose visibility with `Tab`, and surfaces GitHub errors inline
   - Rename repository (`Ctrl+R`) with inline validation and automatic cache update
+  - Transfer repository to another owner (`Shift+M`) — prompts for the destination owner, requires a verification code, shows a final confirmation, and surfaces GitHub errors inline
   - Copy repository URL to clipboard (`C`) with SSH/HTTPS options
   - Delete repository (`Del` or `Backspace`) with secure two-step confirmation
   - Archive/unarchive repositories (`Ctrl+A`) with confirmation prompts
@@ -102,7 +104,7 @@ On first run, you'll be prompted to authenticate with GitHub (OAuth recommended)
 ### User Interface & Experience
 - **Keyboard Navigation**: Full keyboard control (arrow keys, PageUp/Down, `Ctrl+G`/`G`)
 - **Display Density**: Toggle between compact/cozy/comfy spacing (`T`)
-- **Colour Themes**: Four themes (Default, Ocean, Forest, Monochrome) cycled with `Shift+T`, persisted across restarts
+- **Colour Themes**: Four themes (Default, Ocean, Forest, Monochrome) cycled with `Shift+T`, persisted across restarts; the selected-row highlight is theme-aware and tuned per theme for readable contrast
 - **Visual Indicators**: Fork status, private/internal/archived badges, language colors, visibility status
 - **Enterprise Support**: Full support for GitHub Enterprise with Internal repository visibility
 - **Organization Context**: Switch between personal and organization accounts with ENT badge for enterprise orgs
@@ -279,7 +281,7 @@ Launch the app, then use the keys below:
   - Stars: Number of stars
 - **Sort Direction**: `D` to open sort direction modal (ascending/descending)
 - **Display Density**: `T` to toggle compact/cozy/comfy
-- **Colour Theme**: `Shift+T` to cycle themes (Default → Ocean → Forest → Monochrome); selection persists across restarts
+- **Colour Theme**: `Shift+T` to cycle themes (Default → Ocean → Forest → Monochrome); selection persists across restarts. Each theme defines its own selected-row highlight (a darker on-theme background) so the highlighted repository stays high-contrast
 - **Fork Status**: Always enabled — shows commits **ahead** and **behind** upstream once enrichment completes (see below)
 - **Visibility Filter**: `V` opens modal (All, Public, Private/Internal for enterprise)
 - **Archive Filter**: `A` toggles archive filter (All → Unarchived → Archived)
@@ -295,6 +297,10 @@ Launch the app, then use the keys below:
 - **Quit**: `Q`
 
 ### Repository Actions
+- **Create repository**: `Ctrl+N` to create a new repository in the current context (personal or organisation)
+  - Prompts for a name with the owner slug (`owner/`) shown in front
+  - `Tab` cycles visibility (Private/Public, plus Internal for enterprise organisations)
+  - Enter to create; GitHub errors (e.g. name already exists) are shown inline
 - **Repository info**: `I` to view detailed metadata (size, language, timestamps)
 - **Cache info**: `K` to inspect Apollo cache status
 - **Archive/Unarchive**: `Ctrl+A` with confirmation prompt
@@ -305,6 +311,10 @@ Launch the app, then use the keys below:
 - **Star/Unstar**: `Ctrl+S` to toggle star status for any repository
 - **Sync fork**: `Ctrl+F` (for forks only, shows ahead/behind counts and handles conflicts)
 - **Rename repository**: `Ctrl+R` with inline validation
+- **Transfer repository**: `Shift+M` (Move) to transfer ownership to another user or organisation
+  - Prompts for the destination owner (`new-owner/<repo>` preview)
+  - Requires typing a randomly generated verification code (like delete), then a final confirmation before transferring
+  - GitHub errors (e.g. insufficient permissions) are shown inline
 - **Copy URL**: `C` to copy repository URL to clipboard (SSH/HTTPS options)
 
 ### General

@@ -129,6 +129,8 @@ See the living roadmap in [TODOs.md](./TODOs.md) for the canonical, up-to-date l
 - `P`: on a fork — jump cursor to the parent repo if it is already loaded; otherwise fetches the parent repo and shows it in the Info modal
 - `I`: repository info modal
 - `K`: cache inspection
+- `Ctrl+N`: create a new repository in the current context (prompts for name with the personal/organisation slug shown in front; `Tab` cycles visibility; GitHub errors surfaced inline). Disabled in starred mode.
+- `Shift+M`: transfer (move) selected repo to another owner (prompts for destination owner, then requires typing a randomly generated verification code — like delete — followed by a final confirmation step; GitHub errors surfaced inline; transferred repo is removed from the list). Disabled in starred mode.
 - `Del` or `Backspace`: delete selected repo (two-stage confirmation)
 - `Ctrl+A`: archive/unarchive selected repo
 - `Ctrl+V`: change repository visibility
