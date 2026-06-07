@@ -1,3 +1,10 @@
+# [1.47.0](https://github.com/wiiiimm/gh-manager-cli/compare/v1.46.1...v1.47.0) (2026-06-07)
+
+
+### Features
+
+* bulk transfer (move) repos to another owner/org — Bulk Select action (SWR-369) [semantic pr title] ([#70](https://github.com/wiiiimm/gh-manager-cli/issues/70)) ([1dd444a](https://github.com/wiiiimm/gh-manager-cli/commit/1dd444a32e7ffc1492320d80197c089d845352a5))
+
 ## [1.46.1](https://github.com/wiiiimm/gh-manager-cli/compare/v1.46.0...v1.46.1) (2026-06-07)
 
 
