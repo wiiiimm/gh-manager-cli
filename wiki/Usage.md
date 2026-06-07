@@ -62,7 +62,7 @@ Launch the app, then use the keys below to navigate and interact with your repos
 - **Sync fork**: `Ctrl+F` (for forks only, shows commit status and handles conflicts)
 - **Rename repository**: `Ctrl+R` with inline validation
 - **Transfer repository**: `Shift+M` (Move) to transfer ownership to another user or organisation
-  - Prompts for the destination owner, then a confirmation step before transferring
+  - Prompts for the destination owner, then requires typing a randomly generated verification code (like delete), followed by a final confirmation before transferring
   - GitHub errors (e.g. insufficient permissions) are shown inline
 - **Copy URL**: `C` to copy repository URL to clipboard (SSH/HTTPS options)
 

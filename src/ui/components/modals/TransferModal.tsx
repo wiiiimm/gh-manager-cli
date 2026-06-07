@@ -1,4 +1,4 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { Box, Text, useInput } from 'ink';
 import TextInput from 'ink-text-input';
 import type { RepoNode } from '../../../types';
@@ -14,24 +14,46 @@ interface TransferModalProps {
 }
 
 /**
- * Two-stage modal for transferring a repository to another owner.
+ * Three-stage modal for transferring a repository to another owner.
  *
  * Stage one collects a sanitised destination owner (username or organisation); stage two
- * shows a confirmation (Cancel focused by default) before initiating the transfer. GitHub
- * errors are surfaced inline. Esc cancels at any point. Guards against double-submit.
+ * requires the user to type a randomly generated verification code (mirroring the delete
+ * flow) to guard against accidental transfers; stage three shows a final confirmation
+ * (Cancel focused by default) before initiating the transfer. GitHub errors are surfaced
+ * inline. Esc cancels at any point. Guards against double-submit.
  */
 export default function TransferModal({ repo, onTransfer, onCancel, theme: themeProp }: TransferModalProps) {
   const { theme, c } = useTheme(themeProp?.name ?? 'default');
   const [newOwner, setNewOwner] = useState('');
-  const [stage, setStage] = useState<'input' | 'confirm'>('input');
+  const [stage, setStage] = useState<'input' | 'code' | 'confirm'>('input');
   // Default focus on Cancel for safety on the confirmation stage
   const [focus, setFocus] = useState<'transfer' | 'cancel'>('cancel');
   const [transferring, setTransferring] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  // Verification code the user must retype to reach the final confirmation stage
+  const [transferCode, setTransferCode] = useState('');
+  const [typedCode, setTypedCode] = useState('');
   // Synchronous guard against double-submission (state updates are async)
   const submittingRef = useRef(false);
 
   const owner = repo ? repo.nameWithOwner.split('/')[0] : '';
+
+  // Generate a fresh 4-character verification code whenever the modal opens.
+  // Code is uppercase-only (and matched case-insensitively) — see handleCodeSubmit.
+  useEffect(() => {
+    if (repo) {
+      const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'; // Omit similar-looking chars
+      let code = '';
+      for (let i = 0; i < 4; i++) {
+        code += chars.charAt(Math.floor(Math.random() * chars.length));
+      }
+      setTransferCode(code);
+      setTypedCode('');
+      setStage('input');
+      setFocus('cancel');
+      setError(null);
+    }
+  }, [repo]);
 
   useInput((input, key) => {
     if (transferring || !repo) return;
@@ -46,10 +68,16 @@ export default function TransferModal({ repo, onTransfer, onCancel, theme: theme
         const target = newOwner.trim();
         if (target && target.toLowerCase() !== owner.toLowerCase()) {
           setError(null);
-          setStage('confirm');
-          setFocus('cancel');
+          setTypedCode('');
+          setStage('code');
         }
       }
+      return;
+    }
+
+    // Code stage: let TextInput handle character entry and Enter (via onSubmit);
+    // we only intercept Esc here (handled above).
+    if (stage === 'code') {
       return;
     }
 
@@ -72,6 +100,31 @@ export default function TransferModal({ repo, onTransfer, onCancel, theme: theme
       return;
     }
   });
+
+  // Advance to the final confirmation stage once the code matches
+  const advanceToConfirm = () => {
+    setError(null);
+    setStage('confirm');
+    setFocus('cancel');
+  };
+
+  // Uppercase as the user types and auto-advance the moment the full code
+  // matches — no Enter required (mirrors the delete flow).
+  const handleCodeChange = (value: string) => {
+    const up = value.toUpperCase();
+    setTypedCode(up);
+    if (up === transferCode) advanceToConfirm();
+  };
+
+  // Enter fallback: advance on a correct code, otherwise surface the error
+  const handleCodeSubmit = () => {
+    if (typedCode.toUpperCase() === transferCode) {
+      advanceToConfirm();
+    } else {
+      setError('Incorrect verification code. Please try again.');
+      setTypedCode('');
+    }
+  };
 
   const handleTransferConfirm = async () => {
     if (transferring || submittingRef.current || !repo || !newOwner.trim()) return;
@@ -114,7 +167,7 @@ export default function TransferModal({ repo, onTransfer, onCancel, theme: theme
 
       <Text color={theme.muted}>Repository: {repo.nameWithOwner}</Text>
 
-      {stage === 'input' ? (
+      {stage === 'input' && (
         <>
           <Box height={1}><Text> </Text></Box>
           <Text>New owner (username or organisation):</Text>
@@ -140,7 +193,32 @@ export default function TransferModal({ repo, onTransfer, onCancel, theme: theme
             <Text color={theme.muted}>Press Esc to cancel</Text>
           </Box>
         </>
-      ) : (
+      )}
+
+      {stage === 'code' && (
+        <>
+          <Box height={1}><Text> </Text></Box>
+          <Text>
+            Transfer {c.text.bold(repo.nameWithOwner)} {'→'} {c.warning.bold(`${newOwner}/${repo.name}`)}
+          </Text>
+          <Box height={1}><Text> </Text></Box>
+          <Text>To confirm, please type <Text color={theme.warning} bold>{transferCode}</Text> below:</Text>
+          <Box marginTop={1} flexDirection="row" alignItems="center">
+            <Text>Verification code: </Text>
+            <TextInput
+              value={typedCode}
+              onChange={handleCodeChange}
+              onSubmit={handleCodeSubmit}
+              focus={!transferring}
+            />
+          </Box>
+          <Box marginTop={1}>
+            <Text color={theme.muted}>Type the code to continue • Esc to cancel</Text>
+          </Box>
+        </>
+      )}
+
+      {stage === 'confirm' && (
         <>
           <Box height={1}><Text> </Text></Box>
           <Text>
