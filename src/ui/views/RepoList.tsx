@@ -568,9 +568,14 @@ export default function RepoList({ token, maxVisibleRows, onLogout, viewerLogin,
     }
 
     // Fetch the freshly created repo node and insert it so it's visible right
-    // away. If the lookup fails, fall back to a full network refresh.
+    // away. A just-created repo can briefly be missing from GraphQL (replication
+    // lag), so retry once before falling back to a full network refresh.
     const [owner, repoName] = (nameWithOwner || '').split('/');
-    const created = await fetchRepositoryByOwnerAndName(client, owner, repoName);
+    let created = await fetchRepositoryByOwnerAndName(client, owner, repoName);
+    if (!created) {
+      await new Promise(resolve => setTimeout(resolve, 600));
+      created = await fetchRepositoryByOwnerAndName(client, owner, repoName);
+    }
 
     setCreateMode(false);
     // Queue the new repo for cursor focus. Its index in the visible list depends
