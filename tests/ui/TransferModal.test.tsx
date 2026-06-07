@@ -1,8 +1,12 @@
 import React from 'react';
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, type Mock } from 'vitest';
 import { render } from 'ink-testing-library';
+import type { Key } from 'ink';
 import TransferModal from '../../src/ui/components/modals/TransferModal';
 import type { RepoNode } from '../../src/types';
+
+// Signature of the callback Ink passes to useInput
+type InkInputHandler = (input: string, key: Partial<Key>) => void;
 
 // Mock the useInput hook to avoid stdin.ref issues and to drive key events.
 // Note: this also stubs the useInput used internally by ink-text-input, so the
@@ -25,7 +29,7 @@ vi.mock('ink-text-input', () => ({
 }));
 
 describe('TransferModal', () => {
-  let mockUseInput: any;
+  let mockUseInput: Mock;
 
   const mockRepo: RepoNode = {
     id: 'repo-123',
@@ -42,11 +46,11 @@ describe('TransferModal', () => {
     pushedAt: '2024-01-01T00:00:00Z',
     diskUsage: 1024,
     visibility: 'PUBLIC'
-  } as any;
+  } as RepoNode;
 
   beforeEach(async () => {
     const ink = await import('ink');
-    mockUseInput = (ink as any).useInput;
+    mockUseInput = (ink as unknown as { useInput: Mock }).useInput;
     mockUseInput.mockReset();
   });
 
@@ -77,8 +81,8 @@ describe('TransferModal', () => {
 
   it('cancels on Esc', () => {
     const onCancel = vi.fn();
-    let inputCallback: any;
-    mockUseInput.mockImplementation((cb: any) => { inputCallback = cb; });
+    let inputCallback!: InkInputHandler;
+    mockUseInput.mockImplementation((cb: InkInputHandler) => { inputCallback = cb; });
 
     const { unmount } = render(
       <TransferModal repo={mockRepo} onTransfer={async () => {}} onCancel={onCancel} />
@@ -92,8 +96,8 @@ describe('TransferModal', () => {
   it('does not advance past the owner stage when no owner has been entered', () => {
     const onTransfer = vi.fn(async () => {});
     const onCancel = vi.fn();
-    let inputCallback: any;
-    mockUseInput.mockImplementation((cb: any) => { inputCallback = cb; });
+    let inputCallback!: InkInputHandler;
+    mockUseInput.mockImplementation((cb: InkInputHandler) => { inputCallback = cb; });
 
     const { lastFrame, unmount } = render(
       <TransferModal repo={mockRepo} onTransfer={onTransfer} onCancel={onCancel} />
