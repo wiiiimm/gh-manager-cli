@@ -1,3 +1,10 @@
+## [Unreleased]
+
+### Added
+
+- Bulk transfer (move) repositories to another owner/org from Bulk Select mode (`Shift+M`): destination prompt → review → count confirm → 4-char verification code → sequential execution with per-repo progress and partial-failure reporting ([SWR-369](https://linear.app/stealths/issue/SWR-369/bulk-transfer-move-repos-to-another-ownerorg-bulk-select-action))
+- Shared `BulkCodeModal` component — generic verification-code step now reused by both bulk delete and bulk transfer
+
 # [1.46.0](https://github.com/wiiiimm/gh-manager-cli/compare/v1.45.1...v1.46.0) (2026-06-07)
 
 

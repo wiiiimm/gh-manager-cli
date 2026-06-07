@@ -95,11 +95,11 @@ On first run, you'll be prompted to authenticate with GitHub (OAuth recommended)
   - Sync forks with upstream (`Ctrl+F`) with ahead/behind counts and automatic conflict detection
 - **Bulk Operations** (`B` to enter Bulk Select mode):
   - Select multiple repositories with `Space`; `X` unselects all (while every other shortcut is disabled in bulk mode)
-  - Bulk actions reuse the global shortcuts: `Ctrl+S` star/unstar, `Ctrl+A` archive/unarchive, `Ctrl+V` visibility, `Del` delete
-  - Star and archive auto-detect a safe toggle; if the selection is mixed, an intent modal asks the explicit target. Visibility always prompts for the destination (Public / Private / Internal for enterprise orgs)
+  - Bulk actions reuse the global shortcuts: `Ctrl+S` star/unstar, `Ctrl+A` archive/unarchive, `Ctrl+V` visibility, `Del` delete, `Shift+M` transfer (move) to another owner/org
+  - Star and archive auto-detect a safe toggle; if the selection is mixed, an intent modal asks the explicit target. Visibility always prompts for the destination (Public / Private / Internal for enterprise orgs). Transfer always prompts for a destination owner
   - Selections persist across search, filter, and sort changes (select from different searches, then bulk-act)
-  - Confirmation flow: review list with ability to unselect → count prompt → (delete only) a 4-character verification code
-  - Per-repo progress reporting with partial-failure summary
+  - Confirmation flow: review list with ability to unselect → count prompt → (delete and transfer) a 4-character verification code
+  - Per-repo progress reporting with partial-failure summary; transferred repos are removed from the current list
 
 ### User Interface & Experience
 - **Keyboard Navigation**: Full keyboard control (arrow keys, PageUp/Down, `Ctrl+G`/`G`)
@@ -315,6 +315,9 @@ Launch the app, then use the keys below:
   - Prompts for the destination owner (`new-owner/<repo>` preview)
   - Requires typing a randomly generated verification code (like delete), then a final confirmation before transferring
   - GitHub errors (e.g. insufficient permissions) are shown inline
+- **Bulk Transfer (Bulk Select mode)**: `Shift+M` within Bulk Select mode to move multiple repos at once
+  - Flow: destination owner prompt → review list (unselect) → count prompt → 4-character verification code → sequential execution with per-repo progress
+  - Transferred repos are removed from the current list; partial-failure report shown at completion
 - **Copy URL**: `C` to copy repository URL to clipboard (SSH/HTTPS options)
 
 ### General

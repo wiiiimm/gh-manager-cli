@@ -12,7 +12,7 @@ import type { RepoNode, RateLimitInfo, RestRateLimitInfo } from '../../types';
 import { exec } from 'child_process';
 import OrgSwitcher from '../OrgSwitcher';
 import { logger } from '../../lib/logger';
-import { ArchiveFilterModal, DeleteModal, ArchiveModal, SyncModal, InfoModal, LogoutModal, VisibilityModal, SortModal, SortDirectionModal, ChangeVisibilityModal, CopyUrlModal, RenameModal, StarModal, BulkReviewModal, BulkConfirmModal, BulkDeleteCodeModal, BulkIntentModal, BulkVisibilityModal, BulkProgressModal, OpenInBrowserModal, CreateRepoModal, TransferModal, bulkActionMeta } from '../components/modals';
+import { ArchiveFilterModal, DeleteModal, ArchiveModal, SyncModal, InfoModal, LogoutModal, VisibilityModal, SortModal, SortDirectionModal, ChangeVisibilityModal, CopyUrlModal, RenameModal, StarModal, BulkReviewModal, BulkConfirmModal, BulkDeleteCodeModal, BulkTransferCodeModal, BulkTransferDestinationModal, BulkIntentModal, BulkVisibilityModal, BulkProgressModal, OpenInBrowserModal, CreateRepoModal, TransferModal, bulkActionMeta } from '../components/modals';
 import type { BulkAction, BulkVisibilityTarget, BulkProgressState } from '../components/modals';
 import { UnstarModal } from '../components/modals/UnstarModal';
 import { RepoRow, FilterInput, RepoListHeader } from '../components/repo';
@@ -209,6 +209,9 @@ export default function RepoList({ token, maxVisibleRows, onLogout, viewerLogin,
   const [bulkReviewOpen, setBulkReviewOpen] = useState(false);
   const [bulkConfirmOpen, setBulkConfirmOpen] = useState(false);
   const [bulkDeleteCodeOpen, setBulkDeleteCodeOpen] = useState(false);
+  const [bulkTransferDestinationOpen, setBulkTransferDestinationOpen] = useState(false);
+  const [bulkTransferCodeOpen, setBulkTransferCodeOpen] = useState(false);
+  const [bulkTransferDest, setBulkTransferDest] = useState('');
   const [bulkProgressOpen, setBulkProgressOpen] = useState(false);
   const [bulkFinalSelection, setBulkFinalSelection] = useState<Map<string, RepoNode>>(new Map());
   const [bulkProgress, setBulkProgress] = useState<BulkProgressState>({
@@ -554,6 +557,7 @@ export default function RepoList({ token, maxVisibleRows, onLogout, viewerLogin,
     repos: RepoNode[],
     action: BulkAction,
     visTarget?: BulkVisibilityTarget | null,
+    transferDest?: string,
   ) {
     const total = repos.length;
     setBulkProgress({ total, completed: 0, failed: [], currentRepo: null, done: false });
@@ -608,6 +612,13 @@ export default function RepoList({ token, maxVisibleRows, onLogout, viewerLogin,
               : r;
             setItems(prev => prev.map(updateRepo));
           }
+        } else if (action === 'transfer' && transferDest) {
+          const [owner, repoName] = repo.nameWithOwner.split('/');
+          await transferRepositoryRest(token, owner, repoName, transferDest);
+          // Transferred repo changes owner — remove from current list like delete
+          await updateCacheAfterDelete(token, repo.id);
+          setItems(prev => prev.filter(r => r.id !== repo.id));
+          setTotalCount(c => Math.max(0, c - 1));
         }
         trackSuccessfulOperation();
       } catch (e: any) {
@@ -633,6 +644,9 @@ export default function RepoList({ token, maxVisibleRows, onLogout, viewerLogin,
   function resetBulkFlow() {
     setBulkIntentKind(null);
     setBulkVisibilityOpen(false);
+    setBulkTransferDestinationOpen(false);
+    setBulkTransferCodeOpen(false);
+    setBulkTransferDest('');
     setBulkReviewOpen(false);
     setBulkConfirmOpen(false);
     setBulkDeleteCodeOpen(false);
@@ -675,6 +689,11 @@ export default function RepoList({ token, maxVisibleRows, onLogout, viewerLogin,
   function startBulkVisibility() {
     if (selectedRepos.size === 0) return;
     setBulkVisibilityOpen(true); // always ask for the target
+  }
+
+  function startBulkTransfer() {
+    if (selectedRepos.size === 0) return;
+    setBulkTransferDestinationOpen(true); // step 0: collect destination
   }
 
   // Shared rename execution function
@@ -1706,6 +1725,8 @@ export default function RepoList({ token, maxVisibleRows, onLogout, viewerLogin,
         if (key.ctrl && (input === 'a' || input === 'A')) { startBulkArchive(); return; }
         // Ctrl+V: bulk visibility update
         if (key.ctrl && (input === 'v' || input === 'V')) { startBulkVisibility(); return; }
+        // Shift+M: bulk transfer (move) to another owner
+        if (!key.ctrl && input === 'M') { startBulkTransfer(); return; }
         // Del/Backspace: bulk delete
         if (key.delete || key.backspace) { startBulkDelete(); return; }
       }
@@ -2885,6 +2906,19 @@ export default function RepoList({ token, maxVisibleRows, onLogout, viewerLogin,
               onCancel={resetBulkFlow}
             />
           </Box>
+        ) : bulkTransferCodeOpen ? (
+          <Box height={contentHeight} alignItems="center" justifyContent="center">
+            <BulkTransferCodeModal
+              count={bulkFinalSelection.size}
+              destination={bulkTransferDest}
+              terminalWidth={terminalWidth}
+              onConfirm={() => {
+                setBulkTransferCodeOpen(false);
+                executeBulkOperation(Array.from(bulkFinalSelection.values()), 'transfer', null, bulkTransferDest);
+              }}
+              onCancel={resetBulkFlow}
+            />
+          </Box>
         ) : bulkConfirmOpen && bulkAction && bulkMeta ? (
           <Box height={contentHeight} alignItems="center" justifyContent="center">
             <BulkConfirmModal
@@ -2897,6 +2931,8 @@ export default function RepoList({ token, maxVisibleRows, onLogout, viewerLogin,
                 setBulkConfirmOpen(false);
                 if (bulkAction === 'delete') {
                   setBulkDeleteCodeOpen(true); // step 3: verification code
+                } else if (bulkAction === 'transfer') {
+                  setBulkTransferCodeOpen(true); // step 3: verification code
                 } else {
                   executeBulkOperation(Array.from(bulkFinalSelection.values()), bulkAction, bulkVisibilityTarget);
                 }
@@ -2934,6 +2970,20 @@ export default function RepoList({ token, maxVisibleRows, onLogout, viewerLogin,
                 setBulkVisibilityTarget(target);
                 setBulkVisibilityOpen(false);
                 beginBulkReview('visibility');
+              }}
+              onCancel={resetBulkFlow}
+            />
+          </Box>
+        ) : bulkTransferDestinationOpen ? (
+          <Box height={contentHeight} alignItems="center" justifyContent="center">
+            <BulkTransferDestinationModal
+              count={selectedRepos.size}
+              currentOwner={ownerContext !== 'personal' ? ownerContext.login : (viewerLogin ?? '')}
+              terminalWidth={terminalWidth}
+              onChoose={(dest) => {
+                setBulkTransferDest(dest);
+                setBulkTransferDestinationOpen(false);
+                beginBulkReview('transfer');
               }}
               onCancel={resetBulkFlow}
             />

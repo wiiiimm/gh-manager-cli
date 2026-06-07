@@ -16,7 +16,7 @@
 - ✅ Fork synchronization with upstream
 - ✅ Semantic release automation and CI/CD workflows
 - ✅ Automated changelog generation and PR title management
-- ✅ Bulk Select mode with bulk star, archive/unarchive, visibility, and delete operations
+- ✅ Bulk Select mode with bulk star, archive/unarchive, visibility, delete, and transfer operations
 - 🔧 Automated test suite expansion (ongoing)
 - 🔧 Cross-terminal rendering optimization
 
@@ -154,6 +154,7 @@ See the living roadmap in [TODOs.md](./TODOs.md) for the canonical, up-to-date l
 - `Ctrl+S`: bulk star/unstar the selected repos
 - `Ctrl+A`: bulk archive/unarchive the selected repos
 - `Ctrl+V`: bulk visibility update for the selected repos
+- `Shift+M`: bulk transfer (move) the selected repos to another owner/org
 - `Del` / `Backspace`: bulk delete the selected repos
 - Navigation (arrows, PageUp/Down, `Ctrl+G`, `G`) still works
 
@@ -164,11 +165,12 @@ Bulk actions reuse the same global shortcuts as single-repo mode and require at 
 0. Intent/target (only when needed):
    - Star and archive are toggles. If all selected repos share the same state, the opposite state is applied directly. If the selection is mixed, an intent modal asks the explicit target (e.g. "Archive all" vs "Unarchive all", "Star all" vs "Unstar all").
    - Visibility always shows a target picker (Public / Private / Internal — Internal only for enterprise orgs).
+   - Transfer always prompts for a destination owner/org (must differ from the current owner).
 1. Review list (Confirmation 1) — scrollable list of all selected repos; `Space` to unselect; Tab/Enter to proceed. Dismisses on Esc/Cancel or when the list empties.
 2. Count prompt (Confirmation 2) — "About to {action} {N} repos"; Cancel/Proceed, Esc cancels.
-3. Delete only — a separate verification-code modal (type a 4-character code).
+3. Delete and Transfer only — a separate verification-code modal (type a 4-character code).
 4. Sequential execution with per-repo progress; partial-failure reporting at the end.
-5. Selection cleared and bulk select mode exits on completion.
+5. Selection cleared and bulk select mode exits on completion. Transferred repos are removed from the list.
 
 **Persistence:** Selections survive search and filter/sort changes (stored as full node objects by id). Cleared on org/scope switch and stars mode toggle.
 
