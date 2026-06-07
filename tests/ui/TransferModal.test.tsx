@@ -191,11 +191,9 @@ describe('TransferModal', () => {
 
       await advanceToConfirm(() => inputCallback);
 
-      // Confirm the transfer, then flush so the input closure observes `transferring`.
+      // Confirm the transfer, then in the SAME tick try to cancel/re-submit. The
+      // synchronous submittingRef guard must swallow these without a re-render.
       inputCallback('y', {});
-      await new Promise(resolve => setTimeout(resolve, 0));
-
-      // Cancelling mid-transfer must be ignored, and the transfer fires only once.
       inputCallback('', { escape: true });
       inputCallback('c', {});
       inputCallback('', { return: true });

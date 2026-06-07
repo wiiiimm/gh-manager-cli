@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useRef, useState } from 'react';
 import { Box, Text, useInput } from 'ink';
 import chalk from 'chalk';
 import type { RepoNode } from '../../../types';
@@ -12,12 +12,15 @@ interface SyncModalProps {
 
 export default function SyncModal({ repo, onSync, onCancel }: SyncModalProps) {
   const [syncing, setSyncing] = useState(false);
+  // Synchronous mirror of `syncing` so input is guarded in the same tick as submit,
+  // before React re-renders (see ArchiveModal for the rationale).
+  const syncingRef = useRef(false);
   const [syncError, setSyncError] = useState<string | null>(null);
   const [syncFocus, setSyncFocus] = useState<'confirm' | 'cancel'>('confirm');
 
   // Handle keyboard input
   useInput((input, key) => {
-    if (syncing) return; // Ignore input while syncing
+    if (syncingRef.current) return; // Ignore input while syncing
     
     if (key.escape || input.toLowerCase() === 'c') {
       onCancel();
@@ -45,14 +48,16 @@ export default function SyncModal({ repo, onSync, onCancel }: SyncModalProps) {
 
   // Handle the sync confirmation
   const handleSyncConfirm = async () => {
-    if (!repo || syncing) return;
-    
+    if (!repo || syncingRef.current) return;
+
     try {
+      syncingRef.current = true;
       setSyncing(true);
       setSyncError(null);
       await onSync(repo);
     } catch (e: any) {
       setSyncError(e.message || 'Failed to sync fork with upstream');
+      syncingRef.current = false;
       setSyncing(false);
     }
   };

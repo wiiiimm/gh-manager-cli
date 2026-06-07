@@ -100,12 +100,11 @@ describe('CreateRepoModal', () => {
       <CreateRepoModal ownerSlug="octocat" onCreate={onCreate} onCancel={onCancel} />
     );
 
+    // Type the name (flush so Enter sees it), then submit and, in the SAME tick,
+    // hammer Esc/Enter/Tab. The synchronous submittingRef guard must swallow them.
     h.textInputProps?.onChange?.('my-new-repo');
     await new Promise(resolve => setTimeout(resolve, 0));
     inputCallback('', { return: true });
-    await new Promise(resolve => setTimeout(resolve, 0));
-
-    // Esc/Enter/Tab must all be swallowed while the request is in flight.
     inputCallback('', { escape: true });
     inputCallback('', { return: true });
     inputCallback('', { tab: true });

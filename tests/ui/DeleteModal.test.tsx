@@ -151,11 +151,9 @@ describe('DeleteModal rendering', () => {
     h.textInputProps?.onChange?.(CODE);
     await new Promise(resolve => setTimeout(resolve, 0));
 
-    // Confirm the delete, then flush so the input closure observes `deleting`.
+    // Confirm the delete, then in the SAME tick try to cancel/re-submit. The
+    // synchronous deletingRef guard must swallow these without a re-render.
     inputCallback('y', {});
-    await new Promise(resolve => setTimeout(resolve, 0));
-
-    // Cancelling mid-delete must be ignored, and the delete must fire only once.
     inputCallback('c', {});
     inputCallback('', { escape: true });
     inputCallback('y', {});

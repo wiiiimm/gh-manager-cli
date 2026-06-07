@@ -56,7 +56,9 @@ export default function TransferModal({ repo, onTransfer, onCancel, theme: theme
   }, [repo]);
 
   useInput((input, key) => {
-    if (transferring || !repo) return;
+    // submittingRef flips synchronously in handleTransferConfirm, so input is
+    // guarded in the same tick as submit — before `transferring` state re-renders.
+    if (submittingRef.current || !repo) return;
 
     if (key.escape) {
       onCancel();

@@ -95,12 +95,9 @@ describe('SyncModal', () => {
       <SyncModal repo={mockRepo} onSync={onSync} onCancel={onCancel} />
     );
 
-    // Trigger the sync, then let the re-render flush so `inputCallback` points
-    // at the guarded closure (the one that observes `syncing === true`).
+    // Trigger the sync, then in the SAME tick try to cancel/re-submit. The
+    // synchronous syncingRef guard must swallow these without any re-render.
     inputCallback('y', {});
-    await new Promise(resolve => setTimeout(resolve, 0));
-
-    // Every subsequent key must be swallowed while the request is in flight.
     inputCallback('c', {});
     inputCallback('', { escape: true });
     inputCallback('y', {});

@@ -115,13 +115,12 @@ describe('RenameModal', () => {
       <RenameModal repo={mockRepo} onRename={onRename} onCancel={onCancel} />
     );
 
-    // Type a new name and submit, then let the re-render flush so `inputCallback`
-    // observes `renaming === true`.
+    // Type a new name (flush so the Enter closure sees it), then submit and, in
+    // the SAME tick, try to cancel/re-submit. The synchronous renamingRef guard
+    // must swallow these without any further re-render.
     h.textInputProps?.onChange?.('renamed-repo');
     await new Promise(resolve => setTimeout(resolve, 0));
     inputCallback('', { return: true });
-    await new Promise(resolve => setTimeout(resolve, 0));
-
     inputCallback('', { escape: true });
     inputCallback('', { return: true });
 
