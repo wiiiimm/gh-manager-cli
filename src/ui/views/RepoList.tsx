@@ -608,7 +608,7 @@ export default function RepoList({ token, maxVisibleRows, onLogout, viewerLogin,
           // active visibility filter (both 'public' and 'private'), so they stay
           // available when the filter changes — never prune here.
           const updateRepo = (r: RepoNode) => r.id === repo.id
-            ? { ...r, visibility: visTarget, isPrivate: visTarget !== 'PUBLIC' }
+            ? { ...r, visibility: visTarget, isPrivate: visTarget === 'PRIVATE' }
             : r;
           setItems(prev => prev.map(updateRepo));
         } else if (action === 'transfer' && transferDest) {

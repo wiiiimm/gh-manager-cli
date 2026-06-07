@@ -75,8 +75,12 @@ logger.info('Starting gh-manager-cli', {
 });
 
 // Graceful shutdown handlers
+// Signal-driven exits (Ctrl+C / kill) still exit with code 0, so flag them here
+// to suppress the end-of-session summary, which is meant only for a normal quit.
+let exitingViaSignal = false;
 const handleShutdown = (signal: string) => {
-  logger.info('Shutting down gh-manager-cli', { 
+  exitingViaSignal = true;
+  logger.info('Shutting down gh-manager-cli', {
     signal,
     uptime: process.uptime()
   });
@@ -103,12 +107,12 @@ process.on('exit', (code) => {
   // Only show sponsorship message on normal exit (code 0)
   // and not when there's an error or when using --version/--help
   const isNormalExit = code === 0;
-  const isInteractiveSession = !argv.includes('--version') && 
-                               !argv.includes('-v') && 
-                               !argv.includes('--help') && 
+  const isInteractiveSession = !argv.includes('--version') &&
+                               !argv.includes('-v') &&
+                               !argv.includes('--help') &&
                                !argv.includes('-h');
-  
-  if (isNormalExit && isInteractiveSession) {
+
+  if (isNormalExit && isInteractiveSession && !exitingViaSignal) {
     showSponsorshipMessage();
   }
   

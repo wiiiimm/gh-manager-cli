@@ -43,7 +43,10 @@ export function getTotalOperations(): number {
 }
 
 function formatDuration(ms: number): string {
-  const totalSeconds = Math.floor(ms / 1000);
+  // Clamp to zero so a backward clock adjustment during the session can never
+  // produce a negative or non-finite duration in the summary.
+  const safeMs = Number.isFinite(ms) && ms > 0 ? ms : 0;
+  const totalSeconds = Math.floor(safeMs / 1000);
   const hours = Math.floor(totalSeconds / 3600);
   const minutes = Math.floor((totalSeconds % 3600) / 60);
   const seconds = totalSeconds % 60;
