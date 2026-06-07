@@ -612,6 +612,11 @@ export default function RepoList({ token, maxVisibleRows, onLogout, viewerLogin,
           await updateCacheAfterDelete(token, repo.id);
           setItems(prev => prev.filter(r => r.id !== repo.id));
           setTotalCount(c => Math.max(0, c - 1));
+        } else {
+          // No branch matched (e.g. visibility without a target, or transfer
+          // without a destination). Never mark such a repo as successfully
+          // processed — surface it as a failure instead of a silent no-op.
+          throw new Error(`Missing required parameter for bulk ${action}`);
         }
         trackSuccessfulOperation();
       } catch (e: any) {
@@ -2909,6 +2914,7 @@ export default function RepoList({ token, maxVisibleRows, onLogout, viewerLogin,
               actionLabel={bulkMeta.label}
               actionColor={bulkMeta.color}
               actionVerb={bulkMeta.label.toLowerCase()}
+              destination={bulkAction === 'transfer' ? bulkTransferDest : undefined}
               terminalWidth={terminalWidth}
               onConfirm={() => {
                 setBulkConfirmOpen(false);
