@@ -79,9 +79,8 @@ describe('BulkReviewModal', () => {
     const out = lastFrame() || '';
     const nameLine = out.split('\n').find(l => l.includes('me/secret')) || '';
     // Same visual line as the name (would be on a separate wrapped line if broken).
-    expect(nameLine).toContain('Private');
     // bgCyan open code ([46m) is present on that line → badge is highlighted.
-    expect(nameLine).toContain('[46m');
+    expect(nameLine).toMatch(/\x1b\[46m[^\n]*Private/);
     unmount();
   });
 
@@ -99,8 +98,7 @@ describe('BulkReviewModal', () => {
     );
     const out = lastFrame() || '';
     const nameLine = out.split('\n').find(l => l.includes('org/intra')) || '';
-    expect(nameLine).toContain('Internal');
-    expect(nameLine).toContain('[46m');
+    expect(nameLine).toMatch(/\x1b\[46m[^\n]*Internal/);
     unmount();
   });
 
