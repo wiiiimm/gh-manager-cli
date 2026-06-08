@@ -41,14 +41,12 @@ const getShortFlagValue = (short: string): string | undefined => {
 };
 if (argv.includes('--version') || argv.includes('-v')) {
   // Print semantic version without network
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const version = (pkg as any)?.version || '0.0.0';
+  const version = (pkg as { version?: string })?.version || '0.0.0';
   process.stdout.write(`${version}\n`);
   process.exit(0);
 }
 if (argv.includes('--help') || argv.includes('-h')) {
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const version = (pkg as any)?.version || '0.0.0';
+  const version = (pkg as { version?: string })?.version || '0.0.0';
   process.stdout.write(`gh-manager-cli v${version}\n\n` +
     `GitHub repo manager (Ink TUI)\n\n` +
     `Usage:\n` +
@@ -70,7 +68,7 @@ if (process.env.GH_MANAGER_DEBUG === '1') {
 }
 
 logger.info('Starting gh-manager-cli', { 
-  version: (pkg as any)?.version || '0.0.0',
+  version: (pkg as { version?: string })?.version || '0.0.0',
   node: process.version
 });
 
@@ -124,9 +122,10 @@ process.on('uncaughtException', (err) => {
   console.error('Unhandled error:', err.message || err);
   process.exit(1);
 });
-process.on('unhandledRejection', (reason: any) => {
-  logger.fatal('Unhandled rejection', { error: reason?.message || reason, stack: reason?.stack });
-  console.error('Unhandled rejection:', reason?.message || reason);
+process.on('unhandledRejection', (reason: unknown) => {
+  const reasonErr = reason instanceof Error ? reason : null;
+  logger.fatal('Unhandled rejection', { error: reasonErr?.message || String(reason), stack: reasonErr?.stack });
+  console.error('Unhandled rejection:', reasonErr?.message || reason);
   process.exit(1);
 });
 

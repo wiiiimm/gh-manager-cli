@@ -247,6 +247,7 @@ First run prompts for a PAT if not provided via env vars. The token is validated
 - **Terminal colours:** Use chalk for pre-colouring to avoid nested Text issues
 - **Error handling:** Try-catch blocks for API calls and network operations
 - **Language:** British English for all user-facing text (e.g., organisation, authorisation, colour)
+- **No `any`:** GraphQL response paths use dedicated response interfaces (e.g. `ViewerLoginResponse`, `OrgReposResponse`). Error catch clauses use `catch (e: unknown)` with narrowing via `(e instanceof Error ? e.message : null) || fallback`. For logger calls, `context?: unknown` is the correct type. Dynamic chalk property access uses `(chalk as unknown as Record<string, ChalkInstance | undefined>)[key]`. The one permitted `any` is `persistCache(... as any)` which is a workaround for an incomplete third-party type definition in `apollo3-cache-persist`.
 
 ### Testing Protocol
 1. **Terminal Testing:** Test in multiple terminals (iTerm2, Terminal.app, Termius)

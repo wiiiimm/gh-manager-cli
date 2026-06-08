@@ -56,8 +56,8 @@ export default function RenameModal({ repo, onRename, onCancel, theme: themeProp
       setRenaming(true);
       setRenameError(null);
       await onRename(repo, newName.trim());
-    } catch (e: any) {
-      setRenameError(e.message || 'Failed to rename repository');
+    } catch (e: unknown) {
+      setRenameError((e instanceof Error ? e.message : null) || 'Failed to rename repository');
       renamingRef.current = false;
       setRenaming(false);
     }

@@ -56,8 +56,8 @@ export default function ArchiveModal({ repo, onArchive, onCancel }: ArchiveModal
       setArchiving(true);
       setArchiveError(null);
       await onArchive(repo);
-    } catch (e: any) {
-      setArchiveError(e.message || `Failed to ${repo.isArchived ? 'unarchive' : 'archive'} repository`);
+    } catch (e: unknown) {
+      setArchiveError((e instanceof Error ? e.message : null) || `Failed to ${repo.isArchived ? 'unarchive' : 'archive'} repository`);
       archivingRef.current = false;
       setArchiving(false);
     }

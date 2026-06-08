@@ -32,12 +32,12 @@ export interface UseThemeResult {
 }
 
 function chalkFor(color: string): ChalkInstance {
-  return (chalk as any)[color] ?? chalk.white;
+  return (chalk as unknown as Record<string, ChalkInstance | undefined>)[color] ?? chalk.white;
 }
 
 function bgChalkFor(color: string): ChalkInstance {
   const bgKey = 'bg' + color.charAt(0).toUpperCase() + color.slice(1);
-  return (chalk as any)[bgKey] ?? chalk.bgWhite;
+  return (chalk as unknown as Record<string, ChalkInstance | undefined>)[bgKey] ?? chalk.bgWhite;
 }
 
 export function useTheme(name: ThemeName): UseThemeResult {

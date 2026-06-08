@@ -1,11 +1,16 @@
 import { graphql as makeGraphQL } from '@octokit/graphql';
-import { ApolloClient, InMemoryCache, HttpLink, gql } from '@apollo/client/core/index.js';
+import { ApolloClient, InMemoryCache, HttpLink, gql, type NormalizedCacheObject } from '@apollo/client/core/index.js';
 import { persistCache } from 'apollo3-cache-persist';
 import fs from 'fs';
 import path from 'path';
 import envPaths from 'env-paths';
 import type { RepoNode, RateLimitInfo, RestRateLimitInfo, CombinedRateLimitInfo } from '../types';
 import { logger } from '../lib/logger';
+
+/** Narrow an unknown catch value to an Error, preserving the message. */
+function toError(e: unknown): Error {
+  return e instanceof Error ? e : new Error(String(e));
+}
 
 export function makeClient(token: string) {
   return makeGraphQL.defaults({
@@ -44,11 +49,85 @@ interface RestRateLimitResponse {
   };
 }
 
+// GraphQL response shapes for Octokit client calls — keeps `const res: any` out
+// of the response-handling paths without littering the call sites with generics.
+
+interface ViewerLoginResponse {
+  viewer: { login: string };
+}
+
+interface ViewerOrganizationsResponse {
+  viewer: {
+    organizations: {
+      nodes: Organization[];
+    };
+  };
+}
+
+interface CheckOrgEnterpriseResponse {
+  organization?: {
+    enterpriseOwners?: {
+      totalCount: number;
+    };
+  };
+}
+
+interface RepositoryConnectionData {
+  totalCount: number;
+  pageInfo: { endCursor: string | null; hasNextPage: boolean };
+  nodes: RepoNode[];
+}
+
+interface OrgReposResponse {
+  rateLimit: RateLimitInfo;
+  organization: {
+    repositories: RepositoryConnectionData;
+  };
+}
+
+interface ViewerReposResponse {
+  rateLimit: RateLimitInfo;
+  viewer: {
+    repositories: RepositoryConnectionData;
+  };
+}
+
+interface StarredReposResponse {
+  rateLimit: RateLimitInfo;
+  viewer: {
+    starredRepositories: RepositoryConnectionData;
+  };
+}
+
+interface FetchRepositoryByIdResponse {
+  node: RepoNode | null;
+}
+
+interface FetchRepositoryByOwnerNameResponse {
+  repository: RepoNode | null;
+}
+
+// Dynamic alias keys produced by enrichForksWithAheadBehind (fork0, parent0, …)
+type EnrichForksResponse = Record<string, {
+  id?: string;
+  defaultBranchRef?: {
+    target?: {
+      history?: { totalCount: number };
+    };
+  };
+} | null>;
+
+/** Bundled Apollo client + gql tag shared across all calls. */
+interface ApolloClientBundle {
+  client: ApolloClient<NormalizedCacheObject>;
+  gql: typeof gql;
+}
+
 // Singleton Apollo client instance
-let apolloClientInstance: { client: ApolloClient<any>, gql: any } | null = null;
+let apolloClientInstance: ApolloClientBundle | null = null;
 
 // Apollo Client with persisted cache (default for all queries)
-async function makeApolloClient(token: string): Promise<any> {
+async function makeApolloClient(token: string): Promise<ApolloClientBundle> {
   // Return existing instance if available
   if (apolloClientInstance) {
     return apolloClientInstance;
@@ -91,28 +170,30 @@ async function makeApolloClient(token: string): Promise<any> {
         } catch {}
       }
     };
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     await persistCache({ cache, storage, debounce: 500, maxSize: 5 * 1024 * 1024 } as any);
-    const link = new (HttpLink as any)({
+    const link = new HttpLink({
       uri: 'https://api.github.com/graphql',
-      fetch: (globalThis as any).fetch,
+      fetch: globalThis.fetch,
       headers: { authorization: `Bearer ${token}` }
     });
     const client = new ApolloClient({ cache, link });
     apolloClientInstance = { client, gql };
     return apolloClientInstance;
-  } catch (error: any) {
+  } catch (error: unknown) {
+    const err = toError(error);
     logger.error('Failed to initialize Apollo Client', { 
-      error: error.message, 
-      stack: error.stack 
+      error: err.message, 
+      stack: err.stack 
     });
     const debug = process.env.GH_MANAGER_DEBUG === '1';
     if (debug) {
-      process.stderr.write(`\n❌ Failed to initialize Apollo Client: ${error.message}\n`);
-      if (error.stack) {
-        process.stderr.write(`Stack: ${error.stack}\n`);
+      process.stderr.write(`\n❌ Failed to initialize Apollo Client: ${err.message}\n`);
+      if (err.stack) {
+        process.stderr.write(`Stack: ${err.stack}\n`);
       }
     }
-    throw new Error(`Apollo Client initialization failed: ${error.message}`);
+    throw new Error(`Apollo Client initialization failed: ${err.message}`);
   }
 }
 
@@ -128,11 +209,12 @@ export async function getViewerLogin(
   `;
   try {
     logger.debug('Fetching viewer login');
-    const res: any = await client(query);
+    const res = await client<ViewerLoginResponse>(query);
     logger.info(`Successfully fetched viewer login: ${res.viewer.login}`);
-    return res.viewer.login as string;
-  } catch (error: any) {
-    logger.error('Failed to fetch viewer login', { error: error.message, stack: error.stack });
+    return res.viewer.login;
+  } catch (error: unknown) {
+    const err = toError(error);
+    logger.error('Failed to fetch viewer login', { error: err.message, stack: err.stack });
     throw error;
   }
 }
@@ -162,8 +244,8 @@ export async function fetchViewerOrganizations(
       }
     }
   `;
-  const res: any = await client(query);
-  return res.viewer.organizations.nodes as Organization[];
+  const res = await client<ViewerOrganizationsResponse>(query);
+  return res.viewer.organizations.nodes;
 }
 
 // Check if an organization is enterprise by checking enterpriseOwners field
@@ -187,11 +269,11 @@ export async function checkOrganizationIsEnterprise(
         }
       }
     `;
-    const res: any = await client(query, { orgLogin });
+    const res = await client<CheckOrgEnterpriseResponse>(query, { orgLogin });
     
     // If the organization has enterprise owners, it's part of an enterprise
     // The field will return null or throw an error for non-enterprise orgs
-    const isEnterprise = res.organization?.enterpriseOwners?.totalCount > 0;
+    const isEnterprise = (res.organization?.enterpriseOwners?.totalCount ?? 0) > 0;
     
     logger.info('Organization enterprise status checked', {
       orgLogin,
@@ -224,22 +306,23 @@ export interface ReposPageResult {
  * include the connections (older cache reads, fragments without the fields)
  * fall through untouched.
  */
-export function normalizeRepoNode<T extends Record<string, any>>(node: T): T {
+export function normalizeRepoNode<T extends object>(node: T): T {
   if (!node) return node;
-  const result: any = { ...node };
-  const pr = (node as any).openPullRequests;
+  const raw = node as Record<string, unknown>;
+  const result: Record<string, unknown> = { ...raw };
+  const pr = raw.openPullRequests;
   if (pr && typeof pr === 'object' && 'totalCount' in pr) {
-    result.openPullRequests = pr.totalCount as number;
+    result.openPullRequests = (pr as { totalCount: number }).totalCount;
   }
-  const iss = (node as any).openIssues;
+  const iss = raw.openIssues;
   if (iss && typeof iss === 'object' && 'totalCount' in iss) {
-    result.openIssues = iss.totalCount as number;
+    result.openIssues = (iss as { totalCount: number }).totalCount;
   }
-  return result as T;
+  return result as unknown as T;
 }
 
-function normalizeRepoNodes(nodes: any[]): RepoNode[] {
-  return (nodes || []).map(n => normalizeRepoNode(n)) as RepoNode[];
+function normalizeRepoNodes(nodes: unknown[]): RepoNode[] {
+  return (nodes || []).map(n => normalizeRepoNode(n as object)) as RepoNode[];
 }
 
 export type OwnerAffiliation = 'OWNER' | 'COLLABORATOR' | 'ORGANIZATION_MEMBER';
@@ -351,7 +434,7 @@ export async function fetchViewerReposPage(
       }
     `;
     
-    const res: any = await client(query, {
+    const res = await client<OrgReposResponse>(query, {
       first,
       after: after ?? null,
       sortField,
@@ -361,11 +444,11 @@ export async function fetchViewerReposPage(
     
     const data = res.organization.repositories;
     return {
-      nodes: normalizeRepoNodes(data.nodes),
+      nodes: normalizeRepoNodes(data.nodes as unknown[]),
       endCursor: data.pageInfo.endCursor,
       hasNextPage: data.pageInfo.hasNextPage,
       totalCount: data.totalCount,
-      rateLimit: res.rateLimit as RateLimitInfo,
+      rateLimit: res.rateLimit,
     };
   }
 
@@ -451,7 +534,7 @@ export async function fetchViewerReposPage(
   `;
   
   try {
-    const res: any = await client(query, {
+    const res = await client<ViewerReposResponse>(query, {
       first,
       after: after ?? null,
       sortField,
@@ -462,18 +545,17 @@ export async function fetchViewerReposPage(
     const data = res.viewer.repositories;
     logger.info(`Octokit successfully fetched ${data.nodes.length} repositories`);
     return {
-      nodes: normalizeRepoNodes(data.nodes),
+      nodes: normalizeRepoNodes(data.nodes as unknown[]),
       endCursor: data.pageInfo.endCursor,
       hasNextPage: data.pageInfo.hasNextPage,
       totalCount: data.totalCount,
-      rateLimit: res.rateLimit as RateLimitInfo,
+      rateLimit: res.rateLimit,
     };
-  } catch (error: any) {
+  } catch (error: unknown) {
+    const err = toError(error);
     logger.error('Octokit query failed', {
-      error: error.message,
-      stack: error.stack,
-      status: error.status,
-      response: error.response
+      error: err.message,
+      stack: err.stack,
     });
     throw error;
   }
@@ -517,12 +599,12 @@ export async function fetchViewerReposPageUnified(
       
       // Different query based on context (personal vs organization)
       let q;
-      let variables: any = { first, after: after ?? null, sortField, sortDirection };
+      let variables: Record<string, unknown> = { first, after: after ?? null, sortField, sortDirection };
       
       if (isOrgContext) {
         // Organization context
-        variables.orgLogin = organizationLogin;
-        q = (ap.gql as any)`
+        variables = { ...variables, orgLogin: organizationLogin };
+        q = ap.gql`
           query OrgRepos($first: Int!, $after: String, $sortField: RepositoryOrderField!, $sortDirection: OrderDirection!, $orgLogin: String!) {
             rateLimit { limit remaining resetAt }
             organization(login: $orgLogin) {
@@ -557,8 +639,8 @@ export async function fetchViewerReposPageUnified(
         `;
       } else {
         // Personal context
-        variables.affiliations = ownerAffiliations;
-        q = (ap.gql as any)`
+        variables = { ...variables, affiliations: ownerAffiliations };
+        q = ap.gql`
           query ViewerRepos($first: Int!, $after: String, $sortField: RepositoryOrderField!, $sortDirection: OrderDirection!, $affiliations: [RepositoryAffiliation!]!) {
             rateLimit { limit remaining resetAt }
             viewer {
@@ -632,14 +714,13 @@ export async function fetchViewerReposPageUnified(
         rateLimit: res.data.rateLimit as RateLimitInfo,
       };
     }
-  } catch (e: any) {
+  } catch (e: unknown) {
+    const err = toError(e);
     logger.error('Apollo query failed', {
-      error: e.message, 
-      stack: e.stack,
-      graphQLErrors: e.graphQLErrors,
-      networkError: e.networkError
+      error: err.message, 
+      stack: err.stack,
     });
-    if (debug) console.log(`❌ Apollo failed, falling back to Octokit:`, e.message);
+    if (debug) console.log(`❌ Apollo failed, falling back to Octokit:`, err.message);
     // Fallback to Octokit path if Apollo not available
   }
   
@@ -671,7 +752,7 @@ export async function searchRepositoriesUnified(
   
   try {
     const ap = await makeApolloClient(token);
-    const queryDoc = (ap.gql as any)`
+    const queryDoc = ap.gql`
       query SearchRepos($q: String!, $first: Int!, $after: String) {
         rateLimit { limit remaining resetAt }
         search(query: $q, type: REPOSITORY, first: $first, after: $after) {
@@ -717,17 +798,12 @@ export async function searchRepositoriesUnified(
       totalCount: data.repositoryCount,
       rateLimit: res.data.rateLimit as RateLimitInfo,
     };
-  } catch (e: any) {
+  } catch (e: unknown) {
     // Log errors to stderr only in debug mode
     const debug = process.env.GH_MANAGER_DEBUG === '1';
     if (debug) {
-      process.stderr.write(`\n❌ Search failed: ${e.message}\n`);
-      if (e.graphQLErrors) {
-        process.stderr.write(`GraphQL errors: ${JSON.stringify(e.graphQLErrors, null, 2)}\n`);
-      }
-      if (e.networkError) {
-        process.stderr.write(`Network error: ${e.networkError.message}\n`);
-      }
+      const err = toError(e);
+      process.stderr.write(`\n❌ Search failed: ${err.message}\n`);
     }
     // Re-throw the error so we can see it in the UI
     throw e;
@@ -755,7 +831,7 @@ export async function deleteRepositoryRest(
       'Accept': 'application/vnd.github+json',
       'User-Agent': 'gh-manager-cli'
     }
-  } as any);
+  });
   
   if (res.status === 204) {
     logger.info('Successfully deleted repository', {
@@ -841,7 +917,7 @@ export async function createRepositoryRest(
     ? `https://api.github.com/orgs/${org}/repos`
     : `https://api.github.com/user/repos`;
 
-  const body: Record<string, any> = { name };
+  const body: Record<string, unknown> = { name };
   if (visibility === 'INTERNAL') {
     // Internal visibility is only valid for org repos within an enterprise
     body.visibility = 'internal';
@@ -863,10 +939,11 @@ export async function createRepositoryRest(
         'User-Agent': 'gh-manager-cli'
       },
       body: JSON.stringify(body)
-    } as any);
-  } catch (networkError: any) {
-    logger.error('Network error during repository creation', { error: networkError.message, name, org: org ?? null });
-    throw new Error(`Network error whilst creating repository: ${networkError.message}`);
+    });
+  } catch (networkError: unknown) {
+    const err = toError(networkError);
+    logger.error('Network error during repository creation', { error: err.message, name, org: org ?? null });
+    throw new Error(`Network error whilst creating repository: ${err.message}`);
   }
 
   if (res.status === 201) {
@@ -921,10 +998,11 @@ export async function transferRepositoryRest(
         'User-Agent': 'gh-manager-cli'
       },
       body: JSON.stringify({ new_owner: newOwner })
-    } as any);
-  } catch (networkError: any) {
-    logger.error('Network error during repository transfer', { error: networkError.message, owner, repo, newOwner });
-    throw new Error(`Network error whilst transferring repository: ${networkError.message}`);
+    });
+  } catch (networkError: unknown) {
+    const err = toError(networkError);
+    logger.error('Network error during repository transfer', { error: err.message, owner, repo, newOwner });
+    throw new Error(`Network error whilst transferring repository: ${err.message}`);
   }
 
   // 202 Accepted = transfer initiated. Some responses may also return 200.
@@ -1010,7 +1088,7 @@ export async function getStarredRepositories(
   `;
 
   try {
-    const res: any = await client(query, {
+    const res = await client<StarredReposResponse>(query, {
       first,
       after: after ?? null,
     });
@@ -1023,16 +1101,17 @@ export async function getStarredRepositories(
     });
 
     return {
-      nodes: normalizeRepoNodes(data.nodes),
-      endCursor: data.pageInfo.endCursor,
+      nodes: normalizeRepoNodes(data.nodes as unknown[]),
+      endCursor: data.pageInfo.endCursor ?? undefined,
       hasNextPage: data.pageInfo.hasNextPage,
       totalCount: data.totalCount,
-      rateLimit: res.rateLimit as RateLimitInfo,
+      rateLimit: res.rateLimit,
     };
-  } catch (error: any) {
+  } catch (error: unknown) {
+    const err = toError(error);
     logger.error('Failed to fetch starred repositories', {
-      error: error.message,
-      stack: error.stack
+      error: err.message,
+      stack: err.stack
     });
     throw error;
   }
@@ -1060,11 +1139,12 @@ export async function starRepository(
     logger.info('Successfully starred repository', {
       starrableId
     });
-  } catch (error: any) {
+  } catch (error: unknown) {
+    const err = toError(error);
     logger.error('Failed to star repository', {
       starrableId,
-      error: error.message,
-      stack: error.stack
+      error: err.message,
+      stack: err.stack
     });
     throw error;
   }
@@ -1092,11 +1172,12 @@ export async function unstarRepository(
     logger.info('Successfully unstarred repository', {
       starrableId
     });
-  } catch (error: any) {
+  } catch (error: unknown) {
+    const err = toError(error);
     logger.error('Failed to unstar repository', {
       starrableId,
-      error: error.message,
-      stack: error.stack
+      error: err.message,
+      stack: err.stack
     });
     throw error;
   }
@@ -1123,11 +1204,12 @@ export async function archiveRepositoryById(
     logger.info('Successfully archived repository', {
       repositoryId
     });
-  } catch (error: any) {
+  } catch (error: unknown) {
+    const err = toError(error);
     logger.error('Failed to archive repository', {
       repositoryId,
-      error: error.message,
-      stack: error.stack
+      error: err.message,
+      stack: err.stack
     });
     throw error;
   }
@@ -1154,11 +1236,12 @@ export async function unarchiveRepositoryById(
     logger.info('Successfully unarchived repository', {
       repositoryId
     });
-  } catch (error: any) {
+  } catch (error: unknown) {
+    const err = toError(error);
     logger.error('Failed to unarchive repository', {
       repositoryId,
-      error: error.message,
-      stack: error.stack
+      error: err.message,
+      stack: err.stack
     });
     throw error;
   }
@@ -1344,7 +1427,7 @@ export async function fetchRepositoryById(
     }
   `;
   
-  const result: any = await client(query, { 
+  const result = await client<FetchRepositoryByIdResponse>(query, { 
     id: repositoryId,
     includeForkTracking 
   });
@@ -1375,7 +1458,7 @@ export async function syncForkWithUpstream(
       'User-Agent': 'gh-manager-cli'
     },
     body: JSON.stringify({ branch })
-  } as any);
+  });
   
   if (res.status === 204) {
     // Already up to date
@@ -1586,10 +1669,11 @@ export async function fetchRestRateLimits(token: string): Promise<RestRateLimitI
       core: data.resources?.core || { limit: 0, remaining: 0, reset: 0 },
       graphql: data.resources?.graphql || { limit: 0, remaining: 0, reset: 0 }
     };
-  } catch (error: any) {
+  } catch (error: unknown) {
+    const err = toError(error);
     logger.error('Error fetching REST rate limits', {
-      error: error.message,
-      stack: error.stack
+      error: err.message,
+      stack: err.stack
     });
     return null;
   }
@@ -1645,11 +1729,12 @@ export async function renameRepositoryById(
       repositoryId,
       newName: result?.updateRepository?.repository?.name
     });
-  } catch (error: any) {
+  } catch (error: unknown) {
+    const err = toError(error);
     logger.error('Failed to rename repository', {
       repositoryId,
       newName,
-      error: error.message
+      error: err.message
     });
     throw error;
   }
@@ -1693,8 +1778,9 @@ export async function inspectCacheStatus(): Promise<void> {
       process.stderr.write(`📊 Meta file: NOT FOUND\n`);
     }
     process.stderr.write('\n');
-  } catch (e: any) {
-    process.stderr.write(`❌ Cache inspection failed: ${e.message}\n`);
+  } catch (e: unknown) {
+    const err = toError(e);
+    process.stderr.write(`❌ Cache inspection failed: ${err.message}\n`);
   }
 }
 
@@ -1772,7 +1858,7 @@ export async function enrichForksWithAheadBehind(
     const query = `query EnrichForks(${varDefs}) { ${queryParts.join('\n')} }`;
 
     try {
-      const res: any = await client(query, variables);
+      const res = await client<EnrichForksResponse>(query, variables);
 
       batch.forEach((fork, i) => {
         const forkNode = res[`fork${i}`];
@@ -1785,9 +1871,10 @@ export async function enrichForksWithAheadBehind(
 
         results.push({ id: fork.id, forkHistoryCount, parentHistoryCount });
       });
-    } catch (err: any) {
+    } catch (err: unknown) {
+      const e = toError(err);
       logger.error('enrichForksWithAheadBehind batch failed', {
-        error: err.message,
+        error: e.message,
         batchSize: batch.length,
       });
       // Push nulls for this batch so callers know they weren't enriched
@@ -1845,10 +1932,11 @@ export async function fetchRepositoryByOwnerAndName(
   `;
 
   try {
-    const result: any = await client(query, { owner, name });
-    return result.repository as RepoNode | null;
-  } catch (err: any) {
-    logger.error('fetchRepositoryByOwnerAndName failed', { owner, name, error: err.message });
+    const result = await client<FetchRepositoryByOwnerNameResponse>(query, { owner, name });
+    return result.repository;
+  } catch (err: unknown) {
+    const e = toError(err);
+    logger.error('fetchRepositoryByOwnerAndName failed', { owner, name, error: e.message });
     return null;
   }
 }

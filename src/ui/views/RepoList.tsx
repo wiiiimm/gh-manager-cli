@@ -299,8 +299,8 @@ export default function RepoList({ token, maxVisibleRows, onLogout, viewerLogin,
         } else {
           addDebugMessage(`[--org] No access to org @${slug}, ignoring flag`);
         }
-      } catch (e: any) {
-        addDebugMessage(`[--org] Failed to apply org flag: ${e.message || e}`);
+      } catch (e: unknown) {
+        addDebugMessage(`[--org] Failed to apply org flag: ${e instanceof Error ? e.message : String(e)}`);
       }
     })();
   }, [initialOrgSlug, token, prefsLoaded, client, addDebugMessage]);
@@ -375,9 +375,9 @@ export default function RepoList({ token, maxVisibleRows, onLogout, viewerLogin,
       }
       
       setStarredLoading(false);
-    } catch (e: any) {
+    } catch (e: unknown) {
       setStarredLoading(false);
-      setError(e.message || 'Failed to fetch starred repositories');
+      setError((e instanceof Error ? e.message : null) || 'Failed to fetch starred repositories');
     }
   }
   
@@ -387,12 +387,12 @@ export default function RepoList({ token, maxVisibleRows, onLogout, viewerLogin,
     
     try {
       setUnstarring(true);
-      const targetId = (unstarTarget as any).id;
+      const targetId = unstarTarget.id;
       
       await unstarRepository(client, targetId);
 
       // Remove from starred items list
-      setStarredItems(prev => prev.filter((r: any) => r.id !== targetId));
+      setStarredItems(prev => prev.filter(r => r.id !== targetId));
       setStarredTotalCount(c => Math.max(0, c - 1));
 
       // Adjust cursor if needed
@@ -406,11 +406,11 @@ export default function RepoList({ token, maxVisibleRows, onLogout, viewerLogin,
       setUnstarTarget(null);
       setUnstarError(null);
       setUnstarring(false);
-    } catch (e: any) {
+    } catch (e: unknown) {
       setUnstarring(false);
       
       // Check for OAuth access restriction error
-      const errorMsg = e.message || 'Failed to unstar repository';
+      const errorMsg = (e instanceof Error ? e.message : null) || 'Failed to unstar repository';
       if (errorMsg.includes('OAuth App access restrictions')) {
         // Extract org name from the error or use the repo owner
         const orgMatch = errorMsg.match(/`([^`]+)` organization/);
@@ -442,7 +442,7 @@ export default function RepoList({ token, maxVisibleRows, onLogout, viewerLogin,
     
     try {
       setStarring(true);
-      const targetId = (starTarget as any).id;
+      const targetId = starTarget.id;
       
       if (isStarred) {
         await unstarRepository(client, targetId);
@@ -451,7 +451,7 @@ export default function RepoList({ token, maxVisibleRows, onLogout, viewerLogin,
       }
       
       // Update the repo in the list
-      const updateRepo = (r: any) => {
+      const updateRepo = (r: RepoNode) => {
         if (r.id === targetId) {
           return { ...r, viewerHasStarred: !isStarred, stargazerCount: r.stargazerCount + (isStarred ? -1 : 1) };
         }
@@ -468,11 +468,11 @@ export default function RepoList({ token, maxVisibleRows, onLogout, viewerLogin,
       setStarTarget(null);
       setStarError(null);
       setStarring(false);
-    } catch (e: any) {
+    } catch (e: unknown) {
       setStarring(false);
       
       // Check for OAuth access restriction error
-      const errorMsg = e.message || `Failed to ${isStarred ? 'unstar' : 'star'} repository`;
+      const errorMsg = (e instanceof Error ? e.message : null) || `Failed to ${isStarred ? 'unstar' : 'star'} repository`;
       if (errorMsg.includes('OAuth access restrictions')) {
         const orgMatch = errorMsg.match(/`([^`]+)` organization/);
         const orgName = orgMatch ? orgMatch[1] : starTarget?.nameWithOwner.split('/')[0];
@@ -528,8 +528,8 @@ export default function RepoList({ token, maxVisibleRows, onLogout, viewerLogin,
       await updateCacheWithRepository(token, updatedRepo);
       
       // Update items with the locally updated data
-      const updateSyncedRepo = (r: any) => {
-        if (r.id === (syncTarget as any).id) {
+      const updateSyncedRepo = (r: RepoNode) => {
+        if (r.id === syncTarget.id) {
           return updatedRepo;
         }
         return r;
@@ -538,9 +538,9 @@ export default function RepoList({ token, maxVisibleRows, onLogout, viewerLogin,
       trackOperation('syncFork');
       trackSuccessfulOperation();
       closeSyncModal();
-    } catch (e: any) {
+    } catch (e: unknown) {
       setSyncing(false);
-      setSyncError(e.message || 'Failed to sync fork. Check permissions and network.');
+      setSyncError((e instanceof Error ? e.message : null) || 'Failed to sync fork. Check permissions and network.');
       // Keep modal open on error so user can see the error message
     }
   }
@@ -552,7 +552,7 @@ export default function RepoList({ token, maxVisibleRows, onLogout, viewerLogin,
     try {
       setArchiving(true);
       const isArchived = archiveTarget.isArchived;
-      const id = (archiveTarget as any).id;
+      const id = archiveTarget.id;
       
       if (isArchived) {
         await unarchiveRepositoryById(client, id);
@@ -563,7 +563,7 @@ export default function RepoList({ token, maxVisibleRows, onLogout, viewerLogin,
       // Update Apollo cache
       await updateCacheAfterArchive(token, id, !isArchived);
       
-      const updateRepo = (r: any) => (r.id === id ? { ...r, isArchived: !isArchived } : r);
+      const updateRepo = (r: RepoNode) => (r.id === id ? { ...r, isArchived: !isArchived } : r);
       setItems(prev => prev.map(updateRepo));
 
       trackOperation(isArchived ? 'unarchive' : 'archive');
@@ -668,8 +668,8 @@ export default function RepoList({ token, maxVisibleRows, onLogout, viewerLogin,
         }
         trackOperation(bulkActionToOperation(action));
         trackSuccessfulOperation();
-      } catch (e: any) {
-        failed.push({ repo, error: e.message || 'Unknown error' });
+      } catch (e: unknown) {
+        failed.push({ repo, error: (e instanceof Error ? e.message : null) || 'Unknown error' });
       }
 
       setBulkProgress(prev => ({ ...prev, completed: i + 1, failed: [...failed] }));
@@ -755,7 +755,7 @@ export default function RepoList({ token, maxVisibleRows, onLogout, viewerLogin,
     if (!repo || !newName.trim()) return;
     
     try {
-      const id = (repo as any).id;
+      const id = repo.id;
       const owner = repo.nameWithOwner.split('/')[0];
       const newNameWithOwner = `${owner}/${newName}`;
       
@@ -764,13 +764,13 @@ export default function RepoList({ token, maxVisibleRows, onLogout, viewerLogin,
       // Update Apollo cache
       await updateCacheAfterRename(token, id, newName, newNameWithOwner);
       
-      const updateRepo = (r: any) => (r.id === id ? { ...r, name: newName, nameWithOwner: newNameWithOwner } : r);
+      const updateRepo = (r: RepoNode) => (r.id === id ? { ...r, name: newName, nameWithOwner: newNameWithOwner } : r);
       setItems(prev => prev.map(updateRepo));
 
       trackOperation('rename');
       trackSuccessfulOperation();
       closeRenameModal();
-    } catch (error: any) {
+    } catch (error: unknown) {
       throw error; // Let the modal handle the error
     }
   }
@@ -833,9 +833,9 @@ export default function RepoList({ token, maxVisibleRows, onLogout, viewerLogin,
         await new Promise(resolve => setTimeout(resolve, 600));
         created = await fetchRepositoryByOwnerAndName(client, owner, repoName);
       }
-    } catch (err: any) {
+    } catch (err: unknown) {
       logger.warn('Created repository lookup failed; falling back to refresh', {
-        error: err?.message,
+        error: err instanceof Error ? err.message : String(err),
         nameWithOwner
       });
     }
@@ -848,8 +848,8 @@ export default function RepoList({ token, maxVisibleRows, onLogout, viewerLogin,
 
     if (created) {
       await updateCacheWithRepository(token, created);
-      const createdId = (created as any).id;
-      setItems(prev => (prev.some((r: any) => r.id === createdId) ? prev : [created, ...prev]));
+      const createdId = created.id;
+      setItems(prev => (prev.some(r => r.id === createdId) ? prev : [created, ...prev]));
       setTotalCount(c => c + 1);
     } else {
       // Couldn't resolve the new node — refresh from the network so it still appears.
@@ -873,7 +873,7 @@ export default function RepoList({ token, maxVisibleRows, onLogout, viewerLogin,
     if (!repo || !newOwner.trim()) return;
 
     const [owner, name] = (repo.nameWithOwner || '').split('/');
-    const targetId = (repo as any).id;
+    const targetId = repo.id;
 
     // Throws on failure so the modal can surface the GitHub error message
     await transferRepositoryRest(token, owner, name, newOwner.trim());
@@ -884,7 +884,7 @@ export default function RepoList({ token, maxVisibleRows, onLogout, viewerLogin,
     // the brief processing window could still return the repo under the current owner
     // and make it flicker back. It stays removed until the user manually refreshes.
     await updateCacheAfterDelete(token, targetId);
-    setItems(prev => prev.filter((r: any) => r.id !== targetId));
+    setItems(prev => prev.filter(r => r.id !== targetId));
     setTotalCount(c => Math.max(0, c - 1));
     setCursor(c => Math.max(0, Math.min(c, visibleItems.length - 2)));
 
@@ -947,7 +947,7 @@ export default function RepoList({ token, maxVisibleRows, onLogout, viewerLogin,
     
     try {
       setChangingVisibility(true);
-      const id = (changeVisibilityTarget as any).id;
+      const id = changeVisibilityTarget.id;
       
       await changeRepositoryVisibility(client, id, newVisibility as 'PUBLIC' | 'PRIVATE' | 'INTERNAL', token);
       
@@ -960,15 +960,15 @@ export default function RepoList({ token, maxVisibleRows, onLogout, viewerLogin,
       // reappears when the filter changes — never prune it here (cursor is clamped
       // by the visibleItems effect).
       const isPrivate = newVisibility === 'PRIVATE';
-      const updateRepo = (r: any) => (r.id === id ? { ...r, visibility: newVisibility, isPrivate } : r);
+      const updateRepo = (r: RepoNode) => (r.id === id ? { ...r, visibility: newVisibility as 'PUBLIC' | 'PRIVATE' | 'INTERNAL', isPrivate } : r);
       setItems(prev => prev.map(updateRepo));
 
       trackOperation('visibilityChange');
       trackSuccessfulOperation();
       closeChangeVisibilityModal();
-    } catch (e: any) {
+    } catch (e: unknown) {
       setChangingVisibility(false);
-      setChangeVisibilityError(e.message || 'Failed to change visibility. Check permissions.');
+      setChangeVisibilityError((e instanceof Error ? e.message : null) || 'Failed to change visibility. Check permissions.');
       // Keep modal open on error
     }
   }
@@ -1060,11 +1060,11 @@ export default function RepoList({ token, maxVisibleRows, onLogout, viewerLogin,
       await deleteRepositoryRest(token, owner, repo);
       
       // Update Apollo cache
-      const targetId = (deleteTarget as any).id;
+      const targetId = deleteTarget.id;
       await updateCacheAfterDelete(token, targetId);
       
       // Remove from items list
-      setItems((prev) => prev.filter((r: any) => r.id !== targetId));
+      setItems((prev) => prev.filter(r => r.id !== targetId));
 
       // Update counts
       setTotalCount((c) => Math.max(0, c - 1));
@@ -1079,7 +1079,7 @@ export default function RepoList({ token, maxVisibleRows, onLogout, viewerLogin,
       setDeleteConfirmStage(false);
       // Keep cursor in range
       setCursor((c) => Math.max(0, Math.min(c, visibleItems.length - 2)));
-    } catch (e: any) {
+    } catch (e: unknown) {
       setDeleting(false);
       setDeleteError('Failed to delete repository. Ensure delete_repo scope and admin permissions.');
       // Keep modal open on error so user can see the error message
@@ -1176,8 +1176,8 @@ export default function RepoList({ token, maxVisibleRows, onLogout, viewerLogin,
             await new Promise(resolve => setTimeout(resolve, BATCH_DELAY_MS));
           }
         }
-      } catch (err: any) {
-        logger.error('Fork enrichment failed', { error: err.message });
+      } catch (err: unknown) {
+        logger.error('Fork enrichment failed', { error: err instanceof Error ? err.message : String(err) });
       } finally {
         // Only clear when this pass wasn't torn down; a cancelled pass has the
         // flag reset by the cleanup below so it can never stick `true`.
@@ -1199,8 +1199,8 @@ export default function RepoList({ token, maxVisibleRows, onLogout, viewerLogin,
         setInfoRepo(repo);
         setInfoMode(true);
       }
-    } catch (err: any) {
-      logger.error('Failed to fetch upstream repository', { error: err?.message, parentNameWithOwner });
+    } catch (err: unknown) {
+      logger.error('Failed to fetch upstream repository', { error: err instanceof Error ? err.message : String(err), parentNameWithOwner });
     }
   }
 
@@ -1331,14 +1331,11 @@ export default function RepoList({ token, maxVisibleRows, onLogout, viewerLogin,
         }
       });
       setError(null);
-    } catch (e: any) {
+    } catch (e: unknown) {
+      const apiErr = e instanceof Error ? e : null;
       logger.error('Failed to fetch repositories in RepoList', {
-        error: e.message,
-        stack: e.stack,
-        graphQLErrors: e.graphQLErrors,
-        networkError: e.networkError,
-        statusCode: e.statusCode,
-        response: e.response
+        error: apiErr?.message,
+        stack: apiErr?.stack,
       });
       setError('Failed to load repositories. Check network or token.');
     } finally {
@@ -1497,8 +1494,8 @@ export default function RepoList({ token, maxVisibleRows, onLogout, viewerLogin,
       if (input && input.toUpperCase() === 'Q') {
         try {
           const seq = '\x1b[2J\x1b[3J\x1b[H';
-          if (stdout && typeof (stdout as any).write === 'function') (stdout as any).write(seq);
-          else if (typeof process.stdout.write === 'function') process.stdout.write(seq);
+          if (stdout) stdout.write(seq);
+          else process.stdout.write(seq);
         } catch {}
         exit();
         return;
@@ -1645,7 +1642,7 @@ export default function RepoList({ token, maxVisibleRows, onLogout, viewerLogin,
       if (key.rightArrow) { setLogoutFocus('cancel'); return; }
       if (key.return || (input && input.toUpperCase() === 'Y')) {
         if (logoutFocus === 'cancel') { setLogoutMode(false); return; }
-        try { onLogout && onLogout(); } catch (e: any) { setLogoutError(e?.message || 'Failed to logout.'); }
+        try { onLogout && onLogout(); } catch (e: unknown) { setLogoutError((e instanceof Error ? e.message : null) || 'Failed to logout.'); }
         return;
       }
       return;
@@ -1805,8 +1802,8 @@ export default function RepoList({ token, maxVisibleRows, onLogout, viewerLogin,
     if (input && input.toUpperCase() === 'Q') {
       try {
         const seq = '\x1b[2J\x1b[3J\x1b[H';
-        if (stdout && typeof (stdout as any).write === 'function') (stdout as any).write(seq);
-        else if (typeof process.stdout.write === 'function') process.stdout.write(seq);
+        if (stdout) stdout.write(seq);
+        else process.stdout.write(seq);
       } catch {}
       exit();
       return;
@@ -1926,8 +1923,8 @@ export default function RepoList({ token, maxVisibleRows, onLogout, viewerLogin,
       (async () => {
         try {
           await inspectCacheStatus();
-        } catch (e: any) {
-          process.stderr.write(`❌ Failed to inspect cache: ${e.message}\n`);
+        } catch (e: unknown) {
+          process.stderr.write(`❌ Failed to inspect cache: ${e instanceof Error ? e.message : String(e)}\n`);
         }
       })();
       return;

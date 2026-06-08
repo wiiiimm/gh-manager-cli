@@ -77,8 +77,8 @@ export default function DeleteModal({ repo, onDelete, onCancel }: DeleteModalPro
       setDeleting(true);
       setDeleteError(null);
       await onDelete(repo);
-    } catch (e: any) {
-      setDeleteError(e.message || 'Failed to delete repository');
+    } catch (e: unknown) {
+      setDeleteError((e instanceof Error ? e.message : null) || 'Failed to delete repository');
       deletingRef.current = false;
       setDeleting(false);
     }
