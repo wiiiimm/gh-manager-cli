@@ -3,6 +3,7 @@ import { describe, it, expect, vi, beforeEach, type Mock } from 'vitest';
 import { render } from 'ink-testing-library';
 import type { Key } from 'ink';
 import BulkTransferDestinationModal from '../../src/ui/components/modals/BulkTransferDestinationModal';
+import type { OrganizationNode } from '../../src/types';
 
 type InkInputHandler = (input: string, key: Partial<Key>) => void;
 
@@ -11,7 +12,7 @@ vi.mock('ink', async () => {
   return { ...actual, useInput: vi.fn() };
 });
 
-// Capture the latest TextInput props so tests can drive onChange directly.
+// Capture the latest TextInput props so tests can drive onChange/onSubmit directly.
 const h = vi.hoisted(() => ({
   textInputProps: null as { onChange?: (v: string) => void; onSubmit?: () => void } | null,
 }));
@@ -21,6 +22,11 @@ vi.mock('ink-text-input', () => ({
     return null;
   },
 }));
+
+const mockOrgs: OrganizationNode[] = [
+  { id: 'o1', login: 'acme', name: 'Acme Inc', avatarUrl: '' },
+  { id: 'o2', login: 'globex', name: 'Globex', avatarUrl: '' },
+];
 
 describe('BulkTransferDestinationModal', () => {
   let mockUseInput: Mock;
@@ -32,36 +38,47 @@ describe('BulkTransferDestinationModal', () => {
     mockUseInput.mockReset();
   });
 
-  it('renders the destination prompt with repo count', () => {
+  it('renders the destination prompt with repo count and the picker list', async () => {
     mockUseInput.mockImplementation(() => {});
 
     const { lastFrame, unmount } = render(
       <BulkTransferDestinationModal
         count={3}
         currentOwner="myorg"
+        viewerLogin="myuser"
+        loadOrganizations={async () => mockOrgs}
         onChoose={() => {}}
         onCancel={() => {}}
       />,
     );
 
+    await new Promise(r => setTimeout(r, 0));
+    await new Promise(r => setTimeout(r, 0));
+
     const out = lastFrame() || '';
     expect(out).toContain('Bulk Transfer Repositories');
     expect(out).toContain('3');
-    expect(out).toContain('Destination owner');
+    expect(out).toContain('Choose destination owner');
+    expect(out).toContain('myuser');
+    expect(out).toContain('Acme Inc');
     unmount();
   });
 
-  it('uses singular "repository" for count=1', () => {
+  it('uses singular "repository" for count=1', async () => {
     mockUseInput.mockImplementation(() => {});
 
     const { lastFrame, unmount } = render(
       <BulkTransferDestinationModal
         count={1}
         currentOwner="myorg"
+        viewerLogin="myuser"
+        loadOrganizations={async () => mockOrgs}
         onChoose={() => {}}
         onCancel={() => {}}
       />,
     );
+
+    await new Promise(r => setTimeout(r, 0));
 
     const out = lastFrame() || '';
     expect(out).toContain('repository');
@@ -69,7 +86,7 @@ describe('BulkTransferDestinationModal', () => {
     unmount();
   });
 
-  it('calls onCancel on Esc', () => {
+  it('calls onCancel on Esc from the picker', async () => {
     const onCancel = vi.fn();
     let inputCallback!: InkInputHandler;
     mockUseInput.mockImplementation((cb: InkInputHandler) => { inputCallback = cb; });
@@ -78,17 +95,20 @@ describe('BulkTransferDestinationModal', () => {
       <BulkTransferDestinationModal
         count={2}
         currentOwner="myorg"
+        viewerLogin="myuser"
+        loadOrganizations={async () => mockOrgs}
         onChoose={() => {}}
         onCancel={onCancel}
       />,
     );
 
+    await new Promise(r => setTimeout(r, 0));
     inputCallback('', { escape: true });
     expect(onCancel).toHaveBeenCalledTimes(1);
     unmount();
   });
 
-  it('calls onChoose with the entered destination on Enter', async () => {
+  it('calls onChoose with the selected org login on Enter', async () => {
     const onChoose = vi.fn();
     let inputCallback!: InkInputHandler;
     mockUseInput.mockImplementation((cb: InkInputHandler) => { inputCallback = cb; });
@@ -97,97 +117,23 @@ describe('BulkTransferDestinationModal', () => {
       <BulkTransferDestinationModal
         count={2}
         currentOwner="myorg"
+        viewerLogin="myuser"
+        loadOrganizations={async () => mockOrgs}
         onChoose={onChoose}
         onCancel={() => {}}
       />,
     );
 
-    h.textInputProps?.onChange?.('new-org');
-    await new Promise(r => setTimeout(r, 0)); // flush state → re-render → fresh callback
-    inputCallback('', { return: true });
-
-    expect(onChoose).toHaveBeenCalledWith('new-org');
-    unmount();
-  });
-
-  it('does not call onChoose when destination equals currentOwner (case-insensitive)', async () => {
-    const onChoose = vi.fn();
-    let inputCallback!: InkInputHandler;
-    mockUseInput.mockImplementation((cb: InkInputHandler) => { inputCallback = cb; });
-
-    const { lastFrame, unmount } = render(
-      <BulkTransferDestinationModal
-        count={2}
-        currentOwner="MyOrg"
-        onChoose={onChoose}
-        onCancel={() => {}}
-      />,
-    );
-
-    h.textInputProps?.onChange?.('myorg'); // same owner (different case)
-    await new Promise(r => setTimeout(r, 0)); // flush → fresh callback with updated destination
-    inputCallback('', { return: true });
-    await new Promise(r => setTimeout(r, 0)); // flush error state
-
-    expect(onChoose).not.toHaveBeenCalled();
-    const out = lastFrame() || '';
-    expect(out).toContain('Destination must differ');
-    unmount();
-  });
-
-  it('does not call onChoose when destination is empty', async () => {
-    const onChoose = vi.fn();
-    let inputCallback!: InkInputHandler;
-    mockUseInput.mockImplementation((cb: InkInputHandler) => { inputCallback = cb; });
-
-    const { lastFrame, unmount } = render(
-      <BulkTransferDestinationModal
-        count={2}
-        currentOwner="myorg"
-        onChoose={onChoose}
-        onCancel={() => {}}
-      />,
-    );
-
-    // Press Enter without typing anything
-    inputCallback('', { return: true });
-    await new Promise(r => setTimeout(r, 0)); // flush error state
-
-    expect(onChoose).not.toHaveBeenCalled();
-    const out = lastFrame() || '';
-    expect(out).toContain('Please enter a destination owner');
-    unmount();
-  });
-
-  // Sanitisation is applied inside the component's onChange handler before
-  // the value reaches `destination` state. These tests verify the regex logic
-  // by comparing input → state → onChoose call.
-  it('strips invalid characters before passing to onChoose', async () => {
-    const onChoose = vi.fn();
-    let inputCallback!: InkInputHandler;
-    mockUseInput.mockImplementation((cb: InkInputHandler) => { inputCallback = cb; });
-
-    const { unmount } = render(
-      <BulkTransferDestinationModal
-        count={2}
-        currentOwner="oldorg"
-        onChoose={onChoose}
-        onCancel={() => {}}
-      />,
-    );
-
-    // Simulate the modal's handleChange already having sanitised the input —
-    // as if the user typed chars one by one and only valid chars were kept.
-    // We call onChange with the post-sanitisation value directly.
-    h.textInputProps?.onChange?.('neworg20'); // pre-sanitised (spaces/underscores/dots stripped)
     await new Promise(r => setTimeout(r, 0));
+    await new Promise(r => setTimeout(r, 0));
+    // cursor 0 = personal (myuser)
     inputCallback('', { return: true });
 
-    expect(onChoose).toHaveBeenCalledWith('neworg20');
+    expect(onChoose).toHaveBeenCalledWith('myuser');
     unmount();
   });
 
-  it('strips leading hyphens before passing to onChoose', async () => {
+  it('calls onChoose with a manually entered destination', async () => {
     const onChoose = vi.fn();
     let inputCallback!: InkInputHandler;
     mockUseInput.mockImplementation((cb: InkInputHandler) => { inputCallback = cb; });
@@ -196,17 +142,114 @@ describe('BulkTransferDestinationModal', () => {
       <BulkTransferDestinationModal
         count={1}
         currentOwner="oldorg"
+        viewerLogin="myuser"
+        loadOrganizations={async () => []}
         onChoose={onChoose}
         onCancel={() => {}}
       />,
     );
 
-    // Simulate post-sanitisation value (leading hyphens already stripped by handleChange)
-    h.textInputProps?.onChange?.('new-org'); // '--new-org' with leading hyphens stripped
     await new Promise(r => setTimeout(r, 0));
+    await new Promise(r => setTimeout(r, 0));
+    // No orgs returned: list = [personal, manual]. Press M to jump to manual.
+    inputCallback('m', {});
+    await new Promise(r => setTimeout(r, 0));
+
+    h.textInputProps?.onChange?.('new-target');
+    await new Promise(r => setTimeout(r, 0));
+    h.textInputProps?.onSubmit?.();
+
+    expect(onChoose).toHaveBeenCalledWith('new-target');
+    unmount();
+  });
+
+  it('does not call onChoose when manual destination equals currentOwner (case-insensitive)', async () => {
+    const onChoose = vi.fn();
+    let inputCallback!: InkInputHandler;
+    mockUseInput.mockImplementation((cb: InkInputHandler) => { inputCallback = cb; });
+
+    const { lastFrame, unmount } = render(
+      <BulkTransferDestinationModal
+        count={2}
+        currentOwner="MyOrg"
+        viewerLogin="myuser"
+        loadOrganizations={async () => []}
+        onChoose={onChoose}
+        onCancel={() => {}}
+      />,
+    );
+
+    await new Promise(r => setTimeout(r, 0));
+    await new Promise(r => setTimeout(r, 0));
+    inputCallback('m', {});
+    await new Promise(r => setTimeout(r, 0));
+
+    h.textInputProps?.onChange?.('myorg');
+    await new Promise(r => setTimeout(r, 0));
+    h.textInputProps?.onSubmit?.();
+    await new Promise(r => setTimeout(r, 0));
+
+    expect(onChoose).not.toHaveBeenCalled();
+    expect(lastFrame() || '').toContain('must differ');
+    unmount();
+  });
+
+  it('falls back to manual entry when the org loader fails', async () => {
+    const onChoose = vi.fn();
+    let inputCallback!: InkInputHandler;
+    mockUseInput.mockImplementation((cb: InkInputHandler) => { inputCallback = cb; });
+
+    const { lastFrame, unmount } = render(
+      <BulkTransferDestinationModal
+        count={2}
+        currentOwner="myuser"
+        viewerLogin="myuser"
+        loadOrganizations={async () => { throw new Error('fetch failed'); }}
+        onChoose={onChoose}
+        onCancel={() => {}}
+      />,
+    );
+
+    await new Promise(r => setTimeout(r, 0));
+    await new Promise(r => setTimeout(r, 0));
+
+    const out = lastFrame() || '';
+    expect(out).toContain("Couldn't load organisations");
+    expect(out).toContain('Destination owner');
+
+    h.textInputProps?.onChange?.('safe-org');
+    await new Promise(r => setTimeout(r, 0));
+    h.textInputProps?.onSubmit?.();
+    expect(onChoose).toHaveBeenCalledWith('safe-org');
+    unmount();
+  });
+
+  it('does not call onChoose twice when Enter fires in the same tick as submit (in-flight guard)', async () => {
+    const onChoose = vi.fn();
+    let inputCallback!: InkInputHandler;
+    mockUseInput.mockImplementation((cb: InkInputHandler) => { inputCallback = cb; });
+
+    const { unmount } = render(
+      <BulkTransferDestinationModal
+        count={2}
+        currentOwner="myorg"
+        viewerLogin="myuser"
+        loadOrganizations={async () => mockOrgs}
+        onChoose={onChoose}
+        onCancel={() => {}}
+      />,
+    );
+
+    await new Promise(r => setTimeout(r, 0));
+    await new Promise(r => setTimeout(r, 0));
+
+    inputCallback('', { return: true });
+    // Second Enter in the same tick — the submittingRef guard inside the bulk modal
+    // must swallow it before the host has a chance to handle a follow-up.
     inputCallback('', { return: true });
 
-    expect(onChoose).toHaveBeenCalledWith('new-org');
+    expect(onChoose).toHaveBeenCalledTimes(1);
+    expect(onChoose).toHaveBeenCalledWith('myuser');
     unmount();
   });
 

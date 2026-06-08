@@ -3,16 +3,15 @@ import { describe, it, expect, vi, beforeEach, afterEach, type Mock } from 'vite
 import { render } from 'ink-testing-library';
 import type { Key } from 'ink';
 import TransferModal from '../../src/ui/components/modals/TransferModal';
-import type { RepoNode } from '../../src/types';
+import type { OrganizationNode, RepoNode } from '../../src/types';
 
 // Signature of the callback Ink passes to useInput
 type InkInputHandler = (input: string, key: Partial<Key>) => void;
 
 // Mock the useInput hook to avoid stdin.ref issues and to drive key events.
-// Note: this also stubs the useInput used internally by ink-text-input, so the
-// destination-owner / verification-code TextInputs cannot receive typed
-// characters in this harness. Tests therefore exercise the drivable surface
-// (rendering, Esc-to-cancel, guards) plus the code logic directly.
+// Multiple components inside the modal (TransferModal itself + the picker child)
+// can register useInput. `latestInputCallback` always points at the most recent
+// registration — that is what tests should drive.
 vi.mock('ink', async () => {
   const actual = await vi.importActual('ink');
   return {
@@ -24,10 +23,10 @@ vi.mock('ink', async () => {
 // ink-text-input internally calls the real ink useInput (which enables raw mode
 // and throws `stdin.ref is not a function` under the test stdin). Stub it so the
 // surrounding modal can render, and capture the latest props so tests can drive
-// the destination-owner / verification-code inputs via onChange.
-const h = vi.hoisted(() => ({ textInputProps: null as { onChange?: (v: string) => void } | null }));
+// the destination/code inputs via onChange + onSubmit.
+const h = vi.hoisted(() => ({ textInputProps: null as { onChange?: (v: string) => void; onSubmit?: () => void } | null }));
 vi.mock('ink-text-input', () => ({
-  default: (props: { onChange?: (v: string) => void }) => { h.textInputProps = props; return null; }
+  default: (props: { onChange?: (v: string) => void; onSubmit?: () => void }) => { h.textInputProps = props; return null; }
 }));
 
 describe('TransferModal', () => {
@@ -50,23 +49,38 @@ describe('TransferModal', () => {
     visibility: 'PUBLIC'
   } as RepoNode;
 
+  const mockOrgs: OrganizationNode[] = [
+    { id: 'o1', login: 'acme', name: 'Acme Inc', avatarUrl: '' },
+  ];
+
   beforeEach(async () => {
+    h.textInputProps = null;
     const ink = await import('ink');
     mockUseInput = (ink as unknown as { useInput: Mock }).useInput;
     mockUseInput.mockReset();
   });
 
-  it('renders the destination-owner input stage', () => {
+  it('renders the destination picker on stage 1', async () => {
     mockUseInput.mockImplementation(() => {});
 
     const { lastFrame, unmount } = render(
-      <TransferModal repo={mockRepo} onTransfer={async () => {}} onCancel={() => {}} />
+      <TransferModal
+        repo={mockRepo}
+        onTransfer={async () => {}}
+        onCancel={() => {}}
+        viewerLogin="me"
+        loadOrganizations={async () => mockOrgs}
+      />
     );
+
+    await new Promise(r => setTimeout(r, 0));
+    await new Promise(r => setTimeout(r, 0));
 
     const output = lastFrame() || '';
     expect(output).toContain('Transfer Repository');
     expect(output).toContain('user/test-repo');
-    expect(output).toContain('New owner');
+    expect(output).toContain('Choose destination owner');
+    expect(output).toContain('Acme Inc');
     unmount();
   });
 
@@ -81,37 +95,24 @@ describe('TransferModal', () => {
     unmount();
   });
 
-  it('cancels on Esc', () => {
+  it('cancels on Esc from the picker', async () => {
     const onCancel = vi.fn();
     let inputCallback!: InkInputHandler;
     mockUseInput.mockImplementation((cb: InkInputHandler) => { inputCallback = cb; });
 
     const { unmount } = render(
-      <TransferModal repo={mockRepo} onTransfer={async () => {}} onCancel={onCancel} />
+      <TransferModal
+        repo={mockRepo}
+        onTransfer={async () => {}}
+        onCancel={onCancel}
+        viewerLogin="me"
+        loadOrganizations={async () => mockOrgs}
+      />
     );
 
+    await new Promise(r => setTimeout(r, 0));
     inputCallback('', { escape: true });
     expect(onCancel).toHaveBeenCalledTimes(1);
-    unmount();
-  });
-
-  it('does not advance past the owner stage when no owner has been entered', () => {
-    const onTransfer = vi.fn(async () => {});
-    const onCancel = vi.fn();
-    let inputCallback!: InkInputHandler;
-    mockUseInput.mockImplementation((cb: InkInputHandler) => { inputCallback = cb; });
-
-    const { lastFrame, unmount } = render(
-      <TransferModal repo={mockRepo} onTransfer={onTransfer} onCancel={onCancel} />
-    );
-
-    // Pressing Enter with an empty owner must not move to the code stage…
-    inputCallback('', { return: true });
-
-    const output = lastFrame() || '';
-    expect(output).toContain('New owner');           // still on input stage
-    expect(output).not.toContain('Verification code');
-    expect(onTransfer).not.toHaveBeenCalled();        // …and never starts a transfer
     unmount();
   });
 
@@ -136,8 +137,9 @@ describe('TransferModal', () => {
     expect('zzzz'.toUpperCase() === code).toBe(false);
   });
 
-  // Drive the full input -> code -> confirm flow by simulating typing through the
-  // captured TextInput. Math.random -> 0 makes the verification code 'AAAA'.
+  // Drive the full picker → code → confirm flow. The picker selects the lone
+  // org on Enter, then the verification code is typed via the captured TextInput.
+  // Math.random -> 0 makes the verification code 'AAAA'.
   describe('staged flow', () => {
     let randomSpy: ReturnType<typeof vi.spyOn>;
     const CODE = 'AAAA';
@@ -151,17 +153,20 @@ describe('TransferModal', () => {
       randomSpy.mockRestore();
     });
 
-    // Walk the modal from the owner-input stage to the final confirmation stage.
-    // `getCb` returns the latest input callback — Ink hands useInput a fresh
-    // closure on every re-render, so capturing it by value here would go stale.
+    // Walk the modal from the picker stage to the final confirmation stage.
+    // `getCb` returns the latest input callback — multiple useInput hooks register
+    // (TransferModal + picker) so the latest is the picker; that's what we drive.
     const advanceToConfirm = async (getCb: () => InkInputHandler) => {
-      // Let the mount effect generate the verification code (deterministically 'AAAA').
+      // Let the mount effect generate the verification code (deterministically 'AAAA')
+      // AND the picker's org loader to resolve.
       await new Promise(resolve => setTimeout(resolve, 0));
-      h.textInputProps?.onChange?.('neworg');           // destination owner
       await new Promise(resolve => setTimeout(resolve, 0));
-      getCb()('', { return: true });                     // input -> code stage
+      // Picker list: cursor 0 = 'acme' (the only candidate — viewerLogin matches owner)
+      // Enter → submitDestination('acme') → stage transitions to 'code'.
+      getCb()('', { return: true });
       await new Promise(resolve => setTimeout(resolve, 0));
-      h.textInputProps?.onChange?.(CODE);                // type the verification code
+      // Verification-code TextInput is now mounted — type the code via captured props.
+      h.textInputProps?.onChange?.(CODE);
       await new Promise(resolve => setTimeout(resolve, 0));
     };
 
@@ -170,7 +175,13 @@ describe('TransferModal', () => {
       mockUseInput.mockImplementation((cb: InkInputHandler) => { inputCallback = cb; });
 
       const { lastFrame, unmount } = render(
-        <TransferModal repo={mockRepo} onTransfer={async () => {}} onCancel={() => {}} />
+        <TransferModal
+          repo={mockRepo}
+          onTransfer={async () => {}}
+          onCancel={() => {}}
+          viewerLogin="user"
+          loadOrganizations={async () => mockOrgs}
+        />
       );
 
       await advanceToConfirm(() => inputCallback);
@@ -186,7 +197,13 @@ describe('TransferModal', () => {
       mockUseInput.mockImplementation((cb: InkInputHandler) => { inputCallback = cb; });
 
       const { unmount } = render(
-        <TransferModal repo={mockRepo} onTransfer={onTransfer} onCancel={onCancel} />
+        <TransferModal
+          repo={mockRepo}
+          onTransfer={onTransfer}
+          onCancel={onCancel}
+          viewerLogin="user"
+          loadOrganizations={async () => mockOrgs}
+        />
       );
 
       await advanceToConfirm(() => inputCallback);
@@ -200,7 +217,7 @@ describe('TransferModal', () => {
 
       expect(onCancel).not.toHaveBeenCalled();
       expect(onTransfer).toHaveBeenCalledTimes(1);
-      expect(onTransfer).toHaveBeenCalledWith(mockRepo, 'neworg');
+      expect(onTransfer).toHaveBeenCalledWith(mockRepo, 'acme');
       unmount();
     });
   });

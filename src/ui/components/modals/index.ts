@@ -26,3 +26,4 @@ export { default as OpenInBrowserModal } from './OpenInBrowserModal';
 export { default as OpenPRsIssuesModal } from './OpenPRsIssuesModal';
 export { default as CreateRepoModal } from './CreateRepoModal';
 export { default as TransferModal } from './TransferModal';
+export { default as TransferDestinationPicker } from './TransferDestinationPicker';

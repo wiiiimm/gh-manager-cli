@@ -86,7 +86,7 @@ On first run, you'll be prompted to authenticate with GitHub (OAuth recommended)
   - Jump to upstream (`P`) — moves cursor to the parent if loaded; otherwise fetches and shows it
   - Create new repository (`Ctrl+N`) — prompts for a name (with the personal/organisation slug shown in front), choose visibility with `Tab`, and surfaces GitHub errors inline
   - Rename repository (`Ctrl+R`) with inline validation and automatic cache update
-  - Transfer repository to another owner (`Shift+M`) — prompts for the destination owner, requires a verification code, shows a final confirmation, and surfaces GitHub errors inline
+  - Transfer repository to another owner (`Shift+M`) — destination picker (personal account + visible organisations) with a manual-entry fallback for owners the token can't list, then requires a verification code, shows a final confirmation, and surfaces GitHub errors inline
   - Copy repository URL to clipboard (`C`) with SSH/HTTPS options
   - Delete repository (`Del` or `Backspace`) with secure two-step confirmation
   - Archive/unarchive repositories (`Ctrl+A`) with confirmation prompts
@@ -96,7 +96,7 @@ On first run, you'll be prompted to authenticate with GitHub (OAuth recommended)
 - **Bulk Operations** (`B` to enter Bulk Select mode):
   - Select multiple repositories with `Space`; `X` unselects all (while every other shortcut is disabled in bulk mode)
   - Bulk actions reuse the global shortcuts: `Ctrl+S` star/unstar, `Ctrl+A` archive/unarchive, `Ctrl+V` visibility, `Del` delete, `Shift+M` transfer (move) to another owner/org
-  - Star and archive auto-detect a safe toggle; if the selection is mixed, an intent modal asks the explicit target. Visibility always prompts for the destination (Public / Private / Internal for enterprise orgs). Transfer always prompts for a destination owner
+  - Star and archive auto-detect a safe toggle; if the selection is mixed, an intent modal asks the explicit target. Visibility always prompts for the destination (Public / Private / Internal for enterprise orgs). Transfer opens a destination picker (personal account + visible orgs, plus manual-entry fallback)
   - Selections persist across search, filter, and sort changes (select from different searches, then bulk-act)
   - Confirmation flow: review list with ability to unselect → count prompt → (delete and transfer) a 4-character verification code
   - Per-repo progress reporting with partial-failure summary; transferred repos are removed from the current list
@@ -312,11 +312,11 @@ Launch the app, then use the keys below:
 - **Sync fork**: `Ctrl+F` (for forks only, shows ahead/behind counts and handles conflicts)
 - **Rename repository**: `Ctrl+R` with inline validation
 - **Transfer repository**: `Shift+M` (Move) to transfer ownership to another user or organisation
-  - Prompts for the destination owner (`new-owner/<repo>` preview)
+  - Destination picker lists the personal account + organisations the token can see; pick with ↑/↓ + Enter, press `M` (or select "Enter a different owner…") to switch to manual entry for owners the token can't list
   - Requires typing a randomly generated verification code (like delete), then a final confirmation before transferring
   - GitHub errors (e.g. insufficient permissions) are shown inline
 - **Bulk Transfer (Bulk Select mode)**: `Shift+M` within Bulk Select mode to move multiple repos at once
-  - Flow: review list (unselect) → destination owner prompt → count prompt → 4-character verification code → sequential execution with per-repo progress
+  - Flow: review list (unselect) → destination picker (same as the single-repo flow, with manual fallback) → count prompt → 4-character verification code → sequential execution with per-repo progress
   - Transferred repos are removed from the current list; partial-failure report shown at completion
 - **Copy URL**: `C` to copy repository URL to clipboard (SSH/HTTPS options)
 
