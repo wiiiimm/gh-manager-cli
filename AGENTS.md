@@ -133,7 +133,7 @@ See the living roadmap in [TODOs.md](./TODOs.md) for the canonical, up-to-date l
 - `I`: repository info modal
 - `K`: cache inspection
 - `Ctrl+N`: create a new repository in the current context (prompts for name with the personal/organisation slug shown in front; `Tab` cycles visibility; GitHub errors surfaced inline). Disabled in starred mode.
-- `Shift+M`: transfer (move) selected repo to another owner (prompts for destination owner, then requires typing a randomly generated verification code — like delete — followed by a final confirmation step; GitHub errors surfaced inline; transferred repo is removed from the list). Disabled in starred mode.
+- `Shift+M`: transfer (move) selected repo to another owner. Opens a destination picker (personal account + organisations the token can see) with a manual-entry fallback for owners the token can't list, then requires typing a randomly generated verification code — like delete — followed by a final confirmation step; GitHub errors surfaced inline; transferred repo is removed from the list. Disabled in starred mode.
 - `Del` or `Backspace`: delete selected repo (two-stage confirmation)
 - `Ctrl+A`: archive/unarchive selected repo
 - `Ctrl+V`: change repository visibility
@@ -169,7 +169,7 @@ Bulk actions reuse the same global shortcuts as single-repo mode and require at 
    - Star and archive are toggles. If all selected repos share the same state, the opposite state is applied directly. If the selection is mixed, an intent modal asks the explicit target (e.g. "Archive all" vs "Unarchive all", "Star all" vs "Unstar all").
    - Visibility always shows a target picker (Public / Private / Internal — Internal only for enterprise orgs).
 1. Review list (Confirmation 1) — scrollable list of all selected repos; `Space` to unselect; Tab/Enter to proceed. Dismisses on Esc/Cancel or when the list empties.
-2. Destination owner (Transfer only) — after review, prompts for a destination owner/org (must differ from the current owner).
+2. Destination owner (Transfer only) — after review, opens a destination picker (personal account + organisations the token can see) with a manual-entry fallback; the chosen destination must differ from the current owner.
 3. Count prompt (Confirmation 2) — "About to {action} {N} repos" (transfer also shows "to {owner}"); Cancel/Proceed, Esc cancels.
 4. Delete and Transfer only — a separate verification-code modal (type a 4-character code).
 5. Sequential execution with per-repo progress; partial-failure reporting at the end.

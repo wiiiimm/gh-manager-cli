@@ -1,28 +1,34 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { Box, Text, useInput } from 'ink';
 import TextInput from 'ink-text-input';
-import type { RepoNode } from '../../../types';
+import type { OrganizationNode, RepoNode } from '../../../types';
 import type { Theme } from '../../../config/themes';
 import { useTheme } from '../../hooks/useTheme';
 import { SlowSpinner } from '../common';
+import TransferDestinationPicker from './TransferDestinationPicker';
 
 interface TransferModalProps {
   repo: RepoNode | null;
   onTransfer: (repo: RepoNode, newOwner: string) => Promise<void>;
   onCancel: () => void;
+  /** Viewer's personal login — surfaced as a picker entry when it differs from the current owner. */
+  viewerLogin?: string;
+  /** Async loader for the destination picker's org list (host injects to share session cache). */
+  loadOrganizations?: () => Promise<OrganizationNode[]>;
   theme?: Theme;
 }
 
 /**
  * Three-stage modal for transferring a repository to another owner.
  *
- * Stage one collects a sanitised destination owner (username or organisation); stage two
- * requires the user to type a randomly generated verification code (mirroring the delete
- * flow) to guard against accidental transfers; stage three shows a final confirmation
- * (Cancel focused by default) before initiating the transfer. GitHub errors are surfaced
- * inline. Esc cancels at any point. Guards against double-submit.
+ * Stage one runs a {@link TransferDestinationPicker} (personal account + visible orgs, with a
+ * manual-entry fallback for owners the token can't see); stage two requires the user to type a
+ * randomly generated verification code (mirroring the delete flow) to guard against accidental
+ * transfers; stage three shows a final confirmation (Cancel focused by default) before initiating
+ * the transfer. GitHub errors are surfaced inline. Esc cancels at any point. Guards against
+ * double-submit.
  */
-export default function TransferModal({ repo, onTransfer, onCancel, theme: themeProp }: TransferModalProps) {
+export default function TransferModal({ repo, onTransfer, onCancel, viewerLogin, loadOrganizations, theme: themeProp }: TransferModalProps) {
   const { theme, c } = useTheme(themeProp?.name ?? 'default');
   const [newOwner, setNewOwner] = useState('');
   const [stage, setStage] = useState<'input' | 'code' | 'confirm'>('input');
@@ -52,6 +58,7 @@ export default function TransferModal({ repo, onTransfer, onCancel, theme: theme
       setStage('input');
       setFocus('cancel');
       setError(null);
+      setNewOwner('');
     }
   }, [repo]);
 
@@ -60,20 +67,12 @@ export default function TransferModal({ repo, onTransfer, onCancel, theme: theme
     // guarded in the same tick as submit — before `transferring` state re-renders.
     if (submittingRef.current || !repo) return;
 
+    // Stage 1 input is fully owned by the picker (escape + arrows + enter). The
+    // picker calls onCancel directly when the user backs out of it.
+    if (stage === 'input') return;
+
     if (key.escape) {
       onCancel();
-      return;
-    }
-
-    if (stage === 'input') {
-      if (key.return) {
-        const target = newOwner.trim();
-        if (target && target.toLowerCase() !== owner.toLowerCase()) {
-          setError(null);
-          setTypedCode('');
-          setStage('code');
-        }
-      }
       return;
     }
 
@@ -143,17 +142,18 @@ export default function TransferModal({ repo, onTransfer, onCancel, theme: theme
     }
   };
 
-  // GitHub owner logins allow alphanumeric characters and single hyphens, and
-  // cannot start with a hyphen — strip invalid chars and any leading hyphens.
-  // (We intentionally don't strip trailing hyphens here: doing so on every
-  // keystroke would prevent typing hyphenated names like "my-org".)
-  const handleOwnerChange = (value: string) => {
-    setNewOwner(value.replace(/[^a-zA-Z0-9-]/g, '').replace(/^-+/, ''));
+  const handlePickerChoose = (destination: string) => {
+    setNewOwner(destination);
+    setError(null);
+    setTypedCode('');
+    setStage('code');
   };
 
-  const isInputDisabled = !newOwner.trim() || newOwner.trim().toLowerCase() === owner.toLowerCase();
-
   if (!repo) return null;
+
+  // Default loader: if no org loader is provided, surface an empty list so the
+  // picker degrades gracefully to manual-only entry (matches the previous behaviour).
+  const orgLoader = loadOrganizations ?? (async () => []);
 
   return (
     <Box
@@ -172,28 +172,14 @@ export default function TransferModal({ repo, onTransfer, onCancel, theme: theme
       {stage === 'input' && (
         <>
           <Box height={1}><Text> </Text></Box>
-          <Text>New owner (username or organisation):</Text>
-          <Box flexDirection="row" alignItems="center">
-            <TextInput
-              value={newOwner}
-              onChange={handleOwnerChange}
-              placeholder="new-owner"
-              focus={!transferring}
-            />
-            <Text>/{repo.name}</Text>
-          </Box>
-
-          <Box marginTop={2}>
-            <Text color={theme.muted}>
-              {isInputDisabled ?
-                'Enter a different owner to continue' :
-                `Press Enter to review the transfer to "${newOwner}/${repo.name}"`
-              }
-            </Text>
-          </Box>
-          <Box marginTop={1}>
-            <Text color={theme.muted}>Press Esc to cancel</Text>
-          </Box>
+          <TransferDestinationPicker
+            currentOwner={owner}
+            viewerLogin={viewerLogin}
+            loadOrganizations={orgLoader}
+            onChoose={handlePickerChoose}
+            onCancel={onCancel}
+            theme={theme}
+          />
         </>
       )}
 

@@ -251,6 +251,30 @@ export default function RepoList({ token, maxVisibleRows, onLogout, viewerLogin,
   const [enrichingForks, setEnrichingForks] = useState(false);
   const enrichmentDoneRef = useRef<Set<string>>(new Set()); // ids already enriched
 
+  // Session-level cache of the viewer's organisations for the transfer destination
+  // picker (single + bulk). The fetch is cheap, but caching it avoids a refetch on
+  // every transfer attempt; the in-flight promise is reused if a second picker
+  // mounts before the first resolves. Cleared whenever the token (and therefore
+  // viewer/scope) changes — `useMemo([token])` recreates the entire pair.
+  type TransferOrg = Awaited<ReturnType<typeof fetchViewerOrganizations>>[number];
+  const transferOrgCache = useMemo<{
+    ref: { current: TransferOrg[] | null };
+    inflight: { current: Promise<TransferOrg[]> | null };
+  }>(() => ({ ref: { current: null }, inflight: { current: null } }), [token]);
+
+  const loadTransferDestinationOrgs = useCallback(async () => {
+    if (transferOrgCache.ref.current) return transferOrgCache.ref.current;
+    if (transferOrgCache.inflight.current) return transferOrgCache.inflight.current;
+    const promise = fetchViewerOrganizations(client)
+      .then(orgs => {
+        transferOrgCache.ref.current = orgs;
+        return orgs;
+      })
+      .finally(() => { transferOrgCache.inflight.current = null; });
+    transferOrgCache.inflight.current = promise;
+    return promise;
+  }, [client, transferOrgCache]);
+
   // Apply initial --org flag once (if provided)
   const appliedInitialOrg = useRef(false);
   useEffect(() => {
@@ -2896,6 +2920,8 @@ export default function RepoList({ token, maxVisibleRows, onLogout, viewerLogin,
               repo={transferTarget}
               onTransfer={executeTransfer}
               onCancel={closeTransferModal}
+              viewerLogin={viewerLogin}
+              loadOrganizations={loadTransferDestinationOrgs}
               theme={theme}
             />
           </Box>
@@ -3037,6 +3063,8 @@ export default function RepoList({ token, maxVisibleRows, onLogout, viewerLogin,
             <BulkTransferDestinationModal
               count={bulkFinalSelection.size}
               currentOwner={ownerContext !== 'personal' ? ownerContext.login : (viewerLogin ?? '')}
+              viewerLogin={viewerLogin}
+              loadOrganizations={loadTransferDestinationOrgs}
               terminalWidth={terminalWidth}
               onChoose={(dest) => {
                 setBulkTransferDest(dest);
