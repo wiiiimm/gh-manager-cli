@@ -11,6 +11,7 @@ vi.mock('../src/lib/logger', () => ({
 }));
 
 import { makeClient, getViewerLogin, fetchViewerOrganizations, normalizeRepoNode } from '../src/services/github';
+import { logger } from '../src/lib/logger';
 
 // Mock @octokit/graphql
 vi.mock('@octokit/graphql', () => ({
@@ -209,6 +210,19 @@ describe('github', () => {
       expect(orgs).toHaveLength(1);
       expect(orgs[0].name).toBeNull();
       expect(orgs[0].login).toBe('org-without-name');
+    });
+
+    it('logs and re-throws on network/API failure', async () => {
+      const failure = new Error('GraphQL boom');
+      const mockClient = vi.fn(async () => {
+        throw failure;
+      });
+
+      await expect(fetchViewerOrganizations(mockClient)).rejects.toThrow('GraphQL boom');
+      expect(logger.error).toHaveBeenCalledWith(
+        'Failed to fetch viewer organisations',
+        expect.objectContaining({ error: 'GraphQL boom' })
+      );
     });
   });
 

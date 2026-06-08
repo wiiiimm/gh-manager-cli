@@ -59,7 +59,7 @@ export async function startOAuthFlow(): Promise<OAuthResult> {
   } catch (error: unknown) {
     return {
       success: false,
-      error: `OAuth flow failed: ${error instanceof Error ? error.message : String(error)}`
+      error: `OAuth flow failed: ${(error instanceof Error ? error.message : null) || 'Unknown error'}`
     };
   }
 }
@@ -85,7 +85,7 @@ export async function pollForAccessToken(deviceCodeResponse: DeviceCodeResponse)
       } catch (error: unknown) {
         return {
           success: false,
-          error: `Token validation failed: ${error instanceof Error ? error.message : String(error)}`
+          error: `Token validation failed: ${(error instanceof Error ? error.message : null) || 'Unknown error'}`
         };
       }
     }
@@ -97,7 +97,7 @@ export async function pollForAccessToken(deviceCodeResponse: DeviceCodeResponse)
   } catch (error: unknown) {
     return {
       success: false,
-      error: `Polling failed: ${error instanceof Error ? error.message : String(error)}`
+      error: `Polling failed: ${(error instanceof Error ? error.message : null) || 'Unknown error'}`
     };
   }
 }
@@ -283,7 +283,7 @@ export async function reauthorizeForOrganizations(): Promise<OAuthResult> {
   } catch (error: unknown) {
     return {
       success: false,
-      error: `Reauthorisation failed: ${error instanceof Error ? error.message : String(error)}`
+      error: `Reauthorisation failed: ${(error instanceof Error ? error.message : null) || 'Unknown error'}`
     };
   }
 }

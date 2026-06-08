@@ -45,7 +45,7 @@ export default function OrgSwitcher({ token, currentContext, onSelect, onClose }
       setEnterpriseOrgs(entOrgs);
       
       // Set initial cursor position based on current context
-      if (!isPersonalContext && typeof currentContext === 'object') {
+      if (currentContext !== 'personal' && currentContext !== null) {
         const orgLogin = currentContext.login;
         const index = orgs.findIndex(org => org.login === orgLogin);
         if (index !== -1) {
@@ -144,7 +144,7 @@ export default function OrgSwitcher({ token, currentContext, onSelect, onClose }
           {organizations.map((org, index) => {
             const isEnterprise = enterpriseOrgs.has(org.login);
             const isCurrent = cursor === index + 1;
-            const isActiveContext = !isPersonalContext && typeof currentContext === 'object' && currentContext.login === org.login;
+            const isActiveContext = currentContext !== 'personal' && currentContext !== null && currentContext.login === org.login;
             
             return (
               <Box key={org.id}>

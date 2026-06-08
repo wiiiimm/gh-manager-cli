@@ -244,8 +244,14 @@ export async function fetchViewerOrganizations(
       }
     }
   `;
-  const res = await client<ViewerOrganizationsResponse>(query);
-  return res.viewer.organizations.nodes;
+  try {
+    const res = await client<ViewerOrganizationsResponse>(query);
+    return res.viewer.organizations.nodes;
+  } catch (error: unknown) {
+    const err = toError(error);
+    logger.error('Failed to fetch viewer organisations', { error: err.message, stack: err.stack });
+    throw error;
+  }
 }
 
 // Check if an organization is enterprise by checking enterpriseOwners field
