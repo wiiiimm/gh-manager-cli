@@ -1,3 +1,10 @@
+# [1.51.0](https://github.com/wiiiimm/gh-manager-cli/compare/v1.50.0...v1.51.0) (2026-06-08)
+
+
+### Features
+
+* add fork view filter and consolidate view filters into a single modal (SWR-379) [semantic pr title] ([#90](https://github.com/wiiiimm/gh-manager-cli/issues/90)) ([67f6892](https://github.com/wiiiimm/gh-manager-cli/commit/67f6892a55e18cb6c14e097b3181280791a50ba4))
+
 # [1.50.0](https://github.com/wiiiimm/gh-manager-cli/compare/v1.49.3...v1.50.0) (2026-06-08)
 
 
