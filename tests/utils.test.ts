@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { truncate, formatDate, computeWindow, matchesVisibilityFilter } from '../src/lib/utils';
+import { truncate, formatDate, computeWindow, matchesVisibilityFilter, matchesForkFilter } from '../src/lib/utils';
 
 describe('truncate', () => {
   it('returns string unchanged if shorter than max', () => {
@@ -264,5 +264,34 @@ describe('matchesVisibilityFilter', () => {
     expect(matchesVisibilityFilter('SECRET', 'private')).toBe(false);
     // …but the "all" filter still passes them through
     expect(matchesVisibilityFilter('SECRET', 'all')).toBe(true);
+  });
+});
+
+describe('matchesForkFilter', () => {
+  it('passes everything when the filter is "all"', () => {
+    expect(matchesForkFilter(true, 'all')).toBe(true);
+    expect(matchesForkFilter(false, 'all')).toBe(true);
+  });
+
+  it('passes only forks when the filter is "forks"', () => {
+    expect(matchesForkFilter(true, 'forks')).toBe(true);
+    expect(matchesForkFilter(false, 'forks')).toBe(false);
+  });
+
+  it('passes only non-forks when the filter is "non-forks"', () => {
+    expect(matchesForkFilter(false, 'non-forks')).toBe(true);
+    expect(matchesForkFilter(true, 'non-forks')).toBe(false);
+  });
+
+  it('can narrow a mixed list down to only forks or only non-forks', () => {
+    const items = [
+      { id: 'a', isFork: true },
+      { id: 'b', isFork: false },
+      { id: 'c', isFork: true },
+      { id: 'd', isFork: false },
+    ];
+    expect(items.filter(r => matchesForkFilter(r.isFork, 'all')).map(r => r.id)).toEqual(['a', 'b', 'c', 'd']);
+    expect(items.filter(r => matchesForkFilter(r.isFork, 'forks')).map(r => r.id)).toEqual(['a', 'c']);
+    expect(items.filter(r => matchesForkFilter(r.isFork, 'non-forks')).map(r => r.id)).toEqual(['b', 'd']);
   });
 });

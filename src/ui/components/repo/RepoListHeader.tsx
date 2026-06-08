@@ -13,6 +13,7 @@ interface RepoListHeaderProps {
   filterActive: boolean;
   visibilityFilter?: 'all' | 'public' | 'private' | 'internal';
   archiveFilter?: 'all' | 'unarchived' | 'archived';
+  forkFilter?: 'all' | 'forks' | 'non-forks';
   isEnterprise?: boolean;
   starsMode?: boolean;
   theme?: Theme;
@@ -27,6 +28,7 @@ export default function RepoListHeader({
   filterActive,
   visibilityFilter = 'all',
   archiveFilter = 'all',
+  forkFilter = 'all',
   isEnterprise = false,
   starsMode = false,
   theme: themeProp,
@@ -71,6 +73,11 @@ export default function RepoListHeader({
       {archiveFilter !== 'all' && (
         <Text color={theme.primary}>
           Archive: {archiveFilter === 'archived' ? 'Archived' : 'Unarchived'}
+        </Text>
+      )}
+      {forkFilter !== 'all' && (
+        <Text color={theme.primary}>
+          Fork: {forkFilter === 'forks' ? 'Forks' : 'Non-forks'}
         </Text>
       )}
       {(filterActive || (starsMode && filter.trim().length > 0)) && (

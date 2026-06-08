@@ -193,3 +193,17 @@ export function matchesVisibilityFilter(visibility: string, filter: VisibilityFi
   return true; // 'all'
 }
 
+/** Fork filter states for the consolidated view filters modal (SWR-379). */
+export type ForkFilter = 'all' | 'forks' | 'non-forks';
+
+/**
+ * Whether a repository passes a fork filter. Operates purely on
+ * `RepoNode.isFork`, so it costs nothing to evaluate and adds no API calls
+ * to the list/search paths.
+ */
+export function matchesForkFilter(isFork: boolean, filter: ForkFilter): boolean {
+  if (filter === 'forks') return isFork;
+  if (filter === 'non-forks') return !isFork;
+  return true; // 'all'
+}
+
