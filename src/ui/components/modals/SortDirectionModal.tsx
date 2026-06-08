@@ -107,6 +107,8 @@ export default function SortDirectionModal({
       case 'pushed': return 'Last Pushed';
       case 'name': return 'Name';
       case 'stars': return 'Stars';
+      case 'forks': return 'Forks';
+      default: return currentSortKey;
     }
   };
 

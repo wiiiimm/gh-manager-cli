@@ -13,6 +13,37 @@ export function makeClient(token: string) {
   });
 }
 
+// Minimal shapes for the GitHub REST JSON bodies we parse. `Response.json()` is
+// typed as `Promise<unknown>` (undici), so these let us narrow without `any`.
+interface GitHubRestErrorBody {
+  message?: string;
+  errors?: Array<{ message?: string; field?: string; code?: string }>;
+}
+
+interface CreateRepoRestResponse {
+  full_name: string;
+  html_url: string;
+}
+
+interface SyncForkRestResponse {
+  message: string;
+  merge_type: string;
+  base_branch: string;
+}
+
+interface RestRateLimitResource {
+  limit: number;
+  remaining: number;
+  reset: number;
+}
+
+interface RestRateLimitResponse {
+  resources?: {
+    core?: RestRateLimitResource;
+    graphql?: RestRateLimitResource;
+  };
+}
+
 // Singleton Apollo client instance
 let apolloClientInstance: { client: ApolloClient<any>, gql: any } | null = null;
 
@@ -698,7 +729,7 @@ export async function deleteRepositoryRest(
   
   let msg = `GitHub REST delete failed (status ${res.status})`;
   try {
-    const body = await res.json();
+    const body = await res.json() as GitHubRestErrorBody;
     if (body && body.message) msg += `: ${body.message}`;
   } catch {
     // ignore
@@ -727,11 +758,11 @@ export async function deleteRepositoryRest(
 async function parseGitHubRestError(res: Response, defaultMessage: string): Promise<string> {
   let msg = defaultMessage;
   try {
-    const errBody = await res.json();
+    const errBody = await res.json() as GitHubRestErrorBody;
     if (errBody?.message) msg = errBody.message;
     if (Array.isArray(errBody?.errors) && errBody.errors.length > 0) {
       const details = errBody.errors
-        .map((e: any) => e.message || (e.field ? `${e.field}: ${e.code}` : e.code))
+        .map((e) => e.message || (e.field ? `${e.field}: ${e.code}` : e.code))
         .filter(Boolean)
         .join('; ');
       if (details) msg += ` (${details})`;
@@ -800,7 +831,7 @@ export async function createRepositoryRest(
   }
 
   if (res.status === 201) {
-    const data = await res.json();
+    const data = await res.json() as CreateRepoRestResponse;
     logger.info('Successfully created repository', {
       nameWithOwner: data.full_name,
       url: data.html_url
@@ -1113,7 +1144,7 @@ export async function changeRepositoryVisibility(
     }
   `;
   
-  const result = await client(query, { id: repositoryId });
+  const result = await client<{ node?: { nameWithOwner?: string } | null }>(query, { id: repositoryId });
   const repo = result.node;
   
   if (!repo || !repo.nameWithOwner) {
@@ -1317,7 +1348,7 @@ export async function syncForkWithUpstream(
   }
   
   if (res.status === 200) {
-    const body = await res.json();
+    const body = await res.json() as SyncForkRestResponse;
     logger.info('Successfully synced fork with upstream', {
       owner,
       repo,
@@ -1328,10 +1359,10 @@ export async function syncForkWithUpstream(
     });
     return body;
   }
-  
+
   let msg = `Fork sync failed (status ${res.status})`;
   try {
-    const body = await res.json();
+    const body = await res.json() as GitHubRestErrorBody;
     if (body && body.message) {
       msg += `: ${body.message}`;
       if (res.status === 409) {
@@ -1503,13 +1534,13 @@ export async function fetchRestRateLimits(token: string): Promise<RestRateLimitI
       return null;
     }
     
-    const data = await response.json();
-    
+    const data = await response.json() as RestRateLimitResponse;
+
     logger.debug('Successfully fetched REST rate limits', {
       core: data.resources?.core,
       graphql: data.resources?.graphql
     });
-    
+
     return {
       core: data.resources?.core || { limit: 0, remaining: 0, reset: 0 },
       graphql: data.resources?.graphql || { limit: 0, remaining: 0, reset: 0 }
@@ -1567,8 +1598,8 @@ export async function renameRepositoryById(
   `;
   
   try {
-    const result = await client(mutation, { repositoryId, name: newName });
-    
+    const result = await client<{ updateRepository?: { repository?: { name?: string } } }>(mutation, { repositoryId, name: newName });
+
     logger.info('Repository renamed successfully', {
       repositoryId,
       newName: result?.updateRepository?.repository?.name

@@ -123,7 +123,7 @@ export async function copyToClipboard(text: string): Promise<void> {
   try {
     // Try clipboardy first (cross-platform)
     const clipboardy = await import('clipboardy');
-    await clipboardy.write(text);
+    await (clipboardy.default ?? clipboardy).write(text);
     return;
   } catch (error) {
     // Fallback to OS-specific commands using spawn for security

@@ -8,7 +8,7 @@ type Density = 0 | 1 | 2;
 export type OwnerContext = 'personal' | { type: 'organization', login: string, name?: string };
 
 interface UIPrefs {
-  sortKey?: 'updated' | 'pushed' | 'name' | 'stars';
+  sortKey?: 'updated' | 'pushed' | 'name' | 'stars' | 'forks';
   sortDir?: 'asc' | 'desc';
   density?: Density;
   forkTracking?: boolean;
