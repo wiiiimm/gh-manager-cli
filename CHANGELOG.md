@@ -1,3 +1,10 @@
+## [1.48.2](https://github.com/wiiiimm/gh-manager-cli/compare/v1.48.1...v1.48.2) (2026-06-08)
+
+
+### Bug Fixes
+
+* correct Bulk Select layout overflow and show hidden selection count (SWR-370) [semantic pr title] ([#79](https://github.com/wiiiimm/gh-manager-cli/issues/79)) ([bfc211a](https://github.com/wiiiimm/gh-manager-cli/commit/bfc211ac4d79ec730ad5ec087617ce24826b93fd)), closes [#70](https://github.com/wiiiimm/gh-manager-cli/issues/70) [#58](https://github.com/wiiiimm/gh-manager-cli/issues/58) [#75](https://github.com/wiiiimm/gh-manager-cli/issues/75)
+
 ## [1.48.1](https://github.com/wiiiimm/gh-manager-cli/compare/v1.48.0...v1.48.1) (2026-06-07)
 
 
