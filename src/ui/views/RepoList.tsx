@@ -6,6 +6,7 @@ import { makeClient, fetchViewerReposPageUnified, deleteRepositoryRest, archiveR
 import { getUIPrefs, storeUIPrefs, OwnerContext } from '../../config/config';
 import { type ThemeName, nextTheme, getTheme } from '../../config/themes';
 import { useTheme } from '../hooks/useTheme';
+import { useVirtualList } from '../hooks/useVirtualList';
 import { makeApolloKey, isFresh, markFetched } from '../../services/apolloMeta';
 import { fuzzySearch } from '../../lib/fuzzySearch';
 import type { RepoNode, RateLimitInfo, RestRateLimitInfo } from '../../types';
@@ -18,7 +19,7 @@ import type { BulkAction, BulkVisibilityTarget, BulkProgressState } from '../com
 import { UnstarModal } from '../components/modals/UnstarModal';
 import { RepoRow, FilterInput, RepoListHeader } from '../components/repo';
 import { SlowSpinner } from '../components/common';
-import { truncate, formatDate, copyToClipboard, computeWindow, matchesVisibilityFilter, matchesForkFilter, type VisibilityFilter } from '../../lib/utils';
+import { truncate, formatDate, copyToClipboard, matchesVisibilityFilter, matchesForkFilter, type VisibilityFilter } from '../../lib/utils';
 import { trackOperation, bulkActionToOperation } from '../../lib/session';
 
 // Allow customizable repos per fetch via env var (1-50, default 15)
@@ -2277,11 +2278,8 @@ export default function RepoList({ token, maxVisibleRows, onLogout, viewerLogin,
 
   const spacingLines = density; // map density to spacer lines
 
-  // Virtualize list: compute window around cursor
-  const windowed = useMemo(
-    () => computeWindow(visibleItems, cursor, listHeight, spacingLines),
-    [visibleItems, cursor, listHeight, spacingLines],
-  );
+  // Virtualize list: compute window around cursor (extracted to useVirtualList, GMC-28)
+  const windowed = useVirtualList(visibleItems, cursor, listHeight, spacingLines);
 
   // Single pagination model (SWR-360): background fetch-all.
   // Owned repos and starred repos eagerly load the entire set in the background —
