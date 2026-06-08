@@ -1,3 +1,10 @@
+## [1.49.3](https://github.com/wiiiimm/gh-manager-cli/compare/v1.49.2...v1.49.3) (2026-06-08)
+
+
+### Bug Fixes
+
+* resolve all tsc --noEmit strict-type errors across the codebase (SWR-376) [semantic pr title] ([#86](https://github.com/wiiiimm/gh-manager-cli/issues/86)) ([e8de7db](https://github.com/wiiiimm/gh-manager-cli/commit/e8de7dbbb5794a9c0e79f850e0a31656c71bd521))
+
 ## [1.49.2](https://github.com/wiiiimm/gh-manager-cli/compare/v1.49.1...v1.49.2) (2026-06-08)
 
 
