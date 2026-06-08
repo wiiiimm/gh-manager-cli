@@ -111,6 +111,7 @@ See the living roadmap in [TODOs.md](./TODOs.md) for the canonical, up-to-date l
 - Selected fields: name/nameWithOwner/description/visibility/isPrivate/isFork/isArchived/stargazerCount/forkCount/primaryLanguage/updatedAt/pushedAt/diskUsage, plus `parent { nameWithOwner }` and `defaultBranchRef { name }`.
 - **Light bulk query (SWR-360):** the list/search queries intentionally do NOT fetch per-repo commit history (`history.totalCount`). Computing that for each repo and its parent across 100 repos/page exceeds GitHub's per-query budget and returns HTTP 502. Fork `parent { nameWithOwner }` is still fetched so the "Fork of X" label always shows.
 - **Fork ahead/behind enrichment (SWR-362):** after the background fetch-all completes, a separate effect (`useEffect` gated on `!loading && !loadingMore && !hasNextPage`) enriches forks-only with commit counts. It uses `enrichForksWithAheadBehind` which builds a batched aliased GraphQL query (`fork_N: node(id:)` + `parent_N: repository(owner,name)`) capped at 5 forks per request (10 history queries). Results are merged directly into `items` state. A 200ms delay between batches throttles rate-limit consumption. Already-enriched IDs are tracked in `enrichmentDoneRef` to avoid re-fetching. Both `(N ahead)` and `(N behind)` are displayed in `RepoRow` and the sync confirmation modal.
+- **Open PR/Issue counts (SWR-357):** every list/search/starred query fetches `openPullRequests: pullRequests(states: OPEN) { totalCount }` and `openIssues: issues(states: OPEN) { totalCount }` inline, always on (no toggle, no enrichment pass). `totalCount`-only connections add ~0 node cost under GitHub's GraphQL cost formula, so a 100-repo page stays at cost ~1 — unlike `history.totalCount` (SWR-360), these indexed counts are cheap enough to fold into the main page fetches. Responses are normalised via `normalizeRepoNode` which flattens `{ totalCount: N }` → `RepoNode.openPullRequests` / `openIssues` (plain numbers) so renderers and threshold colouring see a flat shape. Rendered inline on every `RepoRow` (line 2) and behind the `L` keybinding's chooser modal.
 
 ## Controls
 
@@ -127,6 +128,7 @@ See the living roadmap in [TODOs.md](./TODOs.md) for the canonical, up-to-date l
 - `V`: visibility filter modal (All, Public, Private/Internal)
 - `W`: organisation switcher
 - Enter or `O`: open selected repo in browser; for forks shows a chooser (This repository / Parent/upstream, Esc cancels)
+- `L`: open the selected repo's PRs or Issues list — chooser modal (Pull Requests / Issues, Esc/C cancels). Counts are rendered inline on every row from the same fields (SWR-357)
 - `P`: on a fork — jump cursor to the parent repo if it is already loaded; otherwise fetches the parent repo and shows it in the Info modal
 - `I`: repository info modal
 - `K`: cache inspection

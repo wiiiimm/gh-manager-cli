@@ -12,7 +12,7 @@ import type { RepoNode, RateLimitInfo, RestRateLimitInfo } from '../../types';
 import { exec } from 'child_process';
 import OrgSwitcher from '../OrgSwitcher';
 import { logger } from '../../lib/logger';
-import { ArchiveFilterModal, DeleteModal, ArchiveModal, SyncModal, InfoModal, LogoutModal, VisibilityModal, SortModal, SortDirectionModal, ChangeVisibilityModal, CopyUrlModal, RenameModal, StarModal, BulkReviewModal, BulkConfirmModal, BulkDeleteCodeModal, BulkTransferCodeModal, BulkTransferDestinationModal, BulkIntentModal, BulkVisibilityModal, BulkProgressModal, OpenInBrowserModal, CreateRepoModal, TransferModal, bulkActionMeta } from '../components/modals';
+import { ArchiveFilterModal, DeleteModal, ArchiveModal, SyncModal, InfoModal, LogoutModal, VisibilityModal, SortModal, SortDirectionModal, ChangeVisibilityModal, CopyUrlModal, RenameModal, StarModal, BulkReviewModal, BulkConfirmModal, BulkDeleteCodeModal, BulkTransferCodeModal, BulkTransferDestinationModal, BulkIntentModal, BulkVisibilityModal, BulkProgressModal, OpenInBrowserModal, OpenPRsIssuesModal, CreateRepoModal, TransferModal, bulkActionMeta } from '../components/modals';
 import type { BulkAction, BulkVisibilityTarget, BulkProgressState } from '../components/modals';
 import { UnstarModal } from '../components/modals/UnstarModal';
 import { RepoRow, FilterInput, RepoListHeader } from '../components/repo';
@@ -243,6 +243,9 @@ export default function RepoList({ token, maxVisibleRows, onLogout, viewerLogin,
   // Open-in-browser chooser modal state (fork vs upstream)
   const [openInBrowserMode, setOpenInBrowserMode] = useState(false);
   const [openInBrowserTarget, setOpenInBrowserTarget] = useState<RepoNode | null>(null);
+  // SWR-357: chooser modal for jumping to the selected repo's PRs/Issues list
+  const [openLinksMode, setOpenLinksMode] = useState(false);
+  const [openLinksTarget, setOpenLinksTarget] = useState<RepoNode | null>(null);
 
   // Fork enrichment (ahead/behind) state
   const [enrichingForks, setEnrichingForks] = useState(false);
@@ -1632,6 +1635,11 @@ export default function RepoList({ token, maxVisibleRows, onLogout, viewerLogin,
       return; // OpenInBrowserModal component handles its own keyboard input
     }
 
+    // When open-PRs/issues modal is open, trap inputs for modal (SWR-357)
+    if (openLinksMode) {
+      return; // OpenPRsIssuesModal component handles its own keyboard input
+    }
+
     // When copy URL modal is open, trap inputs for modal
     if (copyUrlMode) {
       return; // CopyUrlModal component handles its own keyboard input
@@ -2020,6 +2028,19 @@ export default function RepoList({ token, maxVisibleRows, onLogout, viewerLogin,
       return;
     }
 
+    // Open PRs / Issues chooser (L for "Links") — SWR-357.
+    // Plain L only; Ctrl+L is reserved for logout. The modal works fine even
+    // when the count fields are missing (older cache reads pre-SWR-357), so
+    // we don't gate on `openPullRequests` / `openIssues` being present.
+    if (input && input.toUpperCase() === 'L' && !key.ctrl) {
+      const repo = visibleItems[cursor];
+      if (repo) {
+        setOpenLinksTarget(repo);
+        setOpenLinksMode(true);
+      }
+      return;
+    }
+
     // Jump to upstream (P) - move cursor if parent is in list, else fetch and show in Info modal
     if (input && input.toUpperCase() === 'P') {
       const repo = visibleItems[cursor];
@@ -2253,7 +2274,7 @@ export default function RepoList({ token, maxVisibleRows, onLogout, viewerLogin,
 
   const lowRate = (rateLimit && rateLimit.remaining <= Math.ceil(rateLimit.limit * 0.1)) || 
                    (restRateLimit && restRateLimit.core.remaining <= Math.ceil(restRateLimit.core.limit * 0.1));
-  const modalOpen = deleteMode || archiveMode || syncMode || logoutMode || infoMode || visibilityMode || archiveFilterMode || sortMode || sortDirectionMode || changeVisibilityMode || copyUrlMode || renameMode || bulkIntentKind !== null || bulkVisibilityOpen || bulkReviewOpen || bulkConfirmOpen || bulkDeleteCodeOpen || bulkTransferDestinationOpen || bulkTransferCodeOpen || bulkProgressOpen || openInBrowserMode || createMode || transferMode;
+  const modalOpen = deleteMode || archiveMode || syncMode || logoutMode || infoMode || visibilityMode || archiveFilterMode || sortMode || sortDirectionMode || changeVisibilityMode || copyUrlMode || renameMode || bulkIntentKind !== null || bulkVisibilityOpen || bulkReviewOpen || bulkConfirmOpen || bulkDeleteCodeOpen || bulkTransferDestinationOpen || bulkTransferCodeOpen || bulkProgressOpen || openInBrowserMode || openLinksMode || createMode || transferMode;
 
   // Display metadata for the in-flight bulk action (label/colour/verbs).
   const bulkMeta = bulkAction ? bulkActionMeta(bulkAction, bulkVisibilityTarget ?? undefined) : null;
@@ -3055,6 +3076,22 @@ export default function RepoList({ token, maxVisibleRows, onLogout, viewerLogin,
               theme={theme}
             />
           </Box>
+        ) : openLinksMode && openLinksTarget ? (
+          <Box height={contentHeight} alignItems="center" justifyContent="center">
+            <OpenPRsIssuesModal
+              repo={openLinksTarget}
+              onOpen={(url) => {
+                openInBrowser(url);
+                setOpenLinksMode(false);
+                setOpenLinksTarget(null);
+              }}
+              onCancel={() => {
+                setOpenLinksMode(false);
+                setOpenLinksTarget(null);
+              }}
+              theme={theme}
+            />
+          </Box>
         ) : (
           <>
             {/* Context/Filter/sort status */}
@@ -3201,8 +3238,8 @@ export default function RepoList({ token, maxVisibleRows, onLogout, viewerLogin,
         <Box width={terminalWidth} justifyContent="center">
           <Text color={theme.muted} dimColor={modalOpen ? true : undefined}>
             {starsMode ?
-              'Shift+S My Repos • I Info • C Copy URL • U Unstar Repository' :
-              `${ownerContext === 'personal' ? 'Shift+S Starred • ' : ''}I Info • C Copy URL • Ctrl+S Un/Star • Ctrl+R Rename • Shift+M Transfer • Ctrl+A Un/Archive • Ctrl+V Change Visibility • Ctrl+F Sync Fork • P Jump to upstream`
+              'Shift+S My Repos • I Info • C Copy URL • L PRs/Issues • U Unstar Repository' :
+              `${ownerContext === 'personal' ? 'Shift+S Starred • ' : ''}I Info • C Copy URL • L PRs/Issues • Ctrl+S Un/Star • Ctrl+R Rename • Shift+M Transfer • Ctrl+A Un/Archive • Ctrl+V Change Visibility • Ctrl+F Sync Fork • P Jump to upstream`
             }
           </Text>
         </Box>
