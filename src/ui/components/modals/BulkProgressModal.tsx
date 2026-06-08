@@ -53,7 +53,7 @@ export default function BulkProgressModal({
       {!state.done ? (
         <>
           <Box flexDirection="row">
-            <Box width={2} flexShrink={0} flexGrow={0} marginRight={1}>
+            <Box width={3} flexShrink={0} flexGrow={0} marginRight={1}>
               <Text color="cyan"><SlowSpinner /></Text>
             </Box>
             <Text>

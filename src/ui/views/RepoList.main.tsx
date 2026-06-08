@@ -8,6 +8,7 @@ import { makeApolloKey, makeSearchKey, isFresh, markFetched } from '../../servic
 import type { RepoNode, RateLimitInfo } from '../../types';
 import { exec } from 'child_process';
 import OrgSwitcher from '../OrgSwitcher';
+import { SlowSpinner } from '../components/common';
 
 // Allow customizable repos per fetch via env var (1-50, default 15)
 const getPageSize = () => {
@@ -22,22 +23,6 @@ const getPageSize = () => {
 };
 
 const PAGE_SIZE = getPageSize();
-
-// Custom slow spinner that updates every 0.5 seconds
-function SlowSpinner() {
-  const frames = ['⠋', '⠙', '⠹', '⠸', '⠼', '⠴', '⠦', '⠧', '⠇', '⠏'];
-  const [frame, setFrame] = useState(0);
-  
-  useEffect(() => {
-    const timer = setInterval(() => {
-      setFrame(f => (f + 1) % frames.length);
-    }, 500); // 0.5 seconds per frame
-    
-    return () => clearInterval(timer);
-  }, [frames.length]);
-  
-  return <Text>{frames[frame]}</Text>;
-}
 
 function truncate(str: string, max = 80) {
   if (str.length <= max) return str;
@@ -1104,7 +1089,7 @@ export default function RepoList({ token, maxVisibleRows, onLogout, viewerLogin,
         <Text bold color={modalOpen ? 'gray' : undefined} dimColor={modalOpen ? true : undefined}>  Repositories</Text>
         <Text color="gray">({visibleItems.length}/{searchActive ? searchTotalCount : totalCount})</Text>
         {(loading || searchLoading) && (
-          <Box width={2} flexShrink={0} flexGrow={0} marginLeft={1}>
+          <Box width={3} flexShrink={0} flexGrow={0} marginLeft={1}>
             <Text color="yellow">
               <SlowSpinner />
             </Text>
@@ -1152,7 +1137,7 @@ export default function RepoList({ token, maxVisibleRows, onLogout, viewerLogin,
             <Box flexDirection="column" alignItems="center">
               <Box flexDirection="column" alignItems="center">
                 <Box height={1} flexDirection="row">
-                  <Box width={2} flexShrink={0} flexGrow={0}>
+                  <Box width={3} flexShrink={0} flexGrow={0}>
                     <Text color="cyan">
                       <SlowSpinner />
                     </Text>
@@ -1696,7 +1681,7 @@ export default function RepoList({ token, maxVisibleRows, onLogout, viewerLogin,
               {loadingMore && hasNextPage && (
                 <Box justifyContent="center" alignItems="center" marginTop={1}>
                   <Box flexDirection="row">
-                    <Box width={2} flexShrink={0} flexGrow={0} marginRight={1}>
+                    <Box width={3} flexShrink={0} flexGrow={0} marginRight={1}>
                       <Text color="cyan">
                         <SlowSpinner />
                       </Text>
