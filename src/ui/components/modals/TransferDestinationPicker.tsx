@@ -138,6 +138,12 @@ export default function TransferDestinationPicker({
       return;
     }
 
+    // While the org list is still loading the picker shows only a spinner.
+    // Swallow navigation/select keys so a stray Enter can't submit the focused
+    // row (often the personal account) the user can't actually see yet. Esc
+    // above remains the one allowed key so a stuck loader can still be cancelled.
+    if (loading) return;
+
     if (mode === 'list') {
       if (key.upArrow) {
         setCursor(c => Math.max(0, c - 1));

@@ -307,6 +307,43 @@ describe('TransferDestinationPicker', () => {
     unmount();
   });
 
+  it('ignores Enter/arrows/M while the org list is still loading', async () => {
+    const onChoose = vi.fn();
+    const onCancel = vi.fn();
+    let inputCallback!: InkInputHandler;
+    mockUseInput.mockImplementation((cb: InkInputHandler) => { inputCallback = cb; });
+
+    // Loader that never resolves — the picker stays in the loading state.
+    const { lastFrame, unmount } = render(
+      <TransferDestinationPicker
+        currentOwner="someone"
+        viewerLogin="myviewer"
+        loadOrganizations={() => new Promise(() => {})}
+        onChoose={onChoose}
+        onCancel={onCancel}
+      />,
+    );
+
+    await new Promise(r => setTimeout(r, 0));
+
+    // List is hidden — only the spinner is shown. Pressing Enter must NOT
+    // submit the (invisible) focused row.
+    const out = lastFrame() || '';
+    expect(out).toContain('Loading organisations');
+    expect(out).not.toContain('Enter a different owner');
+
+    inputCallback('', { return: true });
+    inputCallback('', { downArrow: true });
+    inputCallback('m', {});
+
+    expect(onChoose).not.toHaveBeenCalled();
+
+    // Esc should still cancel even during loading.
+    inputCallback('', { escape: true });
+    expect(onCancel).toHaveBeenCalledTimes(1);
+    unmount();
+  });
+
   it('swallows input while the host marks the picker as busy', async () => {
     const onChoose = vi.fn();
     const onCancel = vi.fn();
