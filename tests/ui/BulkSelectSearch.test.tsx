@@ -21,14 +21,25 @@ const makeRepo = (id: string, name: string): RepoNode => ({
   visibility: 'PUBLIC',
 });
 
-// Inline the "hidden by search" computation from RepoList so we can unit-test it
+// Mirror the mode-agnostic "is a text search narrowing the list" predicate from
+// RepoList. A search narrows the visible list in BOTH normal and starred mode,
+// but `filterActive` is false by definition in starred mode — so the count must
+// be gated on this predicate, not on `filterActive`.
+function computeSearchActive(starsMode: boolean, filter: string): boolean {
+  const filterActive = !starsMode && filter.trim().length > 0;
+  return filterActive || (starsMode && filter.trim().length > 0);
+}
+
+// Inline the "hidden by search" computation from RepoList so we can unit-test it.
+// Mirrors the production implementation: gated on `searchActive`, Set-based lookup.
 function computeHiddenCount(
   selectedRepos: Map<string, RepoNode>,
   visibleItems: RepoNode[],
-  filterActive: boolean,
+  searchActive: boolean,
 ): number {
-  if (!filterActive) return 0;
-  return [...selectedRepos.keys()].filter(id => !visibleItems.some(r => r.id === id)).length;
+  if (!searchActive || selectedRepos.size === 0) return 0;
+  const visibleIds = new Set(visibleItems.map(r => r.id));
+  return [...selectedRepos.keys()].filter(id => !visibleIds.has(id)).length;
 }
 
 // Minimal status bar component that mirrors the bulk-select status bar in RepoList
@@ -80,6 +91,34 @@ describe('BulkSelectSearch — hidden-count computation', () => {
     // search returns nothing from the selection
     const visibleItems = [makeRepo('99', 'zeta')];
     expect(computeHiddenCount(selected, visibleItems, true)).toBe(2);
+  });
+});
+
+describe('searchActive predicate — counts hidden selections in starred mode too', () => {
+  it('is true in normal mode with a non-empty filter', () => {
+    expect(computeSearchActive(false, 'alpha')).toBe(true);
+  });
+
+  it('is false in normal mode with an empty filter', () => {
+    expect(computeSearchActive(false, '   ')).toBe(false);
+  });
+
+  // Regression: starred mode filters the visible list via `filteredStarredItems`
+  // while `filterActive` stays false, so the hidden count must still apply here.
+  it('is true in starred mode with a non-empty filter (was missed when gated on filterActive)', () => {
+    expect(computeSearchActive(true, 'alpha')).toBe(true);
+  });
+
+  it('is false in starred mode with an empty filter', () => {
+    expect(computeSearchActive(true, '')).toBe(false);
+  });
+
+  it('hides selected starred repos narrowed out by a starred-mode search', () => {
+    const allRepos = [makeRepo('1', 'alpha'), makeRepo('2', 'beta'), makeRepo('3', 'gamma')];
+    const selected = new Map(allRepos.map(r => [r.id, r]));
+    const visibleItems = [allRepos[0]]; // starred search narrowed to "alpha"
+    const searchActive = computeSearchActive(true, 'alpha');
+    expect(computeHiddenCount(selected, visibleItems, searchActive)).toBe(2);
   });
 });
 

@@ -2148,7 +2148,22 @@ export default function RepoList({ token, maxVisibleRows, onLogout, viewerLogin,
   }, [starredItems, filter, archiveFilter]);
   
   const visibleItems = starsMode ? filteredStarredItems : (filterActive ? fuzzyItems : filteredAndSorted);
-  
+
+  // A text search narrows the visible list in BOTH normal and starred mode.
+  // `filterActive` is false by definition in starred mode (see above), so it
+  // can't gate the hidden-selection count there; this mode-agnostic predicate
+  // mirrors the one used for search-aware key handling (see arrow/Esc handlers).
+  const searchActive = filterActive || (starsMode && filter.trim().length > 0);
+
+  // How many currently-selected repos are hidden by the active search, i.e.
+  // not present in the (narrowed) visible list. Computed once here — reused by
+  // the bulk-select status bar and footer hint — with a Set for O(n+m) lookup.
+  const hiddenSelectedCount = useMemo(() => {
+    if (!multiSelectMode || !searchActive || selectedRepos.size === 0) return 0;
+    const visibleIds = new Set(visibleItems.map(r => r.id));
+    return [...selectedRepos.keys()].filter(id => !visibleIds.has(id)).length;
+  }, [multiSelectMode, searchActive, selectedRepos, visibleItems]);
+
   // Keep cursor in range when data changes. Clamp against the *visible*
   // (post-filter) item count, otherwise an active archive/visibility filter
   // can leave the cursor past the end of visibleItems and crash the window
@@ -3042,11 +3057,8 @@ export default function RepoList({ token, maxVisibleRows, onLogout, viewerLogin,
 
             {/* Multi-select mode status bar */}
             {multiSelectMode && (() => {
-              const hiddenCount = filterActive
-                ? [...selectedRepos.keys()].filter(id => !visibleItems.some(r => r.id === id)).length
-                : 0;
               const selectionLabel = selectedRepos.size > 0
-                ? `${selectedRepos.size} selected${hiddenCount > 0 ? ` (${hiddenCount} not shown in search)` : ''}`
+                ? `${selectedRepos.size} selected${hiddenSelectedCount > 0 ? ` (${hiddenSelectedCount} not shown in search)` : ''}`
                 : 'No selection';
               return (
                 <Box marginBottom={1} flexDirection="row" justifyContent="space-between">
@@ -3188,12 +3200,7 @@ export default function RepoList({ token, maxVisibleRows, onLogout, viewerLogin,
             <Text color={multiSelectMode ? 'cyan' : 'gray'} dimColor={!multiSelectMode}>
               {multiSelectMode
                 ? (selectedRepos.size > 0
-                    ? (() => {
-                        const hiddenCount = filterActive
-                          ? [...selectedRepos.keys()].filter(id => !visibleItems.some(r => r.id === id)).length
-                          : 0;
-                        return `Space select • X unselect all • Ctrl+S star • Ctrl+A archive • Ctrl+V visibility${starsMode ? '' : ' • Shift+M transfer'} • Del delete • B/Esc exit (${selectedRepos.size} selected${hiddenCount > 0 ? `, ${hiddenCount} not in search` : ''})`;
-                      })()
+                    ? `Space select • X unselect all • Ctrl+S star • Ctrl+A archive • Ctrl+V visibility${starsMode ? '' : ' • Shift+M transfer'} • Del delete • B/Esc exit (${selectedRepos.size} selected${hiddenSelectedCount > 0 ? `, ${hiddenSelectedCount} not shown in search` : ''})`
                     : 'B/Esc exit bulk select • Space select (no selection)')
                 : 'B Bulk Select mode (star/archive/visibility/delete)'
               }
