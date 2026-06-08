@@ -147,13 +147,13 @@ describe('ViewFiltersModal', () => {
     unmount();
   });
 
-  it('changes the focused option with Right arrow and applies the new value', () => {
+  it('changes the focused group value live with Right arrow and applies with Enter', () => {
     const onApply = vi.fn();
     let cbRef: any;
     mockUseInput.mockImplementation((cb: any) => {
       cbRef = cb;
     });
-    const { rerender, unmount } = render(
+    const renderModal = () => (
       <ViewFiltersModal
         current={baseCurrent}
         isEnterprise={false}
@@ -162,21 +162,24 @@ describe('ViewFiltersModal', () => {
         onCancel={() => {}}
       />
     );
+    const { rerender, unmount } = render(renderModal());
 
-    // Visibility group is focused first on the 'all' option. Move right to 'public'.
+    // Visibility group is focused first on 'all'. Right moves the value live to 'public'.
     cbRef('', { rightArrow: true });
-    rerender(
-      <ViewFiltersModal
-        current={baseCurrent}
-        isEnterprise={false}
-        starsMode={false}
-        onApply={onApply}
-        onCancel={() => {}}
-      />
-    );
-    // Select that option (Enter), then apply via Y.
+    rerender(renderModal());
+    // Enter applies whatever is highlighted — no separate commit step.
     cbRef('', { return: true });
-    rerender(
+    expect(onApply).toHaveBeenCalledWith({ visibility: 'public', archive: 'all', fork: 'all' });
+    unmount();
+  });
+
+  it('←→ moves the value live across multiple presses and Left steps back', () => {
+    const onApply = vi.fn();
+    let cbRef: any;
+    mockUseInput.mockImplementation((cb: any) => {
+      cbRef = cb;
+    });
+    const renderModal = () => (
       <ViewFiltersModal
         current={baseCurrent}
         isEnterprise={false}
@@ -185,7 +188,19 @@ describe('ViewFiltersModal', () => {
         onCancel={() => {}}
       />
     );
-    cbRef('y', {});
+    const { rerender, unmount } = render(renderModal());
+
+    // all → public → private
+    cbRef('', { rightArrow: true });
+    rerender(renderModal());
+    cbRef('', { rightArrow: true });
+    rerender(renderModal());
+    // Right at the end is a no-op (already on last option); Left steps back to public.
+    cbRef('', { rightArrow: true });
+    rerender(renderModal());
+    cbRef('', { leftArrow: true });
+    rerender(renderModal());
+    cbRef('', { return: true });
     expect(onApply).toHaveBeenCalledWith({ visibility: 'public', archive: 'all', fork: 'all' });
     unmount();
   });
@@ -210,45 +225,62 @@ describe('ViewFiltersModal', () => {
     unmount();
   });
 
-  it('selects fork = forks after navigating Down→Down then right and applying', () => {
+  it('changes fork value after navigating Down→Down then Right and applying', () => {
     const onApply = vi.fn();
     let cbRef: any;
     mockUseInput.mockImplementation((cb: any) => {
       cbRef = cb;
     });
-    const { rerender, unmount } = render(
-      <ViewFiltersModal
-        current={baseCurrent}
-        isEnterprise={false}
-        starsMode={false}
-        onApply={onApply}
-        onCancel={() => {}}
-      />
+    const renderModal = () => (
+      <ViewFiltersModal current={baseCurrent} isEnterprise={false} starsMode={false} onApply={onApply} onCancel={() => {}} />
     );
+    const { rerender, unmount } = render(renderModal());
 
     // Down → Archive group
     cbRef('', { downArrow: true });
-    rerender(<ViewFiltersModal current={baseCurrent} isEnterprise={false} starsMode={false} onApply={onApply} onCancel={() => {}} />);
+    rerender(renderModal());
     // Down → Fork group
     cbRef('', { downArrow: true });
-    rerender(<ViewFiltersModal current={baseCurrent} isEnterprise={false} starsMode={false} onApply={onApply} onCancel={() => {}} />);
-    // Right → focus 'forks' option in Fork group
+    rerender(renderModal());
+    // Right → move Fork value live from 'all' to 'forks'
     cbRef('', { rightArrow: true });
-    rerender(<ViewFiltersModal current={baseCurrent} isEnterprise={false} starsMode={false} onApply={onApply} onCancel={() => {}} />);
-    // Enter → commit selection inside group
+    rerender(renderModal());
+    // Enter → apply
     cbRef('', { return: true });
-    rerender(<ViewFiltersModal current={baseCurrent} isEnterprise={false} starsMode={false} onApply={onApply} onCancel={() => {}} />);
-    // Y → apply
-    cbRef('y', {});
     expect(onApply).toHaveBeenCalledWith({ visibility: 'all', archive: 'all', fork: 'forks' });
     unmount();
   });
 
-  it('advances focus with Tab through every group then to Apply, where Enter triggers onApply', () => {
-    // Tab advances within a group first, then to the next group, finally to
-    // the Apply button. With 3 options × 3 groups + 1 hop into Apply, that is
-    // 9 presses. Tab is a focus-only change — selections inside groups are
-    // only committed by Enter — so onApply receives the seeded current value.
+  it('Enter on the Cancel button cancels', () => {
+    const onCancel = vi.fn();
+    let cbRef: any;
+    mockUseInput.mockImplementation((cb: any) => {
+      cbRef = cb;
+    });
+    const renderModal = () => (
+      <ViewFiltersModal
+        current={baseCurrent}
+        isEnterprise={false}
+        starsMode={false}
+        onApply={() => {}}
+        onCancel={onCancel}
+      />
+    );
+    const { rerender, unmount } = render(renderModal());
+
+    // Down ×3 reaches Apply (3 groups → Apply), then Down → Cancel.
+    for (let i = 0; i < 3; i += 1) {
+      cbRef('', { downArrow: true });
+      rerender(renderModal());
+    }
+    cbRef('', { downArrow: true });
+    rerender(renderModal());
+    cbRef('', { return: true });
+    expect(onCancel).toHaveBeenCalled();
+    unmount();
+  });
+
+  it('Enter on the Apply button applies the selection', () => {
     const onApply = vi.fn();
     let cbRef: any;
     mockUseInput.mockImplementation((cb: any) => {
@@ -265,7 +297,37 @@ describe('ViewFiltersModal', () => {
     );
     const { rerender, unmount } = render(renderModal());
 
-    for (let i = 0; i < 9; i += 1) {
+    // Down ×3 reaches the Apply button (3 groups → Apply).
+    for (let i = 0; i < 3; i += 1) {
+      cbRef('', { downArrow: true });
+      rerender(renderModal());
+    }
+    cbRef('', { return: true });
+    expect(onApply).toHaveBeenCalledWith({ visibility: 'all', archive: 'all', fork: 'all' });
+    unmount();
+  });
+
+  it('advances focus with Tab through the groups to Apply, where Enter triggers onApply', () => {
+    // Tab moves focus group → group → Apply (no within-group option stepping;
+    // ←→ handles values). 3 groups means 3 Tabs reach Apply. Tab does not
+    // change any value, so onApply receives the seeded current selection.
+    const onApply = vi.fn();
+    let cbRef: any;
+    mockUseInput.mockImplementation((cb: any) => {
+      cbRef = cb;
+    });
+    const renderModal = () => (
+      <ViewFiltersModal
+        current={baseCurrent}
+        isEnterprise={false}
+        starsMode={false}
+        onApply={onApply}
+        onCancel={() => {}}
+      />
+    );
+    const { rerender, unmount } = render(renderModal());
+
+    for (let i = 0; i < 3; i += 1) {
       cbRef('', { tab: true });
       rerender(renderModal());
     }

@@ -949,6 +949,17 @@ export default function RepoList({ token, maxVisibleRows, onLogout, viewerLogin,
     }
   }
   
+  // Reset every View Filter (visibility/archive/fork) back to 'all' and persist.
+  // Carrying a view filter across a different org or scope is confusing — the
+  // repos that matched in one context rarely make sense in another — so we
+  // clear them whenever the context changes (SWR-379 follow-up).
+  function clearViewFilters() {
+    setVisibilityFilter('all');
+    setArchiveFilter('all');
+    setForkFilter('all');
+    storeUIPrefs({ visibilityFilter: 'all', archiveFilter: 'all', forkFilter: 'all' });
+  }
+
   async function handleOrgContextChange(newContext: OwnerContext) {
     setOwnerContext(newContext);
     setCursor(0);
@@ -966,9 +977,9 @@ export default function RepoList({ token, maxVisibleRows, onLogout, viewerLogin,
     setFilter('');
     setFilterMode(false);
     
-    // Reset visibility filter to 'all' when switching organizations
-    setVisibilityFilter('all');
-    
+    // Reset all view filters (visibility/archive/fork) when switching organisations
+    clearViewFilters();
+
     // Disable star mode when switching to non-personal context
     if (newContext !== 'personal' && starsMode) {
       setStarsMode(false);
@@ -994,11 +1005,10 @@ export default function RepoList({ token, maxVisibleRows, onLogout, viewerLogin,
       setIsEnterpriseOrg(false);
     }
     
-    // Save all preferences including reset visibility filter
-    storeUIPrefs({ 
+    // Save context preferences (view filters were already reset + persisted above)
+    storeUIPrefs({
       ownerContext: newContext,
-      ownerAffiliations: newAffiliations,
-      visibilityFilter: 'all'
+      ownerAffiliations: newAffiliations
     });
     
     // Notify parent component of the change
@@ -1987,11 +1997,12 @@ export default function RepoList({ token, maxVisibleRows, onLogout, viewerLogin,
       // Clear filter when toggling modes
       setFilter('');
       setFilterMode(false);
-      
+
+      // Reset all view filters when switching scope (own ↔ starred)
+      clearViewFilters();
+
       if (newStarsMode) {
         // Entering stars mode - fetch starred repositories
-        // Reset visibility filter since it doesn't apply to starred repos
-        setVisibilityFilter('all');
         fetchStarredRepositories(null, true);
       }
       return;

@@ -24,7 +24,10 @@ interface ViewFiltersModalProps {
 }
 
 type GroupKey = 'visibility' | 'archive' | 'fork';
-type Focus = { kind: 'option', group: GroupKey, value: string } | { kind: 'apply' } | { kind: 'cancel' };
+// Focus tracks which group (radio row) or action button is active. The
+// highlighted option within a focused group is always that group's current
+// selection — ←→ moves the selection live, so there is no separate focus value.
+type Focus = { kind: 'group', group: GroupKey } | { kind: 'apply' } | { kind: 'cancel' };
 
 const visibilityOptions: VisibilityFilter[] = ['all', 'public', 'private'];
 const archiveOptions: ArchiveFilter[] = ['all', 'unarchived', 'archived'];
@@ -54,8 +57,8 @@ export default function ViewFiltersModal({
     fork: current.fork,
   }));
 
-  // Focus the first option of the first visible group on mount.
-  const initialFocus: Focus = { kind: 'option', group: groups[0], value: getValueFor(groups[0], current) };
+  // Focus the first visible group on mount.
+  const initialFocus: Focus = { kind: 'group', group: groups[0] };
   const [focus, setFocus] = useState<Focus>(initialFocus);
 
   function getValueFor(group: GroupKey, sel: ViewFiltersValue): string {
@@ -84,15 +87,11 @@ export default function ViewFiltersModal({
       return;
     }
 
+    // Enter applies the whole set (Cancel button still cancels).
     if (key.return) {
       if (focus.kind === 'cancel') {
         onCancel();
-      } else if (focus.kind === 'option') {
-        // Select this option in its group, but stay open so the user can
-        // adjust the other groups before applying.
-        setGroupSelection(focus.group, focus.value);
       } else {
-        // Apply
         onApply(selection);
       }
       return;
@@ -104,45 +103,35 @@ export default function ViewFiltersModal({
       return;
     }
 
-    // Up/Down moves between groups (or into Apply/Cancel from the last group).
+    // Up/Down moves between groups, then into the Apply/Cancel button row.
     if (key.upArrow) {
       if (focus.kind === 'apply' || focus.kind === 'cancel') {
-        const lastGroup = groups[groups.length - 1];
-        setFocus({ kind: 'option', group: lastGroup, value: getValueFor(lastGroup, selection) });
-        return;
-      }
-      if (focus.kind === 'option') {
+        setFocus({ kind: 'group', group: groups[groups.length - 1] });
+      } else {
         const idx = groups.indexOf(focus.group);
-        if (idx > 0) {
-          const prev = groups[idx - 1];
-          setFocus({ kind: 'option', group: prev, value: getValueFor(prev, selection) });
-        }
+        if (idx > 0) setFocus({ kind: 'group', group: groups[idx - 1] });
       }
       return;
     }
 
     if (key.downArrow) {
-      if (focus.kind === 'option') {
+      if (focus.kind === 'group') {
         const idx = groups.indexOf(focus.group);
-        if (idx < groups.length - 1) {
-          const next = groups[idx + 1];
-          setFocus({ kind: 'option', group: next, value: getValueFor(next, selection) });
-        } else {
-          setFocus({ kind: 'apply' });
-        }
+        if (idx < groups.length - 1) setFocus({ kind: 'group', group: groups[idx + 1] });
+        else setFocus({ kind: 'apply' });
       } else if (focus.kind === 'apply') {
         setFocus({ kind: 'cancel' });
       }
       return;
     }
 
-    // Left/Right cycles within the current group's options, or between
-    // Apply/Cancel buttons on the action row.
+    // Left/Right changes the focused group's value live (radio-style), or moves
+    // between the Apply/Cancel buttons on the action row.
     if (key.leftArrow) {
-      if (focus.kind === 'option') {
+      if (focus.kind === 'group') {
         const opts = getOptionsFor(focus.group);
-        const idx = opts.indexOf(focus.value);
-        if (idx > 0) setFocus({ kind: 'option', group: focus.group, value: opts[idx - 1] });
+        const idx = opts.indexOf(getValueFor(focus.group, selection));
+        if (idx > 0) setGroupSelection(focus.group, opts[idx - 1]);
       } else if (focus.kind === 'cancel') {
         setFocus({ kind: 'apply' });
       }
@@ -150,37 +139,26 @@ export default function ViewFiltersModal({
     }
 
     if (key.rightArrow) {
-      if (focus.kind === 'option') {
+      if (focus.kind === 'group') {
         const opts = getOptionsFor(focus.group);
-        const idx = opts.indexOf(focus.value);
-        if (idx < opts.length - 1) setFocus({ kind: 'option', group: focus.group, value: opts[idx + 1] });
+        const idx = opts.indexOf(getValueFor(focus.group, selection));
+        if (idx < opts.length - 1) setGroupSelection(focus.group, opts[idx + 1]);
       } else if (focus.kind === 'apply') {
         setFocus({ kind: 'cancel' });
       }
       return;
     }
 
+    // Tab advances focus only: group → … → Apply → Cancel → wrap to first group.
     if (key.tab) {
-      // Tab advances within group first, then to Apply, then to Cancel, then wraps to first group.
-      if (focus.kind === 'option') {
-        const opts = getOptionsFor(focus.group);
-        const idx = opts.indexOf(focus.value);
-        if (idx < opts.length - 1) {
-          setFocus({ kind: 'option', group: focus.group, value: opts[idx + 1] });
-        } else {
-          const groupIdx = groups.indexOf(focus.group);
-          if (groupIdx < groups.length - 1) {
-            const next = groups[groupIdx + 1];
-            setFocus({ kind: 'option', group: next, value: getValueFor(next, selection) });
-          } else {
-            setFocus({ kind: 'apply' });
-          }
-        }
+      if (focus.kind === 'group') {
+        const idx = groups.indexOf(focus.group);
+        if (idx < groups.length - 1) setFocus({ kind: 'group', group: groups[idx + 1] });
+        else setFocus({ kind: 'apply' });
       } else if (focus.kind === 'apply') {
         setFocus({ kind: 'cancel' });
-      } else if (focus.kind === 'cancel') {
-        const first = groups[0];
-        setFocus({ kind: 'option', group: first, value: getValueFor(first, selection) });
+      } else {
+        setFocus({ kind: 'group', group: groups[0] });
       }
       return;
     }
@@ -225,19 +203,21 @@ export default function ViewFiltersModal({
   const renderGroup = (group: GroupKey) => {
     const opts = getOptionsFor(group);
     const selected = getValueFor(group, selection);
+    const groupFocused = focus.kind === 'group' && focus.group === group;
     return (
       <Box key={group} flexDirection="column" marginTop={1}>
-        <Text bold color={theme.primary}>{groupTitle(group)}</Text>
+        <Text bold color={groupFocused ? theme.primary : theme.muted}>{groupTitle(group)}</Text>
         <Box paddingX={1} flexDirection="row" gap={2}>
           {opts.map((opt) => {
-            const isFocused = focus.kind === 'option' && focus.group === group && focus.value === opt;
             const isSelected = opt === selected;
-            const colorFn = isSelected ? c.success : isFocused ? c.primary : c.muted;
+            // The selected option in the focused group is the live "cursor".
+            const isHighlighted = groupFocused && isSelected;
+            const colorFn = isSelected ? c.success : c.muted;
             const label = labelFor(group, opt);
             return (
               <Text key={opt}>
-                {isFocused ? c.arrow(' → ') : '   '}
-                {isFocused ? colorFn.bold(label) : colorFn(label)}
+                {isHighlighted ? c.arrow(' → ') : '   '}
+                {isHighlighted ? colorFn.bold(label) : colorFn(label)}
                 {isSelected && c.success(' ✓')}
               </Text>
             );
@@ -261,20 +241,22 @@ export default function ViewFiltersModal({
 
       {groups.map(renderGroup)}
 
-      <Box marginTop={1} paddingX={1} flexDirection="row" gap={2}>
-        <Text>
-          {focus.kind === 'apply' ? c.arrow(' → ') : '   '}
-          {focus.kind === 'apply' ? chalk.green.bold('Apply') : c.muted('Apply')}
-        </Text>
-        <Text>
-          {focus.kind === 'cancel' ? c.arrowMuted(' → ') : '   '}
-          {focus.kind === 'cancel' ? chalk.white.bold('Cancel') : c.muted('Cancel')}
-        </Text>
+      <Box marginTop={1} flexDirection="row" justifyContent="center" gap={4}>
+        <Box borderStyle="round" borderColor={focus.kind === 'apply' ? theme.success : theme.muted} paddingX={2}>
+          <Text>
+            {focus.kind === 'apply' ? c.success.inverse.bold(' Apply ') : c.success.bold('Apply')}
+          </Text>
+        </Box>
+        <Box borderStyle="round" borderColor={focus.kind === 'cancel' ? theme.primary : theme.muted} paddingX={2}>
+          <Text>
+            {focus.kind === 'cancel' ? chalk.inverse.bold(' Cancel ') : c.muted('Cancel')}
+          </Text>
+        </Box>
       </Box>
 
-      <Box marginTop={1}>
+      <Box marginTop={1} flexDirection="row" justifyContent="center">
         <Text color={theme.muted} dimColor>
-          ↑↓ Group • ←→ Option • ⏎ Select/Apply • Y Apply • Esc/C Cancel
+          ←→ Change value • ↑↓ Group • ⏎ Apply • Esc/C Cancel
         </Text>
       </Box>
     </Box>
