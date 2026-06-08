@@ -190,6 +190,26 @@ describe('ViewFiltersModal', () => {
     unmount();
   });
 
+  it('preserves the parent visibility value when applied in stars mode', () => {
+    // Regression for SWR-379: when the visibility group is hidden in stars
+    // mode, the modal must still echo the parent's current.visibility back
+    // through onApply unchanged. Seeding it to 'all' would let the parent
+    // diff-detect a spurious change and overwrite the saved pref.
+    const onApply = vi.fn();
+    mockUseInput.mockImplementation((cb: any) => cb('y', {}));
+    const { unmount } = render(
+      <ViewFiltersModal
+        current={{ visibility: 'public', archive: 'unarchived', fork: 'all' }}
+        isEnterprise={false}
+        starsMode={true}
+        onApply={onApply}
+        onCancel={() => {}}
+      />
+    );
+    expect(onApply).toHaveBeenCalledWith({ visibility: 'public', archive: 'unarchived', fork: 'all' });
+    unmount();
+  });
+
   it('selects fork = forks after navigating Down→Down then right and applying', () => {
     const onApply = vi.fn();
     let cbRef: any;

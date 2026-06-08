@@ -40,17 +40,22 @@ export default function ViewFiltersModal({
 }: ViewFiltersModalProps) {
   const { theme, c } = useTheme(themeProp?.name ?? 'default');
 
-  // Stars mode hides the visibility group — selections within it stay at 'all'.
+  // Stars mode hides the visibility group, but we still mirror the parent's
+  // current.visibility value back through onApply unchanged. Seeding from
+  // current (rather than forcing 'all' here) keeps the saved visibility pref
+  // intact even if the parent state ever holds a non-'all' value in stars
+  // mode — apply will see next.visibility === visibilityFilter and skip the
+  // persistence write.
   const groups: GroupKey[] = starsMode ? ['archive', 'fork'] : ['visibility', 'archive', 'fork'];
 
   const [selection, setSelection] = useState<ViewFiltersValue>(() => ({
-    visibility: starsMode ? 'all' : current.visibility,
+    visibility: current.visibility,
     archive: current.archive,
     fork: current.fork,
   }));
 
   // Focus the first option of the first visible group on mount.
-  const initialFocus: Focus = { kind: 'option', group: groups[0], value: getValueFor(groups[0], { ...current, visibility: starsMode ? 'all' : current.visibility }) };
+  const initialFocus: Focus = { kind: 'option', group: groups[0], value: getValueFor(groups[0], current) };
   const [focus, setFocus] = useState<Focus>(initialFocus);
 
   function getValueFor(group: GroupKey, sel: ViewFiltersValue): string {

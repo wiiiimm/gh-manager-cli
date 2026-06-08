@@ -767,14 +767,19 @@ export default function RepoList({ token, maxVisibleRows, onLogout, viewerLogin,
     const { nameWithOwner } = await createRepositoryRest(token, { name: name.trim(), visibility, org });
 
     // Clear any client-side filters that could hide the newly created repo:
-    // an active fuzzy search (the query likely won't match the new name) and an
-    // archived-only filter (a new repo is always unarchived). Visibility filter
-    // is reconciled below.
+    // an active fuzzy search (the query likely won't match the new name), an
+    // archived-only filter (a new repo is always unarchived), and a forks-only
+    // filter (a brand-new repo is never a fork). Visibility filter is
+    // reconciled below.
     setFilter('');
     setFilterMode(false);
     if (archiveFilter === 'archived') {
       storeUIPrefs({ archiveFilter: 'all' });
       setArchiveFilter('all');
+    }
+    if (forkFilter === 'forks') {
+      storeUIPrefs({ forkFilter: 'all' });
+      setForkFilter('all');
     }
 
     // If the new repo's visibility wouldn't pass the active visibility filter,
