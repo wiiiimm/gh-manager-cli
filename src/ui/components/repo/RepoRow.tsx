@@ -18,6 +18,10 @@ interface RepoRowProps {
   multiSelectMode?: boolean;
   isChecked?: boolean;
   theme?: Theme;
+  /** Integer day counter (Math.floor(Date.now() / 86_400_000)). Incremented by
+   *  RepoList once per minute so the "Updated …" label recomputes when midnight
+   *  rolls over without causing per-keystroke re-renders. */
+  dayBucket?: number;
 }
 
 function arePropsEqual(prev: RepoRowProps, next: RepoRowProps): boolean {
@@ -32,7 +36,8 @@ function arePropsEqual(prev: RepoRowProps, next: RepoRowProps): boolean {
     prev.spacingLines === next.spacingLines &&
     prev.maxWidth === next.maxWidth &&
     prev.index === next.index &&
-    prev.theme === next.theme
+    prev.theme === next.theme &&
+    prev.dayBucket === next.dayBucket
   );
 }
 
@@ -48,6 +53,7 @@ function RepoRow({
   multiSelectMode = false,
   isChecked = false,
   theme: themeProp,
+  dayBucket: _dayBucket,
 }: RepoRowProps) {
   const { theme, c } = useTheme(themeProp?.name ?? 'default');
 
@@ -136,6 +142,7 @@ function RepoRow({
     multiSelectMode,
     isChecked,
     c,
+    _dayBucket,
   ]);
 
   const { fullText, spacingAbove, spacingBelow } = formattedContent;

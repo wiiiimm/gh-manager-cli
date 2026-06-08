@@ -94,6 +94,18 @@ export default function RepoList({ token, maxVisibleRows, onLogout, viewerLogin,
   const [density, setDensity] = useState<0 | 1 | 2>(2);
   const [prefsLoaded, setPrefsLoaded] = useState(false);
 
+  // Day-bucket tick: increments (in whole-day integer units) whenever local midnight
+  // rolls over. Passed to RepoRow so the useMemo that builds the chalk string
+  // recomputes "Updated …" labels after a day boundary without per-keystroke cost.
+  const [dayBucket, setDayBucket] = useState(() => Math.floor(Date.now() / 86_400_000));
+  useEffect(() => {
+    const id = setInterval(() => {
+      const next = Math.floor(Date.now() / 86_400_000);
+      setDayBucket(prev => (prev !== next ? next : prev));
+    }, 60_000);
+    return () => clearInterval(id);
+  }, []);
+
   // Theme state
   const [themeName, setThemeName] = useState<ThemeName>('default');
   const [themeToast, setThemeToast] = useState<string | null>(null);
@@ -3111,6 +3123,7 @@ export default function RepoList({ token, maxVisibleRows, onLogout, viewerLogin,
                       multiSelectMode={multiSelectMode}
                       isChecked={selectedRepos.has(repo.id)}
                       theme={theme}
+                      dayBucket={dayBucket}
                     />
                   );
                 })
