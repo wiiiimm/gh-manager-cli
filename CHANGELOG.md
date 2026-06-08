@@ -1,3 +1,10 @@
+# [1.49.0](https://github.com/wiiiimm/gh-manager-cli/compare/v1.48.2...v1.49.0) (2026-06-08)
+
+
+### Features
+
+* redesign session usage summary as a distinct panel with time-saved estimate (SWR-375) ([#81](https://github.com/wiiiimm/gh-manager-cli/issues/81)) ([b18c5d5](https://github.com/wiiiimm/gh-manager-cli/commit/b18c5d54baaa9a3ee40e05b3eefce4eb4a686033))
+
 ## [1.48.2](https://github.com/wiiiimm/gh-manager-cli/compare/v1.48.1...v1.48.2) (2026-06-08)
 
 
