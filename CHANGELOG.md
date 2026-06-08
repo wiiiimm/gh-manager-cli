@@ -1,3 +1,10 @@
+# [1.50.0](https://github.com/wiiiimm/gh-manager-cli/compare/v1.49.3...v1.50.0) (2026-06-08)
+
+
+### Features
+
+* show open PR and issue counts inline on repo rows (SWR-357) ([#89](https://github.com/wiiiimm/gh-manager-cli/issues/89)) ([0488af3](https://github.com/wiiiimm/gh-manager-cli/commit/0488af3d4098f02c5b0d9beb9c72a521818195c3))
+
 ## [1.49.3](https://github.com/wiiiimm/gh-manager-cli/compare/v1.49.2...v1.49.3) (2026-06-08)
 
 

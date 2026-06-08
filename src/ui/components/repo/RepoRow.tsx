@@ -122,7 +122,33 @@ function RepoRow({
     let line2 = '     ';
     const metaColor = selected ? c.text : c.muted;
     if (langName) line2 += chalk.hex(langColor)('● ') + metaColor(`${langName}  `);
-    line2 += metaColor(`★ ${repo.stargazerCount}  ⑂ ${repo.forkCount}  Updated ${formatDate(repo.updatedAt)}`);
+    line2 += metaColor(`★ ${repo.stargazerCount}  ⑂ ${repo.forkCount}`);
+
+    // Open PR / Issue counts with threshold-based colouring (SWR-357).
+    // Cutoffs: 0 → muted ("nothing to do"), 1-9 → text (visible but neutral),
+    // 10-29 → warning (amber), 30+ → error (red). Picked to flag accounts with
+    // growing backlogs without making small counts feel alarming. `c.text` (not
+    // `metaColor`) is used for the 1-9 band so the colour is distinct from the 0
+    // band even when the row isn't selected (`metaColor` collapses to muted in
+    // that state). The counts only render when the field is defined on the node
+    // — older cache reads (pre-SWR-357) leave them out, in which case the row
+    // falls back to its prior shape rather than showing "?".
+    const prCount = repo.openPullRequests;
+    const issueCount = repo.openIssues;
+    const colourForCount = (n: number) => {
+      if (n === 0) return c.muted;
+      if (n < 10) return c.text;
+      if (n < 30) return c.warning;
+      return c.error;
+    };
+    if (typeof prCount === 'number') {
+      line2 += metaColor('  ') + colourForCount(prCount)(`⇄ ${prCount} PR${prCount === 1 ? '' : 's'}`);
+    }
+    if (typeof issueCount === 'number') {
+      line2 += metaColor('  ') + colourForCount(issueCount)(`◇ ${issueCount} issue${issueCount === 1 ? '' : 's'}`);
+    }
+
+    line2 += metaColor(`  Updated ${formatDate(repo.updatedAt)}`);
 
     // Build line 3
     const line3 = repo.description ? `     ${truncate(repo.description, Math.max(30, maxWidth - 10))}` : null;
