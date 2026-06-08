@@ -415,6 +415,32 @@ Every single commit MUST follow semantic format:
 
 ---
 
+## Cursor Cloud specific instructions
+
+Single-package Ink CLI — no local servers, databases, or Docker. All commands run from the repo root.
+
+### Standard commands
+
+See `package.json` scripts and the **Setup & Usage** / **Scripts** sections above:
+
+| Task | Command |
+|------|---------|
+| Install deps | `pnpm install` |
+| Build | `pnpm build` |
+| Typecheck (no ESLint in repo) | `pnpm typecheck` |
+| Test | `pnpm test` |
+| Dev (watch rebuild) | `pnpm dev` — run built output in another terminal with `pnpm start` |
+| Run | `pnpm start` or `node dist/index.js` |
+
+### Cloud VM gotchas
+
+- **`NO_COLOR=1` is set in the Cloud Agent environment**, which disables chalk ANSI output. Two `BulkReviewModal` tests assert highlight escape codes and fail without `FORCE_COLOR=1`. Run tests as: `FORCE_COLOR=1 pnpm test`.
+- **The CLI requires a real TTY** (Ink raw mode). Piping or backgrounding `node dist/index.js` fails with "Raw mode is not supported". Use a **tmux** session for interactive runs or smoke tests (see `test-app.sh` pattern, but prefer tmux over `&` in background).
+- **Live GitHub API** is optional for automated tests (Vitest mocks Octokit). For manual E2E, set `GITHUB_TOKEN` or `GH_TOKEN` with `repo` scope, or complete OAuth in the auth chooser.
+- **`pnpm install` may warn about ignored esbuild build scripts**; `pnpm build` still succeeds in practice.
+
+---
+
 **📋 For version history and release notes, see [CHANGELOG.md](./CHANGELOG.md)**
 
 *This file contains project architecture and development guidelines. Dynamic information like versions and changes are tracked automatically in CHANGELOG.md.*
