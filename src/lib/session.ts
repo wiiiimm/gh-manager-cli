@@ -72,6 +72,35 @@ const OPERATION_LABELS: Record<OperationType, string> = {
   transfer: 'transferred',
 };
 
+// Rough estimate of how long each operation takes to perform by hand in the
+// GitHub web UI (in seconds): navigating to the repo, opening Settings, the
+// Danger Zone confirmation dialogs, typing the repo name, etc. These are
+// deliberately conservative, round figures — the summary presents the result
+// as an approximation ("~"), not a precise measurement.
+const MANUAL_TIME_SECONDS: Record<OperationType, number> = {
+  delete: 45, // Settings → Danger Zone → type repo name → confirm
+  archive: 40, // Settings → Danger Zone → archive → confirm
+  unarchive: 40,
+  visibilityChange: 40, // Settings → Danger Zone → change visibility → confirm
+  syncFork: 20, // Open fork → "Sync fork" → update branch
+  rename: 30, // Settings → rename → confirm
+  star: 6, // Open repo → click star
+  unstar: 6,
+  transfer: 60, // Settings → Danger Zone → transfer → type name + new owner
+};
+
+// Estimate the time saved this session by doing the tracked operations in the
+// CLI instead of by hand on github.com. The per-keystroke cost in the CLI is
+// negligible next to the web UI's navigation + confirmation flows, so we treat
+// the manual time as the saving. Returns milliseconds.
+export function estimateTimeSavedMs(): number {
+  let seconds = 0;
+  for (const [type, n] of Object.entries(counts) as [OperationType, number][]) {
+    seconds += n * MANUAL_TIME_SECONDS[type];
+  }
+  return seconds * 1000;
+}
+
 // Map a bulk (multi-select) action to its session OperationType. Kept here so
 // both the single-repo handlers and the bulk loop record the same per-type
 // counts in the end-of-session summary. 'visibility' is the only name that
@@ -82,27 +111,73 @@ export function bulkActionToOperation(
   return action === 'visibility' ? 'visibilityChange' : action;
 }
 
+// Inner width of the framed panels (characters between the left/right rules).
+const PANEL_WIDTH = 58;
+
+// A boxed title bar like:
+//   ╭──────────────────────────────────────────────────────────╮
+//   │  📊  Session Summary
+//   ╰──────────────────────────────────────────────────────────╯
+// The right edge is intentionally left open on the title row so emoji width
+// quirks across terminals never misalign a closing border.
+function panelHeader(title: string): string[] {
+  const rule = '─'.repeat(PANEL_WIDTH);
+  return [
+    `  ╭${rule}╮`,
+    `  │  ${title}`,
+    `  ╰${rule}╯`,
+  ];
+}
+
 export function formatSessionSummary(): string {
   const durationMs = Date.now() - startTime.getTime();
   const durationStr = formatDuration(durationMs);
   const total = getTotalOperations();
 
-  const hr = '─'.repeat(60);
-  const lines: string[] = ['\n' + hr, ''];
+  const lines: string[] = ['', ...panelHeader('📊  Session Summary'), ''];
 
   if (total === 0) {
-    lines.push(`  Session: ${durationStr}  •  No changes made`);
+    lines.push(`     Duration:    ${durationStr}`);
+    lines.push('     No changes were made this session.');
   } else {
-    lines.push(`  Session: ${durationStr}  •  ${total} operation${total === 1 ? '' : 's'} performed`);
+    lines.push(`     Duration:    ${durationStr}`);
+    lines.push(`     Operations:  ${total} performed`);
     lines.push('');
     for (const [type, n] of Object.entries(counts) as [OperationType, number][]) {
       if (n > 0) {
         const noun = n === 1 ? 'repository' : 'repositories';
-        lines.push(`    • ${n} ${noun} ${OPERATION_LABELS[type]}`);
+        lines.push(`       • ${n} ${noun} ${OPERATION_LABELS[type]}`);
       }
+    }
+
+    const savedMs = estimateTimeSavedMs();
+    if (savedMs > 0) {
+      lines.push('');
+      lines.push(`     ⏱  Estimated time saved:  ~${formatDuration(savedMs)}`);
+      lines.push('        (vs performing these by hand on github.com)');
     }
   }
 
   lines.push('');
+  return lines.join('\n');
+}
+
+// The thank-you / sponsorship message, rendered as its own framed panel so it
+// reads as a section distinct from the usage summary above it.
+export function formatSupportMessage(): string {
+  const lines: string[] = [
+    '',
+    ...panelHeader('💚  Thank you for using gh-manager-cli!'),
+    '',
+    '     If this app saved you time, please consider supporting',
+    '     the development of more open-source projects like this:',
+    '',
+    '       💖 Sponsor on GitHub:  https://github.com/sponsors/wiiiimm',
+    '       🚀 Visit my site:      https://wiiiimm.codes',
+    '       💬 Leave feedback:     https://github.com/wiiiimm/gh-manager-cli',
+    '',
+    '     Your support keeps this project alive! 🙏',
+    '',
+  ];
   return lines.join('\n');
 }
