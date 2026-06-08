@@ -18,10 +18,13 @@ interface RepoRowProps {
   multiSelectMode?: boolean;
   isChecked?: boolean;
   theme?: Theme;
-  /** Integer day counter (Math.floor(Date.now() / 86_400_000)). Incremented by
-   *  RepoList once per minute so the "Updated …" label recomputes when midnight
-   *  rolls over without causing per-keystroke re-renders. */
-  dayBucket?: number;
+  /** Whole-minute counter (Math.floor(Date.now() / 60_000)). Incremented by
+   *  RepoList once per minute so the relative "Updated …" label recomputes near
+   *  its real per-repo boundary. `formatDate` flips a row at `updatedAt + k·24h`
+   *  (its own time-of-day), not at midnight, so a coarser day bucket would leave
+   *  rows stale for hours (SWR-377). The token only changes once a minute, never
+   *  between keystrokes, so per-keystroke memoisation is preserved. */
+  refreshTick?: number;
 }
 
 function arePropsEqual(prev: RepoRowProps, next: RepoRowProps): boolean {
@@ -37,7 +40,7 @@ function arePropsEqual(prev: RepoRowProps, next: RepoRowProps): boolean {
     prev.maxWidth === next.maxWidth &&
     prev.index === next.index &&
     prev.theme === next.theme &&
-    prev.dayBucket === next.dayBucket
+    prev.refreshTick === next.refreshTick
   );
 }
 
@@ -53,7 +56,7 @@ function RepoRow({
   multiSelectMode = false,
   isChecked = false,
   theme: themeProp,
-  dayBucket: _dayBucket,
+  refreshTick: _refreshTick,
 }: RepoRowProps) {
   const { theme, c } = useTheme(themeProp?.name ?? 'default');
 
@@ -142,7 +145,7 @@ function RepoRow({
     multiSelectMode,
     isChecked,
     c,
-    _dayBucket,
+    _refreshTick,
   ]);
 
   const { fullText, spacingAbove, spacingBelow } = formattedContent;

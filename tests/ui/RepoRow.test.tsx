@@ -100,18 +100,18 @@ describe('RepoRow', () => {
     unmount();
   });
 
-  describe('dayBucket day-rollover refresh (SWR-377)', () => {
+  describe('refreshTick relative-label refresh (SWR-377)', () => {
+    const minuteTick = () => Math.floor(Date.now() / 60_000);
+
     afterEach(() => {
       vi.useRealTimers();
     });
 
-    it('shows "today" when updatedAt is the current day', () => {
+    it('shows "today" when updatedAt is within the last 24h', () => {
       vi.useFakeTimers();
-      // Set clock to Jan 1 2024 at noon UTC — same day as repoStub.updatedAt
-      vi.setSystemTime(new Date('2024-01-01T12:00:00Z'));
-
-      const day1Bucket = Math.floor(Date.now() / 86_400_000);
-      const repo = { ...repoStub, updatedAt: '2024-01-01T00:00:00Z' };
+      // updatedAt at noon; clock 6h later → 0 elapsed days → "today"
+      vi.setSystemTime(new Date('2024-01-01T18:00:00Z'));
+      const repo = { ...repoStub, updatedAt: '2024-01-01T12:00:00Z' };
 
       const { lastFrame, unmount } = render(
         <RepoRow
@@ -121,7 +121,7 @@ describe('RepoRow', () => {
           maxWidth={80}
           spacingLines={0}
           forkTracking={false}
-          dayBucket={day1Bucket}
+          refreshTick={minuteTick()}
         />
       );
 
@@ -129,12 +129,13 @@ describe('RepoRow', () => {
       unmount();
     });
 
-    it('updates "today" to "yesterday" when dayBucket advances across midnight', () => {
+    it('refreshes "today" → "yesterday" at the repo\'s own 24h boundary, not at midnight', () => {
       vi.useFakeTimers();
-      // Start at Jan 1 2024 noon — same day as updatedAt → "today"
-      vi.setSystemTime(new Date('2024-01-01T12:00:00Z'));
-      const day1Bucket = Math.floor(Date.now() / 86_400_000);
-      const repo = { ...repoStub, updatedAt: '2024-01-01T00:00:00Z' };
+      // updatedAt at noon. Start 6h later → "today". The flip to "yesterday"
+      // happens at the next noon (updatedAt + 24h), which is NOT a midnight
+      // boundary — the exact case a day bucket missed (SWR-377).
+      vi.setSystemTime(new Date('2024-01-01T18:00:00Z'));
+      const repo = { ...repoStub, updatedAt: '2024-01-01T12:00:00Z' };
 
       const baseProps = {
         repo,
@@ -146,29 +147,27 @@ describe('RepoRow', () => {
       };
 
       const { lastFrame, rerender, unmount } = render(
-        <RepoRow {...baseProps} dayBucket={day1Bucket} />
+        <RepoRow {...baseProps} refreshTick={minuteTick()} />
       );
 
       expect(lastFrame() || '').toContain('today');
 
-      // Advance clock to Jan 2 2024 noon — a new day
-      vi.setSystemTime(new Date('2024-01-02T12:00:00Z'));
-      const day2Bucket = Math.floor(Date.now() / 86_400_000);
-      expect(day2Bucket).toBe(day1Bucket + 1);
+      // Advance just past the 24h boundary (12:00:30, mid-day — far from midnight).
+      vi.setSystemTime(new Date('2024-01-02T12:00:30Z'));
+      const nextTick = minuteTick();
 
-      // Rerender with the new dayBucket — memo must recompute the chalk string
-      rerender(<RepoRow {...baseProps} dayBucket={day2Bucket} />);
+      // The minute tick changes → memo recomputes → label refreshes.
+      rerender(<RepoRow {...baseProps} refreshTick={nextTick} />);
 
       expect(lastFrame() || '').toContain('yesterday');
       unmount();
     });
 
-    it('does not update the date label when dayBucket stays the same after midnight', () => {
+    it('does not recompute the label between keystrokes (same refreshTick → memo skip)', () => {
       vi.useFakeTimers();
-      // Start at Jan 1 2024 noon — same day as updatedAt → "today"
-      vi.setSystemTime(new Date('2024-01-01T12:00:00Z'));
-      const day1Bucket = Math.floor(Date.now() / 86_400_000);
-      const repo = { ...repoStub, updatedAt: '2024-01-01T00:00:00Z' };
+      vi.setSystemTime(new Date('2024-01-01T18:00:00Z'));
+      const repo = { ...repoStub, updatedAt: '2024-01-01T12:00:00Z' };
+      const tick = minuteTick();
 
       const baseProps = {
         repo,
@@ -180,30 +179,26 @@ describe('RepoRow', () => {
       };
 
       const { lastFrame, rerender, unmount } = render(
-        <RepoRow {...baseProps} dayBucket={day1Bucket} />
+        <RepoRow {...baseProps} refreshTick={tick} />
       );
 
       expect(lastFrame() || '').toContain('today');
 
-      // Advance clock past midnight but do NOT change dayBucket (tick hasn't fired yet)
-      vi.setSystemTime(new Date('2024-01-02T00:00:30Z'));
+      // Advance the clock past the boundary but rerender with the SAME refreshTick
+      // (as happens on a keystroke-driven rerender within the same minute):
+      // arePropsEqual returns true, memo is skipped, the cached label is kept.
+      vi.setSystemTime(new Date('2024-01-02T12:00:30Z'));
+      rerender(<RepoRow {...baseProps} refreshTick={tick} />);
 
-      // Rerender with the same dayBucket — arePropsEqual returns true, memo is skipped,
-      // so formatDate is NOT re-called and the label stays "today" (stale but correct
-      // pre-tick behaviour)
-      rerender(<RepoRow {...baseProps} dayBucket={day1Bucket} />);
-
-      // The cached "today" label persists until the tick fires
       expect(lastFrame() || '').toContain('today');
       unmount();
     });
 
-    it('handles a label boundary of "yesterday" advancing to "2 days ago" on rollover', () => {
+    it('refreshes "yesterday" → "2 days ago" at the next 24h boundary', () => {
       vi.useFakeTimers();
-      // updatedAt is Jan 1; clock is Jan 2 → "yesterday"
-      vi.setSystemTime(new Date('2024-01-02T12:00:00Z'));
-      const day2Bucket = Math.floor(Date.now() / 86_400_000);
-      const repo = { ...repoStub, updatedAt: '2024-01-01T00:00:00Z' };
+      // updatedAt at noon Jan 1; clock Jan 2 18:00 → 1 elapsed day → "yesterday"
+      vi.setSystemTime(new Date('2024-01-02T18:00:00Z'));
+      const repo = { ...repoStub, updatedAt: '2024-01-01T12:00:00Z' };
 
       const baseProps = {
         repo,
@@ -215,16 +210,14 @@ describe('RepoRow', () => {
       };
 
       const { lastFrame, rerender, unmount } = render(
-        <RepoRow {...baseProps} dayBucket={day2Bucket} />
+        <RepoRow {...baseProps} refreshTick={minuteTick()} />
       );
 
       expect(lastFrame() || '').toContain('yesterday');
 
-      // Advance to Jan 3 → "2 days ago"
-      vi.setSystemTime(new Date('2024-01-03T12:00:00Z'));
-      const day3Bucket = Math.floor(Date.now() / 86_400_000);
-
-      rerender(<RepoRow {...baseProps} dayBucket={day3Bucket} />);
+      // Advance past the 48h boundary (noon Jan 3) → "2 days ago"
+      vi.setSystemTime(new Date('2024-01-03T12:00:30Z'));
+      rerender(<RepoRow {...baseProps} refreshTick={minuteTick()} />);
 
       expect(lastFrame() || '').toContain('2 days ago');
       unmount();

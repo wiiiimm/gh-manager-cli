@@ -94,15 +94,20 @@ export default function RepoList({ token, maxVisibleRows, onLogout, viewerLogin,
   const [density, setDensity] = useState<0 | 1 | 2>(2);
   const [prefsLoaded, setPrefsLoaded] = useState(false);
 
-  // Day-bucket tick: increments (in whole-day integer units) whenever local midnight
-  // rolls over. Passed to RepoRow so the useMemo that builds the chalk string
-  // recomputes "Updated …" labels after a day boundary without per-keystroke cost.
-  const [dayBucket, setDayBucket] = useState(() => Math.floor(Date.now() / 86_400_000));
+  // Refresh tick: a whole-minute integer counter. `formatDate` derives its
+  // relative "Updated …" label from the elapsed time since each repo's own
+  // `updatedAt`, so a row flips (e.g. "today" → "yesterday") at `updatedAt +
+  // k·24h` — its own time-of-day, not at midnight. A coarse day bucket would
+  // therefore leave most rows stale for hours (SWR-377). Ticking once per
+  // minute re-renders the (virtualised) visible rows within ~a minute of their
+  // true boundary. It never changes between keystrokes, so the per-keystroke
+  // memoisation from SWR-358 is preserved.
+  const [refreshTick, setRefreshTick] = useState(() => Math.floor(Date.now() / 60_000));
   useEffect(() => {
     const id = setInterval(() => {
-      const next = Math.floor(Date.now() / 86_400_000);
-      setDayBucket(prev => (prev !== next ? next : prev));
-    }, 60_000);
+      const next = Math.floor(Date.now() / 60_000);
+      setRefreshTick(prev => (prev !== next ? next : prev));
+    }, 30_000);
     return () => clearInterval(id);
   }, []);
 
@@ -3123,7 +3128,7 @@ export default function RepoList({ token, maxVisibleRows, onLogout, viewerLogin,
                       multiSelectMode={multiSelectMode}
                       isChecked={selectedRepos.has(repo.id)}
                       theme={theme}
-                      dayBucket={dayBucket}
+                      refreshTick={refreshTick}
                     />
                   );
                 })
