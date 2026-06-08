@@ -82,6 +82,24 @@ describe('OAuth', () => {
 
       await expect(requestDeviceCode()).rejects.toThrow('Network error');
     });
+
+    it('throws when GitHub returns an error payload', async () => {
+      (global.fetch as any).mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({ error: 'unauthorized_client', error_description: 'Bad client' })
+      });
+
+      await expect(requestDeviceCode()).rejects.toThrow('unauthorized_client: Bad client');
+    });
+
+    it('throws when the success body is missing required fields', async () => {
+      (global.fetch as any).mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({ device_code: 'only-this-field' })
+      });
+
+      await expect(requestDeviceCode()).rejects.toThrow('Invalid device-code response from GitHub.');
+    });
   });
 
   // TODO: Fix polling tests - they timeout due to async timer issues

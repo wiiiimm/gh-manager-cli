@@ -128,7 +128,25 @@ export async function requestDeviceCode(): Promise<DeviceCodeResponse> {
     throw new Error(`${data.error}: ${data.error_description || 'Unknown error'}`);
   }
 
-  return data as DeviceCodeResponse;
+  // Validate the required fields are present rather than force-casting a partial
+  // body to DeviceCodeResponse, so callers never receive a malformed payload.
+  if (
+    !data.device_code ||
+    !data.user_code ||
+    !data.verification_uri ||
+    typeof data.expires_in !== 'number' ||
+    typeof data.interval !== 'number'
+  ) {
+    throw new Error('Invalid device-code response from GitHub.');
+  }
+
+  return {
+    device_code: data.device_code,
+    user_code: data.user_code,
+    verification_uri: data.verification_uri,
+    expires_in: data.expires_in,
+    interval: data.interval,
+  };
 }
 
 /**
