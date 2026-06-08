@@ -132,7 +132,7 @@ class Logger {
     return names[level] || 'UNKNOWN';
   }
 
-  private formatMessage(level: LogLevel, message: string, context?: any): string {
+  private formatMessage(level: LogLevel, message: string, context?: unknown): string {
     const timestamp = this.formatTimestamp();
     const levelName = this.getLevelName(level);
     const paddedLevel = levelName.padEnd(5);
@@ -153,7 +153,7 @@ class Logger {
     return formattedMessage;
   }
 
-  private log(level: LogLevel, message: string, context?: any): void {
+  private log(level: LogLevel, message: string, context?: unknown): void {
     // Check if we should log this level
     if (level < this.logLevel) {
       return;
@@ -180,23 +180,23 @@ class Logger {
     }
   }
 
-  debug(message: string, context?: any): void {
+  debug(message: string, context?: unknown): void {
     this.log(LogLevel.DEBUG, message, context);
   }
 
-  info(message: string, context?: any): void {
+  info(message: string, context?: unknown): void {
     this.log(LogLevel.INFO, message, context);
   }
 
-  warn(message: string, context?: any): void {
+  warn(message: string, context?: unknown): void {
     this.log(LogLevel.WARN, message, context);
   }
 
-  error(message: string, context?: any): void {
+  error(message: string, context?: unknown): void {
     this.log(LogLevel.ERROR, message, context);
   }
 
-  fatal(message: string, context?: any): void {
+  fatal(message: string, context?: unknown): void {
     this.log(LogLevel.FATAL, message, context);
   }
 

@@ -252,7 +252,7 @@ export default function RepoList({ token, maxVisibleRows, onLogout, viewerLogin,
       const [owner, repo] = (deleteTarget.nameWithOwner || '').split('/');
       await deleteRepositoryRest(token, owner, repo);
       // Remove from items and update counts
-      setItems((prev) => prev.filter((r: any) => r.id !== (deleteTarget as any).id));
+      setItems((prev) => prev.filter(r => r.id !== deleteTarget.id));
       setTotalCount((c) => Math.max(0, c - 1));
       setDeleteMode(false);
       setDeleteTarget(null);
@@ -262,7 +262,7 @@ export default function RepoList({ token, maxVisibleRows, onLogout, viewerLogin,
       setDeleteConfirmStage(false);
       // Keep cursor in range
       setCursor((c) => Math.max(0, Math.min(c, visibleItems.length - 2)));
-    } catch (e: any) {
+    } catch (e: unknown) {
       setDeleting(false);
       setDeleteError('Failed to delete repository. Ensure delete_repo scope and admin permissions.');
     }
@@ -351,7 +351,7 @@ export default function RepoList({ token, maxVisibleRows, onLogout, viewerLogin,
       }
       setRateLimit(page.rateLimit);
       setError(null);
-    } catch (e: any) {
+    } catch (e: unknown) {
       setError('Failed to load repositories. Check network or token.');
     } finally {
       setLoading(false);
@@ -412,12 +412,10 @@ export default function RepoList({ token, maxVisibleRows, onLogout, viewerLogin,
         } catch {}
       }
       setError(null);
-    } catch (e: any) {
-      const errorMsg = `Failed to search: ${e.message || e}`;
-      addDebugMessage(`❌ Search error: ${e.message || e}`);
-      if (e.stack) {
-        addDebugMessage(`Stack: ${e.stack.split('\n')[0]}`);
-      }
+    } catch (e: unknown) {
+      const errMsg = e instanceof Error ? e.message : String(e);
+      const errorMsg = `Failed to search: ${errMsg}`;
+      addDebugMessage(`❌ Search error: ${errMsg}`);
       setError(errorMsg);
     } finally {
       setSearchLoading(false);
@@ -557,8 +555,8 @@ export default function RepoList({ token, maxVisibleRows, onLogout, viewerLogin,
       if (input && input.toUpperCase() === 'Q') {
         try {
           const seq = '\x1b[2J\x1b[3J\x1b[H';
-          if (stdout && typeof (stdout as any).write === 'function') (stdout as any).write(seq);
-          else if (typeof process.stdout.write === 'function') process.stdout.write(seq);
+          if (stdout) stdout.write(seq);
+          else process.stdout.write(seq);
         } catch {}
         exit();
         return;
@@ -643,10 +641,10 @@ export default function RepoList({ token, maxVisibleRows, onLogout, viewerLogin,
           try {
             setArchiving(true);
             const isArchived = archiveTarget.isArchived;
-            const id = (archiveTarget as any).id;
+            const id = archiveTarget.id;
             if (isArchived) await unarchiveRepositoryById(client, id);
             else await archiveRepositoryById(client, id);
-              setItems(prev => prev.map(r => (r.id === (archiveTarget as any).id ? { ...r, isArchived: !isArchived } : r)));
+              setItems(prev => prev.map(r => (r.id === archiveTarget.id ? { ...r, isArchived: !isArchived } : r)));
             closeArchiveModal();
           } catch (e) {
             setArchiving(false);
@@ -688,7 +686,7 @@ export default function RepoList({ token, maxVisibleRows, onLogout, viewerLogin,
             
             // Update the repository state to show 0 behind
             setItems(prev => prev.map(r => {
-              if (r.id === (syncTarget as any).id && r.parent && r.defaultBranchRef?.target?.history && r.parent.defaultBranchRef?.target?.history) {
+              if (r.id === syncTarget.id && r.parent && r.defaultBranchRef?.target?.history && r.parent.defaultBranchRef?.target?.history) {
                 return {
                   ...r,
                   defaultBranchRef: {
@@ -705,9 +703,9 @@ export default function RepoList({ token, maxVisibleRows, onLogout, viewerLogin,
               return r;
             }));
             closeSyncModal();
-          } catch (e: any) {
+          } catch (e: unknown) {
             setSyncing(false);
-            setSyncError(e.message || 'Failed to sync fork. Check permissions and network.');
+            setSyncError((e instanceof Error ? e.message : null) || 'Failed to sync fork. Check permissions and network.');
           }
         })();
         return;
@@ -728,7 +726,7 @@ export default function RepoList({ token, maxVisibleRows, onLogout, viewerLogin,
       if (key.rightArrow) { setLogoutFocus('cancel'); return; }
       if (key.return || (input && input.toUpperCase() === 'Y')) {
         if (logoutFocus === 'cancel') { setLogoutMode(false); return; }
-        try { onLogout && onLogout(); } catch (e: any) { setLogoutError(e?.message || 'Failed to logout.'); }
+        try { onLogout && onLogout(); } catch (e: unknown) { setLogoutError((e instanceof Error ? e.message : null) || 'Failed to logout.'); }
         return;
       }
       return;
@@ -784,8 +782,8 @@ export default function RepoList({ token, maxVisibleRows, onLogout, viewerLogin,
     if (input && input.toUpperCase() === 'Q') {
       try {
         const seq = '\x1b[2J\x1b[3J\x1b[H';
-        if (stdout && typeof (stdout as any).write === 'function') (stdout as any).write(seq);
-        else if (typeof process.stdout.write === 'function') process.stdout.write(seq);
+        if (stdout) stdout.write(seq);
+        else process.stdout.write(seq);
       } catch {}
       exit();
       return;
@@ -888,8 +886,8 @@ export default function RepoList({ token, maxVisibleRows, onLogout, viewerLogin,
       (async () => {
         try {
           await inspectCacheStatus();
-        } catch (e: any) {
-          process.stderr.write(`❌ Failed to inspect cache: ${e.message}\n`);
+        } catch (e: unknown) {
+          process.stderr.write(`❌ Failed to inspect cache: ${e instanceof Error ? e.message : String(e)}\n`);
         }
       })();
       return;
@@ -1360,10 +1358,10 @@ export default function RepoList({ token, maxVisibleRows, onLogout, viewerLogin,
                         try {
                           setArchiving(true);
                           const isArchived = archiveTarget.isArchived;
-                          const id = (archiveTarget as any).id;
+                          const id = archiveTarget.id;
                           if (isArchived) await unarchiveRepositoryById(client, id);
                           else await archiveRepositoryById(client, id);
-                          setItems(prev => prev.map(r => (r.id === (archiveTarget as any).id ? { ...r, isArchived: !isArchived } : r)));
+                          setItems(prev => prev.map(r => (r.id === archiveTarget.id ? { ...r, isArchived: !isArchived } : r)));
                           closeArchiveModal();
                         } catch (e) {
                           setArchiving(false);
@@ -1454,7 +1452,7 @@ export default function RepoList({ token, maxVisibleRows, onLogout, viewerLogin,
                           
                           // Update the repository state to show 0 behind
                           setItems(prev => prev.map(r => {
-                            if (r.id === (syncTarget as any).id && r.parent && r.defaultBranchRef?.target?.history && r.parent.defaultBranchRef?.target?.history) {
+                            if (r.id === syncTarget.id && r.parent && r.defaultBranchRef?.target?.history && r.parent.defaultBranchRef?.target?.history) {
                               return {
                                 ...r,
                                 defaultBranchRef: {
@@ -1471,9 +1469,9 @@ export default function RepoList({ token, maxVisibleRows, onLogout, viewerLogin,
                             return r;
                           }));
                           closeSyncModal();
-                        } catch (e: any) {
+                        } catch (e: unknown) {
                           setSyncing(false);
-                          setSyncError(e.message || 'Failed to sync fork. Check permissions and network.');
+                          setSyncError((e instanceof Error ? e.message : null) || 'Failed to sync fork. Check permissions and network.');
                         }
                       })();
                     } else {

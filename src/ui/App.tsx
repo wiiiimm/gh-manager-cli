@@ -47,7 +47,7 @@ export default function App({ initialOrgSlug, inlineToken, inlineTokenEphemeral 
     };
     stdout.on('resize', onResize);
     return () => {
-      stdout.off?.('resize', onResize as any);
+      stdout.off?.('resize', onResize);
     };
   }, [stdout]);
 
@@ -144,9 +144,9 @@ export default function App({ initialOrgSlug, inlineToken, inlineTokenEphemeral 
         } else {
           throw new Error(tokenResult.error || 'Failed to obtain access token');
         }
-      } catch (error: any) {
+      } catch (error: unknown) {
         setOAuthStatus('error');
-        setError(error.message);
+        setError(error instanceof Error ? error.message : String(error));
       }
     })();
   }, [mode]);
@@ -198,19 +198,26 @@ export default function App({ initialOrgSlug, inlineToken, inlineTokenEphemeral 
         });
         setInput(''); // Clear the input after successful authentication
         setMode('ready');
-      } catch (e: any) {
+      } catch (e: unknown) {
         clearTimeout(timeoutId);
         let errorMessage = 'Invalid or unauthorized token. Please enter a valid Personal Access Token.';
         let isRateLimit = false;
         let resetTime: string | null = null;
         
+        // Narrow to an object so we can safely probe GitHub-specific fields
+        const apiErr = e instanceof Error ? e : null;
+        // Octokit errors carry extra fields (errors[], response) — access via a
+        // safe cast after confirming the value is object-shaped.
+        const errObj = e != null && typeof e === 'object' ? (e as Record<string, unknown>) : null;
+        
         // Parse GitHub API error responses
-        if (e.message) {
-          const msg = e.message.toLowerCase();
+        const errMessage = apiErr?.message ?? '';
+        if (errMessage) {
+          const msg = errMessage.toLowerCase();
           if (msg.includes('rate limit') || msg.includes('rate-limit') || msg.includes('abuse')) {
             isRateLimit = true;
             // Try to extract rate limit reset time from error message
-            const resetMatch = e.message.match(/resets? at (\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z)/i);
+            const resetMatch = errMessage.match(/resets? at (\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z)/i);
             if (resetMatch) {
               resetTime = resetMatch[1];
             }
@@ -225,26 +232,32 @@ export default function App({ initialOrgSlug, inlineToken, inlineTokenEphemeral 
           }
         }
         
-        // Check for GraphQL specific errors and rate limit info
-        if (e.errors && Array.isArray(e.errors)) {
-          const firstError = e.errors[0];
-          if (firstError?.type === 'RATE_LIMITED') {
+        // Check for GraphQL specific errors and rate limit info (Octokit error shape)
+        const errors = errObj?.['errors'];
+        if (Array.isArray(errors)) {
+          const firstError = errors[0] as Record<string, unknown> | undefined;
+          if (firstError?.['type'] === 'RATE_LIMITED') {
             isRateLimit = true;
-          } else if (firstError?.type === 'FORBIDDEN') {
+          } else if (firstError?.['type'] === 'FORBIDDEN') {
             errorMessage = 'Token lacks required permissions. Please ensure your token has "repo" scope.';
           }
         }
         
-        // Check for rate limit headers in HTTP response
-        if (e.response?.headers) {
-          const rateLimitRemaining = e.response.headers['x-ratelimit-remaining'];
-          const rateLimitReset = e.response.headers['x-ratelimit-reset'];
+        // Check for rate limit headers in HTTP response (Octokit error shape)
+        const response = errObj?.['response'];
+        const responseHeaders = response != null && typeof response === 'object'
+          ? (response as Record<string, unknown>)['headers']
+          : null;
+        if (responseHeaders != null && typeof responseHeaders === 'object') {
+          const headers = responseHeaders as Record<string, unknown>;
+          const rateLimitRemaining = headers['x-ratelimit-remaining'];
+          const rateLimitResetVal = headers['x-ratelimit-reset'];
           
           if (rateLimitRemaining === '0' || rateLimitRemaining === 0) {
             isRateLimit = true;
-            if (rateLimitReset) {
+            if (rateLimitResetVal) {
               // Convert Unix timestamp to ISO string
-              const resetDate = new Date(parseInt(rateLimitReset) * 1000);
+              const resetDate = new Date(parseInt(String(rateLimitResetVal)) * 1000);
               resetTime = resetDate.toISOString();
             }
           }

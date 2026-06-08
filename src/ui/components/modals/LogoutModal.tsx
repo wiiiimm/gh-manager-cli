@@ -41,8 +41,8 @@ export default function LogoutModal({ onLogout, onCancel }: LogoutModalProps) {
   const handleLogout = () => {
     try {
       onLogout();
-    } catch (e: any) {
-      setLogoutError(e.message || 'Failed to logout');
+    } catch (e: unknown) {
+      setLogoutError((e instanceof Error ? e.message : null) || 'Failed to logout');
     }
   };
 

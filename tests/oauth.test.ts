@@ -114,6 +114,28 @@ describe('OAuth', () => {
   //   The actual implementation works but test mocks need proper setup
   // });
 
+  describe('startOAuthFlow error normalisation', () => {
+    it('uses the Error message when the failure is an Error', async () => {
+      (global.fetch as any).mockRejectedValueOnce(new Error('Network error'));
+
+      const result = await startOAuthFlow();
+
+      expect(result.success).toBe(false);
+      expect(result.error).toBe('OAuth flow failed: Network error');
+    });
+
+    it('falls back to "Unknown error" for non-Error throws (no [object Object] leak)', async () => {
+      // A non-Error rejection must not leak String(value) like "[object Object]".
+      (global.fetch as any).mockRejectedValueOnce({ weird: true });
+
+      const result = await startOAuthFlow();
+
+      expect(result.success).toBe(false);
+      expect(result.error).toBe('OAuth flow failed: Unknown error');
+      expect(result.error).not.toContain('[object Object]');
+    });
+  });
+
   describe('openGitHubAuthorizationPage', () => {
     it('opens GitHub OAuth app settings page', async () => {
       const open = (await import('open')).default;

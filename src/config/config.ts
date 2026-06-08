@@ -78,7 +78,7 @@ export function storeToken(token: string, source: TokenSource = 'pat') {
 export function clearStoredToken() {
   const existing = readConfig();
   // Preserve other settings like ui prefs
-  const { token, tokenVersion, tokenSource, ...rest } = existing as any;
+  const { token: _token, tokenVersion: _tv, tokenSource: _ts, ...rest } = existing;
   writeConfig({ ...rest });
 }
 

@@ -45,15 +45,15 @@ export default function OrgSwitcher({ token, currentContext, onSelect, onClose }
       setEnterpriseOrgs(entOrgs);
       
       // Set initial cursor position based on current context
-      if (!isPersonalContext) {
-        const orgLogin = (currentContext as any).login;
+      if (currentContext !== 'personal' && currentContext !== null) {
+        const orgLogin = currentContext.login;
         const index = orgs.findIndex(org => org.login === orgLogin);
         if (index !== -1) {
           setCursor(index + 1); // +1 because personal account is at index 0
         }
       }
-    } catch (e: any) {
-      setError(e.message || 'Failed to load organisations');
+    } catch (e: unknown) {
+      setError((e instanceof Error ? e.message : null) || 'Failed to load organisations');
     } finally {
       setLoading(false);
       setRefreshing(false);
@@ -144,7 +144,7 @@ export default function OrgSwitcher({ token, currentContext, onSelect, onClose }
           {organizations.map((org, index) => {
             const isEnterprise = enterpriseOrgs.has(org.login);
             const isCurrent = cursor === index + 1;
-            const isActiveContext = !isPersonalContext && (currentContext as any).login === org.login;
+            const isActiveContext = currentContext !== 'personal' && currentContext !== null && currentContext.login === org.login;
             
             return (
               <Box key={org.id}>

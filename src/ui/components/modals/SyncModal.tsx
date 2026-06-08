@@ -55,8 +55,8 @@ export default function SyncModal({ repo, onSync, onCancel }: SyncModalProps) {
       setSyncing(true);
       setSyncError(null);
       await onSync(repo);
-    } catch (e: any) {
-      setSyncError(e.message || 'Failed to sync fork with upstream');
+    } catch (e: unknown) {
+      setSyncError((e instanceof Error ? e.message : null) || 'Failed to sync fork with upstream');
       syncingRef.current = false;
       setSyncing(false);
     }

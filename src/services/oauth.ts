@@ -56,10 +56,10 @@ export async function startOAuthFlow(): Promise<OAuthResult> {
         verification_uri: deviceCodeResponse.verification_uri
       }
     };
-  } catch (error: any) {
+  } catch (error: unknown) {
     return {
       success: false,
-      error: `OAuth flow failed: ${error.message}`
+      error: `OAuth flow failed: ${(error instanceof Error ? error.message : null) || 'Unknown error'}`
     };
   }
 }
@@ -82,10 +82,10 @@ export async function pollForAccessToken(deviceCodeResponse: DeviceCodeResponse)
           token,
           login
         };
-      } catch (error: any) {
+      } catch (error: unknown) {
         return {
           success: false,
-          error: `Token validation failed: ${error.message}`
+          error: `Token validation failed: ${(error instanceof Error ? error.message : null) || 'Unknown error'}`
         };
       }
     }
@@ -94,10 +94,10 @@ export async function pollForAccessToken(deviceCodeResponse: DeviceCodeResponse)
       success: false,
       error: 'Failed to obtain access token'
     };
-  } catch (error: any) {
+  } catch (error: unknown) {
     return {
       success: false,
-      error: `Polling failed: ${error.message}`
+      error: `Polling failed: ${(error instanceof Error ? error.message : null) || 'Unknown error'}`
     };
   }
 }
@@ -234,13 +234,14 @@ async function pollForToken(deviceCodeResponse: DeviceCodeResponse): Promise<str
         console.log('🤔 Unexpected response format, continuing to poll...');
       }
       
-    } catch (error: any) {
+    } catch (error: unknown) {
+      const errMsg = error instanceof Error ? error.message : String(error);
       if (process.env.GH_MANAGER_DEBUG) {
-        console.log('❌ Polling error:', error.message);
+        console.log('❌ Polling error:', errMsg);
       }
       
       // Only throw error if it's not a network/temporary issue
-      if (error.message.includes('access_denied') || error.message.includes('expired_token')) {
+      if (errMsg.includes('access_denied') || errMsg.includes('expired_token')) {
         throw error;
       }
       
@@ -279,10 +280,10 @@ export async function reauthorizeForOrganizations(): Promise<OAuthResult> {
     // Use the same device flow as initial auth
     // GitHub will recognise the app and show which orgs need authorisation
     return await startOAuthFlow();
-  } catch (error: any) {
+  } catch (error: unknown) {
     return {
       success: false,
-      error: `Reauthorisation failed: ${error.message}`
+      error: `Reauthorisation failed: ${(error instanceof Error ? error.message : null) || 'Unknown error'}`
     };
   }
 }
