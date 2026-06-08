@@ -78,23 +78,33 @@ On first run, you'll be prompted to authenticate with GitHub (OAuth recommended)
 - **Fuzzy Search**: Instant typo-tolerant search over the full cached repository set — no network calls in the search path (powered by [fuse.js](https://www.fusejs.io/))
 - **Visibility Filter**: Modal-based visibility filter (All, Public, Private/Internal for enterprise) with smart filtering
 - **Archive Filter**: Toggle-based archive filter (`A` key cycles All → Unarchived → Archived) for quick filtering by archive status
-- **Fork Status Tracking**: Always shows commits behind upstream for forked repositories
+- **Fork Ahead/Behind Tracking**: After the background fetch-all completes, forks are enriched with both **ahead** and **behind** commit counts in a separate lightweight pass (batched 5 at a time to avoid rate-limit issues)
 - **Stars Mode**: View and manage starred repositories (personal account only)
 - **Repository Actions**:
   - View detailed info (`I`) - Shows repository metadata, language, size, and timestamps
-  - Open in browser (Enter/`O`)
+  - Open in browser (Enter/`O`) — for forks a chooser lets you open this repo or the upstream
+  - Jump to upstream (`P`) — moves cursor to the parent if loaded; otherwise fetches and shows it
+  - Create new repository (`Ctrl+N`) — prompts for a name (with the personal/organisation slug shown in front), choose visibility with `Tab`, and surfaces GitHub errors inline
   - Rename repository (`Ctrl+R`) with inline validation and automatic cache update
+  - Transfer repository to another owner (`Shift+M`) — prompts for the destination owner, requires a verification code, shows a final confirmation, and surfaces GitHub errors inline
   - Copy repository URL to clipboard (`C`) with SSH/HTTPS options
   - Delete repository (`Del` or `Backspace`) with secure two-step confirmation
   - Archive/unarchive repositories (`Ctrl+A`) with confirmation prompts
   - Change repository visibility (`Ctrl+V`) - Switch between Public, Private, and Internal (enterprise only)
   - Star/unstar repositories (`Ctrl+S`) - Toggle star status for any repository
-  - Sync forks with upstream (`Ctrl+F`) with automatic conflict detection
+  - Sync forks with upstream (`Ctrl+F`) with ahead/behind counts and automatic conflict detection
+- **Bulk Operations** (`B` to enter Bulk Select mode):
+  - Select multiple repositories with `Space`; `X` unselects all (while every other shortcut is disabled in bulk mode)
+  - Bulk actions reuse the global shortcuts: `Ctrl+S` star/unstar, `Ctrl+A` archive/unarchive, `Ctrl+V` visibility, `Del` delete, `Shift+M` transfer (move) to another owner/org
+  - Star and archive auto-detect a safe toggle; if the selection is mixed, an intent modal asks the explicit target. Visibility always prompts for the destination (Public / Private / Internal for enterprise orgs). Transfer always prompts for a destination owner
+  - Selections persist across search, filter, and sort changes (select from different searches, then bulk-act)
+  - Confirmation flow: review list with ability to unselect → count prompt → (delete and transfer) a 4-character verification code
+  - Per-repo progress reporting with partial-failure summary; transferred repos are removed from the current list
 
 ### User Interface & Experience
 - **Keyboard Navigation**: Full keyboard control (arrow keys, PageUp/Down, `Ctrl+G`/`G`)
 - **Display Density**: Toggle between compact/cozy/comfy spacing (`T`)
-- **Colour Themes**: Four themes (Default, Ocean, Forest, Monochrome) cycled with `Shift+T`, persisted across restarts
+- **Colour Themes**: Four themes (Default, Ocean, Forest, Monochrome) cycled with `Shift+T`, persisted across restarts; the selected-row highlight is theme-aware and tuned per theme for readable contrast
 - **Visual Indicators**: Fork status, private/internal/archived badges, language colors, visibility status
 - **Enterprise Support**: Full support for GitHub Enterprise with Internal repository visibility
 - **Organization Context**: Switch between personal and organization accounts with ENT badge for enterprise orgs
@@ -271,21 +281,26 @@ Launch the app, then use the keys below:
   - Stars: Number of stars
 - **Sort Direction**: `D` to open sort direction modal (ascending/descending)
 - **Display Density**: `T` to toggle compact/cozy/comfy
-- **Colour Theme**: `Shift+T` to cycle themes (Default → Ocean → Forest → Monochrome); selection persists across restarts
-- **Fork Status**: Always enabled - shows commits behind upstream for all forks
+- **Colour Theme**: `Shift+T` to cycle themes (Default → Ocean → Forest → Monochrome); selection persists across restarts. Each theme defines its own selected-row highlight (a darker on-theme background) so the highlighted repository stays high-contrast
+- **Fork Status**: Always enabled — shows commits **ahead** and **behind** upstream once enrichment completes (see below)
 - **Visibility Filter**: `V` opens modal (All, Public, Private/Internal for enterprise)
 - **Archive Filter**: `A` toggles archive filter (All → Unarchived → Archived)
 - **Stars Mode**: `Shift+S` (personal account only) to toggle between your own repos and your starred repos
   - Footer hint shows `Shift+S Starred` in normal mode and `Shift+S My Repos` in starred mode
 
 ### Navigation & Account
-- **Open in browser**: Enter or `O`
+- **Open in browser**: Enter or `O` — non-forks open directly; forks show a chooser (**This repository** / **Parent/upstream**, Esc cancels)
+- **Jump to upstream**: `P` (on a fork) — moves cursor to the parent if it is already loaded; otherwise fetches the parent and shows it in the Info modal
 - **Refresh**: `R`
-- **Organization switcher**: `W` to switch between personal account and organizations
+- **Organisation switcher**: `W` to switch between personal account and organisations
 - **Logout**: `Ctrl+L`
 - **Quit**: `Q`
 
 ### Repository Actions
+- **Create repository**: `Ctrl+N` to create a new repository in the current context (personal or organisation)
+  - Prompts for a name with the owner slug (`owner/`) shown in front
+  - `Tab` cycles visibility (Private/Public, plus Internal for enterprise organisations)
+  - Enter to create; GitHub errors (e.g. name already exists) are shown inline
 - **Repository info**: `I` to view detailed metadata (size, language, timestamps)
 - **Cache info**: `K` to inspect Apollo cache status
 - **Archive/Unarchive**: `Ctrl+A` with confirmation prompt
@@ -294,8 +309,15 @@ Launch the app, then use the keys below:
   - Type confirmation code → confirm (Y/Enter)
   - Cancel: press `C` or Esc
 - **Star/Unstar**: `Ctrl+S` to toggle star status for any repository
-- **Sync fork**: `Ctrl+F` (for forks only, shows commit status and handles conflicts)
+- **Sync fork**: `Ctrl+F` (for forks only, shows ahead/behind counts and handles conflicts)
 - **Rename repository**: `Ctrl+R` with inline validation
+- **Transfer repository**: `Shift+M` (Move) to transfer ownership to another user or organisation
+  - Prompts for the destination owner (`new-owner/<repo>` preview)
+  - Requires typing a randomly generated verification code (like delete), then a final confirmation before transferring
+  - GitHub errors (e.g. insufficient permissions) are shown inline
+- **Bulk Transfer (Bulk Select mode)**: `Shift+M` within Bulk Select mode to move multiple repos at once
+  - Flow: review list (unselect) → destination owner prompt → count prompt → 4-character verification code → sequential execution with per-repo progress
+  - Transferred repos are removed from the current list; partial-failure report shown at completion
 - **Copy URL**: `C` to copy repository URL to clipboard (SSH/HTTPS options)
 
 ### General

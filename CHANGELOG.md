@@ -1,3 +1,66 @@
+## [1.48.2](https://github.com/wiiiimm/gh-manager-cli/compare/v1.48.1...v1.48.2) (2026-06-08)
+
+
+### Bug Fixes
+
+* correct Bulk Select layout overflow and show hidden selection count (SWR-370) [semantic pr title] ([#79](https://github.com/wiiiimm/gh-manager-cli/issues/79)) ([bfc211a](https://github.com/wiiiimm/gh-manager-cli/commit/bfc211ac4d79ec730ad5ec087617ce24826b93fd)), closes [#70](https://github.com/wiiiimm/gh-manager-cli/issues/70) [#58](https://github.com/wiiiimm/gh-manager-cli/issues/58) [#75](https://github.com/wiiiimm/gh-manager-cli/issues/75)
+
+## [1.48.1](https://github.com/wiiiimm/gh-manager-cli/compare/v1.48.0...v1.48.1) (2026-06-07)
+
+
+### Bug Fixes
+
+* keep bulk review visibility badge inline with highlight background (SWR-374) [semantic pr title] ([#77](https://github.com/wiiiimm/gh-manager-cli/issues/77)) ([db85578](https://github.com/wiiiimm/gh-manager-cli/commit/db855789f2770fb41df99ebe056f9beb41521314))
+
+# [1.48.0](https://github.com/wiiiimm/gh-manager-cli/compare/v1.47.0...v1.48.0) (2026-06-07)
+
+
+### Features
+
+* session usage summary shown on quit with operation tracking (SWR-19) [semantic pr title] ([#58](https://github.com/wiiiimm/gh-manager-cli/issues/58)) ([ad03cee](https://github.com/wiiiimm/gh-manager-cli/commit/ad03cee22f4699092892bc233786dd48f3eb8e21))
+
+# [1.47.0](https://github.com/wiiiimm/gh-manager-cli/compare/v1.46.1...v1.47.0) (2026-06-07)
+
+
+### Features
+
+* bulk transfer (move) repos to another owner/org — Bulk Select action (SWR-369) [semantic pr title] ([#70](https://github.com/wiiiimm/gh-manager-cli/issues/70)) ([1dd444a](https://github.com/wiiiimm/gh-manager-cli/commit/1dd444a32e7ffc1492320d80197c089d845352a5))
+
+## [1.46.1](https://github.com/wiiiimm/gh-manager-cli/compare/v1.46.0...v1.46.1) (2026-06-07)
+
+
+### Performance Improvements
+
+* make visibility filter fully client-side (SWR-366) [semantic pr title] ([#61](https://github.com/wiiiimm/gh-manager-cli/issues/61)) ([02c6064](https://github.com/wiiiimm/gh-manager-cli/commit/02c6064dbb2854a943f0580297661589dabc9545))
+
+# [1.46.0](https://github.com/wiiiimm/gh-manager-cli/compare/v1.45.1...v1.46.0) (2026-06-07)
+
+
+### Features
+
+* Bulk Select mode with bulk star, archive/unarchive, visibility, and delete operations (SWR-353) ([#54](https://github.com/wiiiimm/gh-manager-cli/issues/54)) ([9245324](https://github.com/wiiiimm/gh-manager-cli/commit/924532494c7222393415bea14bf5553435c2abb2))
+
+## [1.45.1](https://github.com/wiiiimm/gh-manager-cli/compare/v1.45.0...v1.45.1) (2026-06-07)
+
+
+### Bug Fixes
+
+* ignore modal input while async actions are in flight, add guard tests (SWR-368) [semantic pr title] ([#64](https://github.com/wiiiimm/gh-manager-cli/issues/64)) ([97d2e4e](https://github.com/wiiiimm/gh-manager-cli/commit/97d2e4e25fc5d10cd2305ffb3f594b3f0b094e20)), closes [#65](https://github.com/wiiiimm/gh-manager-cli/issues/65)
+
+# [1.45.0](https://github.com/wiiiimm/gh-manager-cli/compare/v1.44.0...v1.45.0) (2026-06-07)
+
+
+### Features
+
+* add repository creation (Ctrl+N) and transfer (Shift+M) ([#60](https://github.com/wiiiimm/gh-manager-cli/issues/60)) ([2e9c271](https://github.com/wiiiimm/gh-manager-cli/commit/2e9c2711b985be9373a94483e0bd0b420dc48aec))
+
+# [1.43.0](https://github.com/wiiiimm/gh-manager-cli/compare/v1.42.0...v1.43.0) (2026-06-05)
+
+
+### Features
+
+* fork ahead/behind enrichment, jump-to-upstream (P), and open-in-browser chooser (SWR-362) [semantic pr title] ([#53](https://github.com/wiiiimm/gh-manager-cli/issues/53)) ([ffd7b16](https://github.com/wiiiimm/gh-manager-cli/commit/ffd7b1644f7fad93721b6ab7287c0c3a1990f9e6))
+
 # [1.42.0](https://github.com/wiiiimm/gh-manager-cli/compare/v1.41.0...v1.42.0) (2026-06-05)
 
 

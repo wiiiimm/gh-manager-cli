@@ -29,6 +29,7 @@ export function UnstarModal({
 
   useInput((input, key) => {
     if (!visible) return;
+    if (isUnstarring) return; // Ignore input while the unstar request is in flight
 
     if (key.escape || input === 'c' || input === 'C') {
       onCancel();
