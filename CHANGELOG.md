@@ -1,3 +1,10 @@
+# [1.52.0](https://github.com/wiiiimm/gh-manager-cli/compare/v1.51.1...v1.52.0) (2026-06-08)
+
+
+### Features
+
+* transfer destination picker for single + bulk flows (SWR-381) [semantic pr title] ([#93](https://github.com/wiiiimm/gh-manager-cli/issues/93)) ([537bf60](https://github.com/wiiiimm/gh-manager-cli/commit/537bf605be1426d4846b1696ffebe362c4ee51e2))
+
 ## [1.51.1](https://github.com/wiiiimm/gh-manager-cli/compare/v1.51.0...v1.51.1) (2026-06-08)
 
 
