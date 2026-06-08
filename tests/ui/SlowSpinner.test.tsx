@@ -1,7 +1,7 @@
 import React from 'react';
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { render } from 'ink-testing-library';
-import SlowSpinner from '../../src/ui/components/common/SlowSpinner';
+import SlowSpinner, { SLOW_SPINNER_WIDTH, slowSpinnerFrames } from '../../src/ui/components/common/SlowSpinner';
 
 describe('SlowSpinner', () => {
   beforeEach(() => {
@@ -16,42 +16,40 @@ describe('SlowSpinner', () => {
     const { lastFrame, unmount } = render(<SlowSpinner />);
     
     const output = lastFrame() || '';
-    expect(output).toContain('⠋'); // First frame
+    expect(output).toBe('.');
     unmount();
   });
 
   it('cycles through spinner frames over time', async () => {
     const { lastFrame, unmount, rerender } = render(<SlowSpinner />);
     
-    const expectedFrames = ['⠋', '⠙', '⠹', '⠸', '⠼', '⠴', '⠦', '⠧', '⠇', '⠏'];
+    expect(lastFrame()).toBe('.');
     
-    // Check initial frame
-    expect(lastFrame()).toContain(expectedFrames[0]);
-    
-    // Advance time and trigger re-render
-    vi.advanceTimersByTime(500);
-    await vi.runOnlyPendingTimersAsync();
+    await vi.advanceTimersByTimeAsync(500);
     rerender(<SlowSpinner />);
-    
-    // Due to React timing, we may not see exact frame progression
-    // Just check that the output contains one of the spinner frames
-    const output = lastFrame() || '';
-    const hasSpinnerFrame = expectedFrames.some(frame => output.includes(frame));
-    expect(hasSpinnerFrame).toBe(true);
+    expect(lastFrame()).toBe('..');
+
+    await vi.advanceTimersByTimeAsync(500);
+    rerender(<SlowSpinner />);
+    expect(lastFrame()).toBe('...');
     
     unmount();
   });
 
-  it('loops back to first frame after last frame', () => {
+  it('loops back to first frame after last frame', async () => {
     const { lastFrame, unmount } = render(<SlowSpinner />);
     
-    // Advance through all 10 frames (0.5 seconds each)
-    vi.advanceTimersByTime(500 * 10);
+    await vi.advanceTimersByTimeAsync(500 * 3);
     
-    // Should be back at first frame
-    expect(lastFrame()).toContain('⠋');
+    expect(lastFrame()).toBe('.');
     
     unmount();
+  });
+
+  it('keeps the animation in a fixed width container', () => {
+    expect(SLOW_SPINNER_WIDTH).toBe(3);
+    expect(slowSpinnerFrames.map(frame => frame.length)).toEqual([1, 2, 3]);
+    expect(slowSpinnerFrames.every(frame => frame.length <= SLOW_SPINNER_WIDTH)).toBe(true);
   });
 
   it('updates every 500ms', async () => {
@@ -64,17 +62,27 @@ describe('SlowSpinner', () => {
     rerender(<SlowSpinner />);
     expect(lastFrame()).toBe(initialFrame);
     
-    // Advance 1ms more to complete 500ms and trigger re-render
-    vi.advanceTimersByTime(1);
-    await vi.runOnlyPendingTimersAsync();
+    await vi.advanceTimersByTimeAsync(1);
     rerender(<SlowSpinner />);
     
-    // Due to React state updates, we just verify it contains a spinner frame
-    const output = lastFrame() || '';
-    const expectedFrames = ['⠋', '⠙', '⠹', '⠸', '⠼', '⠴', '⠦', '⠧', '⠇', '⠏'];
-    const hasSpinnerFrame = expectedFrames.some(frame => output.includes(frame));
-    expect(hasSpinnerFrame).toBe(true);
+    expect(lastFrame()).toBe('..');
     
+    unmount();
+  });
+
+  it('honours custom intervals', async () => {
+    const { lastFrame, unmount, rerender } = render(<SlowSpinner interval={2000} />);
+
+    expect(lastFrame()).toBe('.');
+
+    vi.advanceTimersByTime(1999);
+    rerender(<SlowSpinner interval={2000} />);
+    expect(lastFrame()).toBe('.');
+
+    await vi.advanceTimersByTimeAsync(1);
+    rerender(<SlowSpinner interval={2000} />);
+    expect(lastFrame()).toBe('..');
+
     unmount();
   });
 
