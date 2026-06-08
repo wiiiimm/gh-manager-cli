@@ -1,3 +1,10 @@
+## [1.49.2](https://github.com/wiiiimm/gh-manager-cli/compare/v1.49.1...v1.49.2) (2026-06-08)
+
+
+### Performance Improvements
+
+* add daily tick to refresh stale relative date labels in RepoRow (SWR-377) ([#84](https://github.com/wiiiimm/gh-manager-cli/issues/84)) ([3aa8617](https://github.com/wiiiimm/gh-manager-cli/commit/3aa86170d9f5b9fd20fa27975d247f2e7e554925))
+
 ## [1.49.1](https://github.com/wiiiimm/gh-manager-cli/compare/v1.49.0...v1.49.1) (2026-06-08)
 
 
