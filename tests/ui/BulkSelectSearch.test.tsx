@@ -46,13 +46,13 @@ function computeHiddenCount(
 function BulkStatusBar({
   selectedRepos,
   visibleItems,
-  filterActive,
+  searchActive,
 }: {
   selectedRepos: Map<string, RepoNode>;
   visibleItems: RepoNode[];
-  filterActive: boolean;
+  searchActive: boolean;
 }) {
-  const hiddenCount = computeHiddenCount(selectedRepos, visibleItems, filterActive);
+  const hiddenCount = computeHiddenCount(selectedRepos, visibleItems, searchActive);
   const selectionLabel = selectedRepos.size > 0
     ? `${selectedRepos.size} selected${hiddenCount > 0 ? ` (${hiddenCount} not shown in search)` : ''}`
     : 'No selection';
@@ -64,7 +64,7 @@ function BulkStatusBar({
 }
 
 describe('BulkSelectSearch — hidden-count computation', () => {
-  it('returns 0 when filterActive is false regardless of selection', () => {
+  it('returns 0 when searchActive is false regardless of selection', () => {
     const repos = [makeRepo('1', 'alpha'), makeRepo('2', 'beta')];
     const selected = new Map([['1', repos[0]], ['2', repos[1]]]);
     expect(computeHiddenCount(selected, [], false)).toBe(0);
@@ -128,7 +128,7 @@ describe('BulkStatusBar rendering', () => {
       <BulkStatusBar
         selectedRepos={new Map()}
         visibleItems={[]}
-        filterActive={false}
+        searchActive={false}
       />
     );
     expect(lastFrame()).toContain('[BULK SELECT] No selection');
@@ -141,7 +141,7 @@ describe('BulkStatusBar rendering', () => {
       <BulkStatusBar
         selectedRepos={new Map([['1', repo]])}
         visibleItems={[repo]}
-        filterActive={false}
+        searchActive={false}
       />
     );
     const output = lastFrame() || '';
@@ -159,7 +159,7 @@ describe('BulkStatusBar rendering', () => {
       <BulkStatusBar
         selectedRepos={selected}
         visibleItems={visibleItems}
-        filterActive={true}
+        searchActive={true}
       />
     );
     const output = lastFrame() || '';
@@ -176,7 +176,7 @@ describe('BulkStatusBar rendering', () => {
       <BulkStatusBar
         selectedRepos={selected}
         visibleItems={repos}
-        filterActive={true}
+        searchActive={true}
       />
     );
     const output = lastFrame() || '';
