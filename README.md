@@ -114,12 +114,12 @@ On first run, you'll be prompted to authenticate with GitHub (OAuth recommended)
 - **Rate Limit Monitoring**: Dual API rate limit display (GraphQL & REST) with real-time usage deltas and visual warnings
 
 ### Technical Features
-- **Preference Persistence**: UI settings (sort, density, visibility filter, archive filter, fork tracking) saved between sessions
-- **Server-side Filtering**: Visibility filtering performed at GitHub API level for accurate pagination
+- **Preference Persistence**: UI settings (sort, density, visibility filter, archive filter, fork tracking, colour theme) saved between sessions
+- **Client-side Filtering & Sorting**: Once the account is cached via background fetch-all, visibility/archive filtering and all sorting run locally over the complete set — instant, with no server refetch
 - **Cross-platform**: Works on macOS, Linux, and Windows
 - **Secure Storage**: Token stored with proper file permissions (0600)
 - **Error Handling**: Graceful error recovery with retry mechanisms
-- **Performance**: Efficient GraphQL queries with virtualized rendering and server-side filtering
+- **Performance**: Light bulk GraphQL queries, virtualized rendering, and `React.memo`-optimized rows for instant keyboard navigation
 - **Comprehensive Logging**: Structured JSON logging with automatic rotation and configurable verbosity
 
 ## Installation
@@ -271,7 +271,7 @@ Launch the app, then use the keys below:
 ### Navigation & View Controls
 - **Top/Bottom**: `Ctrl+G` (top), `G` (bottom)
 - **Page Navigation**: ↑↓ Arrow keys, PageUp/PageDown
-- **Search**: `/` to enter search mode, type 3+ characters for server-side search
+- **Search**: `/` to enter search mode — instant, typo-tolerant fuzzy search over the full cached set (no network calls). Matches as you type; searches name, owner, description, and language
   - Down arrow or Enter: Start browsing search results
   - Esc: Clear search and return to full repository list
 - **Sort**: `S` opens sort modal with options:
@@ -333,6 +333,16 @@ Status bar shows loaded count vs total. A rate-limit line displays `remaining/li
 - **Background fetch-all:** the first page renders immediately, then the remaining repositories load in the background until the whole account is cached locally. Filtering, sorting, and search then operate over the complete set, client-side and instant.
 - Fetches 100 repos per page by default (configurable via `REPOS_PER_FETCH` environment variable, 1-100).
 - Reads `totalCount` from the first page and shows background-load progress (`loaded/total`) while filling. The list stays usable from the first page throughout; very large accounts simply take longer to finish loading.
+
+## Session Summary
+
+When you quit the app with `Q`, gh-manager-cli prints a short end-of-session report as two distinct framed panels:
+
+- **📊 Session Summary** — session duration, total operations performed, and a per-operation breakdown (e.g. "2 repositories archived", "1 repository transferred"). If nothing was changed, it simply notes "No changes were made this session."
+- **⏱ Estimated time saved** — a rough, friendly estimate of how much time you saved versus performing those operations by hand on github.com (each operation type has a conservative manual-time weight, e.g. delete ≈ 45s, transfer ≈ 60s, star ≈ 6s). Shown only when at least one operation was performed.
+- **💚 Thank you** — a separate sponsorship/feedback panel.
+
+Both single-repo and bulk actions are counted. The summary is not shown when exiting via `Ctrl+C`.
 
 ## Development
 
@@ -412,26 +422,26 @@ git push origin main
 Both NPM and Homebrew will be automatically updated within minutes of any version change.
 
 Environment variables:
-- `REPOS_PER_FETCH`: Number of repositories to fetch per page (1-50, default: 15)
+- `REPOS_PER_FETCH`: Number of repositories to fetch per page (1-100, default: 100)
 - `GH_MANAGER_DEBUG=1`: Enables debug mode with performance metrics, detailed errors, and console logging
 - `GH_TOKEN`: GitHub Personal Access Token (alternative to OAuth authentication)
 - `NO_COLOR`: Disable colored output in terminal
 
 Project layout:
-- `src/index.tsx` — CLI entry and error handling
-- `src/ui/App.tsx` — token bootstrap, renders `RepoList`
-- `src/ui/RepoList.tsx` — main list UI with modal management
-- `src/ui/components/` — modular components (modals, repo, common)
-  - `modals/` — DeleteModal, ArchiveModal, SyncModal, InfoModal, LogoutModal
-  - `repo/` — RepoRow, FilterInput, RepoListHeader
-  - `common/` — SlowSpinner and shared UI elements
-- `src/ui/OrgSwitcher.tsx` — organization switching component
-- `src/github.ts` — GraphQL client and queries (repos + rateLimit)
-- `src/config.ts` — token read/write and UI preferences
-- `src/logger.ts` — structured logging with rotation
+- `src/index.tsx` — CLI entry, flag parsing, error handling, end-of-session summary
 - `src/types.ts` — shared types
-- `src/utils.ts` — utility functions (truncate, formatDate)
-- `src/apolloMeta.ts` — Apollo cache management
+- `src/ui/App.tsx` — token bootstrap, renders `RepoList`
+- `src/ui/views/` — `RepoList.tsx` (main list UI, key handling, modal management) and `RepoList.main.tsx`
+- `src/ui/OrgSwitcher.tsx` — organisation switching component
+- `src/ui/hooks/` — `useTheme` and other shared hooks
+- `src/ui/components/` — modular components
+  - `modals/` — Delete, Archive, Sync, Info, Logout, Rename, Transfer, CopyUrl, CreateRepo, ChangeVisibility, Visibility, Sort, SortDirection, ArchiveFilter, Star, Unstar, OpenInBrowser, and the Bulk\* modals (Confirm, Review, Intent, Progress, Code, DeleteCode, TransferCode, TransferDestination, Visibility) plus `bulkActions.ts`
+  - `repo/` — RepoRow (memoised with `React.memo`), FilterInput, RepoListHeader
+  - `auth/` — AuthMethodSelector, OAuthProgress
+  - `common/` — SlowSpinner and shared UI elements
+- `src/services/` — `github.ts` (GraphQL client and queries), `oauth.ts` (device-flow auth), `apolloMeta.ts` (Apollo cache management)
+- `src/config/` — `config.ts` (token read/write and UI preferences), `constants.ts`, `themes.ts` (colour themes)
+- `src/lib/` — `logger.ts` (structured logging with rotation), `utils.ts` (truncate, formatDate), `session.ts` (usage tracking + summary), `fuzzySearch.ts` (fuse.js search)
 - `viewlogs.sh` — utility script for viewing logs
 
 ## Logging
@@ -513,7 +523,7 @@ Even with caching enabled, API credits may decrease due to:
 ### Configuration
 
 ```bash
-# Number of repositories to fetch per page (1-50, default: 15)
+# Number of repositories to fetch per page (1-100, default: 100)
 REPOS_PER_FETCH=10 npx gh-manager-cli@latest
 
 # Custom cache TTL (milliseconds) - default: 30 minutes
@@ -539,20 +549,23 @@ For the up-to-date task board, see [TODOs.md](./TODOs.md).
 Recently implemented:
 - ✅ OAuth login flow as an alternative to Personal Access Token
 - ✅ Density toggle for row spacing (compact/cozy/comfy)
-- ✅ Repo actions (archive/unarchive, delete, change visibility) with confirmations
+- ✅ Colour themes (Default, Ocean, Forest, Monochrome) cycled with `Shift+T`
+- ✅ Repo actions (archive/unarchive, delete, change visibility, rename, transfer) with confirmations
+- ✅ Bulk Select mode (`B`) — bulk star, archive/unarchive, visibility, delete, and transfer
 - ✅ Organization support and switching (press `W`) with enterprise detection
-- ✅ Enhanced server-side search with improved UX and organization context support
-- ✅ Smart infinite scroll with 80% prefetch trigger
+- ✅ Background fetch-all with instant client-side fuzzy search (fuse.js)
+- ✅ Fork ahead/behind enrichment after fetch-all completes
 - ✅ Modal-based sort and visibility filtering
 - ✅ GitHub Enterprise support with Internal repository visibility
 - ✅ Change repository visibility modal (`Ctrl+V`)
-- ✅ Compact filter modals for better screen space utilization
+- ✅ Copy repository URL to clipboard (`C`) with SSH/HTTPS options
+- ✅ End-of-session usage summary with time-saved estimate
 - ✅ Enhanced rate limit display showing both GraphQL and REST API limits with delta tracking
 
 Highlights on deck:
 - Optional OS keychain storage via `keytar`
-- Bulk selection and actions
-- Repository renaming
+- Language filter and indicators
+- Additional sort fields (created, size) and more CLI flags
 
 ## Support & Sponsorship
 

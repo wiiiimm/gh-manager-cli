@@ -84,7 +84,7 @@ Legend:
     - On failure: show error in modal with proper error handling
 
 - [x] Sync fork with upstream
-  - Assigned key `Ctrl+S` to trigger sync
+  - Assigned key `Ctrl+F` to trigger sync (`Ctrl+S` is star/unstar)
   - Only shown for forked repositories that are behind upstream
   - Confirmation modal showing:
     - Fork name and upstream repository
@@ -130,12 +130,15 @@ Legend:
   - [x] `RepoListHeaderVisibility` - Visibility filter display tests (new test file)
   - [x] `FilterInput` - Input handling and filter logic (6 tests - mocked TextInput)
   - [x] `SlowSpinner` - Animation component (5 tests)
-  - [x] `ArchiveModal` - Archive/unarchive confirmation flow (6 tests - mocked useInput)
-  - [~] `SyncModal` - Fork sync confirmation flow (not implemented)
-  - [x] `LogoutModal` - Logout confirmation flow (6 tests - mocked useInput)
+  - [x] `ArchiveModal` - Archive/unarchive confirmation flow (mocked useInput)
+  - [x] `SyncModal` - Fork sync confirmation flow
+  - [x] `LogoutModal` - Logout confirmation flow (mocked useInput)
+  - [x] `DeleteModal`, `RenameModal`, `TransferModal`, `CreateRepoModal`, `ChangeVisibilityModal`, `CopyUrlModal`, `StarModal`, `UnstarModal` - action modals with loading-guard tests
+  - [x] `BulkConfirmModal`, `BulkReviewModal`, `BulkCodeModal`, `BulkTransferDestinationModal`, `bulkActions` - bulk-select flow
+  - [x] `BulkSelectSearch` - bulk selection persisting across search
   - [~] `InfoModal` - Repository information display (not implemented)
   - [ ] `SortModal` - Sort selection modal (needs tests)
-  - [ ] `VisibilityModal` - Visibility filter modal (needs tests)
+  - [ ] `VisibilityModal` - Visibility filter modal (needs tests; `RepoListHeaderVisibility` covers the header display)
   - [ ] `RepoList` - Main component integration tests
   - [ ] `OrgSwitcher` - Organization switching logic
   
@@ -146,11 +149,11 @@ Legend:
   - [ ] Sorting and filtering combinations
   - [ ] Rate limit handling
   
-  **Current Progress:**
-  - Total test files: 12 (added RepoListHeaderVisibility.test.tsx)
-  - Total tests passing: 82+
-  - Components with tests: 8/13 (62%) - Added 2 new modals needing tests
-  - Utilities with tests: 4/4 (100%)
+  **Current Progress (as of v1.49.x):**
+  - Total test files: 31
+  - Total test cases: ~308
+  - Utilities/services with tests: utils, config, github, apolloMeta, logger, oauth, session, sponsorship
+  - Remaining gaps: InfoModal, SortModal, VisibilityModal, OrgSwitcher, RepoList integration
   
   **Testing Approach for useInput Components:**
   Successfully implemented mocking strategy for components using `useInput` hook:
@@ -177,19 +180,19 @@ Legend:
     - Header displays current context (org/@user or @user)
     - Automatic affiliation switching (OWNER for personal, ORGANIZATION_MEMBER for orgs)
 
-- [ ] Bulk selection and actions
+- [x] Bulk Select mode and actions (SWR-369/370/374)
   - Multi-select mode
-    - Enter multi-select with a key (e.g., `M`)
-    - Use Up/Down to navigate; Space toggles selection; `*` selects all in view; `U` unselects all
-    - Show selected count in header/footer
-  - Bulk operations
-    - Bulk archive/unarchive selected
-    - Bulk delete selected (with aggregate confirmation including per-repo list)
-    - Two-step confirm for destructive operations; follow modal UX (Left/Right, Enter, Y/C)
+    - Enter/exit Bulk Select with `B`; `Esc` exits and clears selection
+    - Up/Down to navigate; `Space` toggles selection; `X` unselects all
+    - Selected count shown; selections persist across search/filter/sort changes
+  - Bulk operations (reuse the global shortcuts)
+    - `Ctrl+S` bulk star/unstar, `Ctrl+A` bulk archive/unarchive, `Ctrl+V` bulk visibility
+    - `Del`/`Backspace` bulk delete, `Shift+M` bulk transfer to another owner/org
+    - Toggle actions auto-detect a safe direction; mixed selections show an intent modal
+    - Two-step confirm: review list (unselect) → count prompt → 4-char code (delete/transfer); modal UX (Left/Right, Enter, Y/C)
   - Performance and UX
-    - Use batched REST/GraphQL calls; display progress with spinner and per-item status
-    - On success: update local list states (archived flag or removal) without full refetch
-    - On failure: show summary with failed items and suggested remediation
+    - Sequential execution with per-repo progress; partial-failure summary at completion
+    - On success: update local list states (archived flag or removal) without full refetch; transferred repos removed from the list
 
 - [x] Infinite scroll improvements
   - [x] Inline loading indicator at end of list
@@ -213,6 +216,7 @@ Legend:
   - [x] Balanced repository item spacing (1 line above, 1 line below)
 
 - [x] Server‑side search  
+  - **Superseded (SWR-361):** the `/` search is now instant **client-side fuzzy** search (fuse.js) over the full cached set populated by background fetch-all (SWR-360). There is no longer a 3+ character minimum or a server-side query in the search path. The Apollo cache/persistence below remains; the rest is kept for historical context.
   - Support GitHub search for repos (beyond loaded pages) ✓
   - Integrate with `/` filter bar; show mode indicator ✓
   - Implemented Apollo Client + apollo3-cache-persist for normalized caching and persistence ✓
@@ -335,19 +339,16 @@ Legend:
 - [ ] Language filter and indicators
   - Quick language cycling; language legend in footer
 
-- [ ] Bulk actions
-  - Multi‑select and apply action to selection
-
 - [~] CLI flags (partial implementation)
   - [x] `--version` / `-v` flag to show version
   - [x] `--help` / `-h` flag to show usage
   - [x] `--org` to start with specific organization
     - Launch with `--org <slug>` to jump to that organisation context if accessible; otherwise ignored
     - Works with already authenticated session; overrides persisted context for the run
-  - [ ] `--token` / `-t` to provide a token for this run
-    - Accepts `--token <pat>` and `--token=<pat>` (and `-t` forms)
-    - Overrides env/config for the current process only; does not persist
-    - Show a brief security note about shell history; prefer env var or interactive prompt
+  - [x] `--token` / `-t` to provide a token for this run
+    - Accepts `--token <pat>` and `--token=<pat>` (and `-t` forms) ✓
+    - Overrides env/config for the current process only; does not persist ✓
+    - Show a brief security note about shell history; prefer env var or interactive prompt ✓
   - [ ] `--sort` to set initial sort field
   - [ ] `--filter` to set initial filter
   - [ ] `--page-size` to override default page size
@@ -363,6 +364,14 @@ Legend:
 
 ## Done
 
+- [x] Background fetch-all pagination + light bulk query (SWR-360); fork ahead/behind enrichment (SWR-362)
+- [x] Instant client-side fuzzy search over the full cached set with fuse.js (SWR-361)
+- [x] Client-side visibility filtering, dropping the redundant server refetch (SWR-366)
+- [x] Colour themes (Default, Ocean, Forest, Monochrome) cycled with `Shift+T`, persisted (SWR-354); theme-aware selected-row highlight (SWR-364)
+- [x] Transfer (move) repository to another owner/org, single and bulk (`Shift+M`) (SWR-369)
+- [x] Create new repository in the current context (`Ctrl+N`)
+- [x] End-of-session usage summary panel with time-saved estimate (SWR-19/SWR-375)
+- [x] Memoise `RepoRow` with `React.memo` + `arePropsEqual` to cut per-keystroke re-renders (SWR-358)
 - [x] Token bootstrap: prompt → validate → persist (0600)
 - [x] List personal repos with metadata
 - [x] Infinite scroll with page prefetch and dynamic totalCount
@@ -392,7 +401,7 @@ Legend:
   - Configured semantic-release to attach binaries to GitHub releases automatically
   - Added build:binaries script for local binary creation
   - Updated documentation with installation instructions for pre-built binaries
-- [x] Sync fork with upstream (`Ctrl+S`)
+- [x] Sync fork with upstream (`Ctrl+F`)
   - Shows modal with fork name, upstream repo, and commits behind
   - Executes sync via GitHub REST API with proper error handling
   - Updates local state and shows success/conflict messages
