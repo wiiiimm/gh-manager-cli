@@ -1,3 +1,10 @@
+## [1.51.1](https://github.com/wiiiimm/gh-manager-cli/compare/v1.51.0...v1.51.1) (2026-06-08)
+
+
+### Performance Improvements
+
+* swr-380 reduce ink loading flicker replace braille slowspinner with ([#94](https://github.com/wiiiimm/gh-manager-cli/issues/94)) ([71501df](https://github.com/wiiiimm/gh-manager-cli/commit/71501df06aa83c3bbf368b3ed40bc05844bfcfa8))
+
 # [1.51.0](https://github.com/wiiiimm/gh-manager-cli/compare/v1.50.0...v1.51.0) (2026-06-08)
 
 
