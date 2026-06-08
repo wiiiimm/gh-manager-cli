@@ -431,7 +431,7 @@ Project layout:
 - `src/index.tsx` — CLI entry, flag parsing, error handling, end-of-session summary
 - `src/types.ts` — shared types
 - `src/ui/App.tsx` — token bootstrap, renders `RepoList`
-- `src/ui/views/` — `RepoList.tsx` (main list UI, key handling, modal management) and `RepoList.main.tsx`
+- `src/ui/views/` — `RepoList.tsx` (main list UI, key handling, modal management)
 - `src/ui/OrgSwitcher.tsx` — organisation switching component
 - `src/ui/hooks/` — `useTheme` and other shared hooks
 - `src/ui/components/` — modular components
