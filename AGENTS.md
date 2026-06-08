@@ -17,6 +17,7 @@
 - ✅ Semantic release automation and CI/CD workflows
 - ✅ Automated changelog generation and PR title management
 - ✅ Bulk Select mode with bulk star, archive/unarchive, visibility, delete, and transfer operations
+- ✅ `RepoRow` memoized with `React.memo` + `arePropsEqual` (SWR-358) — only 2 rows re-render per cursor move
 - 🔧 Automated test suite expansion (ongoing)
 - 🔧 Cross-terminal rendering optimization
 
@@ -319,6 +320,22 @@ const fullText = `${coloredName}\n${coloredDescription}\n${metadataLine}`;
 // Use Box with minHeight for consistent spacing
 <Box minHeight={2}>{/* Empty spacer */}</Box>
 ```
+
+### Performance: RepoRow memoization (SWR-358)
+`RepoRow` is wrapped in `React.memo` with a custom `arePropsEqual` that compares
+`repo` (by reference), `selected`, `dim`, `forkTracking`, `starsMode`,
+`multiSelectMode`, `isChecked`, `spacingLines`, `maxWidth`, `index`, and `theme`.
+On each cursor move only the previously-selected and newly-selected rows
+re-render; all others are skipped. In Bulk Select mode, toggling a row's
+selection re-renders only that row (its `isChecked` flips).
+
+Chalk formatting is also wrapped in `useMemo` keyed on the same inputs so the
+string-building work is only repeated when a relevant prop actually changes.
+
+**Keep `arePropsEqual` AND the `useMemo` dependency array in sync** whenever you
+add a new prop to `RepoRow` that affects rendering — otherwise memoization will
+serve a stale row. Both currently include the Bulk Select props
+(`multiSelectMode`, `isChecked`) added in SWR-353.
 
 ## Common Tasks
 
