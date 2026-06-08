@@ -23,6 +23,7 @@ vi.mock('env-paths', () => ({
   default: vi.fn(() => ({ data: '/mock/data/dir', config: '/mock/config/dir' })),
 }));
 
+import fs from 'fs';
 import { ApolloClient } from '@apollo/client/core/index.js';
 import { makeApolloClient } from '../src/services/github/client';
 
@@ -50,5 +51,17 @@ describe('makeApolloClient — token-aware singleton (GMC-28)', () => {
     const a3 = await makeApolloClient('token-A');
     expect(a3).not.toBe(a1);
     expect(ApolloClient).toHaveBeenCalledTimes(3);
+  });
+
+  it('purges the persisted on-disk cache on a token change so the new client cannot rehydrate stale data (Cursor Bugbot)', async () => {
+    // Establish a known current token first (the module singleton leaks across
+    // tests in this file), then clear the spy so we only observe the switch.
+    await makeApolloClient('purge-token-A');
+    vi.mocked(fs.unlinkSync).mockClear();
+
+    await makeApolloClient('purge-token-B');
+    // Token change must delete both the cache file and its TTL meta.
+    expect(fs.unlinkSync).toHaveBeenCalledWith(expect.stringContaining('apollo-cache.json'));
+    expect(fs.unlinkSync).toHaveBeenCalledWith(expect.stringContaining('apollo-cache-meta.json'));
   });
 });

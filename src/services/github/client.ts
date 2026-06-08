@@ -40,6 +40,20 @@ export async function makeApolloClient(token: string): Promise<ApolloClientBundl
     try { await apolloClientInstance.client.clearStore(); } catch {}
     apolloClientInstance = null;
     apolloClientToken = null;
+    // Clearing the in-memory store isn't enough: the rebuilt client re-hydrates
+    // from the persisted apollo-cache.json, so without this a cache-first read
+    // after logout → login would surface the previous account's repositories
+    // under the new token (Cursor Bugbot). Drop the on-disk cache + TTL meta so
+    // the new client starts empty. Inlined (rather than calling
+    // purgeApolloCacheFiles) to avoid a cache.ts → client.ts import cycle.
+    try {
+      const dataDir = envPaths('gh-manager-cli').data;
+      fs.unlinkSync(path.join(dataDir, 'apollo-cache.json'));
+    } catch {}
+    try {
+      const dataDir = envPaths('gh-manager-cli').data;
+      fs.unlinkSync(path.join(dataDir, 'apollo-cache-meta.json'));
+    } catch {}
   }
 
   try {
