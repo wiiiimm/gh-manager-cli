@@ -152,51 +152,58 @@ export async function changeRepositoryVisibility(
     }
   `;
 
-  const result = await client<{ node?: { nameWithOwner?: string } | null }>(query, { id: repositoryId });
-  const repo = result.node;
+  // Wrap the GraphQL lookup + REST PATCH so transport/client errors get the
+  // same unknown-narrowing + logging treatment as the other mutations, rather
+  // than escaping raw. Deliberate throws below ('Repository not found',
+  // 'Failed to change visibility: …') keep their exact messages — the catch
+  // logs once and rethrows, so the modal still surfaces the same text.
+  try {
+    const result = await client<{ node?: { nameWithOwner?: string } | null }>(query, { id: repositoryId });
+    const repo = result.node;
 
-  if (!repo || !repo.nameWithOwner) {
-    throw new Error('Repository not found');
-  }
+    if (!repo || !repo.nameWithOwner) {
+      throw new Error('Repository not found');
+    }
 
-  const [owner, name] = repo.nameWithOwner.split('/');
+    const [owner, name] = repo.nameWithOwner.split('/');
 
-  // Use REST API to change visibility since GraphQL doesn't support it
-  // Use the visibility field directly (supports public, private, internal)
-  const response = await fetch(`https://api.github.com/repos/${owner}/${name}`, {
-    method: 'PATCH',
-    headers: {
-      'Authorization': `token ${token}`,
-      'Accept': 'application/vnd.github+json',
-      'Content-Type': 'application/json',
-      'User-Agent': 'gh-manager-cli'
-    },
-    body: JSON.stringify({
-      visibility: visibility.toLowerCase() // API expects lowercase
-    })
-  });
+    // Use REST API to change visibility since GraphQL doesn't support it
+    // Use the visibility field directly (supports public, private, internal)
+    const response = await fetch(`https://api.github.com/repos/${owner}/${name}`, {
+      method: 'PATCH',
+      headers: {
+        'Authorization': `token ${token}`,
+        'Accept': 'application/vnd.github+json',
+        'Content-Type': 'application/json',
+        'User-Agent': 'gh-manager-cli'
+      },
+      body: JSON.stringify({
+        visibility: visibility.toLowerCase() // API expects lowercase
+      })
+    });
 
-  if (!response.ok) {
-    const error = await response.text();
-    logger.error('Failed to change repository visibility', {
-      status: response.status,
-      statusText: response.statusText,
-      error,
+    if (!response.ok) {
+      const error = await response.text();
+      throw new Error(`Failed to change visibility: ${error}`);
+    }
+
+    logger.info('Successfully changed repository visibility', {
       owner,
       name,
-      visibility
+      newVisibility: visibility,
+      nameWithOwner: repo.nameWithOwner
     });
-    throw new Error(`Failed to change visibility: ${error}`);
+
+    return { nameWithOwner: repo.nameWithOwner };
+  } catch (error: unknown) {
+    const err = toError(error);
+    logger.error('Failed to change repository visibility', {
+      repositoryId,
+      visibility,
+      error: err.message
+    });
+    throw err;
   }
-
-  logger.info('Successfully changed repository visibility', {
-    owner,
-    name,
-    newVisibility: visibility,
-    nameWithOwner: repo.nameWithOwner
-  });
-
-  return { nameWithOwner: repo.nameWithOwner };
 }
 
 export async function renameRepositoryById(

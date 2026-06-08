@@ -196,6 +196,20 @@ function normalizeRepoNodes(nodes: unknown[]): RepoNode[] {
 
 export type OwnerAffiliation = 'OWNER' | 'COLLABORATOR' | 'ORGANIZATION_MEMBER';
 
+/**
+ * Octokit fallback for a single page of repositories.
+ *
+ * Like the Apollo path ({@link fetchViewerReposPageUnified}), this is a **light
+ * bulk query** (SWR-360): it deliberately does NOT request per-repo
+ * `history.totalCount`. Computing commit history for every repo (and its
+ * parent) across a 100-repo page exceeds GitHub's per-query cost budget and
+ * returns HTTP 502 — which is especially dangerous here because this path runs
+ * precisely when Apollo has already failed. Fork ahead/behind counts come from
+ * the separate batched `enrichForksWithAheadBehind` pass instead.
+ *
+ * `includeForkTracking` is retained for signature compatibility with the
+ * unified wrapper but no longer changes the query (history is never fetched).
+ */
 export async function fetchViewerReposPage(
   client: ReturnType<typeof makeClient>,
   first: number,
@@ -268,35 +282,10 @@ export async function fetchViewerReposPage(
                 __typename
                 login
               }
-              ${includeForkTracking ? `
-              parent {
-                nameWithOwner
-                defaultBranchRef {
-                  name
-                  target {
-                    ... on Commit {
-                      history(first: 0) {
-                        totalCount
-                      }
-                    }
-                  }
-                }
-              }
-              defaultBranchRef {
-                name
-                target {
-                  ... on Commit {
-                    history(first: 0) {
-                      totalCount
-                    }
-                  }
-                }
-              }` : `
               parent {
                 nameWithOwner
               }
               defaultBranchRef { name }
-              `}
             }
           }
         }
@@ -367,35 +356,10 @@ export async function fetchViewerReposPage(
             updatedAt
             pushedAt
             diskUsage
-            ${includeForkTracking ? `
-            parent {
-              nameWithOwner
-              defaultBranchRef {
-                name
-                target {
-                  ... on Commit {
-                    history(first: 0) {
-                      totalCount
-                    }
-                  }
-                }
-              }
-            }
-            defaultBranchRef {
-              name
-              target {
-                ... on Commit {
-                  history(first: 0) {
-                    totalCount
-                  }
-                }
-              }
-            }` : `
             parent {
               nameWithOwner
             }
             defaultBranchRef { name }
-            `}
           }
         }
       }

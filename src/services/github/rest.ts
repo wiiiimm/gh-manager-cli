@@ -47,14 +47,21 @@ export async function deleteRepositoryRest(
     url
   });
 
-  const res = await fetch(url, {
-    method: 'DELETE',
-    headers: {
-      'Authorization': `token ${token}`,
-      'Accept': 'application/vnd.github+json',
-      'User-Agent': 'gh-manager-cli'
-    }
-  });
+  let res: Response;
+  try {
+    res = await fetch(url, {
+      method: 'DELETE',
+      headers: {
+        'Authorization': `token ${token}`,
+        'Accept': 'application/vnd.github+json',
+        'User-Agent': 'gh-manager-cli'
+      }
+    });
+  } catch (networkError: unknown) {
+    const err = toError(networkError);
+    logger.error('Network error during repository deletion', { error: err.message, owner, repo });
+    throw new Error(`Network error whilst deleting repository: ${err.message}`);
+  }
 
   if (res.status === 204) {
     logger.info('Successfully deleted repository', {
@@ -255,15 +262,22 @@ export async function syncForkWithUpstream(
     url
   });
 
-  const res = await fetch(url, {
-    method: 'POST',
-    headers: {
-      'Authorization': `token ${token}`,
-      'Accept': 'application/vnd.github+json',
-      'User-Agent': 'gh-manager-cli'
-    },
-    body: JSON.stringify({ branch })
-  });
+  let res: Response;
+  try {
+    res = await fetch(url, {
+      method: 'POST',
+      headers: {
+        'Authorization': `token ${token}`,
+        'Accept': 'application/vnd.github+json',
+        'User-Agent': 'gh-manager-cli'
+      },
+      body: JSON.stringify({ branch })
+    });
+  } catch (networkError: unknown) {
+    const err = toError(networkError);
+    logger.error('Network error during fork sync', { error: err.message, owner, repo, branch });
+    throw new Error(`Network error whilst syncing fork: ${err.message}`);
+  }
 
   if (res.status === 204) {
     // Already up to date

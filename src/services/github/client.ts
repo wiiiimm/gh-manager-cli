@@ -23,14 +23,23 @@ export interface ApolloClientBundle {
   gql: typeof gql;
 }
 
-// Singleton Apollo client instance
+// Singleton Apollo client instance, keyed on the token it was built with.
 let apolloClientInstance: ApolloClientBundle | null = null;
+let apolloClientToken: string | null = null;
 
 // Apollo Client with persisted cache (default for all queries)
 export async function makeApolloClient(token: string): Promise<ApolloClientBundle> {
-  // Return existing instance if available
-  if (apolloClientInstance) {
+  // Reuse the cached instance only when the token is unchanged. On a token
+  // change (e.g. logout → login with a different account) the existing client
+  // carries stale auth headers and a stale cache scope, so tear it down and
+  // rebuild against the new token (CodeRabbit, GMC-28).
+  if (apolloClientInstance && apolloClientToken === token) {
     return apolloClientInstance;
+  }
+  if (apolloClientInstance && apolloClientToken !== token) {
+    try { await apolloClientInstance.client.clearStore(); } catch {}
+    apolloClientInstance = null;
+    apolloClientToken = null;
   }
 
   try {
@@ -79,6 +88,7 @@ export async function makeApolloClient(token: string): Promise<ApolloClientBundl
     });
     const client = new ApolloClient({ cache, link });
     apolloClientInstance = { client, gql };
+    apolloClientToken = token;
     return apolloClientInstance;
   } catch (error: unknown) {
     const err = toError(error);
