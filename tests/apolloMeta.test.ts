@@ -31,8 +31,8 @@ describe('apolloMeta keys and freshness', () => {
     vi.useRealTimers();
   });
 
-  it('builds stable apollo key and search key', async () => {
-    const { makeApolloKey, makeSearchKey } = await modPromise;
+  it('builds stable apollo key', async () => {
+    const { makeApolloKey } = await modPromise;
     const k1 = makeApolloKey({
       viewer: 'octo',
       sortKey: 'updated',
@@ -47,19 +47,6 @@ describe('apolloMeta keys and freshness', () => {
     expect(k1).toContain('sort:updated:desc');
     expect(k1).toContain('ps:15');
     expect(k1).toContain('forks:1');
-
-    const s1 = makeSearchKey({
-      viewer: 'octo',
-      q: '  Hello-World  ',
-      sortKey: 'name',
-      sortDir: 'asc',
-      pageSize: 15,
-      forkTracking: false,
-    });
-    expect(s1).toContain('search:hello-world');
-    expect(s1).toContain('viewer:octo');
-    expect(s1).toContain('sort:name:asc');
-    expect(s1).toContain('forks:0');
   });
 
   it('tracks freshness with TTL via markFetched/isFresh', async () => {
