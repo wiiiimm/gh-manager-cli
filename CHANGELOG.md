@@ -1,3 +1,10 @@
+## [1.49.1](https://github.com/wiiiimm/gh-manager-cli/compare/v1.49.0...v1.49.1) (2026-06-08)
+
+
+### Performance Improvements
+
+* memoize RepoRow to cut per-keystroke re-renders (SWR-358) ([#57](https://github.com/wiiiimm/gh-manager-cli/issues/57)) ([0ad6685](https://github.com/wiiiimm/gh-manager-cli/commit/0ad66859eaa7bde1d596fc20c2974f0182c57fb4))
+
 # [1.49.0](https://github.com/wiiiimm/gh-manager-cli/compare/v1.48.2...v1.49.0) (2026-06-08)
 
 
