@@ -12,12 +12,13 @@ import type { RepoNode, RateLimitInfo, RestRateLimitInfo } from '../../types';
 import { exec } from 'child_process';
 import OrgSwitcher from '../OrgSwitcher';
 import { logger } from '../../lib/logger';
-import { ArchiveFilterModal, DeleteModal, ArchiveModal, SyncModal, InfoModal, LogoutModal, VisibilityModal, SortModal, SortDirectionModal, ChangeVisibilityModal, CopyUrlModal, RenameModal, StarModal, BulkReviewModal, BulkConfirmModal, BulkDeleteCodeModal, BulkTransferCodeModal, BulkTransferDestinationModal, BulkIntentModal, BulkVisibilityModal, BulkProgressModal, OpenInBrowserModal, CreateRepoModal, TransferModal, bulkActionMeta } from '../components/modals';
+import { DeleteModal, ArchiveModal, SyncModal, InfoModal, LogoutModal, ViewFiltersModal, SortModal, SortDirectionModal, ChangeVisibilityModal, CopyUrlModal, RenameModal, StarModal, BulkReviewModal, BulkConfirmModal, BulkDeleteCodeModal, BulkTransferCodeModal, BulkTransferDestinationModal, BulkIntentModal, BulkVisibilityModal, BulkProgressModal, OpenInBrowserModal, CreateRepoModal, TransferModal, bulkActionMeta } from '../components/modals';
+import type { ForkFilter } from '../components/modals';
 import type { BulkAction, BulkVisibilityTarget, BulkProgressState } from '../components/modals';
 import { UnstarModal } from '../components/modals/UnstarModal';
 import { RepoRow, FilterInput, RepoListHeader } from '../components/repo';
 import { SlowSpinner } from '../components/common';
-import { truncate, formatDate, copyToClipboard, computeWindow, matchesVisibilityFilter, type VisibilityFilter } from '../../lib/utils';
+import { truncate, formatDate, copyToClipboard, computeWindow, matchesVisibilityFilter, matchesForkFilter, type VisibilityFilter } from '../../lib/utils';
 import { trackOperation, bulkActionToOperation } from '../../lib/session';
 
 // Allow customizable repos per fetch via env var (1-50, default 15)
@@ -176,11 +177,8 @@ export default function RepoList({ token, maxVisibleRows, onLogout, viewerLogin,
   const [logoutFocus, setLogoutFocus] = useState<'confirm' | 'cancel'>('confirm');
   const [logoutError, setLogoutError] = useState<string | null>(null);
 
-  // Archive filter modal state
-  const [archiveFilterMode, setArchiveFilterMode] = useState(false);
-
-  // Visibility modal state
-  const [visibilityMode, setVisibilityMode] = useState(false);
+  // Consolidated View Filters modal state (visibility + archive + fork)
+  const [viewFiltersMode, setViewFiltersMode] = useState(false);
   const [isEnterpriseOrg, setIsEnterpriseOrg] = useState(false);
   const [hasInternalRepos, setHasInternalRepos] = useState(false);
   
@@ -1176,6 +1174,9 @@ export default function RepoList({ token, maxVisibleRows, onLogout, viewerLogin,
   type ArchiveFilter = 'all' | 'unarchived' | 'archived';
   const [archiveFilter, setArchiveFilter] = useState<ArchiveFilter>('all');
 
+  // Fork filter - 'all' | 'forks' | 'non-forks' (client-side, no extra API calls).
+  const [forkFilter, setForkFilter] = useState<ForkFilter>('all');
+
   // Map our sort keys to GitHub's GraphQL field names
   const sortFieldMap: Record<SortKey, string> = {
     'updated': 'UPDATED_AT',
@@ -1327,6 +1328,11 @@ export default function RepoList({ token, maxVisibleRows, onLogout, viewerLogin,
     // Load archive filter
     if (ui.archiveFilter && ['all', 'unarchived', 'archived'].includes(ui.archiveFilter)) {
       setArchiveFilter(ui.archiveFilter as ArchiveFilter);
+    }
+
+    // Load fork filter
+    if (ui.forkFilter && ['all', 'forks', 'non-forks'].includes(ui.forkFilter)) {
+      setForkFilter(ui.forkFilter as ForkFilter);
     }
 
     // Load theme
@@ -1638,14 +1644,9 @@ export default function RepoList({ token, maxVisibleRows, onLogout, viewerLogin,
       return; // CopyUrlModal component handles its own keyboard input
     }
     
-    // When archive filter modal is open, trap inputs for modal
-    if (archiveFilterMode) {
-      return; // ArchiveFilterModal component handles its own keyboard input
-    }
-
-    // When visibility modal is open, trap inputs for modal
-    if (visibilityMode) {
-      return; // VisibilityModal component handles its own keyboard input
+    // When the consolidated view filters modal is open, trap inputs for modal
+    if (viewFiltersMode) {
+      return; // ViewFiltersModal component handles its own keyboard input
     }
     
     // When change visibility modal is open, trap inputs for modal
@@ -2071,17 +2072,11 @@ export default function RepoList({ token, maxVisibleRows, onLogout, viewerLogin,
 
     // Fork tracking is now always on - removed toggle
 
-    // Open archive filter modal (A)
-    if (input && input.toUpperCase() === 'A' && !key.ctrl) {
-      setArchiveFilterMode(true);
-      return;
-    }
-
-    // Open visibility filter modal (V) - disabled in stars mode
+    // Open consolidated view filters modal (V)
+    // Available in both normal and stars mode; the modal hides the visibility
+    // group when starsMode is true so only archive + fork filters apply.
     if (input && input.toUpperCase() === 'V') {
-      if (!starsMode) {
-        setVisibilityMode(true);
-      }
+      setViewFiltersMode(true);
       return;
     }
   });
@@ -2091,7 +2086,7 @@ export default function RepoList({ token, maxVisibleRows, onLogout, viewerLogin,
   // Derived: filtered + sorted items (local filter applies only when search not active)
   const filtered = useMemo(() => {
     let result = items;
-    
+
     // Apply visibility filter locally over the full cached set (SWR-366).
     // matchesVisibilityFilter encodes GitHub's behaviour (Private includes
     // PRIVATE and INTERNAL); 'all' is a no-op.
@@ -2106,8 +2101,13 @@ export default function RepoList({ token, maxVisibleRows, onLogout, viewerLogin,
       result = result.filter(r => !r.isArchived);
     }
 
+    // Apply fork filter (SWR-379, client-side over RepoNode.isFork).
+    if (forkFilter !== 'all') {
+      result = result.filter(r => matchesForkFilter(r.isFork, forkFilter));
+    }
+
     return result;
-  }, [items, visibilityFilter, archiveFilter]);
+  }, [items, visibilityFilter, archiveFilter, forkFilter]);
 
   const filteredAndSorted = useMemo(() => {
     const arr = [...filtered];
@@ -2141,8 +2141,11 @@ export default function RepoList({ token, maxVisibleRows, onLogout, viewerLogin,
     }
     if (archiveFilter === 'archived') results = results.filter(r => r.isArchived);
     else if (archiveFilter === 'unarchived') results = results.filter(r => !r.isArchived);
+    if (forkFilter !== 'all') {
+      results = results.filter(r => matchesForkFilter(r.isFork, forkFilter));
+    }
     return results;
-  }, [filterActive, items, filter, visibilityFilter, archiveFilter]);
+  }, [filterActive, items, filter, visibilityFilter, archiveFilter, forkFilter]);
 
   // Apply filter to starred items if in stars mode
   const filteredStarredItems = useMemo(() => {
@@ -2162,8 +2165,12 @@ export default function RepoList({ token, maxVisibleRows, onLogout, viewerLogin,
       result = result.filter(r => !r.isArchived);
     }
 
+    if (forkFilter !== 'all') {
+      result = result.filter(r => matchesForkFilter(r.isFork, forkFilter));
+    }
+
     return result;
-  }, [starredItems, filter, archiveFilter]);
+  }, [starredItems, filter, archiveFilter, forkFilter]);
   
   const visibleItems = starsMode ? filteredStarredItems : (filterActive ? fuzzyItems : filteredAndSorted);
 
@@ -2254,7 +2261,7 @@ export default function RepoList({ token, maxVisibleRows, onLogout, viewerLogin,
 
   const lowRate = (rateLimit && rateLimit.remaining <= Math.ceil(rateLimit.limit * 0.1)) || 
                    (restRateLimit && restRateLimit.core.remaining <= Math.ceil(restRateLimit.core.limit * 0.1));
-  const modalOpen = deleteMode || archiveMode || syncMode || logoutMode || infoMode || visibilityMode || archiveFilterMode || sortMode || sortDirectionMode || changeVisibilityMode || copyUrlMode || renameMode || bulkIntentKind !== null || bulkVisibilityOpen || bulkReviewOpen || bulkConfirmOpen || bulkDeleteCodeOpen || bulkTransferDestinationOpen || bulkTransferCodeOpen || bulkProgressOpen || openInBrowserMode || createMode || transferMode;
+  const modalOpen = deleteMode || archiveMode || syncMode || logoutMode || infoMode || viewFiltersMode || sortMode || sortDirectionMode || changeVisibilityMode || copyUrlMode || renameMode || bulkIntentKind !== null || bulkVisibilityOpen || bulkReviewOpen || bulkConfirmOpen || bulkDeleteCodeOpen || bulkTransferDestinationOpen || bulkTransferCodeOpen || bulkProgressOpen || openInBrowserMode || createMode || transferMode;
 
   // Display metadata for the in-flight bulk action (label/colour/verbs).
   const bulkMeta = bulkAction ? bulkActionMeta(bulkAction, bulkVisibilityTarget ?? undefined) : null;
@@ -2774,32 +2781,38 @@ export default function RepoList({ token, maxVisibleRows, onLogout, viewerLogin,
               );
             })()}
           </Box>
-        ) : archiveFilterMode ? (
+        ) : viewFiltersMode ? (
           <Box height={contentHeight} alignItems="center" justifyContent="center">
-            <ArchiveFilterModal
-              currentFilter={archiveFilter}
-              onSelect={(filter) => {
-                setArchiveFilter(filter);
-                setArchiveFilterMode(false);
-                setCursor(0);
-                storeUIPrefs({ archiveFilter: filter });
+            <ViewFiltersModal
+              current={{
+                visibility: visibilityFilter as VisibilityFilter,
+                archive: archiveFilter,
+                fork: forkFilter,
               }}
-              onCancel={() => setArchiveFilterMode(false)}
-              theme={theme}
-            />
-          </Box>
-        ) : visibilityMode ? (
-          <Box height={contentHeight} alignItems="center" justifyContent="center">
-            <VisibilityModal
-              currentFilter={visibilityFilter}
               isEnterprise={isEnterpriseOrg}
-              onSelect={(filter) => {
-                setVisibilityFilter(filter);
-                setVisibilityMode(false);
-                setCursor(0); // Reset cursor when filter changes
-                storeUIPrefs({ visibilityFilter: filter });
+              starsMode={starsMode}
+              onApply={(next) => {
+                const visibilityChanged = next.visibility !== visibilityFilter;
+                const archiveChanged = next.archive !== archiveFilter;
+                const forkChanged = next.fork !== forkFilter;
+                if (visibilityChanged) {
+                  setVisibilityFilter(next.visibility);
+                  storeUIPrefs({ visibilityFilter: next.visibility });
+                }
+                if (archiveChanged) {
+                  setArchiveFilter(next.archive);
+                  storeUIPrefs({ archiveFilter: next.archive });
+                }
+                if (forkChanged) {
+                  setForkFilter(next.fork);
+                  storeUIPrefs({ forkFilter: next.fork });
+                }
+                if (visibilityChanged || archiveChanged || forkChanged) {
+                  setCursor(0);
+                }
+                setViewFiltersMode(false);
               }}
-              onCancel={() => setVisibilityMode(false)}
+              onCancel={() => setViewFiltersMode(false)}
               theme={theme}
             />
           </Box>
@@ -3068,6 +3081,7 @@ export default function RepoList({ token, maxVisibleRows, onLogout, viewerLogin,
               filterActive={filterActive}
               visibilityFilter={visibilityFilter}
               archiveFilter={archiveFilter}
+              forkFilter={forkFilter}
               isEnterprise={isEnterpriseOrg}
               starsMode={starsMode}
               theme={theme}
@@ -3195,7 +3209,7 @@ export default function RepoList({ token, maxVisibleRows, onLogout, viewerLogin,
         {/* Line 2: Search and filtering */}
         <Box width={terminalWidth} justifyContent="center">
           <Text color={theme.muted} dimColor={modalOpen ? true : undefined}>
-            / Search{!filterActive && ' • S Sort • D Direction'} • T Density • Shift+T Theme • A Archive Filter{!starsMode && ' • V Visibility Filter'}
+            / Search{!filterActive && ' • S Sort • D Direction'} • T Density • Shift+T Theme • V View Filters
           </Text>
         </Box>
         {/* Line 3: Repository actions (stars toggle at start so it is never truncated) */}

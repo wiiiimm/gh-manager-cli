@@ -123,8 +123,8 @@ See the living roadmap in [TODOs.md](./TODOs.md) for the canonical, up-to-date l
 - `D`: toggle sort direction
 - `T`: toggle display density (compact/cozy/comfy)
 - `Shift+T`: cycle colour theme (Default → Ocean → Forest → Monochrome); persists across restarts
-- `F`: toggle fork commit tracking
-- `V`: visibility filter modal (All, Public, Private/Internal)
+- `F`: toggle fork commit tracking (ahead/behind enrichment — unrelated to the fork view filter)
+- `V`: View Filters modal — a single grouped modal with three sections: **Visibility** (All / Public / Private[/Internal for enterprise]), **Archive** (All / Unarchived / Archived), and **Fork** (All / Forks only / Non-forks only). Any combination can be set in one session; selections persist across restarts. The Visibility group is hidden in stars mode; Archive and Fork remain available there. Replaces the old separate `V` visibility and `A` archive modals — `A` is no longer bound to a filter.
 - `W`: organisation switcher
 - Enter or `O`: open selected repo in browser; for forks shows a chooser (This repository / Parent/upstream, Esc cancels)
 - `P`: on a fork — jump cursor to the parent repo if it is already loaded; otherwise fetches the parent repo and shows it in the Info modal

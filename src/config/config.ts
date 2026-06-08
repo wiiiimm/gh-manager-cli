@@ -16,6 +16,7 @@ interface UIPrefs {
   ownerContext?: OwnerContext;
   visibilityFilter?: 'all' | 'public' | 'private';
   archiveFilter?: 'all' | 'unarchived' | 'archived';
+  forkFilter?: 'all' | 'forks' | 'non-forks';
   theme?: ThemeName;
 }
 

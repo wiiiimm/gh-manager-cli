@@ -76,8 +76,7 @@ On first run, you'll be prompted to authenticate with GitHub (OAuth recommended)
 - **Background Fetch-All**: Loads your entire account in the background after the first page, so filtering/sorting/search are instant and complete
 - **Interactive Sorting**: Modal-based sort selection (updated, pushed, name, stars) with modal-based direction selection
 - **Fuzzy Search**: Instant typo-tolerant search over the full cached repository set — no network calls in the search path (powered by [fuse.js](https://www.fusejs.io/))
-- **Visibility Filter**: Modal-based visibility filter (All, Public, Private/Internal for enterprise) with smart filtering
-- **Archive Filter**: Toggle-based archive filter (`A` key cycles All → Unarchived → Archived) for quick filtering by archive status
+- **View Filters**: Single `V` modal consolidating visibility, archive, and fork filters into three grouped sections — set any combination in one session (All / Public / Private[/Internal] · All / Unarchived / Archived · All / Forks only / Non-forks only). The fork filter runs entirely client-side over the cached set
 - **Fork Ahead/Behind Tracking**: After the background fetch-all completes, forks are enriched with both **ahead** and **behind** commit counts in a separate lightweight pass (batched 5 at a time to avoid rate-limit issues)
 - **Stars Mode**: View and manage starred repositories (personal account only)
 - **Repository Actions**:
@@ -114,8 +113,8 @@ On first run, you'll be prompted to authenticate with GitHub (OAuth recommended)
 - **Rate Limit Monitoring**: Dual API rate limit display (GraphQL & REST) with real-time usage deltas and visual warnings
 
 ### Technical Features
-- **Preference Persistence**: UI settings (sort, density, visibility filter, archive filter, fork tracking, colour theme) saved between sessions
-- **Client-side Filtering & Sorting**: Once the account is cached via background fetch-all, visibility/archive filtering and all sorting run locally over the complete set — instant, with no server refetch
+- **Preference Persistence**: UI settings (sort, density, visibility/archive/fork filters, fork commit tracking, colour theme) saved between sessions
+- **Client-side Filtering & Sorting**: Once the account is cached via background fetch-all, visibility/archive/fork filtering and all sorting run locally over the complete set — instant, with no server refetch
 - **Cross-platform**: Works on macOS, Linux, and Windows
 - **Secure Storage**: Token stored with proper file permissions (0600)
 - **Error Handling**: Graceful error recovery with retry mechanisms
@@ -282,9 +281,8 @@ Launch the app, then use the keys below:
 - **Sort Direction**: `D` to open sort direction modal (ascending/descending)
 - **Display Density**: `T` to toggle compact/cozy/comfy
 - **Colour Theme**: `Shift+T` to cycle themes (Default → Ocean → Forest → Monochrome); selection persists across restarts. Each theme defines its own selected-row highlight (a darker on-theme background) so the highlighted repository stays high-contrast
-- **Fork Status**: Always enabled — shows commits **ahead** and **behind** upstream once enrichment completes (see below)
-- **Visibility Filter**: `V` opens modal (All, Public, Private/Internal for enterprise)
-- **Archive Filter**: `A` toggles archive filter (All → Unarchived → Archived)
+- **Fork Status**: Always enabled — shows commits **ahead** and **behind** upstream once enrichment completes (see below). Unrelated to the **fork view filter** (see below)
+- **View Filters**: `V` opens the consolidated View Filters modal containing three grouped sections — **Visibility** (All / Public / Private[/Internal for enterprise]), **Archive** (All / Unarchived / Archived), and **Fork** (All / Forks only / Non-forks only). Navigate groups with ↑↓, options with ←→, Enter to commit an option, `Y` (or Apply) to commit and close, Esc/`C` to cancel. The Visibility group is hidden in stars mode; Archive and Fork remain available there. All three selections persist across restarts
 - **Stars Mode**: `Shift+S` (personal account only) to toggle between your own repos and your starred repos
   - Footer hint shows `Shift+S Starred` in normal mode and `Shift+S My Repos` in starred mode
 

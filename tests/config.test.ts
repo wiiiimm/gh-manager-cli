@@ -324,6 +324,37 @@ describe('config', () => {
         'utf8'
       );
     });
+
+    it('persists forkFilter alongside the other view filters (SWR-379)', () => {
+      vi.mocked(fs.readFileSync).mockReturnValue(JSON.stringify({
+        token: 'token',
+        ui: { visibilityFilter: 'public', archiveFilter: 'unarchived' }
+      }));
+
+      storeUIPrefs({ forkFilter: 'forks' });
+
+      expect(fs.writeFileSync).toHaveBeenCalledWith(
+        expect.any(String),
+        JSON.stringify({
+          token: 'token',
+          ui: {
+            visibilityFilter: 'public',
+            archiveFilter: 'unarchived',
+            forkFilter: 'forks',
+          }
+        }, null, 2),
+        'utf8'
+      );
+    });
+
+    it('restores forkFilter from saved UI prefs on read', () => {
+      vi.mocked(fs.readFileSync).mockReturnValue(JSON.stringify({
+        ui: { forkFilter: 'non-forks' }
+      }));
+
+      const prefs = getUIPrefs();
+      expect(prefs.forkFilter).toBe('non-forks');
+    });
   });
 
   describe('getTokenSource', () => {

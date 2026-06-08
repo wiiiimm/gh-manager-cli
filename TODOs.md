@@ -138,7 +138,8 @@ Legend:
   - [x] `BulkSelectSearch` - bulk selection persisting across search
   - [~] `InfoModal` - Repository information display (not implemented)
   - [ ] `SortModal` - Sort selection modal (needs tests)
-  - [ ] `VisibilityModal` - Visibility filter modal (needs tests; `RepoListHeaderVisibility` covers the header display)
+  - [x] `ViewFiltersModal` - Consolidated view filters modal (SWR-379) with group/options navigation, stars-mode disabling of the visibility group, and apply/cancel behaviour
+  - [x] `RepoListHeaderForkFilter` - Fork filter chip display on the header (SWR-379)
   - [ ] `RepoList` - Main component integration tests
   - [ ] `OrgSwitcher` - Organization switching logic
   
@@ -364,6 +365,13 @@ Legend:
 
 ## Done
 
+- [x] Fork view filter and consolidated View Filters modal (`V`) (SWR-379)
+  - Added a third client-side view filter for fork status (All / Forks only / Non-forks only) operating purely over `RepoNode.isFork` — zero new GraphQL/REST calls
+  - Consolidated the previous standalone `V` visibility and `A` archive modals into a single **View Filters** modal with three grouped sections (Visibility, Archive, Fork)
+  - Persists each filter independently in `UIPrefs` (`visibilityFilter`, `archiveFilter`, `forkFilter`) and restores on launch
+  - `RepoListHeader` shows a `Fork: …` chip alongside the existing Visibility/Archive chips when active
+  - Visibility group is hidden in stars mode; archive and fork groups stay available
+  - Frees the `A` key — the fork commit tracking key (`F`) is unrelated and remains separate
 - [x] Background fetch-all pagination + light bulk query (SWR-360); fork ahead/behind enrichment (SWR-362)
 - [x] Instant client-side fuzzy search over the full cached set with fuse.js (SWR-361)
 - [x] Client-side visibility filtering, dropping the redundant server refetch (SWR-366)
