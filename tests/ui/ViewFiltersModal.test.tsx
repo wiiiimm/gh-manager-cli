@@ -243,4 +243,36 @@ describe('ViewFiltersModal', () => {
     expect(onApply).toHaveBeenCalledWith({ visibility: 'all', archive: 'all', fork: 'forks' });
     unmount();
   });
+
+  it('advances focus with Tab through every group then to Apply, where Enter triggers onApply', () => {
+    // Tab advances within a group first, then to the next group, finally to
+    // the Apply button. With 3 options × 3 groups + 1 hop into Apply, that is
+    // 9 presses. Tab is a focus-only change — selections inside groups are
+    // only committed by Enter — so onApply receives the seeded current value.
+    const onApply = vi.fn();
+    let cbRef: any;
+    mockUseInput.mockImplementation((cb: any) => {
+      cbRef = cb;
+    });
+    const renderModal = () => (
+      <ViewFiltersModal
+        current={baseCurrent}
+        isEnterprise={false}
+        starsMode={false}
+        onApply={onApply}
+        onCancel={() => {}}
+      />
+    );
+    const { rerender, unmount } = render(renderModal());
+
+    for (let i = 0; i < 9; i += 1) {
+      cbRef('', { tab: true });
+      rerender(renderModal());
+    }
+
+    // Focus is now on Apply. Enter fires onApply with the (untouched) selection.
+    cbRef('', { return: true });
+    expect(onApply).toHaveBeenCalledWith({ visibility: 'all', archive: 'all', fork: 'all' });
+    unmount();
+  });
 });
