@@ -1,6 +1,7 @@
 import React from 'react';
-import { describe, it, expect, vi, afterEach } from 'vitest';
+import { describe, it, expect, vi, afterEach, beforeAll } from 'vitest';
 import { render } from 'ink-testing-library';
+import chalk from 'chalk';
 import RepoRow from '../../src/ui/components/repo/RepoRow';
 
 const repoStub: any = {
@@ -98,6 +99,147 @@ describe('RepoRow', () => {
     const output = lastFrame() || '';
     expect(output).toContain('[✓]');
     unmount();
+  });
+
+  describe('open PR / issue counts (SWR-357)', () => {
+    // Strip ANSI escapes so threshold-colour assertions can target the raw
+    // glyphs rather than colour codes the renderer might inject.
+    const stripAnsi = (s: string) => s.replace(/\u001b\[[0-9;]*m/g, '');
+
+    it('renders inline ⇄ PR and ◇ issue counts when defined', () => {
+      const repo = { ...repoStub, openPullRequests: 3, openIssues: 7 };
+      const { lastFrame, unmount } = render(
+        <RepoRow
+          repo={repo}
+          selected={false}
+          index={1}
+          maxWidth={80}
+          spacingLines={0}
+          forkTracking={false}
+        />
+      );
+
+      const output = stripAnsi(lastFrame() || '');
+      expect(output).toContain('⇄ 3 PRs');
+      expect(output).toContain('◇ 7 issues');
+      unmount();
+    });
+
+    it('singularises the labels at exactly 1', () => {
+      const repo = { ...repoStub, openPullRequests: 1, openIssues: 1 };
+      const { lastFrame, unmount } = render(
+        <RepoRow
+          repo={repo}
+          selected={false}
+          index={1}
+          maxWidth={80}
+          spacingLines={0}
+          forkTracking={false}
+        />
+      );
+
+      const output = stripAnsi(lastFrame() || '');
+      expect(output).toContain('⇄ 1 PR ');
+      expect(output).toContain('◇ 1 issue ');
+      // And NOT the plural forms
+      expect(output).not.toContain('⇄ 1 PRs');
+      expect(output).not.toContain('◇ 1 issues');
+      unmount();
+    });
+
+    it('renders both as 0 when counts are zero (muted, not omitted)', () => {
+      const repo = { ...repoStub, openPullRequests: 0, openIssues: 0 };
+      const { lastFrame, unmount } = render(
+        <RepoRow
+          repo={repo}
+          selected={false}
+          index={1}
+          maxWidth={80}
+          spacingLines={0}
+          forkTracking={false}
+        />
+      );
+
+      const output = stripAnsi(lastFrame() || '');
+      expect(output).toContain('⇄ 0 PRs');
+      expect(output).toContain('◇ 0 issues');
+      unmount();
+    });
+
+    it('omits the counts entirely when undefined (older cache reads)', () => {
+      const repo = { ...repoStub };
+      delete (repo as any).openPullRequests;
+      delete (repo as any).openIssues;
+      const { lastFrame, unmount } = render(
+        <RepoRow
+          repo={repo}
+          selected={false}
+          index={1}
+          maxWidth={80}
+          spacingLines={0}
+          forkTracking={false}
+        />
+      );
+
+      const output = stripAnsi(lastFrame() || '');
+      expect(output).not.toContain('PRs');
+      expect(output).not.toContain('PR ');
+      expect(output).not.toContain('issues');
+      expect(output).not.toContain('issue ');
+      // The rest of the metadata line still renders.
+      expect(output).toMatch(/Updated/);
+      unmount();
+    });
+
+    it('applies threshold colours: 0 muted, 1-9 default, 10-29 warning, 30+ error', () => {
+      // Force chalk to emit truecolour escape codes regardless of the test
+      // runner's TTY detection — vitest's stdout isn't a TTY, so chalk would
+      // otherwise strip everything and the band assertions would pass vacuously.
+      const prevLevel = chalk.level;
+      chalk.level = 3;
+      try {
+        function renderFrame(prCount: number): string {
+          const { lastFrame, unmount } = render(
+            <RepoRow
+              repo={{ ...repoStub, openPullRequests: prCount, openIssues: 0 }}
+              selected={false}
+              index={1}
+              maxWidth={80}
+              spacingLines={0}
+              forkTracking={false}
+            />
+          );
+          const out = lastFrame() || '';
+          unmount();
+          return out;
+        }
+
+        // Default theme maps: c.muted=gray (`[90m`), c.text=white (`[37m`),
+        // c.warning=yellow (`[33m`), c.error=red (`[31m`). The 1-9, 10-29 and
+        // 30+ bands each wrap the count chunk in their own chalk call, so the
+        // expected escape sits immediately before `⇄`. The 0 band collapses
+        // into the surrounding metaColor (gray) — there's no separate escape
+        // because it's the same colour, which is itself the assertion.
+        const out0 = renderFrame(0);
+        const out5 = renderFrame(5);
+        const out15 = renderFrame(15);
+        const out50 = renderFrame(50);
+
+        // Each non-zero band emits its expected ANSI escape directly before the
+        // PR glyph — proves the threshold function picked the right chalk.
+        expect(out5).toContain('\u001b[37m⇄ 5 PRs');
+        expect(out15).toContain('\u001b[33m⇄ 15 PRs');
+        expect(out50).toContain('\u001b[31m⇄ 50 PRs');
+
+        // Zero collapses into the gray metaColor run — the lack of a colour
+        // switch before `⇄ 0 PRs` proves the muted branch fired rather than
+        // accidentally promoting the count to text/warning/error.
+        expect(out0).not.toMatch(/\u001b\[3[1-7]m⇄ 0 PRs/);
+        expect(out0).toContain('⇄ 0 PRs');
+      } finally {
+        chalk.level = prevLevel;
+      }
+    });
   });
 
   describe('refreshTick relative-label refresh (SWR-377)', () => {

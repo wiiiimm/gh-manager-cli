@@ -83,6 +83,7 @@ On first run, you'll be prompted to authenticate with GitHub (OAuth recommended)
 - **Repository Actions**:
   - View detailed info (`I`) - Shows repository metadata, language, size, and timestamps
   - Open in browser (Enter/`O`) — for forks a chooser lets you open this repo or the upstream
+  - Jump to PRs/Issues (`L`) — chooser modal for the selected repo's open pull requests or issues; counts are shown inline on every row so you can spot backlogs at a glance
   - Jump to upstream (`P`) — moves cursor to the parent if loaded; otherwise fetches and shows it
   - Create new repository (`Ctrl+N`) — prompts for a name (with the personal/organisation slug shown in front), choose visibility with `Tab`, and surfaces GitHub errors inline
   - Rename repository (`Ctrl+R`) with inline validation and automatic cache update
@@ -290,6 +291,7 @@ Launch the app, then use the keys below:
 
 ### Navigation & Account
 - **Open in browser**: Enter or `O` — non-forks open directly; forks show a chooser (**This repository** / **Parent/upstream**, Esc cancels)
+- **Open PRs / Issues**: `L` — chooser modal (**Pull Requests** / **Issues**) for the selected repo. Counts are shown inline on every row as `⇄ N PRs ◇ M issues`, colour-coded (muted at 0, default 1–9, amber 10–29, red 30+) so growing backlogs stand out. Esc/C cancels
 - **Jump to upstream**: `P` (on a fork) — moves cursor to the parent if it is already loaded; otherwise fetches the parent and shows it in the Info modal
 - **Refresh**: `R`
 - **Organisation switcher**: `W` to switch between personal account and organisations

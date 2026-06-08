@@ -213,6 +213,35 @@ export interface ReposPageResult {
   rateLimit?: RateLimitInfo;
 }
 
+/**
+ * Flatten the `openPullRequests { totalCount }` / `openIssues { totalCount }`
+ * GraphQL responses into plain numbers on `RepoNode` (SWR-357).
+ *
+ * The GraphQL queries request `openPullRequests: pullRequests(states: OPEN) { totalCount }`
+ * (and the same for issues). The raw response shape is `{ totalCount: N }`, but
+ * the rest of the app treats `RepoNode.openPullRequests` as a flat number for
+ * convenience in row-rendering and threshold colouring. Nodes that do not
+ * include the connections (older cache reads, fragments without the fields)
+ * fall through untouched.
+ */
+export function normalizeRepoNode<T extends Record<string, any>>(node: T): T {
+  if (!node) return node;
+  const result: any = { ...node };
+  const pr = (node as any).openPullRequests;
+  if (pr && typeof pr === 'object' && 'totalCount' in pr) {
+    result.openPullRequests = pr.totalCount as number;
+  }
+  const iss = (node as any).openIssues;
+  if (iss && typeof iss === 'object' && 'totalCount' in iss) {
+    result.openIssues = iss.totalCount as number;
+  }
+  return result as T;
+}
+
+function normalizeRepoNodes(nodes: any[]): RepoNode[] {
+  return (nodes || []).map(n => normalizeRepoNode(n)) as RepoNode[];
+}
+
 export type OwnerAffiliation = 'OWNER' | 'COLLABORATOR' | 'ORGANIZATION_MEMBER';
 
 export async function fetchViewerReposPage(
@@ -274,6 +303,8 @@ export async function fetchViewerReposPage(
               stargazerCount
               forkCount
               viewerHasStarred
+              openPullRequests: pullRequests(states: OPEN) { totalCount }
+              openIssues: issues(states: OPEN) { totalCount }
               primaryLanguage {
                 name
                 color
@@ -330,14 +361,14 @@ export async function fetchViewerReposPage(
     
     const data = res.organization.repositories;
     return {
-      nodes: data.nodes as RepoNode[],
+      nodes: normalizeRepoNodes(data.nodes),
       endCursor: data.pageInfo.endCursor,
       hasNextPage: data.pageInfo.hasNextPage,
       totalCount: data.totalCount,
       rateLimit: res.rateLimit as RateLimitInfo,
     };
   }
-  
+
   // For personal context (viewer's repositories)
   const query = /* GraphQL */ `
     query ViewerRepos(
@@ -375,6 +406,8 @@ export async function fetchViewerReposPage(
             isArchived
             stargazerCount
             forkCount
+            openPullRequests: pullRequests(states: OPEN) { totalCount }
+            openIssues: issues(states: OPEN) { totalCount }
             primaryLanguage {
               name
               color
@@ -429,7 +462,7 @@ export async function fetchViewerReposPage(
     const data = res.viewer.repositories;
     logger.info(`Octokit successfully fetched ${data.nodes.length} repositories`);
     return {
-      nodes: data.nodes as RepoNode[],
+      nodes: normalizeRepoNodes(data.nodes),
       endCursor: data.pageInfo.endCursor,
       hasNextPage: data.pageInfo.hasNextPage,
       totalCount: data.totalCount,
@@ -508,6 +541,8 @@ export async function fetchViewerReposPageUnified(
                   stargazerCount
                   forkCount
                   viewerHasStarred
+                  openPullRequests: pullRequests(states: OPEN) { totalCount }
+                  openIssues: issues(states: OPEN) { totalCount }
                   owner { __typename login }
                   primaryLanguage { name color }
                   updatedAt
@@ -542,6 +577,8 @@ export async function fetchViewerReposPageUnified(
                   stargazerCount
                   forkCount
                   viewerHasStarred
+                  openPullRequests: pullRequests(states: OPEN) { totalCount }
+                  openIssues: issues(states: OPEN) { totalCount }
                   owner { __typename login }
                   primaryLanguage { name color }
                   updatedAt
@@ -588,7 +625,7 @@ export async function fetchViewerReposPageUnified(
       });
         
       return {
-        nodes: data.nodes as RepoNode[],
+        nodes: normalizeRepoNodes(data.nodes),
         endCursor: data.pageInfo.endCursor,
         hasNextPage: data.pageInfo.hasNextPage,
         totalCount: data.totalCount,
@@ -596,7 +633,7 @@ export async function fetchViewerReposPageUnified(
       };
     }
   } catch (e: any) {
-    logger.error('Apollo query failed', { 
+    logger.error('Apollo query failed', {
       error: e.message, 
       stack: e.stack,
       graphQLErrors: e.graphQLErrors,
@@ -653,6 +690,8 @@ export async function searchRepositoriesUnified(
               stargazerCount
               forkCount
               viewerHasStarred
+              openPullRequests: pullRequests(states: OPEN) { totalCount }
+              openIssues: issues(states: OPEN) { totalCount }
               owner { __typename login }
               primaryLanguage { name color }
               updatedAt
@@ -672,7 +711,7 @@ export async function searchRepositoriesUnified(
     });
     const data = res.data.search;
     return {
-      nodes: data.nodes as RepoNode[],
+      nodes: normalizeRepoNodes(data.nodes),
       endCursor: data.pageInfo.endCursor,
       hasNextPage: data.pageInfo.hasNextPage,
       totalCount: data.repositoryCount,
@@ -947,6 +986,8 @@ export async function getStarredRepositories(
             stargazerCount
             forkCount
             viewerHasStarred
+            openPullRequests: pullRequests(states: OPEN) { totalCount }
+            openIssues: issues(states: OPEN) { totalCount }
             owner {
               __typename
               login
@@ -975,14 +1016,14 @@ export async function getStarredRepositories(
     });
 
     const data = res.viewer.starredRepositories;
-    
+
     logger.info('Successfully fetched starred repositories', {
       count: data.nodes?.length || 0,
       totalCount: data.totalCount
     });
 
     return {
-      nodes: data.nodes as RepoNode[],
+      nodes: normalizeRepoNodes(data.nodes),
       endCursor: data.pageInfo.endCursor,
       hasNextPage: data.pageInfo.hasNextPage,
       totalCount: data.totalCount,
