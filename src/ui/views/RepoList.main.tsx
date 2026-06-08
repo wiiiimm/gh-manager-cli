@@ -1089,7 +1089,7 @@ export default function RepoList({ token, maxVisibleRows, onLogout, viewerLogin,
         <Text bold color={modalOpen ? 'gray' : undefined} dimColor={modalOpen ? true : undefined}>  Repositories</Text>
         <Text color="gray">({visibleItems.length}/{searchActive ? searchTotalCount : totalCount})</Text>
         {(loading || searchLoading) && (
-          <Box width={2} flexShrink={0} flexGrow={0} marginLeft={1}>
+          <Box width={3} flexShrink={0} flexGrow={0} marginLeft={1}>
             <Text color="yellow">
               <SlowSpinner />
             </Text>
@@ -1137,7 +1137,7 @@ export default function RepoList({ token, maxVisibleRows, onLogout, viewerLogin,
             <Box flexDirection="column" alignItems="center">
               <Box flexDirection="column" alignItems="center">
                 <Box height={1} flexDirection="row">
-                  <Box width={2} flexShrink={0} flexGrow={0}>
+                  <Box width={3} flexShrink={0} flexGrow={0}>
                     <Text color="cyan">
                       <SlowSpinner />
                     </Text>
@@ -1681,7 +1681,7 @@ export default function RepoList({ token, maxVisibleRows, onLogout, viewerLogin,
               {loadingMore && hasNextPage && (
                 <Box justifyContent="center" alignItems="center" marginTop={1}>
                   <Box flexDirection="row">
-                    <Box width={2} flexShrink={0} flexGrow={0} marginRight={1}>
+                    <Box width={3} flexShrink={0} flexGrow={0} marginRight={1}>
                       <Text color="cyan">
                         <SlowSpinner />
                       </Text>
