@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { Box, Text, useInput } from 'ink';
 import TextInput from 'ink-text-input';
 import chalk from 'chalk';
@@ -15,16 +15,20 @@ export default function DeleteModal({ repo, onDelete, onCancel }: DeleteModalPro
   const [deleteCode, setDeleteCode] = useState('');
   const [typedCode, setTypedCode] = useState('');
   const [deleting, setDeleting] = useState(false);
+  // Synchronous mirror of `deleting` so input is guarded in the same tick as submit,
+  // before React re-renders (see ArchiveModal for the rationale).
+  const deletingRef = useRef(false);
   const [deleteError, setDeleteError] = useState<string | null>(null);
   const [deleteConfirmStage, setDeleteConfirmStage] = useState(false); // true after code verified
   const [confirmFocus, setConfirmFocus] = useState<'delete' | 'cancel'>('delete');
 
-  // Generate a random 6-character code when the modal opens
+  // Generate a random 4-character code when the modal opens.
+  // Code is uppercase-only (and matched case-insensitively) — see handleCodeSubmit.
   useEffect(() => {
     if (repo) {
       const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'; // Omit similar-looking chars
       let code = '';
-      for (let i = 0; i < 6; i++) {
+      for (let i = 0; i < 4; i++) {
         code += chars.charAt(Math.floor(Math.random() * chars.length));
       }
       setDeleteCode(code);
@@ -37,8 +41,9 @@ export default function DeleteModal({ repo, onDelete, onCancel }: DeleteModalPro
 
   // Handle keyboard input for the confirmation stage
   useInput((input, key) => {
+    if (deletingRef.current) return; // Ignore input while the delete request is in flight
     if (!deleteConfirmStage) return; // Only handle input in confirmation stage
-    
+
     if (key.escape || input.toLowerCase() === 'c') {
       onCancel();
       return;
@@ -65,19 +70,32 @@ export default function DeleteModal({ repo, onDelete, onCancel }: DeleteModalPro
 
   // Handle the delete confirmation
   const handleDeleteConfirm = async () => {
-    if (!repo || deleting) return;
-    
+    if (!repo || deletingRef.current) return;
+
     try {
+      deletingRef.current = true;
       setDeleting(true);
       setDeleteError(null);
       await onDelete(repo);
     } catch (e: any) {
       setDeleteError(e.message || 'Failed to delete repository');
+      deletingRef.current = false;
       setDeleting(false);
     }
   };
 
-  // Handle the verification code submission
+  // Uppercase as the user types and auto-advance the moment the full code
+  // matches — no Enter required.
+  const handleCodeChange = (value: string) => {
+    const up = value.toUpperCase();
+    setTypedCode(up);
+    if (up === deleteCode) {
+      setDeleteError(null);
+      setDeleteConfirmStage(true);
+    }
+  };
+
+  // Enter fallback: advance on a correct code, otherwise surface the error
   const handleCodeSubmit = () => {
     if (typedCode.toUpperCase() === deleteCode) {
       setDeleteConfirmStage(true);
@@ -114,7 +132,7 @@ export default function DeleteModal({ repo, onDelete, onCancel }: DeleteModalPro
             <Text>Verification code: </Text>
             <TextInput
               value={typedCode}
-              onChange={setTypedCode}
+              onChange={handleCodeChange}
               onSubmit={handleCodeSubmit}
             />
           </Box>

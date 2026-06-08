@@ -1,7 +1,9 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import { Box, Text } from 'ink';
 import chalk from 'chalk';
 import type { RepoNode } from '../../../types';
+import type { Theme } from '../../../config/themes';
+import { useTheme } from '../../hooks/useTheme';
 import { formatDate, truncate } from '../../../lib/utils';
 
 interface RepoRowProps {
@@ -12,73 +14,170 @@ interface RepoRowProps {
   spacingLines: number;
   dim?: boolean;
   forkTracking: boolean;
+  starsMode?: boolean;
+  multiSelectMode?: boolean;
+  isChecked?: boolean;
+  theme?: Theme;
+  /** Whole-minute counter (Math.floor(Date.now() / 60_000)). Incremented by
+   *  RepoList once per minute so the relative "Updated …" label recomputes near
+   *  its real per-repo boundary. `formatDate` flips a row at `updatedAt + k·24h`
+   *  (its own time-of-day), not at midnight, so a coarser day bucket would leave
+   *  rows stale for hours (SWR-377). The token only changes once a minute, never
+   *  between keystrokes, so per-keystroke memoisation is preserved. */
+  refreshTick?: number;
 }
 
-export default function RepoRow({ 
-  repo, 
-  selected, 
-  index, 
-  maxWidth, 
-  spacingLines, 
-  dim, 
-  forkTracking 
+function arePropsEqual(prev: RepoRowProps, next: RepoRowProps): boolean {
+  return (
+    prev.repo === next.repo &&
+    prev.selected === next.selected &&
+    prev.dim === next.dim &&
+    prev.forkTracking === next.forkTracking &&
+    prev.starsMode === next.starsMode &&
+    prev.multiSelectMode === next.multiSelectMode &&
+    prev.isChecked === next.isChecked &&
+    prev.spacingLines === next.spacingLines &&
+    prev.maxWidth === next.maxWidth &&
+    prev.index === next.index &&
+    prev.theme === next.theme &&
+    prev.refreshTick === next.refreshTick
+  );
+}
+
+function RepoRow({
+  repo,
+  selected,
+  index,
+  maxWidth,
+  spacingLines,
+  dim,
+  forkTracking,
+  starsMode = false,
+  multiSelectMode = false,
+  isChecked = false,
+  theme: themeProp,
+  refreshTick: _refreshTick,
 }: RepoRowProps) {
-  const langName = repo.primaryLanguage?.name || '';
-  const langColor = repo.primaryLanguage?.color || '#666666';
-  
-  // Calculate commits behind for forks - only show if tracking is enabled AND data is available
-  const hasCommitData = repo.isFork && repo.parent && repo.defaultBranchRef && repo.parent.defaultBranchRef
-    && repo.parent.defaultBranchRef.target?.history && repo.defaultBranchRef.target?.history;
-  
-  const commitsBehind = hasCommitData
-    ? (repo.parent.defaultBranchRef.target.history.totalCount - repo.defaultBranchRef.target.history.totalCount)
-    : 0;
-  
-  const showCommitsBehind = forkTracking && hasCommitData;
-  
-  // Build colored line 1
-  let line1 = '';
-  const numColor = selected ? chalk.cyan : chalk.gray;
-  const nameColor = selected ? chalk.cyan.bold : chalk.white;
-  line1 += numColor(`${String(index).padStart(3, ' ')}.`);
-  line1 += nameColor(` ${repo.nameWithOwner}`);
-  // Use visibility field to properly distinguish between PRIVATE and INTERNAL
-  if (repo.visibility === 'INTERNAL') {
-    line1 += chalk.magenta(' Internal');
-  } else if (repo.visibility === 'PRIVATE' || (repo.isPrivate && !repo.visibility)) {
-    line1 += chalk.yellow(' Private');
-  }
-  if (repo.isArchived) line1 += ' ' + chalk.bgGray.whiteBright(' Archived ') + ' ';
-  if (repo.isFork && repo.parent) {
-    line1 += chalk.blue(` Fork of ${repo.parent.nameWithOwner}`);
-    if (showCommitsBehind) {
-      if (commitsBehind > 0) {
-        line1 += chalk.yellow(` (${commitsBehind} behind)`);
+  const { theme, c } = useTheme(themeProp?.name ?? 'default');
+
+  const formattedContent = useMemo(() => {
+    const langName = repo.primaryLanguage?.name || '';
+    const langColor = repo.primaryLanguage?.color || '#666666';
+
+    // Calculate ahead/behind for forks - only show if tracking is enabled AND enriched data is available
+    const hasCommitData = repo.isFork && repo.parent && repo.defaultBranchRef && repo.parent.defaultBranchRef
+      && repo.parent.defaultBranchRef.target?.history && repo.defaultBranchRef.target?.history;
+
+    const forkCount = hasCommitData ? repo.defaultBranchRef!.target!.history!.totalCount : 0;
+    const parentCount = hasCommitData ? repo.parent!.defaultBranchRef!.target!.history!.totalCount : 0;
+    const commitsBehind = hasCommitData ? Math.max(0, parentCount - forkCount) : 0;
+    const commitsAhead = hasCommitData ? Math.max(0, forkCount - parentCount) : 0;
+
+    const showCommitData = forkTracking && hasCommitData;
+
+    // Build colored line 1
+    let line1 = '';
+    const numColor = selected ? c.selected : c.muted;
+    const nameColor = selected ? c.selected.bold : c.text;
+
+    // Multi-select checkbox prefix
+    if (multiSelectMode) {
+      if (isChecked) {
+        line1 += c.success('[✓] ');
       } else {
-        line1 += chalk.green(` (0 behind)`);
+        line1 += c.muted('[ ] ');
       }
     }
-  }
-  
-  // Build colored line 2
-  let line2 = '     ';
-  const metaColor = selected ? chalk.white : chalk.gray;
-  if (langName) line2 += chalk.hex(langColor)('● ') + metaColor(`${langName}  `);
-  line2 += metaColor(`★ ${repo.stargazerCount}  ⑂ ${repo.forkCount}  Updated ${formatDate(repo.updatedAt)}`);
-  
-  // Build line 3
-  const line3 = repo.description ? `     ${truncate(repo.description, Math.max(30, maxWidth - 10))}` : null;
-  
-  // Combine all lines with newlines
-  let fullText = line1 + '\n' + line2;
-  if (line3) fullText += '\n' + metaColor(line3);
-  
-  // Calculate spacing for above and below
-  const spacingAbove = Math.floor(spacingLines / 2);
-  const spacingBelow = spacingLines - spacingAbove;
-  
+
+    line1 += numColor(`${String(index).padStart(3, ' ')}.`);
+    if (repo.viewerHasStarred) {
+      line1 += c.warning(' ⭐');
+    }
+    line1 += nameColor(` ${repo.nameWithOwner}`);
+    if (repo.visibility === 'INTERNAL') {
+      line1 += c.internal(' Internal');
+    } else if (repo.visibility === 'PRIVATE' || (repo.isPrivate && !repo.visibility)) {
+      line1 += c.private(' Private');
+    }
+
+    if (starsMode && repo.owner && repo.owner.__typename === 'Organization') {
+      line1 += c.muted(' [org]');
+    }
+    if (repo.isArchived) line1 += ' ' + chalk.bgGray.whiteBright(' Archived ') + ' ';
+    if (repo.isFork && repo.parent) {
+      line1 += c.fork(` Fork of ${repo.parent.nameWithOwner}`);
+      if (showCommitData) {
+        const parts: string[] = [];
+        if (commitsAhead > 0) parts.push(c.success(`${commitsAhead} ahead`));
+        if (commitsBehind > 0) parts.push(c.warning(`${commitsBehind} behind`));
+        if (parts.length > 0) {
+          line1 += c.muted(` (${parts.join(', ')})`);
+        } else {
+          line1 += c.success(` (up to date)`);
+        }
+      }
+    }
+
+    // Build colored line 2
+    let line2 = '     ';
+    const metaColor = selected ? c.text : c.muted;
+    if (langName) line2 += chalk.hex(langColor)('● ') + metaColor(`${langName}  `);
+    line2 += metaColor(`★ ${repo.stargazerCount}  ⑂ ${repo.forkCount}`);
+
+    // Open PR / Issue counts with threshold-based colouring (SWR-357).
+    // Cutoffs: 0 → muted ("nothing to do"), 1-9 → text (visible but neutral),
+    // 10-29 → warning (amber), 30+ → error (red). Picked to flag accounts with
+    // growing backlogs without making small counts feel alarming. `c.text` (not
+    // `metaColor`) is used for the 1-9 band so the colour is distinct from the 0
+    // band even when the row isn't selected (`metaColor` collapses to muted in
+    // that state). The counts only render when the field is defined on the node
+    // — older cache reads (pre-SWR-357) leave them out, in which case the row
+    // falls back to its prior shape rather than showing "?".
+    const prCount = repo.openPullRequests;
+    const issueCount = repo.openIssues;
+    const colourForCount = (n: number) => {
+      if (n === 0) return c.muted;
+      if (n < 10) return c.text;
+      if (n < 30) return c.warning;
+      return c.error;
+    };
+    if (typeof prCount === 'number') {
+      line2 += metaColor('  ') + colourForCount(prCount)(`⇄ ${prCount} PR${prCount === 1 ? '' : 's'}`);
+    }
+    if (typeof issueCount === 'number') {
+      line2 += metaColor('  ') + colourForCount(issueCount)(`◇ ${issueCount} issue${issueCount === 1 ? '' : 's'}`);
+    }
+
+    line2 += metaColor(`  Updated ${formatDate(repo.updatedAt)}`);
+
+    // Build line 3
+    const line3 = repo.description ? `     ${truncate(repo.description, Math.max(30, maxWidth - 10))}` : null;
+
+    let fullText = line1 + '\n' + line2;
+    if (line3) fullText += '\n' + metaColor(line3);
+
+    const spacingAbove = Math.floor(spacingLines / 2);
+    const spacingBelow = spacingLines - spacingAbove;
+
+    return { fullText, spacingAbove, spacingBelow };
+  }, [
+    repo,
+    selected,
+    index,
+    maxWidth,
+    spacingLines,
+    forkTracking,
+    starsMode,
+    multiSelectMode,
+    isChecked,
+    c,
+    _refreshTick,
+  ]);
+
+  const { fullText, spacingAbove, spacingBelow } = formattedContent;
+
   return (
-    <Box flexDirection="column" backgroundColor={selected ? 'gray' : undefined}>
+    <Box flexDirection="column" backgroundColor={selected ? theme.selectedBg : undefined}>
       {spacingAbove > 0 && (
         <Box height={spacingAbove}>
           <Text> </Text>
@@ -94,3 +193,4 @@ export default function RepoRow({
   );
 }
 
+export default React.memo(RepoRow, arePropsEqual);

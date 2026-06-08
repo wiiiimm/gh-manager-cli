@@ -307,7 +307,8 @@ describe('ArchiveModal', () => {
     // Trigger archive
     inputCallback('y', {});
 
-    // Try to cancel while archiving - should be ignored by component logic
+    // Try to cancel in the SAME tick, before any re-render. The synchronous
+    // archivingRef guard must already swallow these — no flush required.
     inputCallback('c', {});
     inputCallback('', { escape: true });
 

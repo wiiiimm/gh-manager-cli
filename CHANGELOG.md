@@ -1,3 +1,204 @@
+# [1.50.0](https://github.com/wiiiimm/gh-manager-cli/compare/v1.49.3...v1.50.0) (2026-06-08)
+
+
+### Features
+
+* show open PR and issue counts inline on repo rows (SWR-357) ([#89](https://github.com/wiiiimm/gh-manager-cli/issues/89)) ([0488af3](https://github.com/wiiiimm/gh-manager-cli/commit/0488af3d4098f02c5b0d9beb9c72a521818195c3))
+
+## [1.49.3](https://github.com/wiiiimm/gh-manager-cli/compare/v1.49.2...v1.49.3) (2026-06-08)
+
+
+### Bug Fixes
+
+* resolve all tsc --noEmit strict-type errors across the codebase (SWR-376) [semantic pr title] ([#86](https://github.com/wiiiimm/gh-manager-cli/issues/86)) ([e8de7db](https://github.com/wiiiimm/gh-manager-cli/commit/e8de7dbbb5794a9c0e79f850e0a31656c71bd521))
+
+## [1.49.2](https://github.com/wiiiimm/gh-manager-cli/compare/v1.49.1...v1.49.2) (2026-06-08)
+
+
+### Performance Improvements
+
+* add daily tick to refresh stale relative date labels in RepoRow (SWR-377) ([#84](https://github.com/wiiiimm/gh-manager-cli/issues/84)) ([3aa8617](https://github.com/wiiiimm/gh-manager-cli/commit/3aa86170d9f5b9fd20fa27975d247f2e7e554925))
+
+## [1.49.1](https://github.com/wiiiimm/gh-manager-cli/compare/v1.49.0...v1.49.1) (2026-06-08)
+
+
+### Performance Improvements
+
+* memoize RepoRow to cut per-keystroke re-renders (SWR-358) ([#57](https://github.com/wiiiimm/gh-manager-cli/issues/57)) ([0ad6685](https://github.com/wiiiimm/gh-manager-cli/commit/0ad66859eaa7bde1d596fc20c2974f0182c57fb4))
+
+# [1.49.0](https://github.com/wiiiimm/gh-manager-cli/compare/v1.48.2...v1.49.0) (2026-06-08)
+
+
+### Features
+
+* redesign session usage summary as a distinct panel with time-saved estimate (SWR-375) ([#81](https://github.com/wiiiimm/gh-manager-cli/issues/81)) ([b18c5d5](https://github.com/wiiiimm/gh-manager-cli/commit/b18c5d54baaa9a3ee40e05b3eefce4eb4a686033))
+
+## [1.48.2](https://github.com/wiiiimm/gh-manager-cli/compare/v1.48.1...v1.48.2) (2026-06-08)
+
+
+### Bug Fixes
+
+* correct Bulk Select layout overflow and show hidden selection count (SWR-370) [semantic pr title] ([#79](https://github.com/wiiiimm/gh-manager-cli/issues/79)) ([bfc211a](https://github.com/wiiiimm/gh-manager-cli/commit/bfc211ac4d79ec730ad5ec087617ce24826b93fd)), closes [#70](https://github.com/wiiiimm/gh-manager-cli/issues/70) [#58](https://github.com/wiiiimm/gh-manager-cli/issues/58) [#75](https://github.com/wiiiimm/gh-manager-cli/issues/75)
+
+## [1.48.1](https://github.com/wiiiimm/gh-manager-cli/compare/v1.48.0...v1.48.1) (2026-06-07)
+
+
+### Bug Fixes
+
+* keep bulk review visibility badge inline with highlight background (SWR-374) [semantic pr title] ([#77](https://github.com/wiiiimm/gh-manager-cli/issues/77)) ([db85578](https://github.com/wiiiimm/gh-manager-cli/commit/db855789f2770fb41df99ebe056f9beb41521314))
+
+# [1.48.0](https://github.com/wiiiimm/gh-manager-cli/compare/v1.47.0...v1.48.0) (2026-06-07)
+
+
+### Features
+
+* session usage summary shown on quit with operation tracking (SWR-19) [semantic pr title] ([#58](https://github.com/wiiiimm/gh-manager-cli/issues/58)) ([ad03cee](https://github.com/wiiiimm/gh-manager-cli/commit/ad03cee22f4699092892bc233786dd48f3eb8e21))
+
+# [1.47.0](https://github.com/wiiiimm/gh-manager-cli/compare/v1.46.1...v1.47.0) (2026-06-07)
+
+
+### Features
+
+* bulk transfer (move) repos to another owner/org — Bulk Select action (SWR-369) [semantic pr title] ([#70](https://github.com/wiiiimm/gh-manager-cli/issues/70)) ([1dd444a](https://github.com/wiiiimm/gh-manager-cli/commit/1dd444a32e7ffc1492320d80197c089d845352a5))
+
+## [1.46.1](https://github.com/wiiiimm/gh-manager-cli/compare/v1.46.0...v1.46.1) (2026-06-07)
+
+
+### Performance Improvements
+
+* make visibility filter fully client-side (SWR-366) [semantic pr title] ([#61](https://github.com/wiiiimm/gh-manager-cli/issues/61)) ([02c6064](https://github.com/wiiiimm/gh-manager-cli/commit/02c6064dbb2854a943f0580297661589dabc9545))
+
+# [1.46.0](https://github.com/wiiiimm/gh-manager-cli/compare/v1.45.1...v1.46.0) (2026-06-07)
+
+
+### Features
+
+* Bulk Select mode with bulk star, archive/unarchive, visibility, and delete operations (SWR-353) ([#54](https://github.com/wiiiimm/gh-manager-cli/issues/54)) ([9245324](https://github.com/wiiiimm/gh-manager-cli/commit/924532494c7222393415bea14bf5553435c2abb2))
+
+## [1.45.1](https://github.com/wiiiimm/gh-manager-cli/compare/v1.45.0...v1.45.1) (2026-06-07)
+
+
+### Bug Fixes
+
+* ignore modal input while async actions are in flight, add guard tests (SWR-368) [semantic pr title] ([#64](https://github.com/wiiiimm/gh-manager-cli/issues/64)) ([97d2e4e](https://github.com/wiiiimm/gh-manager-cli/commit/97d2e4e25fc5d10cd2305ffb3f594b3f0b094e20)), closes [#65](https://github.com/wiiiimm/gh-manager-cli/issues/65)
+
+# [1.45.0](https://github.com/wiiiimm/gh-manager-cli/compare/v1.44.0...v1.45.0) (2026-06-07)
+
+
+### Features
+
+* add repository creation (Ctrl+N) and transfer (Shift+M) ([#60](https://github.com/wiiiimm/gh-manager-cli/issues/60)) ([2e9c271](https://github.com/wiiiimm/gh-manager-cli/commit/2e9c2711b985be9373a94483e0bd0b420dc48aec))
+
+# [1.43.0](https://github.com/wiiiimm/gh-manager-cli/compare/v1.42.0...v1.43.0) (2026-06-05)
+
+
+### Features
+
+* fork ahead/behind enrichment, jump-to-upstream (P), and open-in-browser chooser (SWR-362) [semantic pr title] ([#53](https://github.com/wiiiimm/gh-manager-cli/issues/53)) ([ffd7b16](https://github.com/wiiiimm/gh-manager-cli/commit/ffd7b1644f7fad93721b6ab7287c0c3a1990f9e6))
+
+# [1.42.0](https://github.com/wiiiimm/gh-manager-cli/compare/v1.41.0...v1.42.0) (2026-06-05)
+
+
+### Features
+
+* fuzzy repository search over full cached set (SWR-361) [semantic pr title] ([#55](https://github.com/wiiiimm/gh-manager-cli/issues/55)) ([042999d](https://github.com/wiiiimm/gh-manager-cli/commit/042999da6de2ce6b2688da84a3a4d698e0f7d16d))
+
+# [1.41.0](https://github.com/wiiiimm/gh-manager-cli/compare/v1.40.2...v1.41.0) (2026-06-05)
+
+
+### Features
+
+* colour themes with Shift+T cycle keybinding and persisted preference (SWR-354) [semantic pr title] ([#56](https://github.com/wiiiimm/gh-manager-cli/issues/56)) ([1a307c6](https://github.com/wiiiimm/gh-manager-cli/commit/1a307c6a8442a0d295f8a92aeb98eb544eb80d51))
+
+## [1.40.2](https://github.com/wiiiimm/gh-manager-cli/compare/v1.40.1...v1.40.2) (2026-06-05)
+
+
+### Bug Fixes
+
+* stars toggle footer hint truncation and contextual labels (SWR-359) ([#52](https://github.com/wiiiimm/gh-manager-cli/issues/52)) ([f19ca6f](https://github.com/wiiiimm/gh-manager-cli/commit/f19ca6f4ba81b71133ddc7e5e98df67191d348b0))
+
+## [1.40.1](https://github.com/wiiiimm/gh-manager-cli/compare/v1.40.0...v1.40.1) (2026-06-05)
+
+
+### Bug Fixes
+
+* fill compact mode view with actual per-row heights [semantic pr title] ([#47](https://github.com/wiiiimm/gh-manager-cli/issues/47)) ([23de03f](https://github.com/wiiiimm/gh-manager-cli/commit/23de03f3df240bcebc3ac764a1bf76ab8b553c68))
+
+# [1.40.0](https://github.com/wiiiimm/gh-manager-cli/compare/v1.39.1...v1.40.0) (2026-06-05)
+
+
+### Features
+
+* background fetch-all pagination with light bulk query ([#50](https://github.com/wiiiimm/gh-manager-cli/issues/50)) ([932deb8](https://github.com/wiiiimm/gh-manager-cli/commit/932deb85736bf999bde3c6f4d9bab02aaece8610))
+
+## [1.39.1](https://github.com/wiiiimm/gh-manager-cli/compare/v1.39.0...v1.39.1) (2026-06-05)
+
+
+### Bug Fixes
+
+* restore changelog body in GitHub release notes [semantic pr title] ([#46](https://github.com/wiiiimm/gh-manager-cli/issues/46)) ([62e20ad](https://github.com/wiiiimm/gh-manager-cli/commit/62e20ad795abb38cc370e25738182a1ba99fd6f7))
+
+# [1.39.0](https://github.com/wiiiimm/gh-manager-cli/compare/v1.38.1...v1.39.0) (2026-06-05)
+
+
+### Features
+
+* replace archive filter cycle with popup modal (A Archive Filter) ([#45](https://github.com/wiiiimm/gh-manager-cli/issues/45)) ([9299443](https://github.com/wiiiimm/gh-manager-cli/commit/92994433291bf196b6882c27409aa5ec49be0b35))
+
+## [1.38.1](https://github.com/wiiiimm/gh-manager-cli/compare/v1.38.0...v1.38.1) (2026-06-05)
+
+
+### Bug Fixes
+
+* add archive filter toggle for repositories [semantic pr title] ([#43](https://github.com/wiiiimm/gh-manager-cli/issues/43)) ([3b717a3](https://github.com/wiiiimm/gh-manager-cli/commit/3b717a345c6104a6b59e530eb7688bac9d8276ee))
+
+# [1.38.0](https://github.com/wiiiimm/gh-manager-cli/compare/v1.37.0...v1.38.0) (2025-09-09)
+
+
+### Features
+
+* add GitHub Sponsors integration ([b73a8c2](https://github.com/wiiiimm/gh-manager-cli/commit/b73a8c244aa6a336b249bc573a019c307b56bfc5))
+
+# [1.37.0](https://github.com/wiiiimm/gh-manager-cli/compare/v1.36.0...v1.37.0) (2025-09-09)
+
+
+### Features
+
+* add comprehensive environment variable documentation ([0493cf7](https://github.com/wiiiimm/gh-manager-cli/commit/0493cf7e1520609d4afffc4441021bc5b01194e3))
+
+# [1.36.0](https://github.com/wiiiimm/gh-manager-cli/compare/v1.35.1...v1.36.0) (2025-09-09)
+
+
+### Features
+
+* add GitHub release creation to workflow ([7f06bb1](https://github.com/wiiiimm/gh-manager-cli/commit/7f06bb1cdc5043dbf88ddf342c4c4b5359a41431))
+
+## [1.35.1](https://github.com/wiiiimm/gh-manager-cli/compare/v1.35.0...v1.35.1) (2025-09-09)
+
+
+### Bug Fixes
+
+* restructure workflow to build after version commit ([0fcba46](https://github.com/wiiiimm/gh-manager-cli/commit/0fcba46039982209e78bab285e205adc96e27c9e))
+
+# [1.35.0](https://github.com/wiiiimm/gh-manager-cli/compare/v1.34.0...v1.35.0) (2025-09-09)
+
+
+### Bug Fixes
+
+* add npm authentication configuration for semantic-release ([d2d5ad0](https://github.com/wiiiimm/gh-manager-cli/commit/d2d5ad0555063d7e949450ff4a923c78d8a305f5))
+* ensure build job fetches updated version from semantic-release ([e8df4ec](https://github.com/wiiiimm/gh-manager-cli/commit/e8df4ec6a3e76c32168803f40a404567a979b530))
+* optimize release workflow to check before building ([5027d45](https://github.com/wiiiimm/gh-manager-cli/commit/5027d45ac564752a7557ee01e9529f9559d09a44))
+* resolve PR Title Manager workflow script loading issue ([5764938](https://github.com/wiiiimm/gh-manager-cli/commit/5764938c00ccaa524ebfac5e6e94ae64254195ab))
+* resolve Windows build failure in release pipeline ([708c0d3](https://github.com/wiiiimm/gh-manager-cli/commit/708c0d321b628ab95ca7b03ca07371059a7a19f1))
+* restore original workflow behavior for release pipeline ([2781719](https://github.com/wiiiimm/gh-manager-cli/commit/278171954e05048374cb756e6a242385c062c863))
+* use --config flag to fully override semantic-release config ([b233b58](https://github.com/wiiiimm/gh-manager-cli/commit/b233b583035e4e078f027147ca1dfb70c472be1f))
+* use minimal config for semantic-release dry-run check ([830d058](https://github.com/wiiiimm/gh-manager-cli/commit/830d0585a24942d1bee66aab55daa9770a0af0bb))
+
+
+### Features
+
+* add stars mode and star/unstar functionality ([#29](https://github.com/wiiiimm/gh-manager-cli/issues/29)) ([9295dcb](https://github.com/wiiiimm/gh-manager-cli/commit/9295dcb4508bf46d9dff0ffdfbcac35c40d8f994))
+
 # [1.34.0](https://github.com/wiiiimm/gh-manager-cli/compare/v1.33.0...v1.34.0) (2025-09-06)
 
 

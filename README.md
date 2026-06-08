@@ -7,6 +7,7 @@
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![Node.js Version](https://img.shields.io/node/v/gh-manager-cli.svg)](https://nodejs.org)
 [![GitHub Stars](https://img.shields.io/github/stars/wiiiimm/gh-manager-cli.svg)](https://github.com/wiiiimm/gh-manager-cli/stargazers)
+[![GitHub Sponsors](https://img.shields.io/badge/Sponsor-%E2%9D%A4-pink)](https://github.com/sponsors/wiiiimm)
 [![Context Engineered with Claude Opus 4.1](https://img.shields.io/badge/Context%20Engineered%20with-Claude%20Opus%204.1-blue)](https://www.anthropic.com)
 [![Context Engineered with Codex GPT-5](https://img.shields.io/badge/Context%20Engineered%20with-Codex%20GPT--5-green)](https://openai.com)
 
@@ -21,7 +22,7 @@ Interactive terminal app to browse and manage your personal GitHub repositories.
 `gh-manager-cli` replaces tedious web clicking with powerful terminal commands:
 
 ### ❌ GitHub Website Pain Points → ✅ Our Solution
-- **Slow pagination** (20 repos/page) → View all repos instantly with smooth scrolling
+- **Slow pagination** (page-by-page) → Whole account loaded in the background, browse and search everything instantly
 - **Multiple clicks per action** → Single keypress for any operation  
 - **No bulk operations** → Archive, delete, or modify multiple repos at once
 - **Buried settings menus** → Direct keyboard shortcuts for everything
@@ -72,24 +73,39 @@ On first run, you'll be prompted to authenticate with GitHub (OAuth recommended)
 ### Core Repository Management
 - **Authentication**: GitHub OAuth (recommended) or Personal Access Token with secure storage
 - **Repository Listing**: Browse all your personal repositories with metadata (stars, forks, language, etc.)
-- **Live Pagination**: Infinite scroll with automatic page prefetching
+- **Background Fetch-All**: Loads your entire account in the background after the first page, so filtering/sorting/search are instant and complete
 - **Interactive Sorting**: Modal-based sort selection (updated, pushed, name, stars) with modal-based direction selection
-- **Smart Search**: Server-side search through repository names and descriptions (3+ characters)
-- **Visibility Filtering**: Modal-based visibility filter (All, Public, Private/Internal for enterprise) with smart filtering
-- **Fork Status Tracking**: Toggle display of commits behind upstream for forked repositories
+- **Fuzzy Search**: Instant typo-tolerant search over the full cached repository set — no network calls in the search path (powered by [fuse.js](https://www.fusejs.io/))
+- **Visibility Filter**: Modal-based visibility filter (All, Public, Private/Internal for enterprise) with smart filtering
+- **Archive Filter**: Toggle-based archive filter (`A` key cycles All → Unarchived → Archived) for quick filtering by archive status
+- **Fork Ahead/Behind Tracking**: After the background fetch-all completes, forks are enriched with both **ahead** and **behind** commit counts in a separate lightweight pass (batched 5 at a time to avoid rate-limit issues)
+- **Stars Mode**: View and manage starred repositories (personal account only)
 - **Repository Actions**:
   - View detailed info (`I`) - Shows repository metadata, language, size, and timestamps
-  - Open in browser (Enter/`O`)
+  - Open in browser (Enter/`O`) — for forks a chooser lets you open this repo or the upstream
+  - Jump to PRs/Issues (`L`) — chooser modal for the selected repo's open pull requests or issues; counts are shown inline on every row so you can spot backlogs at a glance
+  - Jump to upstream (`P`) — moves cursor to the parent if loaded; otherwise fetches and shows it
+  - Create new repository (`Ctrl+N`) — prompts for a name (with the personal/organisation slug shown in front), choose visibility with `Tab`, and surfaces GitHub errors inline
   - Rename repository (`Ctrl+R`) with inline validation and automatic cache update
+  - Transfer repository to another owner (`Shift+M`) — prompts for the destination owner, requires a verification code, shows a final confirmation, and surfaces GitHub errors inline
   - Copy repository URL to clipboard (`C`) with SSH/HTTPS options
   - Delete repository (`Del` or `Backspace`) with secure two-step confirmation
   - Archive/unarchive repositories (`Ctrl+A`) with confirmation prompts
   - Change repository visibility (`Ctrl+V`) - Switch between Public, Private, and Internal (enterprise only)
-  - Sync forks with upstream (`Ctrl+S`) with automatic conflict detection
+  - Star/unstar repositories (`Ctrl+S`) - Toggle star status for any repository
+  - Sync forks with upstream (`Ctrl+F`) with ahead/behind counts and automatic conflict detection
+- **Bulk Operations** (`B` to enter Bulk Select mode):
+  - Select multiple repositories with `Space`; `X` unselects all (while every other shortcut is disabled in bulk mode)
+  - Bulk actions reuse the global shortcuts: `Ctrl+S` star/unstar, `Ctrl+A` archive/unarchive, `Ctrl+V` visibility, `Del` delete, `Shift+M` transfer (move) to another owner/org
+  - Star and archive auto-detect a safe toggle; if the selection is mixed, an intent modal asks the explicit target. Visibility always prompts for the destination (Public / Private / Internal for enterprise orgs). Transfer always prompts for a destination owner
+  - Selections persist across search, filter, and sort changes (select from different searches, then bulk-act)
+  - Confirmation flow: review list with ability to unselect → count prompt → (delete and transfer) a 4-character verification code
+  - Per-repo progress reporting with partial-failure summary; transferred repos are removed from the current list
 
 ### User Interface & Experience
 - **Keyboard Navigation**: Full keyboard control (arrow keys, PageUp/Down, `Ctrl+G`/`G`)
 - **Display Density**: Toggle between compact/cozy/comfy spacing (`T`)
+- **Colour Themes**: Four themes (Default, Ocean, Forest, Monochrome) cycled with `Shift+T`, persisted across restarts; the selected-row highlight is theme-aware and tuned per theme for readable contrast
 - **Visual Indicators**: Fork status, private/internal/archived badges, language colors, visibility status
 - **Enterprise Support**: Full support for GitHub Enterprise with Internal repository visibility
 - **Organization Context**: Switch between personal and organization accounts with ENT badge for enterprise orgs
@@ -99,12 +115,12 @@ On first run, you'll be prompted to authenticate with GitHub (OAuth recommended)
 - **Rate Limit Monitoring**: Dual API rate limit display (GraphQL & REST) with real-time usage deltas and visual warnings
 
 ### Technical Features
-- **Preference Persistence**: UI settings (sort, density, visibility filter, fork tracking) saved between sessions
-- **Server-side Filtering**: Visibility filtering performed at GitHub API level for accurate pagination
+- **Preference Persistence**: UI settings (sort, density, visibility filter, archive filter, fork tracking, colour theme) saved between sessions
+- **Client-side Filtering & Sorting**: Once the account is cached via background fetch-all, visibility/archive filtering and all sorting run locally over the complete set — instant, with no server refetch
 - **Cross-platform**: Works on macOS, Linux, and Windows
 - **Secure Storage**: Token stored with proper file permissions (0600)
 - **Error Handling**: Graceful error recovery with retry mechanisms
-- **Performance**: Efficient GraphQL queries with virtualized rendering and server-side filtering
+- **Performance**: Light bulk GraphQL queries, virtualized rendering, and `React.memo`-optimized rows for instant keyboard navigation
 - **Comprehensive Logging**: Structured JSON logging with automatic rotation and configurable verbosity
 
 ## Installation
@@ -256,7 +272,7 @@ Launch the app, then use the keys below:
 ### Navigation & View Controls
 - **Top/Bottom**: `Ctrl+G` (top), `G` (bottom)
 - **Page Navigation**: ↑↓ Arrow keys, PageUp/PageDown
-- **Search**: `/` to enter search mode, type 3+ characters for server-side search
+- **Search**: `/` to enter search mode — instant, typo-tolerant fuzzy search over the full cached set (no network calls). Matches as you type; searches name, owner, description, and language
   - Down arrow or Enter: Start browsing search results
   - Esc: Clear search and return to full repository list
 - **Sort**: `S` opens sort modal with options:
@@ -266,17 +282,27 @@ Launch the app, then use the keys below:
   - Stars: Number of stars
 - **Sort Direction**: `D` to open sort direction modal (ascending/descending)
 - **Display Density**: `T` to toggle compact/cozy/comfy
-- **Fork Status**: `F` to toggle showing commits behind upstream
+- **Colour Theme**: `Shift+T` to cycle themes (Default → Ocean → Forest → Monochrome); selection persists across restarts. Each theme defines its own selected-row highlight (a darker on-theme background) so the highlighted repository stays high-contrast
+- **Fork Status**: Always enabled — shows commits **ahead** and **behind** upstream once enrichment completes (see below)
 - **Visibility Filter**: `V` opens modal (All, Public, Private/Internal for enterprise)
+- **Archive Filter**: `A` toggles archive filter (All → Unarchived → Archived)
+- **Stars Mode**: `Shift+S` (personal account only) to toggle between your own repos and your starred repos
+  - Footer hint shows `Shift+S Starred` in normal mode and `Shift+S My Repos` in starred mode
 
 ### Navigation & Account
-- **Open in browser**: Enter or `O`
+- **Open in browser**: Enter or `O` — non-forks open directly; forks show a chooser (**This repository** / **Parent/upstream**, Esc cancels)
+- **Open PRs / Issues**: `L` — chooser modal (**Pull Requests** / **Issues**) for the selected repo. Counts are shown inline on every row as `⇄ N PRs ◇ M issues`, colour-coded (muted at 0, default 1–9, amber 10–29, red 30+) so growing backlogs stand out. Esc/C cancels
+- **Jump to upstream**: `P` (on a fork) — moves cursor to the parent if it is already loaded; otherwise fetches the parent and shows it in the Info modal
 - **Refresh**: `R`
-- **Organization switcher**: `W` to switch between personal account and organizations
+- **Organisation switcher**: `W` to switch between personal account and organisations
 - **Logout**: `Ctrl+L`
 - **Quit**: `Q`
 
 ### Repository Actions
+- **Create repository**: `Ctrl+N` to create a new repository in the current context (personal or organisation)
+  - Prompts for a name with the owner slug (`owner/`) shown in front
+  - `Tab` cycles visibility (Private/Public, plus Internal for enterprise organisations)
+  - Enter to create; GitHub errors (e.g. name already exists) are shown inline
 - **Repository info**: `I` to view detailed metadata (size, language, timestamps)
 - **Cache info**: `K` to inspect Apollo cache status
 - **Archive/Unarchive**: `Ctrl+A` with confirmation prompt
@@ -284,7 +310,17 @@ Launch the app, then use the keys below:
 - **Delete repository**: `Del` or `Backspace` (with two-step confirmation modal)
   - Type confirmation code → confirm (Y/Enter)
   - Cancel: press `C` or Esc
-- **Sync fork**: `Ctrl+S` (for forks only, shows commit status and handles conflicts)
+- **Star/Unstar**: `Ctrl+S` to toggle star status for any repository
+- **Sync fork**: `Ctrl+F` (for forks only, shows ahead/behind counts and handles conflicts)
+- **Rename repository**: `Ctrl+R` with inline validation
+- **Transfer repository**: `Shift+M` (Move) to transfer ownership to another user or organisation
+  - Prompts for the destination owner (`new-owner/<repo>` preview)
+  - Requires typing a randomly generated verification code (like delete), then a final confirmation before transferring
+  - GitHub errors (e.g. insufficient permissions) are shown inline
+- **Bulk Transfer (Bulk Select mode)**: `Shift+M` within Bulk Select mode to move multiple repos at once
+  - Flow: review list (unselect) → destination owner prompt → count prompt → 4-character verification code → sequential execution with per-repo progress
+  - Transferred repos are removed from the current list; partial-failure report shown at completion
+- **Copy URL**: `C` to copy repository URL to clipboard (SSH/HTTPS options)
 
 ### General
 - **Esc**: Cancels modals, clears search, or returns to normal listing (does not quit)
@@ -296,8 +332,19 @@ Status bar shows loaded count vs total. A rate-limit line displays `remaining/li
 ## Pagination Details
 
 - Uses GitHub GraphQL `viewer.repositories` with `ownerAffiliations: OWNER`, ordered by `UPDATED_AT DESC`.
-- Fetches 15 repos per page by default (configurable via `REPOS_PER_FETCH` environment variable, 1-50).
-- Updates `totalCount` each time and prefetches the next page when selection nears the end of loaded list.
+- **Background fetch-all:** the first page renders immediately, then the remaining repositories load in the background until the whole account is cached locally. Filtering, sorting, and search then operate over the complete set, client-side and instant.
+- Fetches 100 repos per page by default (configurable via `REPOS_PER_FETCH` environment variable, 1-100).
+- Reads `totalCount` from the first page and shows background-load progress (`loaded/total`) while filling. The list stays usable from the first page throughout; very large accounts simply take longer to finish loading.
+
+## Session Summary
+
+When you quit the app with `Q`, gh-manager-cli prints a short end-of-session report as two distinct framed panels:
+
+- **📊 Session Summary** — session duration, total operations performed, and a per-operation breakdown (e.g. "2 repositories archived", "1 repository transferred"). If nothing was changed, it simply notes "No changes were made this session."
+- **⏱ Estimated time saved** — a rough, friendly estimate of how much time you saved versus performing those operations by hand on github.com (each operation type has a conservative manual-time weight, e.g. delete ≈ 45s, transfer ≈ 60s, star ≈ 6s). Shown only when at least one operation was performed.
+- **💚 Thank you** — a separate sponsorship/feedback panel.
+
+Both single-repo and bulk actions are counted. The summary is not shown when exiting via `Ctrl+C`.
 
 ## Development
 
@@ -321,10 +368,10 @@ pnpm start:dev      # run with 5 repos per page and debug mode
 
 ### Release Process
 
-The project uses **automated releases** with two complementary workflows:
+The project uses a **two-phase automated release workflow**:
 
-#### 1. Semantic Release (Primary)
-- **Triggers**: On every push to `main` branch
+#### Phase 1: Version Creation
+- **Triggers**: On feature/fix commits to `main` branch
 - **Version Calculation**: Uses [semantic-release](https://semantic-release.gitbook.io/) to analyze commit messages:
   - `feat:` → Minor version bump (1.0.0 → 1.1.0)
   - `fix:` → Patch version bump (1.0.0 → 1.0.1)
@@ -332,37 +379,38 @@ The project uses **automated releases** with two complementary workflows:
 - **Actions**:
   1. Analyzes commits since last release
   2. Calculates new version number
-  3. Updates `package.json`
-  4. Generates changelog
-  5. Creates GitHub release with tag
-  6. Publishes to NPM
-  7. Publishes to GitHub Packages
-  8. Updates Homebrew tap
+  3. Updates `package.json` and `CHANGELOG.md`
+  4. Creates git tag
+  5. Publishes to NPM
+  6. Commits changes as `chore(release): X.Y.Z`
 
-#### 2. Version Change Detection (Backup)
-- **Triggers**: When `package.json` version field changes
-- **Purpose**: Ensures releases happen even with manual version bumps
+#### Phase 2: Binary Building & Distribution
+- **Triggers**: On `chore(release):` commits (from Phase 1)
 - **Actions**:
-  1. Detects version change in `package.json`
-  2. Publishes to NPM if version doesn't exist
-  3. Updates Homebrew formula
-  4. Creates GitHub release
+  1. Builds binaries for Linux, macOS, Windows
+  2. Creates GitHub release with changelog
+  3. Uploads binaries to release
+  4. Publishes to GitHub Packages
+  5. Updates Homebrew formula
 
 #### Release Flow Example
 ```
-Developer creates PR with commits:
+Developer merges PR with commits:
   - feat: add new feature
   - fix: resolve bug
     ↓
-PR merged to main
-    ↓
-semantic-release analyzes commits
+Phase 1: semantic-release analyzes commits
     ↓
 Calculates version: 1.2.3 → 1.3.0 (feat = minor)
+Creates commit: "chore(release): 1.3.0"
     ↓
-Updates package.json, creates changelog
+Phase 2: Build workflow triggers
     ↓
-Publishes everywhere (NPM, GitHub, Homebrew)
+Builds binaries with version 1.3.0
+    ↓
+Creates GitHub release with binaries
+    ↓
+Publishes to GitHub Packages & updates Homebrew
 ```
 
 #### Manual Release
@@ -376,24 +424,26 @@ git push origin main
 Both NPM and Homebrew will be automatically updated within minutes of any version change.
 
 Environment variables:
-- `REPOS_PER_FETCH`: Number of repositories to fetch per page (1-50, default: 15)
+- `REPOS_PER_FETCH`: Number of repositories to fetch per page (1-100, default: 100)
 - `GH_MANAGER_DEBUG=1`: Enables debug mode with performance metrics, detailed errors, and console logging
+- `GH_TOKEN`: GitHub Personal Access Token (alternative to OAuth authentication)
+- `NO_COLOR`: Disable colored output in terminal
 
 Project layout:
-- `src/index.tsx` — CLI entry and error handling
-- `src/ui/App.tsx` — token bootstrap, renders `RepoList`
-- `src/ui/RepoList.tsx` — main list UI with modal management
-- `src/ui/components/` — modular components (modals, repo, common)
-  - `modals/` — DeleteModal, ArchiveModal, SyncModal, InfoModal, LogoutModal
-  - `repo/` — RepoRow, FilterInput, RepoListHeader
-  - `common/` — SlowSpinner and shared UI elements
-- `src/ui/OrgSwitcher.tsx` — organization switching component
-- `src/github.ts` — GraphQL client and queries (repos + rateLimit)
-- `src/config.ts` — token read/write and UI preferences
-- `src/logger.ts` — structured logging with rotation
+- `src/index.tsx` — CLI entry, flag parsing, error handling, end-of-session summary
 - `src/types.ts` — shared types
-- `src/utils.ts` — utility functions (truncate, formatDate)
-- `src/apolloMeta.ts` — Apollo cache management
+- `src/ui/App.tsx` — token bootstrap, renders `RepoList`
+- `src/ui/views/` — `RepoList.tsx` (main list UI, key handling, modal management) and `RepoList.main.tsx`
+- `src/ui/OrgSwitcher.tsx` — organisation switching component
+- `src/ui/hooks/` — `useTheme` and other shared hooks
+- `src/ui/components/` — modular components
+  - `modals/` — Delete, Archive, Sync, Info, Logout, Rename, Transfer, CopyUrl, CreateRepo, ChangeVisibility, Visibility, Sort, SortDirection, ArchiveFilter, Star, Unstar, OpenInBrowser, and the Bulk\* modals (Confirm, Review, Intent, Progress, Code, DeleteCode, TransferCode, TransferDestination, Visibility) plus `bulkActions.ts`
+  - `repo/` — RepoRow (memoised with `React.memo`), FilterInput, RepoListHeader
+  - `auth/` — AuthMethodSelector, OAuthProgress
+  - `common/` — SlowSpinner and shared UI elements
+- `src/services/` — `github.ts` (GraphQL client and queries), `oauth.ts` (device-flow auth), `apolloMeta.ts` (Apollo cache management)
+- `src/config/` — `config.ts` (token read/write and UI preferences), `constants.ts`, `themes.ts` (colour themes)
+- `src/lib/` — `logger.ts` (structured logging with rotation), `utils.ts` (truncate, formatDate), `session.ts` (usage tracking + summary), `fuzzySearch.ts` (fuse.js search)
 - `viewlogs.sh` — utility script for viewing logs
 
 ## Logging
@@ -475,7 +525,7 @@ Even with caching enabled, API credits may decrease due to:
 ### Configuration
 
 ```bash
-# Number of repositories to fetch per page (1-50, default: 15)
+# Number of repositories to fetch per page (1-100, default: 100)
 REPOS_PER_FETCH=10 npx gh-manager-cli@latest
 
 # Custom cache TTL (milliseconds) - default: 30 minutes
@@ -501,26 +551,30 @@ For the up-to-date task board, see [TODOs.md](./TODOs.md).
 Recently implemented:
 - ✅ OAuth login flow as an alternative to Personal Access Token
 - ✅ Density toggle for row spacing (compact/cozy/comfy)
-- ✅ Repo actions (archive/unarchive, delete, change visibility) with confirmations
+- ✅ Colour themes (Default, Ocean, Forest, Monochrome) cycled with `Shift+T`
+- ✅ Repo actions (archive/unarchive, delete, change visibility, rename, transfer) with confirmations
+- ✅ Bulk Select mode (`B`) — bulk star, archive/unarchive, visibility, delete, and transfer
 - ✅ Organization support and switching (press `W`) with enterprise detection
-- ✅ Enhanced server-side search with improved UX and organization context support
-- ✅ Smart infinite scroll with 80% prefetch trigger
+- ✅ Background fetch-all with instant client-side fuzzy search (fuse.js)
+- ✅ Fork ahead/behind enrichment after fetch-all completes
 - ✅ Modal-based sort and visibility filtering
 - ✅ GitHub Enterprise support with Internal repository visibility
 - ✅ Change repository visibility modal (`Ctrl+V`)
-- ✅ Compact filter modals for better screen space utilization
+- ✅ Copy repository URL to clipboard (`C`) with SSH/HTTPS options
+- ✅ End-of-session usage summary with time-saved estimate
 - ✅ Enhanced rate limit display showing both GraphQL and REST API limits with delta tracking
 
 Highlights on deck:
 - Optional OS keychain storage via `keytar`
-- Bulk selection and actions
-- Repository renaming
+- Language filter and indicators
+- Additional sort fields (created, size) and more CLI flags
 
 ## Support & Sponsorship
 
 If you find gh-manager-cli useful, consider supporting its development:
 
-☕ **[Buy Me a Coffee](https://buymeacoffee.com/wiiiimm)** - Support with coffee donations
+💖 **[GitHub Sponsors](https://github.com/sponsors/wiiiimm)** - Support directly through GitHub
+☕ **[Buy Me a Coffee](https://buymeacoffee.com/wiiiimm)** - One-time coffee donations
 
 Your support helps maintain and improve this project. Thank you! 🙏
 

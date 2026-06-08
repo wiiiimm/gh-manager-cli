@@ -1,19 +1,22 @@
 import fs from 'fs';
 import path from 'path';
 import envPaths from 'env-paths';
+import type { ThemeName } from './themes';
 
 type Density = 0 | 1 | 2;
 
 export type OwnerContext = 'personal' | { type: 'organization', login: string, name?: string };
 
 interface UIPrefs {
-  sortKey?: 'updated' | 'pushed' | 'name' | 'stars';
+  sortKey?: 'updated' | 'pushed' | 'name' | 'stars' | 'forks';
   sortDir?: 'asc' | 'desc';
   density?: Density;
   forkTracking?: boolean;
   ownerAffiliations?: string[];
   ownerContext?: OwnerContext;
   visibilityFilter?: 'all' | 'public' | 'private';
+  archiveFilter?: 'all' | 'unarchived' | 'archived';
+  theme?: ThemeName;
 }
 
 export type TokenSource = 'pat' | 'oauth';

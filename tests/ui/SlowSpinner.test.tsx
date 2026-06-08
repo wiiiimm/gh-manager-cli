@@ -1,7 +1,7 @@
 import React from 'react';
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { render } from 'ink-testing-library';
-import SlowSpinner, { SLOW_SPINNER_WIDTH, slowSpinnerFrames } from '../../src/ui/components/common/SlowSpinner';
+import SlowSpinner, { slowSpinnerFrames } from '../../src/ui/components/common/SlowSpinner';
 
 describe('SlowSpinner', () => {
   beforeEach(() => {
@@ -46,10 +46,8 @@ describe('SlowSpinner', () => {
     unmount();
   });
 
-  it('keeps the animation in a fixed width container', () => {
-    expect(SLOW_SPINNER_WIDTH).toBe(3);
-    expect(slowSpinnerFrames.map(frame => frame.length)).toEqual([1, 2, 3]);
-    expect(slowSpinnerFrames.every(frame => frame.length <= SLOW_SPINNER_WIDTH)).toBe(true);
+  it('keeps each dot frame at a stable rendered width', () => {
+    expect(slowSpinnerFrames.map(frame => frame.length)).toEqual([3, 3, 3]);
   });
 
   it('updates every 500ms', async () => {

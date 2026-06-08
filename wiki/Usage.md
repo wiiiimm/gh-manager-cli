@@ -21,8 +21,10 @@ Launch the app, then use the keys below to navigate and interact with your repos
 
 - **Top/Bottom**: `Ctrl+G` (top), `G` (bottom)
 - **Page Navigation**: ↑↓ Arrow keys, PageUp/PageDown
-- **Search**: `/` to enter search mode, type 3+ characters for server-side search
-  - Down arrow or Enter: Start browsing search results
+- **Search**: `/` to enter fuzzy-search mode, start typing immediately (no minimum character count)
+  - Results update instantly on each keystroke — no network calls, typo-tolerant
+  - While the background fetch-all is still in progress, a hint will indicate results may be incomplete
+  - Down arrow: Start browsing search results
   - Esc: Clear search and return to full repository list
 - **Sort**: `S` opens sort modal with options:
   - Updated: When the repository was last modified
@@ -31,8 +33,9 @@ Launch the app, then use the keys below to navigate and interact with your repos
   - Stars: Number of stars
 - **Sort Direction**: `D` to toggle ascending/descending
 - **Display Density**: `T` to toggle compact/cozy/comfy
-- **Fork Status**: `F` to toggle showing commits behind upstream
+- **Fork Status**: Always enabled - shows commits behind upstream for all forks
 - **Visibility Filter**: `V` opens modal (All, Public, Private/Internal for enterprise)
+- **Stars Mode**: `Shift+S` (personal account only) to view starred repositories
 
 ## Navigation & Account
 
@@ -44,6 +47,10 @@ Launch the app, then use the keys below to navigate and interact with your repos
 
 ## Repository Actions
 
+- **Create repository**: `Ctrl+N` to create a new repository in the current context (personal or organisation)
+  - Prompts for a name with the owner slug (`owner/`) shown in front
+  - `Tab` cycles visibility (Private/Public, plus Internal for enterprise organisations)
+  - Enter to create; GitHub errors (e.g. name already exists) are shown inline
 - **Repository info**: `I` to view detailed metadata (size, language, timestamps)
 - **Cache info**: `K` to inspect Apollo cache status
 - **Archive/Unarchive**: `Ctrl+A` with confirmation prompt
@@ -51,7 +58,62 @@ Launch the app, then use the keys below to navigate and interact with your repos
 - **Delete repository**: `Del` or `Backspace` (with two-step confirmation modal)
   - Type confirmation code → confirm (Y/Enter)
   - Cancel: press `C` or Esc
-- **Sync fork**: `Ctrl+S` (for forks only, shows commit status and handles conflicts)
+- **Star/Unstar**: `Ctrl+S` to toggle star status for any repository
+- **Sync fork**: `Ctrl+F` (for forks only, shows commit status and handles conflicts)
+- **Rename repository**: `Ctrl+R` with inline validation
+- **Transfer repository**: `Shift+M` (Move) to transfer ownership to another user or organisation
+  - Prompts for the destination owner, then requires typing a randomly generated verification code (like delete), followed by a final confirmation before transferring
+  - GitHub errors (e.g. insufficient permissions) are shown inline
+  - Transferred repository is removed from the list
+- **Copy URL**: `C` to copy repository URL to clipboard (SSH/HTTPS options)
+
+## Bulk Select Mode (Bulk Operations)
+
+Bulk Select mode lets you select multiple repositories and run a bulk action (star/unstar, archive/unarchive, visibility change, transfer/move, or delete) against all of them at once. The actions reuse the same global shortcuts as single-repo mode; while in bulk select mode every other shortcut is disabled.
+
+### Entering Bulk Select Mode
+
+- **`B`** — toggle bulk select (bulk) mode on/off
+- **`Esc`** — exit bulk select mode (clears selection)
+
+### Selection Controls (inside bulk select mode)
+
+- **`Space`** — toggle selection on the highlighted repository
+- **`X`** — unselect all (clears selection without exiting bulk select mode)
+- Navigation (↑↓, PageUp/Down, `Ctrl+G`, `G`) still works
+
+### Bulk Action Shortcuts (require at least one selected repo)
+
+- **`Ctrl+S`** — bulk star/unstar
+- **`Ctrl+A`** — bulk archive/unarchive
+- **`Ctrl+V`** — bulk visibility update
+- **`Shift+M`** — bulk transfer (move) to another owner/org
+- **`Del`/`Backspace`** — bulk delete
+
+### Running a Bulk Action
+
+1. Enter bulk select mode with `B`
+2. Select repositories with `Space`
+3. Press the action shortcut above (e.g. `Ctrl+A` for archive)
+4. **Intent/target (only when needed, before review)**:
+   - Star and archive auto-detect a safe toggle. If the selection has a mixed state, an intent modal asks the explicit target (e.g. "Archive all" vs "Unarchive all").
+   - Visibility always prompts for the destination: Public / Private / Internal (Internal only for enterprise orgs).
+5. **Review list (Confirmation 1)**: A scrollable list of all selected repos appears.
+   - Use ↑↓ to navigate; `Space` to unselect individual entries before proceeding.
+6. **Destination owner (Transfer only)**: after review, transfer prompts for a destination owner (must differ from the current owner).
+7. **Count prompt (Confirmation 2)**: Confirms "About to {action} {N} repositories" (transfer also shows "to {owner}"). (Cancel/Proceed, Esc cancels.)
+8. **Delete and Transfer only (Confirmation 3)**: enter a 4-character verification code.
+9. Progress is shown per-repo; partial failures are reported at the end.
+10. On completion, selections are cleared and bulk select mode exits automatically. Transferred repos are removed from the current list.
+
+### Persistence
+
+Selections persist across search and filter changes — you can search for one set, select some repos, search for something else, select more, and all prior selections remain intact. Selections are cleared only when:
+
+- You exit bulk select mode (`B` or `Esc`)
+- You switch organisation/scope
+- You toggle Stars mode
+- The bulk operation completes
 
 ## General
 

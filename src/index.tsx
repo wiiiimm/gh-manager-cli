@@ -6,6 +6,7 @@ import pkg from '../package.json';
 import 'dotenv/config';
 import App from './ui/App';
 import { logger } from './lib/logger';
+import { formatSessionSummary, formatSupportMessage } from './lib/session';
 
 // Basic CLI flags (handled before rendering Ink)
 const argv = process.argv.slice(2);
@@ -74,25 +75,25 @@ logger.info('Starting gh-manager-cli', {
 });
 
 // Graceful shutdown handlers
+// Signal-driven exits (Ctrl+C / kill) still exit with code 0, so flag them here
+// to suppress the end-of-session summary, which is meant only for a normal quit.
+let exitingViaSignal = false;
 const handleShutdown = (signal: string) => {
-  logger.info('Shutting down gh-manager-cli', { 
+  exitingViaSignal = true;
+  logger.info('Shutting down gh-manager-cli', {
     signal,
     uptime: process.uptime()
   });
   process.exit(0);
 };
 
-// Function to show sponsorship message
+// Function to show the session usage summary followed by the (visually
+// separate) sponsorship message. Each is its own framed panel, so the summary
+// no longer piles onto the thank-you / sponsor block.
 const showSponsorshipMessage = () => {
-  console.log('\n' + '─'.repeat(60));
-  console.log('\n💚 Thank you for using gh-manager-cli!\n');
-  console.log('If this app saved you time, please consider supporting');
-  console.log('the development of more open-source projects like this:\n');
-  console.log('  ☕ Buy Me a Coffee: https://buymeacoffee.com/wiiiimm');
-  console.log('  🚀 Visit my site: https://wiiiimm.codes');
-  console.log('  💬 Leave feedback: https://github.com/wiiiimm/gh-manager-cli');
-  console.log('\nYour support and contributions make a difference! 🙏\n');
-  console.log('─'.repeat(60) + '\n');
+  process.stdout.write(formatSessionSummary());
+  process.stdout.write(formatSupportMessage());
+  process.stdout.write('\n');
 };
 
 // Register shutdown handlers
@@ -102,12 +103,12 @@ process.on('exit', (code) => {
   // Only show sponsorship message on normal exit (code 0)
   // and not when there's an error or when using --version/--help
   const isNormalExit = code === 0;
-  const isInteractiveSession = !argv.includes('--version') && 
-                               !argv.includes('-v') && 
-                               !argv.includes('--help') && 
+  const isInteractiveSession = !argv.includes('--version') &&
+                               !argv.includes('-v') &&
+                               !argv.includes('--help') &&
                                !argv.includes('-h');
-  
-  if (isNormalExit && isInteractiveSession) {
+
+  if (isNormalExit && isInteractiveSession && !exitingViaSignal) {
     showSponsorshipMessage();
   }
   

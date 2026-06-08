@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useRef, useState } from 'react';
 import { Box, Text, useInput } from 'ink';
 import chalk from 'chalk';
 import type { RepoNode } from '../../../types';
@@ -12,12 +12,16 @@ interface ArchiveModalProps {
 
 export default function ArchiveModal({ repo, onArchive, onCancel }: ArchiveModalProps) {
   const [archiving, setArchiving] = useState(false);
+  // Synchronous mirror of `archiving`: a ref updates immediately and is read live
+  // through the input closure, so a key arriving in the same tick as the submit
+  // (before React re-renders with the new state) is still ignored.
+  const archivingRef = useRef(false);
   const [archiveError, setArchiveError] = useState<string | null>(null);
   const [archiveFocus, setArchiveFocus] = useState<'confirm' | 'cancel'>('confirm');
 
   // Handle keyboard input
   useInput((input, key) => {
-    if (archiving) return; // Ignore input while archiving
+    if (archivingRef.current) return; // Ignore input while archiving
     
     if (key.escape || input.toLowerCase() === 'c') {
       onCancel();
@@ -45,14 +49,16 @@ export default function ArchiveModal({ repo, onArchive, onCancel }: ArchiveModal
 
   // Handle the archive confirmation
   const handleArchiveConfirm = async () => {
-    if (!repo || archiving) return;
-    
+    if (!repo || archivingRef.current) return;
+
     try {
+      archivingRef.current = true;
       setArchiving(true);
       setArchiveError(null);
       await onArchive(repo);
     } catch (e: any) {
       setArchiveError(e.message || `Failed to ${repo.isArchived ? 'unarchive' : 'archive'} repository`);
+      archivingRef.current = false;
       setArchiving(false);
     }
   };
@@ -60,7 +66,17 @@ export default function ArchiveModal({ repo, onArchive, onCancel }: ArchiveModal
   if (!repo) return null;
 
   const action = repo.isArchived ? 'Unarchive' : 'Archive';
-  const colorScheme = repo.isArchived ? 'green' : 'yellow';
+  const colorScheme: 'green' | 'yellow' = repo.isArchived ? 'green' : 'yellow';
+
+  // Pre-compute the styled confirm-button label with explicit chalk methods
+  // (avoids dynamic `chalk[...]` indexing that defeats type-checking).
+  const actionLabel = archiveFocus === 'confirm'
+    ? (colorScheme === 'green'
+        ? chalk.bgGreen.black.bold(` ${action} `)
+        : chalk.bgYellow.black.bold(` ${action} `))
+    : (colorScheme === 'green'
+        ? chalk.green.bold(action)
+        : chalk.yellow.bold(action));
 
   return (
     <Box 
@@ -105,12 +121,7 @@ export default function ArchiveModal({ repo, onArchive, onCancel }: ArchiveModal
               paddingY={1} 
               flexDirection="column"
             >
-              <Text>
-                {archiveFocus === 'confirm' ? 
-                  chalk[`bg${colorScheme.charAt(0).toUpperCase() + colorScheme.slice(1)}`].black.bold(` ${action} `) : 
-                  chalk[colorScheme].bold(action)
-                }
-              </Text>
+              <Text>{actionLabel}</Text>
             </Box>
             <Box 
               paddingX={2} 

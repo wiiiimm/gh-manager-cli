@@ -13,6 +13,37 @@ export function makeClient(token: string) {
   });
 }
 
+// Minimal shapes for the GitHub REST JSON bodies we parse. `Response.json()` is
+// typed as `Promise<unknown>` (undici), so these let us narrow without `any`.
+interface GitHubRestErrorBody {
+  message?: string;
+  errors?: Array<{ message?: string; field?: string; code?: string }>;
+}
+
+interface CreateRepoRestResponse {
+  full_name: string;
+  html_url: string;
+}
+
+interface SyncForkRestResponse {
+  message: string;
+  merge_type: string;
+  base_branch: string;
+}
+
+interface RestRateLimitResource {
+  limit: number;
+  remaining: number;
+  reset: number;
+}
+
+interface RestRateLimitResponse {
+  resources?: {
+    core?: RestRateLimitResource;
+    graphql?: RestRateLimitResource;
+  };
+}
+
 // Singleton Apollo client instance
 let apolloClientInstance: { client: ApolloClient<any>, gql: any } | null = null;
 
@@ -182,6 +213,35 @@ export interface ReposPageResult {
   rateLimit?: RateLimitInfo;
 }
 
+/**
+ * Flatten the `openPullRequests { totalCount }` / `openIssues { totalCount }`
+ * GraphQL responses into plain numbers on `RepoNode` (SWR-357).
+ *
+ * The GraphQL queries request `openPullRequests: pullRequests(states: OPEN) { totalCount }`
+ * (and the same for issues). The raw response shape is `{ totalCount: N }`, but
+ * the rest of the app treats `RepoNode.openPullRequests` as a flat number for
+ * convenience in row-rendering and threshold colouring. Nodes that do not
+ * include the connections (older cache reads, fragments without the fields)
+ * fall through untouched.
+ */
+export function normalizeRepoNode<T extends Record<string, any>>(node: T): T {
+  if (!node) return node;
+  const result: any = { ...node };
+  const pr = (node as any).openPullRequests;
+  if (pr && typeof pr === 'object' && 'totalCount' in pr) {
+    result.openPullRequests = pr.totalCount as number;
+  }
+  const iss = (node as any).openIssues;
+  if (iss && typeof iss === 'object' && 'totalCount' in iss) {
+    result.openIssues = iss.totalCount as number;
+  }
+  return result as T;
+}
+
+function normalizeRepoNodes(nodes: any[]): RepoNode[] {
+  return (nodes || []).map(n => normalizeRepoNode(n)) as RepoNode[];
+}
+
 export type OwnerAffiliation = 'OWNER' | 'COLLABORATOR' | 'ORGANIZATION_MEMBER';
 
 export async function fetchViewerReposPage(
@@ -191,14 +251,12 @@ export async function fetchViewerReposPage(
   orderBy?: { field: string; direction: string },
   includeForkTracking: boolean = true,
   ownerAffiliations: OwnerAffiliation[] = ['OWNER'],
-  organizationLogin?: string,
-  privacy?: 'PUBLIC' | 'PRIVATE'
+  organizationLogin?: string
 ): Promise<ReposPageResult> {
-  logger.debug('Using Octokit client for fetching repos', { 
-    first, 
-    after, 
-    organizationLogin, 
-    privacy 
+  logger.debug('Using Octokit client for fetching repos', {
+    first,
+    after,
+    organizationLogin
   });
   // Default to UPDATED_AT DESC if not specified
   const sortField = orderBy?.field || 'UPDATED_AT';
@@ -216,7 +274,6 @@ export async function fetchViewerReposPage(
         $sortField: RepositoryOrderField!
         $sortDirection: OrderDirection!
         $orgLogin: String!
-        $privacy: RepositoryPrivacy
       ) {
         rateLimit {
           limit
@@ -228,7 +285,6 @@ export async function fetchViewerReposPage(
             first: $first
             after: $after
             orderBy: { field: $sortField, direction: $sortDirection }
-            privacy: $privacy
           ) {
             totalCount
             pageInfo {
@@ -246,6 +302,9 @@ export async function fetchViewerReposPage(
               isArchived
               stargazerCount
               forkCount
+              viewerHasStarred
+              openPullRequests: pullRequests(states: OPEN) { totalCount }
+              openIssues: issues(states: OPEN) { totalCount }
               primaryLanguage {
                 name
                 color
@@ -253,6 +312,10 @@ export async function fetchViewerReposPage(
               updatedAt
               pushedAt
               diskUsage
+              owner {
+                __typename
+                login
+              }
               ${includeForkTracking ? `
               parent {
                 nameWithOwner
@@ -294,19 +357,18 @@ export async function fetchViewerReposPage(
       sortField,
       sortDirection,
       orgLogin: organizationLogin,
-      privacy: privacy ?? null,
     });
     
     const data = res.organization.repositories;
     return {
-      nodes: data.nodes as RepoNode[],
+      nodes: normalizeRepoNodes(data.nodes),
       endCursor: data.pageInfo.endCursor,
       hasNextPage: data.pageInfo.hasNextPage,
       totalCount: data.totalCount,
       rateLimit: res.rateLimit as RateLimitInfo,
     };
   }
-  
+
   // For personal context (viewer's repositories)
   const query = /* GraphQL */ `
     query ViewerRepos(
@@ -315,7 +377,6 @@ export async function fetchViewerReposPage(
       $sortField: RepositoryOrderField!
       $sortDirection: OrderDirection!
       $affiliations: [RepositoryAffiliation!]!
-      $privacy: RepositoryPrivacy
     ) {
       rateLimit {
         limit
@@ -328,7 +389,6 @@ export async function fetchViewerReposPage(
           first: $first
           after: $after
           orderBy: { field: $sortField, direction: $sortDirection }
-          privacy: $privacy
         ) {
           totalCount
           pageInfo {
@@ -346,6 +406,8 @@ export async function fetchViewerReposPage(
             isArchived
             stargazerCount
             forkCount
+            openPullRequests: pullRequests(states: OPEN) { totalCount }
+            openIssues: issues(states: OPEN) { totalCount }
             primaryLanguage {
               name
               color
@@ -395,13 +457,12 @@ export async function fetchViewerReposPage(
       sortField,
       sortDirection,
       affiliations: ownerAffiliations,
-      privacy: privacy ?? null,
     });
     
     const data = res.viewer.repositories;
     logger.info(`Octokit successfully fetched ${data.nodes.length} repositories`);
     return {
-      nodes: data.nodes as RepoNode[],
+      nodes: normalizeRepoNodes(data.nodes),
       endCursor: data.pageInfo.endCursor,
       hasNextPage: data.pageInfo.hasNextPage,
       totalCount: data.totalCount,
@@ -427,20 +488,18 @@ export async function fetchViewerReposPageUnified(
   includeForkTracking: boolean = true,
   fetchPolicy: 'cache-first' | 'network-only' = 'cache-first',
   ownerAffiliations: OwnerAffiliation[] = ['OWNER'],
-  organizationLogin?: string,
-  privacy?: 'PUBLIC' | 'PRIVATE'
+  organizationLogin?: string
 ): Promise<ReposPageResult> {
   const isApolloEnabled = true; // Apollo is the default, with Octokit as fallback
   const debug = process.env.GH_MANAGER_DEBUG === '1';
   const isOrgContext = !!organizationLogin;
-  
+
   logger.info('Fetching repositories', {
     fetchPolicy,
     isOrgContext,
     organizationLogin,
     first,
     after,
-    privacy,
     ownerAffiliations
   });
   
@@ -458,16 +517,16 @@ export async function fetchViewerReposPageUnified(
       
       // Different query based on context (personal vs organization)
       let q;
-      let variables: any = { first, after: after ?? null, sortField, sortDirection, privacy: privacy ?? null };
+      let variables: any = { first, after: after ?? null, sortField, sortDirection };
       
       if (isOrgContext) {
         // Organization context
         variables.orgLogin = organizationLogin;
         q = (ap.gql as any)`
-          query OrgRepos($first: Int!, $after: String, $sortField: RepositoryOrderField!, $sortDirection: OrderDirection!, $orgLogin: String!, $privacy: RepositoryPrivacy) {
+          query OrgRepos($first: Int!, $after: String, $sortField: RepositoryOrderField!, $sortDirection: OrderDirection!, $orgLogin: String!) {
             rateLimit { limit remaining resetAt }
             organization(login: $orgLogin) {
-              repositories(first: $first, after: $after, orderBy: { field: $sortField, direction: $sortDirection }, privacy: $privacy) {
+              repositories(first: $first, after: $after, orderBy: { field: $sortField, direction: $sortDirection }) {
                 totalCount
                 pageInfo { endCursor hasNextPage }
                 nodes {
@@ -481,15 +540,16 @@ export async function fetchViewerReposPageUnified(
                   isArchived
                   stargazerCount
                   forkCount
+                  viewerHasStarred
+                  openPullRequests: pullRequests(states: OPEN) { totalCount }
+                  openIssues: issues(states: OPEN) { totalCount }
+                  owner { __typename login }
                   primaryLanguage { name color }
                   updatedAt
                   pushedAt
                   diskUsage
-                  ${includeForkTracking ? `
-                  parent { nameWithOwner defaultBranchRef { name target { ... on Commit { history(first: 0) { totalCount } } } } }
-                  defaultBranchRef { name target { ... on Commit { history(first: 0) { totalCount } } } }` : `
                   parent { nameWithOwner }
-                  defaultBranchRef { name }`}
+                  defaultBranchRef { name }
                 }
               }
             }
@@ -499,10 +559,10 @@ export async function fetchViewerReposPageUnified(
         // Personal context
         variables.affiliations = ownerAffiliations;
         q = (ap.gql as any)`
-          query ViewerRepos($first: Int!, $after: String, $sortField: RepositoryOrderField!, $sortDirection: OrderDirection!, $affiliations: [RepositoryAffiliation!]!, $privacy: RepositoryPrivacy) {
+          query ViewerRepos($first: Int!, $after: String, $sortField: RepositoryOrderField!, $sortDirection: OrderDirection!, $affiliations: [RepositoryAffiliation!]!) {
             rateLimit { limit remaining resetAt }
             viewer {
-              repositories(ownerAffiliations: $affiliations, first: $first, after: $after, orderBy: { field: $sortField, direction: $sortDirection }, privacy: $privacy) {
+              repositories(ownerAffiliations: $affiliations, first: $first, after: $after, orderBy: { field: $sortField, direction: $sortDirection }) {
                 totalCount
                 pageInfo { endCursor hasNextPage }
                 nodes {
@@ -516,15 +576,16 @@ export async function fetchViewerReposPageUnified(
                   isArchived
                   stargazerCount
                   forkCount
+                  viewerHasStarred
+                  openPullRequests: pullRequests(states: OPEN) { totalCount }
+                  openIssues: issues(states: OPEN) { totalCount }
+                  owner { __typename login }
                   primaryLanguage { name color }
                   updatedAt
                   pushedAt
                   diskUsage
-                  ${includeForkTracking ? `
-                  parent { nameWithOwner defaultBranchRef { name target { ... on Commit { history(first: 0) { totalCount } } } } }
-                  defaultBranchRef { name target { ... on Commit { history(first: 0) { totalCount } } } }` : `
                   parent { nameWithOwner }
-                  defaultBranchRef { name }`}
+                  defaultBranchRef { name }
                 }
               }
             }
@@ -564,7 +625,7 @@ export async function fetchViewerReposPageUnified(
       });
         
       return {
-        nodes: data.nodes as RepoNode[],
+        nodes: normalizeRepoNodes(data.nodes),
         endCursor: data.pageInfo.endCursor,
         hasNextPage: data.pageInfo.hasNextPage,
         totalCount: data.totalCount,
@@ -572,7 +633,7 @@ export async function fetchViewerReposPageUnified(
       };
     }
   } catch (e: any) {
-    logger.error('Apollo query failed', { 
+    logger.error('Apollo query failed', {
       error: e.message, 
       stack: e.stack,
       graphQLErrors: e.graphQLErrors,
@@ -585,7 +646,7 @@ export async function fetchViewerReposPageUnified(
   logger.warn('Falling back to Octokit client');
   if (debug) console.log('📡 Using Octokit fallback...');
   const octo = makeClient(token);
-  return fetchViewerReposPage(octo, first, after, orderBy, includeForkTracking, ownerAffiliations, organizationLogin, privacy);
+  return fetchViewerReposPage(octo, first, after, orderBy, includeForkTracking, ownerAffiliations, organizationLogin);
 }
 
 // Server-side search repositories for the viewer (Apollo-first, network-only by default)
@@ -628,15 +689,16 @@ export async function searchRepositoriesUnified(
               isArchived
               stargazerCount
               forkCount
+              viewerHasStarred
+              openPullRequests: pullRequests(states: OPEN) { totalCount }
+              openIssues: issues(states: OPEN) { totalCount }
+              owner { __typename login }
               primaryLanguage { name color }
               updatedAt
               pushedAt
               diskUsage
-              ${includeForkTracking ? `
-              parent { nameWithOwner defaultBranchRef { name target { ... on Commit { history(first: 0) { totalCount } } } } }
-              defaultBranchRef { name target { ... on Commit { history(first: 0) { totalCount } } } }` : `
               parent { nameWithOwner }
-              defaultBranchRef { name }`}
+              defaultBranchRef { name }
             }
           }
         }
@@ -649,7 +711,7 @@ export async function searchRepositoriesUnified(
     });
     const data = res.data.search;
     return {
-      nodes: data.nodes as RepoNode[],
+      nodes: normalizeRepoNodes(data.nodes),
       endCursor: data.pageInfo.endCursor,
       hasNextPage: data.pageInfo.hasNextPage,
       totalCount: data.repositoryCount,
@@ -706,7 +768,7 @@ export async function deleteRepositoryRest(
   
   let msg = `GitHub REST delete failed (status ${res.status})`;
   try {
-    const body = await res.json();
+    const body = await res.json() as GitHubRestErrorBody;
     if (body && body.message) msg += `: ${body.message}`;
   } catch {
     // ignore
@@ -720,6 +782,324 @@ export async function deleteRepositoryRest(
   });
   
   throw new Error(msg);
+}
+
+// GitHub GraphQL does not support creating repos. Use REST:
+//   - Personal: POST /user/repos
+//   - Organisation: POST /orgs/{org}/repos
+/**
+ * Parse a failed GitHub REST response into a human-readable error message,
+ * combining the top-level `message` with any per-field `errors[]` details.
+ *
+ * @param res The non-OK fetch Response.
+ * @param defaultMessage Fallback message used when the body can't be parsed.
+ */
+async function parseGitHubRestError(res: Response, defaultMessage: string): Promise<string> {
+  let msg = defaultMessage;
+  try {
+    const errBody = await res.json() as GitHubRestErrorBody;
+    if (errBody?.message) msg = errBody.message;
+    if (Array.isArray(errBody?.errors) && errBody.errors.length > 0) {
+      const details = errBody.errors
+        .map((e) => e.message || (e.field ? `${e.field}: ${e.code}` : e.code))
+        .filter(Boolean)
+        .join('; ');
+      if (details) msg += ` (${details})`;
+    }
+  } catch {
+    // ignore body parse errors
+  }
+  return msg;
+}
+
+/** Options describing the repository to create via {@link createRepositoryRest}. */
+export interface CreateRepositoryOptions {
+  name: string;
+  visibility: 'PUBLIC' | 'PRIVATE' | 'INTERNAL';
+  description?: string;
+  org?: string; // when provided, create under the organisation instead of the viewer
+}
+
+/**
+ * Create a repository via the GitHub REST API.
+ *
+ * Posts to `/user/repos` for the viewer, or `/orgs/{org}/repos` when `options.org`
+ * is set. Maps the requested visibility to the REST body (`private` boolean, or
+ * `visibility: 'internal'` for enterprise organisations).
+ *
+ * @param token GitHub access token with repo-creation scope.
+ * @param options The new repository's name, visibility, optional description and org.
+ * @returns The created repository's `nameWithOwner` and web `url`.
+ * @throws Error with a GitHub-derived message on a non-201 response or network failure.
+ */
+export async function createRepositoryRest(
+  token: string,
+  options: CreateRepositoryOptions
+): Promise<{ nameWithOwner: string; url: string }> {
+  const { name, visibility, description, org } = options;
+  const url = org
+    ? `https://api.github.com/orgs/${org}/repos`
+    : `https://api.github.com/user/repos`;
+
+  const body: Record<string, any> = { name };
+  if (visibility === 'INTERNAL') {
+    // Internal visibility is only valid for org repos within an enterprise
+    body.visibility = 'internal';
+  } else {
+    body.private = visibility === 'PRIVATE';
+  }
+  if (description) body.description = description;
+
+  logger.info('Creating repository', { name, visibility, org: org ?? null, url });
+
+  let res: Response;
+  try {
+    res = await fetch(url, {
+      method: 'POST',
+      headers: {
+        'Authorization': `token ${token}`,
+        'Accept': 'application/vnd.github+json',
+        'Content-Type': 'application/json',
+        'User-Agent': 'gh-manager-cli'
+      },
+      body: JSON.stringify(body)
+    } as any);
+  } catch (networkError: any) {
+    logger.error('Network error during repository creation', { error: networkError.message, name, org: org ?? null });
+    throw new Error(`Network error whilst creating repository: ${networkError.message}`);
+  }
+
+  if (res.status === 201) {
+    const data = await res.json() as CreateRepoRestResponse;
+    logger.info('Successfully created repository', {
+      nameWithOwner: data.full_name,
+      url: data.html_url
+    });
+    return { nameWithOwner: data.full_name, url: data.html_url };
+  }
+
+  const msg = await parseGitHubRestError(res, `Failed to create repository (status ${res.status})`);
+
+  logger.error('Failed to create repository', { status: res.status, error: msg, name, org: org ?? null });
+  throw new Error(msg);
+}
+
+// GitHub GraphQL does not support transferring repos. Use REST:
+//   POST /repos/{owner}/{repo}/transfer with { new_owner }
+// The transfer is asynchronous: GitHub returns 202 Accepted on success.
+/**
+ * Transfer a repository to another owner via the GitHub REST API.
+ *
+ * The transfer is asynchronous — GitHub returns `202 Accepted` to acknowledge the
+ * request and processes it in the background, so success here means *initiated*,
+ * not completed.
+ *
+ * @param token GitHub access token with admin rights on the repository.
+ * @param owner Current owner (user or organisation) of the repository.
+ * @param repo Repository name.
+ * @param newOwner Destination owner (username or organisation login).
+ * @throws Error with a GitHub-derived message on a non-202/200 response or network failure.
+ */
+export async function transferRepositoryRest(
+  token: string,
+  owner: string,
+  repo: string,
+  newOwner: string
+): Promise<void> {
+  const url = `https://api.github.com/repos/${owner}/${repo}/transfer`;
+
+  logger.info('Transferring repository', { owner, repo, newOwner, url });
+
+  let res: Response;
+  try {
+    res = await fetch(url, {
+      method: 'POST',
+      headers: {
+        'Authorization': `token ${token}`,
+        'Accept': 'application/vnd.github+json',
+        'Content-Type': 'application/json',
+        'User-Agent': 'gh-manager-cli'
+      },
+      body: JSON.stringify({ new_owner: newOwner })
+    } as any);
+  } catch (networkError: any) {
+    logger.error('Network error during repository transfer', { error: networkError.message, owner, repo, newOwner });
+    throw new Error(`Network error whilst transferring repository: ${networkError.message}`);
+  }
+
+  // 202 Accepted = transfer initiated. Some responses may also return 200.
+  if (res.status === 202 || res.status === 200) {
+    logger.info('Successfully initiated repository transfer', { owner, repo, newOwner, status: res.status });
+    return;
+  }
+
+  const msg = await parseGitHubRestError(res, `Failed to transfer repository (status ${res.status})`);
+
+  logger.error('Failed to transfer repository', { status: res.status, error: msg, owner, repo, newOwner });
+  throw new Error(msg);
+}
+
+// Fetch starred repositories
+export async function getStarredRepositories(
+  client: ReturnType<typeof makeClient>,
+  first: number,
+  after?: string
+): Promise<{
+  nodes: RepoNode[];
+  endCursor?: string;
+  hasNextPage: boolean;
+  totalCount: number;
+  rateLimit: RateLimitInfo;
+}> {
+  logger.info('Fetching starred repositories', {
+    first,
+    after
+  });
+
+  const query = /* GraphQL */ `
+    query StarredRepos($first: Int!, $after: String) {
+      rateLimit {
+        limit
+        remaining
+        resetAt
+      }
+      viewer {
+        starredRepositories(
+          first: $first
+          after: $after
+          orderBy: { field: STARRED_AT, direction: DESC }
+        ) {
+          totalCount
+          pageInfo {
+            endCursor
+            hasNextPage
+          }
+          nodes {
+            id
+            name
+            nameWithOwner
+            description
+            visibility
+            isPrivate
+            isFork
+            isArchived
+            stargazerCount
+            forkCount
+            viewerHasStarred
+            openPullRequests: pullRequests(states: OPEN) { totalCount }
+            openIssues: issues(states: OPEN) { totalCount }
+            owner {
+              __typename
+              login
+            }
+            primaryLanguage {
+              name
+              color
+            }
+            updatedAt
+            pushedAt
+            diskUsage
+            parent {
+              nameWithOwner
+            }
+            defaultBranchRef { name }
+          }
+        }
+      }
+    }
+  `;
+
+  try {
+    const res: any = await client(query, {
+      first,
+      after: after ?? null,
+    });
+
+    const data = res.viewer.starredRepositories;
+
+    logger.info('Successfully fetched starred repositories', {
+      count: data.nodes?.length || 0,
+      totalCount: data.totalCount
+    });
+
+    return {
+      nodes: normalizeRepoNodes(data.nodes),
+      endCursor: data.pageInfo.endCursor,
+      hasNextPage: data.pageInfo.hasNextPage,
+      totalCount: data.totalCount,
+      rateLimit: res.rateLimit as RateLimitInfo,
+    };
+  } catch (error: any) {
+    logger.error('Failed to fetch starred repositories', {
+      error: error.message,
+      stack: error.stack
+    });
+    throw error;
+  }
+}
+
+// Star a repository
+export async function starRepository(
+  client: ReturnType<typeof makeClient>,
+  starrableId: string
+): Promise<void> {
+  logger.info('Starring repository', {
+    starrableId
+  });
+
+  const mutation = /* GraphQL */ `
+    mutation StarRepo($starrableId: ID!) {
+      addStar(input: { starrableId: $starrableId }) {
+        clientMutationId
+      }
+    }
+  `;
+
+  try {
+    await client(mutation, { starrableId });
+    logger.info('Successfully starred repository', {
+      starrableId
+    });
+  } catch (error: any) {
+    logger.error('Failed to star repository', {
+      starrableId,
+      error: error.message,
+      stack: error.stack
+    });
+    throw error;
+  }
+}
+
+// Unstar a repository
+export async function unstarRepository(
+  client: ReturnType<typeof makeClient>,
+  starrableId: string
+): Promise<void> {
+  logger.info('Unstarring repository', {
+    starrableId
+  });
+
+  const mutation = /* GraphQL */ `
+    mutation UnstarRepo($starrableId: ID!) {
+      removeStar(input: { starrableId: $starrableId }) {
+        clientMutationId
+      }
+    }
+  `;
+
+  try {
+    await client(mutation, { starrableId });
+    logger.info('Successfully unstarred repository', {
+      starrableId
+    });
+  } catch (error: any) {
+    logger.error('Failed to unstar repository', {
+      starrableId,
+      error: error.message,
+      stack: error.stack
+    });
+    throw error;
+  }
 }
 
 export async function archiveRepositoryById(
@@ -805,7 +1185,7 @@ export async function changeRepositoryVisibility(
     }
   `;
   
-  const result = await client(query, { id: repositoryId });
+  const result = await client<{ node?: { nameWithOwner?: string } | null }>(query, { id: repositoryId });
   const repo = result.node;
   
   if (!repo || !repo.nameWithOwner) {
@@ -1009,7 +1389,7 @@ export async function syncForkWithUpstream(
   }
   
   if (res.status === 200) {
-    const body = await res.json();
+    const body = await res.json() as SyncForkRestResponse;
     logger.info('Successfully synced fork with upstream', {
       owner,
       repo,
@@ -1020,10 +1400,10 @@ export async function syncForkWithUpstream(
     });
     return body;
   }
-  
+
   let msg = `Fork sync failed (status ${res.status})`;
   try {
-    const body = await res.json();
+    const body = await res.json() as GitHubRestErrorBody;
     if (body && body.message) {
       msg += `: ${body.message}`;
       if (res.status === 409) {
@@ -1195,13 +1575,13 @@ export async function fetchRestRateLimits(token: string): Promise<RestRateLimitI
       return null;
     }
     
-    const data = await response.json();
-    
+    const data = await response.json() as RestRateLimitResponse;
+
     logger.debug('Successfully fetched REST rate limits', {
       core: data.resources?.core,
       graphql: data.resources?.graphql
     });
-    
+
     return {
       core: data.resources?.core || { limit: 0, remaining: 0, reset: 0 },
       graphql: data.resources?.graphql || { limit: 0, remaining: 0, reset: 0 }
@@ -1259,8 +1639,8 @@ export async function renameRepositoryById(
   `;
   
   try {
-    const result = await client(mutation, { repositoryId, name: newName });
-    
+    const result = await client<{ updateRepository?: { repository?: { name?: string } } }>(mutation, { repositoryId, name: newName });
+
     logger.info('Repository renamed successfully', {
       repositoryId,
       newName: result?.updateRepository?.repository?.name
@@ -1315,5 +1695,160 @@ export async function inspectCacheStatus(): Promise<void> {
     process.stderr.write('\n');
   } catch (e: any) {
     process.stderr.write(`❌ Cache inspection failed: ${e.message}\n`);
+  }
+}
+
+export interface ForkEnrichment {
+  id: string;
+  forkHistoryCount: number | null;
+  parentHistoryCount: number | null;
+}
+
+// Batch-enrich forks with ahead/behind counts using aliased node(id:) + repository(owner,name) queries.
+// Batch size is capped at 5 forks (10 history queries) to stay well within GitHub's per-query budget.
+export async function enrichForksWithAheadBehind(
+  client: ReturnType<typeof makeClient>,
+  forks: Array<{ id: string; parentNameWithOwner: string }>
+): Promise<ForkEnrichment[]> {
+  if (forks.length === 0) return [];
+
+  const results: ForkEnrichment[] = [];
+  const BATCH_SIZE = 5;
+
+  for (let batchStart = 0; batchStart < forks.length; batchStart += BATCH_SIZE) {
+    const batch = forks.slice(batchStart, batchStart + BATCH_SIZE);
+
+    const queryParts: string[] = [];
+    const variables: Record<string, string> = {};
+
+    batch.forEach((fork, i) => {
+      const [parentOwner, parentName] = fork.parentNameWithOwner.split('/');
+      if (!parentOwner || !parentName) return;
+
+      const varName = `fid${i}`;
+      variables[varName] = fork.id;
+
+      // Sanitise owner/name: only alphanumeric, hyphens, dots and underscores are valid
+      const safeOwner = parentOwner.replace(/[^a-zA-Z0-9_.\-]/g, '');
+      const safeName = parentName.replace(/[^a-zA-Z0-9_.\-]/g, '');
+
+      queryParts.push(`
+        fork${i}: node(id: $${varName}) {
+          ... on Repository {
+            id
+            defaultBranchRef {
+              target {
+                ... on Commit {
+                  history(first: 0) { totalCount }
+                }
+              }
+            }
+          }
+        }
+        parent${i}: repository(owner: "${safeOwner}", name: "${safeName}") {
+          defaultBranchRef {
+            target {
+              ... on Commit {
+                history(first: 0) { totalCount }
+              }
+            }
+          }
+        }
+      `);
+    });
+
+    if (queryParts.length === 0) {
+      // Every fork in this batch had an unparseable parent (no owner/name) —
+      // emit null rows so the function always returns exactly one entry per
+      // input fork, keeping the result contract complete for callers.
+      batch.forEach(fork => results.push({ id: fork.id, forkHistoryCount: null, parentHistoryCount: null }));
+      continue;
+    }
+
+    const varDefs = Object.entries(variables)
+      .map(([k]) => `$${k}: ID!`)
+      .join(', ');
+
+    const query = `query EnrichForks(${varDefs}) { ${queryParts.join('\n')} }`;
+
+    try {
+      const res: any = await client(query, variables);
+
+      batch.forEach((fork, i) => {
+        const forkNode = res[`fork${i}`];
+        const parentNode = res[`parent${i}`];
+
+        const forkHistoryCount: number | null =
+          forkNode?.defaultBranchRef?.target?.history?.totalCount ?? null;
+        const parentHistoryCount: number | null =
+          parentNode?.defaultBranchRef?.target?.history?.totalCount ?? null;
+
+        results.push({ id: fork.id, forkHistoryCount, parentHistoryCount });
+      });
+    } catch (err: any) {
+      logger.error('enrichForksWithAheadBehind batch failed', {
+        error: err.message,
+        batchSize: batch.length,
+      });
+      // Push nulls for this batch so callers know they weren't enriched
+      batch.forEach(fork => results.push({ id: fork.id, forkHistoryCount: null, parentHistoryCount: null }));
+    }
+  }
+
+  return results;
+}
+
+export async function fetchRepositoryByOwnerAndName(
+  client: ReturnType<typeof makeClient>,
+  owner: string,
+  name: string
+): Promise<RepoNode | null> {
+  const query = /* GraphQL */ `
+    query GetRepoByOwnerName($owner: String!, $name: String!) {
+      repository(owner: $owner, name: $name) {
+        id
+        name
+        nameWithOwner
+        description
+        pushedAt
+        updatedAt
+        isPrivate
+        isArchived
+        isFork
+        visibility
+        stargazerCount
+        forkCount
+        diskUsage
+        viewerHasStarred
+        owner { __typename login }
+        primaryLanguage { name color }
+        parent {
+          nameWithOwner
+          defaultBranchRef {
+            target {
+              ... on Commit {
+                history(first: 0) { totalCount }
+              }
+            }
+          }
+        }
+        defaultBranchRef {
+          name
+          target {
+            ... on Commit {
+              history(first: 0) { totalCount }
+            }
+          }
+        }
+      }
+    }
+  `;
+
+  try {
+    const result: any = await client(query, { owner, name });
+    return result.repository as RepoNode | null;
+  } catch (err: any) {
+    logger.error('fetchRepositoryByOwnerAndName failed', { owner, name, error: err.message });
+    return null;
   }
 }

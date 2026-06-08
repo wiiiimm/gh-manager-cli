@@ -10,7 +10,7 @@ vi.mock('../src/lib/logger', () => ({
   }
 }));
 
-import { makeClient, getViewerLogin, fetchViewerOrganizations } from '../src/services/github';
+import { makeClient, getViewerLogin, fetchViewerOrganizations, normalizeRepoNode } from '../src/services/github';
 
 // Mock @octokit/graphql
 vi.mock('@octokit/graphql', () => ({
@@ -209,6 +209,96 @@ describe('github', () => {
       expect(orgs).toHaveLength(1);
       expect(orgs[0].name).toBeNull();
       expect(orgs[0].login).toBe('org-without-name');
+    });
+  });
+
+  describe('normalizeRepoNode (SWR-357)', () => {
+    it('flattens openPullRequests { totalCount } onto the node as a number', () => {
+      const raw = {
+        id: 'R_1',
+        nameWithOwner: 'octocat/hello',
+        openPullRequests: { totalCount: 5 },
+        openIssues: { totalCount: 12 },
+      };
+      const node = normalizeRepoNode(raw);
+      expect(node.openPullRequests).toBe(5);
+      expect(node.openIssues).toBe(12);
+    });
+
+    it('preserves all other fields untouched', () => {
+      const raw = {
+        id: 'R_1',
+        nameWithOwner: 'octocat/hello',
+        stargazerCount: 99,
+        description: 'desc',
+        openPullRequests: { totalCount: 0 },
+        openIssues: { totalCount: 0 },
+        primaryLanguage: { name: 'Go', color: '#00ADD8' },
+      };
+      const node = normalizeRepoNode(raw);
+      expect(node.id).toBe('R_1');
+      expect(node.nameWithOwner).toBe('octocat/hello');
+      expect(node.stargazerCount).toBe(99);
+      expect(node.description).toBe('desc');
+      expect(node.primaryLanguage).toEqual({ name: 'Go', color: '#00ADD8' });
+    });
+
+    it('coerces zero counts correctly (not falsy-skipped)', () => {
+      const node = normalizeRepoNode({
+        openPullRequests: { totalCount: 0 },
+        openIssues: { totalCount: 0 },
+      });
+      expect(node.openPullRequests).toBe(0);
+      expect(node.openIssues).toBe(0);
+    });
+
+    it('leaves nodes without the connection fields alone', () => {
+      const raw = { id: 'R_2', nameWithOwner: 'octocat/old-cache' };
+      const node = normalizeRepoNode(raw);
+      expect(node.openPullRequests).toBeUndefined();
+      expect(node.openIssues).toBeUndefined();
+      expect(node.id).toBe('R_2');
+    });
+
+    it('handles null nodes defensively', () => {
+      expect(normalizeRepoNode(null as any)).toBeNull();
+    });
+  });
+
+  describe('GraphQL query shape (SWR-357)', () => {
+    it('list queries include the openPullRequests / openIssues alias selections', async () => {
+      // Verify the raw query template strings on the fallback Octokit path —
+      // those are the strings that actually hit GitHub when Apollo is unavailable,
+      // so they must always carry the SWR-357 fields.
+      const { fetchViewerReposPage } = await import('../src/services/github');
+      const captured: string[] = [];
+      const mockClient: any = vi.fn(async (query: string) => {
+        captured.push(query);
+        return {
+          rateLimit: { limit: 5000, remaining: 4999, resetAt: new Date().toISOString() },
+          viewer: {
+            repositories: {
+              nodes: [],
+              pageInfo: { endCursor: null, hasNextPage: false },
+              totalCount: 0,
+            },
+          },
+          organization: {
+            repositories: {
+              nodes: [],
+              pageInfo: { endCursor: null, hasNextPage: false },
+              totalCount: 0,
+            },
+          },
+        };
+      });
+
+      await fetchViewerReposPage(mockClient, 100);
+      await fetchViewerReposPage(mockClient, 100, null, undefined, true, ['OWNER'], 'my-org');
+
+      const all = captured.join('\n');
+      expect(all).toMatch(/openPullRequests:\s*pullRequests\(states:\s*OPEN\)\s*\{\s*totalCount\s*\}/);
+      expect(all).toMatch(/openIssues:\s*issues\(states:\s*OPEN\)\s*\{\s*totalCount\s*\}/);
     });
   });
 });

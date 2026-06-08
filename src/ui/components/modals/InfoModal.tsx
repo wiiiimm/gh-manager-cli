@@ -53,8 +53,8 @@ export default function InfoModal({ repo, terminalWidth, onClose }: InfoModalPro
       <Box height={1}><Text> </Text></Box>
       <Box flexDirection="column" borderStyle="single" borderColor="yellow" paddingX={1} marginY={1}>
         <Text color="yellow">💚 Enjoying gh-manager-cli?</Text>
-        <Text color="gray">Support the project at:</Text>
-        <Text color="cyan">buymeacoffee.com/wiiiimm</Text>
+        <Text color="gray">Sponsor on GitHub:</Text>
+        <Text color="cyan">github.com/sponsors/wiiiimm</Text>
       </Box>
       <Text color="gray">Press Esc or I to close</Text>
     </Box>

@@ -3,61 +3,67 @@
 ## Overview
 The gh-manager-cli project uses a **single optimized workflow** for all releases to minimize complexity and avoid skipped workflow runs.
 
-## Architecture: Single Workflow Approach
+## Architecture: Two-Phase Workflow Approach
 
 ```
 ┌─────────────────────────────────────────────────────────────┐
 │                         Main Branch                          │
 ├─────────────────────────────────────────────────────────────┤
 │                                                               │
-│  [Direct Commit] ──┐                                         │
-│                    ├──► [release.yml workflow]               │
-│  [PR Merge] ───────┘         │                               │
+│  Phase 1: Version Creation (Non-release commits)             │
+│  ─────────────────────────────────────────────────           │
+│  [Feature/Fix Commit] ──► [release.yml workflow]             │
+│                              │                               │
 │                              ▼                               │
 │                    ┌──────────────────┐                      │
-│                    │ Check Release    │                      │
-│                    │ (Job-level       │                      │
-│                    │  conditions)     │                      │
+│                    │ Semantic Release │                      │
+│                    │ - Analyze commits│                      │
+│                    │ - Bump version   │                      │
+│                    │ - Update CHANGELOG│                     │
+│                    │ - Create git tag │                      │
+│                    │ - NPM Publish    │                      │
+│                    │ - Commit changes │                      │
 │                    └────────┬─────────┘                      │
 │                             │                                │
-│                    ┌────────▼─────────┐                      │
-│                    │ Should Release?  │                      │
-│                    └──┬──────────┬────┘                      │
-│                       │          │                           │
-│                    NO │          │ YES                       │
-│                       │          │                           │
-│                 ┌─────▼──┐  ┌───▼──────────┐                │
-│                 │ Exit   │  │ Build & Test │                │
-│                 │ (0     │  └───┬──────────┘                │
-│                 │ skips) │      │                            │
-│                 └────────┘  ┌───▼──────────────┐            │
-│                             │ Semantic Release │             │
-│                             │ - Analyze commits│             │
-│                             │ - Bump version   │             │
-│                             │ - Create tag     │             │
-│                             │ - GitHub Release │             │
-│                             │ - NPM Publish    │             │
-│                             └───┬──────────────┘            │
-│                                 │                            │
-│                             ┌───▼──────────────┐            │
-│                             │ Update Homebrew  │             │
-│                             │ Formula          │             │
-│                             └──────────────────┘            │
+│                             ▼                                │
+│                    Creates "chore(release):" commit          │
+│                                                               │
+│  Phase 2: Binary Building (Release commits)                  │
+│  ───────────────────────────────────────────                 │
+│  [chore(release): commit] ──► [release.yml workflow]         │
+│                                   │                          │
+│                                   ▼                          │
+│                          ┌────────────────┐                  │
+│                          │ Build Binaries │                  │
+│                          │ (Linux/Mac/Win)│                  │
+│                          └────────┬───────┘                  │
+│                                   │                          │
+│                          ┌────────▼───────────┐              │
+│                          │ Create GitHub      │              │
+│                          │ Release & Upload   │              │
+│                          │ Binaries           │              │
+│                          └────────┬───────────┘              │
+│                                   │                          │
+│                          ┌────────▼───────────┐              │
+│                          │ Publish to GitHub  │              │
+│                          │ Packages & Update  │              │
+│                          │ Homebrew Formula   │              │
+│                          └────────────────────┘              │
 └─────────────────────────────────────────────────────────────┘
 ```
 
-## Why Single Workflow?
+## Why Two-Phase Workflow?
 
 ### Benefits
-1. **Zero Skipped Runs**: Uses job-level conditions instead of workflow-level
-2. **Cleaner History**: No confusing "skipped" statuses in GitHub Actions
-3. **Single Source of Truth**: One workflow to maintain
-4. **Handles All Cases**: Works for both PR merges and direct commits
+1. **Correct Version in Binaries**: Build happens after version is committed
+2. **Avoids Immutable Release Issues**: GitHub release created after binaries are ready
+3. **Clear Separation**: Version creation vs binary building
+4. **Atomic Operations**: Each phase completes independently
 
-### How It Avoids Infinite Loops
-- The workflow checks if a commit message starts with `chore(release):`
-- If it does, the workflow exits early (but shows as successful, not skipped)
-- This prevents the semantic-release commit from triggering another release
+### How It Works
+- **Phase 1**: Runs on feature/fix commits to create version and publish to npm
+- **Phase 2**: Runs on `chore(release):` commits to build binaries and create GitHub release
+- This ensures binaries contain the correct version number
 
 ## Release Triggers
 
@@ -88,19 +94,28 @@ The workflow runs on every push to main and determines if a release is needed ba
 
 ## Release Flow
 
-1. **Developer Action**: Push to main (direct or via PR)
+### Phase 1: Version Creation
+1. **Developer Action**: Push feature/fix to main
 2. **Workflow Triggers**: `release.yml` starts
-3. **Check Release Job**: Analyzes commit message
-   - If `chore(release):*` → Exit (no release)
-   - Otherwise → Continue
-4. **Build Job**: Runs tests and builds
-5. **Release Job**: 
+3. **Semantic Release Job**: (if NOT `chore(release):`)
    - Analyzes all commits since last release
    - Determines version bump (major/minor/patch)
-   - Updates package.json
+   - Updates package.json and CHANGELOG.md
    - Creates git tag
    - Publishes to NPM
-   - Creates GitHub Release
+   - Commits changes as `chore(release): X.Y.Z`
+
+### Phase 2: Binary Building
+1. **Automatic Trigger**: `chore(release):` commit from Phase 1
+2. **Workflow Triggers**: `release.yml` starts again
+3. **Build Jobs**: (if `chore(release):`)
+   - Build binaries for Linux, macOS, Windows
+   - Uses committed version from package.json
+4. **Create Release Job**:
+   - Creates GitHub Release with changelog
+   - Uploads binaries to release
+5. **Publish Extras Job**:
+   - Publishes to GitHub Packages
    - Updates Homebrew formula
 
 ## Version Numbering
@@ -113,20 +128,25 @@ Uses [Semantic Versioning](https://semver.org/): `MAJOR.MINOR.PATCH`
 
 ## Configuration Files
 
-### `.releaserc.json`
+### `package.json` (release config)
 ```json
 {
-  "branches": ["main"],
-  "plugins": [
-    "@semantic-release/commit-analyzer",
-    "@semantic-release/release-notes-generator",
-    "@semantic-release/changelog",
-    "@semantic-release/npm",
-    "@semantic-release/github",
-    "@semantic-release/git"
-  ]
+  "release": {
+    "branches": ["main"],
+    "plugins": [
+      "@semantic-release/commit-analyzer",
+      "@semantic-release/release-notes-generator",
+      "@semantic-release/changelog",
+      "@semantic-release/npm",
+      ["@semantic-release/git", {
+        "assets": ["CHANGELOG.md", "package.json"],
+        "message": "chore(release): ${nextRelease.version}\n\n${nextRelease.notes}"
+      }]
+    ]
+  }
 }
 ```
+Note: `@semantic-release/github` is NOT included to avoid immutable release issues.
 
 ### Workflow: `.github/workflows/release.yml`
 - Single workflow handling all release logic

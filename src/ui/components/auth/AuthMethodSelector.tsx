@@ -46,9 +46,7 @@ export default function AuthMethodSelector({ onSelect, onQuit }: AuthMethodSelec
 
   return (
     <Box flexDirection="column" borderStyle="single" borderColor="cyan" paddingX={2} paddingY={1}>
-      <Text bold marginBottom={1}>
-        Choose Authentication Method
-      </Text>
+      <Box marginBottom={1}><Text bold>Choose Authentication Method</Text></Box>
       
       <Box flexDirection="column" marginY={1}>
         {methods.map((method, index) => {
@@ -71,9 +69,7 @@ export default function AuthMethodSelector({ onSelect, onQuit }: AuthMethodSelec
         })}
       </Box>
       
-      <Text color="gray" dimColor marginTop={1}>
-        Use arrow keys to navigate, Enter to select, or press 1/2 • Q/Esc to quit
-      </Text>
+      <Box marginTop={1}><Text color="gray" dimColor>Use arrow keys to navigate, Enter to select, or press 1/2 • Q/Esc to quit</Text></Box>
     </Box>
   );
 }

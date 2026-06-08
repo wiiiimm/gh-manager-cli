@@ -2,6 +2,8 @@ import React, { useState, useEffect } from 'react';
 import { Box, Text, useInput } from 'ink';
 import TextInput from 'ink-text-input';
 import chalk from 'chalk';
+import type { Theme } from '../../../config/themes';
+import { useTheme } from '../../hooks/useTheme';
 
 interface ChangeVisibilityModalProps {
   isOpen: boolean;
@@ -13,6 +15,7 @@ interface ChangeVisibilityModalProps {
   onClose: () => void;
   changing?: boolean;
   error?: string | null;
+  theme?: Theme;
 }
 
 export const ChangeVisibilityModal: React.FC<ChangeVisibilityModalProps> = ({
@@ -25,7 +28,9 @@ export const ChangeVisibilityModal: React.FC<ChangeVisibilityModalProps> = ({
   onClose,
   changing: externalChanging,
   error: externalError,
+  theme: themeProp,
 }) => {
+  const { c } = useTheme(themeProp?.name ?? 'default');
   // Determine available visibility options based on current visibility and enterprise status
   const getAvailableOptions = () => {
     if (currentVisibility === 'PUBLIC') {
@@ -55,6 +60,7 @@ export const ChangeVisibilityModal: React.FC<ChangeVisibilityModalProps> = ({
 
   useInput((input, key) => {
     if (!isOpen) return;
+    if (changing) return; // Ignore input while the visibility change is in flight
 
     if (key.escape || input?.toLowerCase() === 'c') {
       onClose();
@@ -164,9 +170,7 @@ export const ChangeVisibilityModal: React.FC<ChangeVisibilityModalProps> = ({
               justifyContent="center"
               flexDirection="column"
             >
-              <Text>
-                {chalk.bgGray.white.bold(' Cancel ')}
-              </Text>
+              <Text>{c.btnMuted(' Cancel ')}</Text>
             </Box>
           </Box>
           <Box marginTop={1} flexDirection="row" justifyContent="center">
@@ -225,10 +229,7 @@ export const ChangeVisibilityModal: React.FC<ChangeVisibilityModalProps> = ({
               flexDirection="column"
             >
               <Text>
-                {focusedButton === 'cancel' ? 
-                  chalk.bgGray.white.bold(' Cancel ') : 
-                  chalk.gray.bold('Cancel')
-                }
+                {focusedButton === 'cancel' ? c.btnMuted(' Cancel ') : c.muted.bold('Cancel')}
               </Text>
             </Box>
           </Box>
@@ -246,6 +247,7 @@ export const ChangeVisibilityModal: React.FC<ChangeVisibilityModalProps> = ({
           value=""
           onChange={() => { /* noop */ }}
           onSubmit={() => {
+            if (changing) return; // Ignore Enter while the change is in flight
             if (isFork || focusedButton === 'cancel') {
               onClose();
             } else {

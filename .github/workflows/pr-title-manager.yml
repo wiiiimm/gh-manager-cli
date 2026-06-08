@@ -108,9 +108,6 @@ jobs:
       - name: Checkout repository
         if: steps.bot-check.outputs.is_bot == 'false' && steps.skip-check.outputs.should_skip == 'false'
         uses: actions/checkout@v4
-        with:
-          sparse-checkout: |
-            .github/scripts
       
       # Main title management logic
       - name: Process PR Title
@@ -122,8 +119,24 @@ jobs:
             // Load the shared normalization script
             const fs = require('fs');
             const path = require('path');
-            const scriptPath = path.join(process.env.GITHUB_WORKSPACE, '.github/scripts/normalize-pr-title.js');
-            const { processPRTitle } = require(scriptPath);
+            const scriptPath = path.join(process.env.GITHUB_WORKSPACE, '.github/scripts/normalize-pr-title.cjs');
+            
+            // Debug: Check if file exists
+            if (!fs.existsSync(scriptPath)) {
+              throw new Error(`Script file not found at: ${scriptPath}`);
+            }
+            
+            // Load the module
+            const scriptModule = require(scriptPath);
+            
+            // Debug: Check what was loaded
+            console.log('Loaded module keys:', Object.keys(scriptModule));
+            
+            // Extract the function
+            const processPRTitle = scriptModule.processPRTitle;
+            if (!processPRTitle) {
+              throw new Error('processPRTitle function not found in module');
+            }
             
             // Get PR details
             const { data: pullRequest } = await github.rest.pulls.get({

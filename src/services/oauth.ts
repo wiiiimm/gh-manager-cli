@@ -22,6 +22,21 @@ export interface DeviceCodeResponse {
   interval: number;
 }
 
+// GitHub's device-code endpoint returns either a DeviceCodeResponse or an error pair.
+interface DeviceCodeApiResponse extends Partial<DeviceCodeResponse> {
+  error?: string;
+  error_description?: string;
+}
+
+// GitHub's token endpoint returns either an access token or an error pair.
+interface TokenApiResponse {
+  access_token?: string;
+  token_type?: string;
+  scope?: string;
+  error?: string;
+  error_description?: string;
+}
+
 /**
  * Starts the GitHub Device Authorization Grant flow
  */
@@ -107,13 +122,31 @@ export async function requestDeviceCode(): Promise<DeviceCodeResponse> {
     throw new Error(`HTTP error ${response.status}: ${await response.text()}`);
   }
 
-  const data = await response.json();
-  
+  const data = await response.json() as DeviceCodeApiResponse;
+
   if (data.error) {
     throw new Error(`${data.error}: ${data.error_description || 'Unknown error'}`);
   }
 
-  return data;
+  // Validate the required fields are present rather than force-casting a partial
+  // body to DeviceCodeResponse, so callers never receive a malformed payload.
+  if (
+    !data.device_code ||
+    !data.user_code ||
+    !data.verification_uri ||
+    typeof data.expires_in !== 'number' ||
+    typeof data.interval !== 'number'
+  ) {
+    throw new Error('Invalid device-code response from GitHub.');
+  }
+
+  return {
+    device_code: data.device_code,
+    user_code: data.user_code,
+    verification_uri: data.verification_uri,
+    expires_in: data.expires_in,
+    interval: data.interval,
+  };
 }
 
 /**
@@ -158,8 +191,8 @@ async function pollForToken(deviceCodeResponse: DeviceCodeResponse): Promise<str
         throw new Error(`HTTP error ${response.status}: ${errorText}`);
       }
 
-      const data = await response.json();
-      
+      const data = await response.json() as TokenApiResponse;
+
       if (process.env.GH_MANAGER_DEBUG) {
         console.log('📨 GitHub response:', JSON.stringify(data, null, 2));
       }
