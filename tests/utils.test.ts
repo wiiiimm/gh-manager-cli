@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { truncate, formatDate, computeWindow, matchesVisibilityFilter, matchesForkFilter } from '../src/lib/utils';
+import { truncate, formatDate, computeWindow, computeListLayout, matchesVisibilityFilter, matchesForkFilter } from '../src/lib/utils';
 
 describe('truncate', () => {
   it('returns string unchanged if shorter than max', () => {
@@ -293,5 +293,50 @@ describe('matchesForkFilter', () => {
     expect(items.filter(r => matchesForkFilter(r.isFork, 'all')).map(r => r.id)).toEqual(['a', 'b', 'c', 'd']);
     expect(items.filter(r => matchesForkFilter(r.isFork, 'forks')).map(r => r.id)).toEqual(['a', 'c']);
     expect(items.filter(r => matchesForkFilter(r.isFork, 'non-forks')).map(r => r.id)).toEqual(['b', 'd']);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// computeListLayout
+// ---------------------------------------------------------------------------
+describe('computeListLayout', () => {
+  it('uses defaults (80 cols, 20 rows) when columns/maxVisibleRows are undefined', () => {
+    const layout = computeListLayout({ filterMode: false, multiSelectMode: false });
+    expect(layout.terminalWidth).toBe(80);
+    expect(layout.availableHeight).toBe(20);
+    expect(layout.containerPadding).toBe(2);
+    // contentHeight = max(1, 20 - 2 - 4 - 2) = 12
+    expect(layout.contentHeight).toBe(12);
+    // listHeight = max(1, 12 - 0 - 0 - 2) = 10
+    expect(layout.listHeight).toBe(10);
+  });
+
+  it('passes through provided columns and maxVisibleRows', () => {
+    const layout = computeListLayout({ columns: 120, maxVisibleRows: 40, filterMode: false, multiSelectMode: false });
+    expect(layout.terminalWidth).toBe(120);
+    expect(layout.availableHeight).toBe(40);
+    expect(layout.contentHeight).toBe(32); // 40 - 8
+    expect(layout.listHeight).toBe(30); // 32 - 2
+  });
+
+  it('reserves 2 lines for the filter bar', () => {
+    const layout = computeListLayout({ maxVisibleRows: 40, filterMode: true, multiSelectMode: false });
+    expect(layout.listHeight).toBe(28); // 32 - 2 (filter) - 2
+  });
+
+  it('reserves 2 lines for the bulk-select bar', () => {
+    const layout = computeListLayout({ maxVisibleRows: 40, filterMode: false, multiSelectMode: true });
+    expect(layout.listHeight).toBe(28); // 32 - 2 (bulk) - 2
+  });
+
+  it('reserves 4 lines when both filter and bulk-select bars are active', () => {
+    const layout = computeListLayout({ maxVisibleRows: 40, filterMode: true, multiSelectMode: true });
+    expect(layout.listHeight).toBe(26); // 32 - 2 - 2 - 2
+  });
+
+  it('clamps contentHeight and listHeight to a minimum of 1 on tiny terminals', () => {
+    const layout = computeListLayout({ maxVisibleRows: 5, filterMode: true, multiSelectMode: true });
+    expect(layout.contentHeight).toBe(1); // max(1, 5 - 8)
+    expect(layout.listHeight).toBe(1); // max(1, 1 - 2 - 2 - 2)
   });
 });

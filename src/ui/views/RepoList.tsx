@@ -7,6 +7,7 @@ import { getUIPrefs, storeUIPrefs, OwnerContext } from '../../config/config';
 import { type ThemeName, nextTheme, getTheme } from '../../config/themes';
 import { useTheme } from '../hooks/useTheme';
 import { useVirtualList } from '../hooks/useVirtualList';
+import { useListLayout } from '../hooks/useListLayout';
 import { makeApolloKey, isFresh, markFetched } from '../../services/apolloMeta';
 import { fuzzySearch } from '../../lib/fuzzySearch';
 import type { RepoNode, RateLimitInfo, RestRateLimitInfo } from '../../types';
@@ -74,10 +75,6 @@ export default function RepoList({ token, maxVisibleRows, onLogout, viewerLogin,
     });
   }, []);
   
-  // Get terminal width for dynamic description truncation
-  const terminalWidth = stdout?.columns ?? 80;
-  const availableHeight = maxVisibleRows ?? 20;
-
   const [items, setItems] = useState<RepoNode[]>([]);
   const [cursor, setCursor] = useState(0);
   const [endCursor, setEndCursor] = useState<string | null>(null);
@@ -2269,12 +2266,9 @@ export default function RepoList({ token, maxVisibleRows, onLogout, viewerLogin,
     }
   }, [visibleItems]);
 
-  // Calculate fixed heights for layout sections and list area
-  const headerHeight = 2; // Header bar + margin
-  const footerHeight = 4; // Footer with border + margin (flexible height)
-  const containerPadding = 2; // Top and bottom padding inside container
-  const contentHeight = Math.max(1, availableHeight - headerHeight - footerHeight - containerPadding);
-  const listHeight = Math.max(1, contentHeight - (filterMode ? 2 : 0) - (multiSelectMode ? 2 : 0) - 2);
+  // Calculate fixed heights for layout sections and list area (extracted to useListLayout, GMC-28)
+  const { terminalWidth, availableHeight, containerPadding, contentHeight, listHeight } =
+    useListLayout(stdout?.columns, maxVisibleRows, filterMode, multiSelectMode);
 
   const spacingLines = density; // map density to spacer lines
 
