@@ -2148,7 +2148,22 @@ export default function RepoList({ token, maxVisibleRows, onLogout, viewerLogin,
   }, [starredItems, filter, archiveFilter]);
   
   const visibleItems = starsMode ? filteredStarredItems : (filterActive ? fuzzyItems : filteredAndSorted);
-  
+
+  // A text search narrows the visible list in BOTH normal and starred mode.
+  // `filterActive` is false by definition in starred mode (see above), so it
+  // can't gate the hidden-selection count there; this mode-agnostic predicate
+  // mirrors the one used for search-aware key handling (see arrow/Esc handlers).
+  const searchActive = filterActive || (starsMode && filter.trim().length > 0);
+
+  // How many currently-selected repos are hidden by the active search, i.e.
+  // not present in the (narrowed) visible list. Computed once here — reused by
+  // the bulk-select status bar and footer hint — with a Set for O(n+m) lookup.
+  const hiddenSelectedCount = useMemo(() => {
+    if (!multiSelectMode || !searchActive || selectedRepos.size === 0) return 0;
+    const visibleIds = new Set(visibleItems.map(r => r.id));
+    return [...selectedRepos.keys()].filter(id => !visibleIds.has(id)).length;
+  }, [multiSelectMode, searchActive, selectedRepos, visibleItems]);
+
   // Keep cursor in range when data changes. Clamp against the *visible*
   // (post-filter) item count, otherwise an active archive/visibility filter
   // can leave the cursor past the end of visibleItems and crash the window
@@ -2175,7 +2190,7 @@ export default function RepoList({ token, maxVisibleRows, onLogout, viewerLogin,
   const footerHeight = 4; // Footer with border + margin (flexible height)
   const containerPadding = 2; // Top and bottom padding inside container
   const contentHeight = Math.max(1, availableHeight - headerHeight - footerHeight - containerPadding);
-  const listHeight = Math.max(1, contentHeight - (filterMode ? 2 : 0) - 2);
+  const listHeight = Math.max(1, contentHeight - (filterMode ? 2 : 0) - (multiSelectMode ? 2 : 0) - 2);
 
   const spacingLines = density; // map density to spacer lines
 
@@ -3041,18 +3056,21 @@ export default function RepoList({ token, maxVisibleRows, onLogout, viewerLogin,
             />
 
             {/* Multi-select mode status bar */}
-            {multiSelectMode && (
-              <Box marginBottom={1} flexDirection="row" justifyContent="space-between">
-                <Text color="cyan" bold>
-                  {`[BULK SELECT] ${selectedRepos.size > 0 ? `${selectedRepos.size} selected` : 'No selection'}`}
-                </Text>
-                <Text color="gray">
-                  {selectedRepos.size > 0
-                    ? `Space select · X unselect all · Ctrl+S star · Ctrl+A archive · Ctrl+V visibility${starsMode ? '' : ' · Shift+M transfer'} · Del delete · B/Esc exit`
-                    : 'Space select · B/Esc exit'}
-                </Text>
-              </Box>
-            )}
+            {multiSelectMode && (() => {
+              const selectionLabel = selectedRepos.size > 0
+                ? `${selectedRepos.size} selected${hiddenSelectedCount > 0 ? ` (${hiddenSelectedCount} not shown in search)` : ''}`
+                : 'No selection';
+              return (
+                <Box marginBottom={1} flexDirection="row" justifyContent="space-between">
+                  <Text color="cyan" bold>{`[BULK SELECT] ${selectionLabel}`}</Text>
+                  <Text color="gray">
+                    {selectedRepos.size > 0
+                      ? `Space select · X unselect all · Ctrl+S star · Ctrl+A archive · Ctrl+V visibility${starsMode ? '' : ' · Shift+M transfer'} · Del delete · B/Esc exit`
+                      : 'Space select · B/Esc exit'}
+                  </Text>
+                </Box>
+              );
+            })()}
 
             {/* Filter input */}
             {filterMode && (
@@ -3182,7 +3200,7 @@ export default function RepoList({ token, maxVisibleRows, onLogout, viewerLogin,
             <Text color={multiSelectMode ? 'cyan' : 'gray'} dimColor={!multiSelectMode}>
               {multiSelectMode
                 ? (selectedRepos.size > 0
-                    ? `Space select • X unselect all • Ctrl+S star • Ctrl+A archive • Ctrl+V visibility${starsMode ? '' : ' • Shift+M transfer'} • Del delete • B/Esc exit (${selectedRepos.size} selected)`
+                    ? `Space select • X unselect all • Ctrl+S star • Ctrl+A archive • Ctrl+V visibility${starsMode ? '' : ' • Shift+M transfer'} • Del delete • B/Esc exit (${selectedRepos.size} selected${hiddenSelectedCount > 0 ? `, ${hiddenSelectedCount} not shown in search` : ''})`
                     : 'B/Esc exit bulk select • Space select (no selection)')
                 : 'B Bulk Select mode (star/archive/visibility/delete)'
               }
