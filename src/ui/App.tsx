@@ -387,13 +387,13 @@ export default function App({ initialOrgSlug, inlineToken, inlineTokenEphemeral 
         {header}
         <Box flexGrow={1} justifyContent="center" alignItems="center">
           <Box borderStyle="single" borderColor="yellow" paddingX={3} paddingY={2} flexDirection="column" width={Math.min(dims.cols - 8, 80)}>
-            <Text bold color="yellow" marginBottom={1}>⚠️  Rate Limit Exceeded</Text>
-            <Text color="gray" marginBottom={1}>
-              You've hit GitHub's API rate limit for your token.
-            </Text>
-            <Text color="gray" marginBottom={1}>
-              This happens when you make too many requests in a short time.
-            </Text>
+            <Box marginBottom={1}><Text bold color="yellow">⚠️  Rate Limit Exceeded</Text></Box>
+            <Box marginBottom={1}>
+              <Text color="gray">You've hit GitHub's API rate limit for your token.</Text>
+            </Box>
+            <Box marginBottom={1}>
+              <Text color="gray">This happens when you make too many requests in a short time.</Text>
+            </Box>
             
             {rateLimitReset && (
               <Box marginTop={1} marginBottom={1}>
@@ -415,9 +415,9 @@ export default function App({ initialOrgSlug, inlineToken, inlineTokenEphemeral 
               </Box>
             </Box>
             
-            <Text color="gray" dimColor marginTop={2}>
-              Tip: Using multiple tokens or waiting between requests can help avoid rate limits.
-            </Text>
+            <Box marginTop={2}>
+              <Text color="gray" dimColor>Tip: Using multiple tokens or waiting between requests can help avoid rate limits.</Text>
+            </Box>
           </Box>
         </Box>
       </Box>
@@ -432,7 +432,7 @@ export default function App({ initialOrgSlug, inlineToken, inlineTokenEphemeral 
           <Box flexDirection="column" alignItems="center">
             <AuthMethodSelector onSelect={handleAuthMethodSelect} />
             {error && (
-              <Text color="red" marginTop={1}>{error}</Text>
+              <Box marginTop={1}><Text color="red">{error}</Text></Box>
             )}
           </Box>
         </Box>
@@ -457,10 +457,10 @@ export default function App({ initialOrgSlug, inlineToken, inlineTokenEphemeral 
         {header}
         <Box flexGrow={1} justifyContent="center" alignItems="center">
           <Box borderStyle="single" borderColor="cyan" paddingX={2} paddingY={1} flexDirection="column">
-            <Text bold marginBottom={1}>Authentication Required</Text>
-            <Text color="gray" marginBottom={1}>
-              Enter your GitHub Personal Access Token
-            </Text>
+            <Box marginBottom={1}><Text bold>Authentication Required</Text></Box>
+            <Box marginBottom={1}>
+              <Text color="gray">Enter your GitHub Personal Access Token</Text>
+            </Box>
             <Box>
               <Text>Token: </Text>
               <TextInput
@@ -471,14 +471,14 @@ export default function App({ initialOrgSlug, inlineToken, inlineTokenEphemeral 
               />
             </Box>
             {error && (
-              <Text color="red" marginTop={1}>{error}</Text>
+              <Box marginTop={1}><Text color="red">{error}</Text></Box>
             )}
-            <Text color="gray" dimColor marginTop={1}>
-              The token will be stored securely in your local config
-            </Text>
-            <Text color="gray" dimColor marginTop={1}>
-              Press Esc to go back
-            </Text>
+            <Box marginTop={1}>
+              <Text color="gray" dimColor>The token will be stored securely in your local config</Text>
+            </Box>
+            <Box marginTop={1}>
+              <Text color="gray" dimColor>Press Esc to go back</Text>
+            </Box>
           </Box>
         </Box>
       </Box>
@@ -493,9 +493,7 @@ export default function App({ initialOrgSlug, inlineToken, inlineTokenEphemeral 
           <Box flexDirection="column" alignItems="center">
             <Text color="yellow">Validating token...</Text>
             {mode === 'validating' && (
-              <Text color="gray" dimColor marginTop={1}>
-                Press Esc to cancel
-              </Text>
+              <Box marginTop={1}><Text color="gray" dimColor>Press Esc to cancel</Text></Box>
             )}
           </Box>
         </Box>

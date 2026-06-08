@@ -1034,7 +1034,7 @@ export default function RepoList({ token, maxVisibleRows, onLogout, viewerLogin,
   const [filterMode, setFilterMode] = useState(false);
 
   // Sorting state - only support GitHub API sortable fields
-  type SortKey = 'updated' | 'pushed' | 'name' | 'stars';
+  type SortKey = 'updated' | 'pushed' | 'name' | 'stars' | 'forks';
   const [sortKey, setSortKey] = useState<SortKey>('updated');
   const [sortDir, setSortDir] = useState<'asc' | 'desc'>('desc');
   
@@ -1164,7 +1164,8 @@ export default function RepoList({ token, maxVisibleRows, onLogout, viewerLogin,
     'updated': 'UPDATED_AT',
     'pushed': 'PUSHED_AT',
     'name': 'NAME',
-    'stars': 'STARGAZERS'
+    'stars': 'STARGAZERS',
+    'forks': 'UPDATED_AT',  // forks sort is client-side; server falls back to UPDATED_AT
   };
 
   const fetchPage = async (
@@ -1835,9 +1836,9 @@ export default function RepoList({ token, maxVisibleRows, onLogout, viewerLogin,
         const hasCommitData = repo.defaultBranchRef && repo.parent.defaultBranchRef
           && repo.parent.defaultBranchRef.target?.history && repo.defaultBranchRef.target?.history;
         const commitsBehind = hasCommitData
-          ? (repo.parent.defaultBranchRef.target.history.totalCount - repo.defaultBranchRef.target.history.totalCount)
+          ? ((repo.parent?.defaultBranchRef?.target?.history?.totalCount ?? 0) - (repo.defaultBranchRef?.target?.history?.totalCount ?? 0))
           : 0;
-        
+
         setSyncTarget(repo);
         setSyncMode(true);
         setSyncError(null);

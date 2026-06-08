@@ -112,9 +112,9 @@ export default function ArchiveModal({ repo, onArchive, onCancel }: ArchiveModal
               flexDirection="column"
             >
               <Text>
-                {archiveFocus === 'confirm' ? 
-                  chalk[`bg${colorScheme.charAt(0).toUpperCase() + colorScheme.slice(1)}`].black.bold(` ${action} `) : 
-                  chalk[colorScheme].bold(action)
+                {archiveFocus === 'confirm' ?
+                  (chalk as any)[`bg${colorScheme.charAt(0).toUpperCase() + colorScheme.slice(1)}`].black.bold(` ${action} `) :
+                  (chalk as any)[colorScheme].bold(action)
                 }
               </Text>
             </Box>

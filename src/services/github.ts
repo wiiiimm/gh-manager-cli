@@ -698,7 +698,7 @@ export async function deleteRepositoryRest(
   
   let msg = `GitHub REST delete failed (status ${res.status})`;
   try {
-    const body = await res.json();
+    const body = await res.json() as any;
     if (body && body.message) msg += `: ${body.message}`;
   } catch {
     // ignore
@@ -727,7 +727,7 @@ export async function deleteRepositoryRest(
 async function parseGitHubRestError(res: Response, defaultMessage: string): Promise<string> {
   let msg = defaultMessage;
   try {
-    const errBody = await res.json();
+    const errBody = await res.json() as any;
     if (errBody?.message) msg = errBody.message;
     if (Array.isArray(errBody?.errors) && errBody.errors.length > 0) {
       const details = errBody.errors
@@ -800,7 +800,7 @@ export async function createRepositoryRest(
   }
 
   if (res.status === 201) {
-    const data = await res.json();
+    const data = await res.json() as any;
     logger.info('Successfully created repository', {
       nameWithOwner: data.full_name,
       url: data.html_url
@@ -1113,7 +1113,7 @@ export async function changeRepositoryVisibility(
     }
   `;
   
-  const result = await client(query, { id: repositoryId });
+  const result = await client(query, { id: repositoryId }) as any;
   const repo = result.node;
   
   if (!repo || !repo.nameWithOwner) {
@@ -1317,7 +1317,7 @@ export async function syncForkWithUpstream(
   }
   
   if (res.status === 200) {
-    const body = await res.json();
+    const body = await res.json() as { message: string; merge_type: string; base_branch: string };
     logger.info('Successfully synced fork with upstream', {
       owner,
       repo,
@@ -1328,10 +1328,10 @@ export async function syncForkWithUpstream(
     });
     return body;
   }
-  
+
   let msg = `Fork sync failed (status ${res.status})`;
   try {
-    const body = await res.json();
+    const body = await res.json() as any;
     if (body && body.message) {
       msg += `: ${body.message}`;
       if (res.status === 409) {
@@ -1503,13 +1503,13 @@ export async function fetchRestRateLimits(token: string): Promise<RestRateLimitI
       return null;
     }
     
-    const data = await response.json();
-    
+    const data = await response.json() as any;
+
     logger.debug('Successfully fetched REST rate limits', {
       core: data.resources?.core,
       graphql: data.resources?.graphql
     });
-    
+
     return {
       core: data.resources?.core || { limit: 0, remaining: 0, reset: 0 },
       graphql: data.resources?.graphql || { limit: 0, remaining: 0, reset: 0 }
@@ -1567,8 +1567,8 @@ export async function renameRepositoryById(
   `;
   
   try {
-    const result = await client(mutation, { repositoryId, name: newName });
-    
+    const result = await client(mutation, { repositoryId, name: newName }) as any;
+
     logger.info('Repository renamed successfully', {
       repositoryId,
       newName: result?.updateRepository?.repository?.name

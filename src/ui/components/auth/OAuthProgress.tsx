@@ -61,9 +61,7 @@ export default function OAuthProgress({ status, error, deviceCode }: OAuthProgre
 
   return (
     <Box flexDirection="column" borderStyle="single" borderColor={status === 'error' ? 'red' : 'cyan'} paddingX={2} paddingY={1}>
-      <Text bold marginBottom={1}>
-        GitHub OAuth Authentication
-      </Text>
+      <Box marginBottom={1}><Text bold>GitHub OAuth Authentication</Text></Box>
       
       <Box marginY={1}>
         {showSpinner ? (
@@ -82,15 +80,13 @@ export default function OAuthProgress({ status, error, deviceCode }: OAuthProgre
       
       {(status === 'waiting_for_authorization' || status === 'polling_for_token') && deviceCode && (
         <Box marginY={1} flexDirection="column">
-          <Text bold color="cyan" marginBottom={1}>
-            📋 Please complete these steps:
-          </Text>
-          
+          <Box marginBottom={1}><Text bold color="cyan">📋 Please complete these steps:</Text></Box>
+
           <Box marginBottom={1}>
             <Text>1. Visit: </Text>
             <Text bold color="blue">{deviceCode.verification_uri}</Text>
           </Box>
-          
+
           <Box marginBottom={1} flexDirection="column">
             <Text>2. Enter this code:</Text>
             <Box borderStyle="single" borderColor="yellow" paddingX={2} paddingY={1} marginTop={1}>
@@ -99,11 +95,9 @@ export default function OAuthProgress({ status, error, deviceCode }: OAuthProgre
               </Text>
             </Box>
           </Box>
-          
+
           {status === 'waiting_for_authorization' && (
-            <Text color="gray" marginTop={1}>
-              Your browser should open automatically.
-            </Text>
+            <Box marginTop={1}><Text color="gray">Your browser should open automatically.</Text></Box>
           )}
           
           {status === 'polling_for_token' && (
@@ -111,9 +105,7 @@ export default function OAuthProgress({ status, error, deviceCode }: OAuthProgre
               <Text color="gray">
                 Waiting for you to complete authorization in your browser...
               </Text>
-              <Text color="gray" dimColor marginTop={1}>
-                This will timeout in 15 minutes. Press Esc to cancel.
-              </Text>
+              <Box marginTop={1}><Text color="gray" dimColor>This will timeout in 15 minutes. Press Esc to cancel.</Text></Box>
             </Box>
           )}
         </Box>
@@ -122,16 +114,12 @@ export default function OAuthProgress({ status, error, deviceCode }: OAuthProgre
       {status === 'error' && error && (
         <Box marginY={1} flexDirection="column">
           <Text color="red">{error}</Text>
-          <Text color="gray" marginTop={1}>
-            Press Esc to go back and try again.
-          </Text>
+          <Box marginTop={1}><Text color="gray">Press Esc to go back and try again.</Text></Box>
         </Box>
       )}
       
       {status === 'success' && (
-        <Text color="gray" marginTop={1}>
-          Returning to application...
-        </Text>
+        <Box marginTop={1}><Text color="gray">Returning to application...</Text></Box>
       )}
     </Box>
   );

@@ -69,7 +69,7 @@ export default function SyncModal({ repo, onSync, onCancel }: SyncModalProps) {
     && repo.parent.defaultBranchRef.target?.history && repo.defaultBranchRef.target?.history;
   
   const commitsBehind = hasCommitData
-    ? (repo.parent.defaultBranchRef.target.history.totalCount - repo.defaultBranchRef.target.history.totalCount)
+    ? ((repo.parent?.defaultBranchRef?.target?.history?.totalCount ?? 0) - (repo.defaultBranchRef?.target?.history?.totalCount ?? 0))
     : 0;
 
   return (

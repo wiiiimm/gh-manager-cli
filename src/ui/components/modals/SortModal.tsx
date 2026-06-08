@@ -4,7 +4,7 @@ import chalk from 'chalk';
 import type { Theme } from '../../../config/themes';
 import { useTheme } from '../../hooks/useTheme';
 
-export type SortKey = 'updated' | 'pushed' | 'name' | 'stars';
+export type SortKey = 'updated' | 'pushed' | 'name' | 'stars' | 'forks';
 
 interface SortModalProps {
   currentSort: SortKey;
@@ -103,6 +103,8 @@ export default function SortModal({
       case 'pushed': return 'Last Pushed';
       case 'name': return 'Name';
       case 'stars': return 'Stars';
+      case 'forks': return 'Forks';
+      default: return sort;
     }
   };
 

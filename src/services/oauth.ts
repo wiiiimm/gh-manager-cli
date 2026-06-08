@@ -107,13 +107,13 @@ export async function requestDeviceCode(): Promise<DeviceCodeResponse> {
     throw new Error(`HTTP error ${response.status}: ${await response.text()}`);
   }
 
-  const data = await response.json();
-  
+  const data = await response.json() as any;
+
   if (data.error) {
     throw new Error(`${data.error}: ${data.error_description || 'Unknown error'}`);
   }
 
-  return data;
+  return data as DeviceCodeResponse;
 }
 
 /**
@@ -158,8 +158,8 @@ async function pollForToken(deviceCodeResponse: DeviceCodeResponse): Promise<str
         throw new Error(`HTTP error ${response.status}: ${errorText}`);
       }
 
-      const data = await response.json();
-      
+      const data = await response.json() as any;
+
       if (process.env.GH_MANAGER_DEBUG) {
         console.log('📨 GitHub response:', JSON.stringify(data, null, 2));
       }

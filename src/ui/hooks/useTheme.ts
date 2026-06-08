@@ -1,29 +1,29 @@
 import { useMemo } from 'react';
-import chalk from 'chalk';
+import chalk, { type ChalkInstance } from 'chalk';
 import { type Theme, type ThemeName, getTheme } from '../../config/themes';
 
 export interface ThemeColors {
-  primary: chalk.Chalk;
-  secondary: chalk.Chalk;
-  success: chalk.Chalk;
-  warning: chalk.Chalk;
-  error: chalk.Chalk;
-  muted: chalk.Chalk;
-  text: chalk.Chalk;
-  selected: chalk.Chalk;
-  private: chalk.Chalk;
-  archived: chalk.Chalk;
-  internal: chalk.Chalk;
-  fork: chalk.Chalk;
-  dim: chalk.Chalk;
+  primary: ChalkInstance;
+  secondary: ChalkInstance;
+  success: ChalkInstance;
+  warning: ChalkInstance;
+  error: ChalkInstance;
+  muted: ChalkInstance;
+  text: ChalkInstance;
+  selected: ChalkInstance;
+  private: ChalkInstance;
+  archived: ChalkInstance;
+  internal: ChalkInstance;
+  fork: ChalkInstance;
+  dim: ChalkInstance;
   /** Selected option arrow indicator in modals, e.g. bgPrimary.black(' → ') */
-  arrow: chalk.Chalk;
+  arrow: ChalkInstance;
   /** Neutral arrow indicator for the focused cancel/muted option in modals */
-  arrowMuted: chalk.Chalk;
+  arrowMuted: ChalkInstance;
   /** Background+text for confirmed/active button */
-  btnPrimary: chalk.Chalk;
+  btnPrimary: ChalkInstance;
   /** Background+text for muted/cancel button */
-  btnMuted: chalk.Chalk;
+  btnMuted: ChalkInstance;
 }
 
 export interface UseThemeResult {
@@ -31,11 +31,11 @@ export interface UseThemeResult {
   c: ThemeColors;
 }
 
-function chalkFor(color: string): chalk.Chalk {
+function chalkFor(color: string): ChalkInstance {
   return (chalk as any)[color] ?? chalk.white;
 }
 
-function bgChalkFor(color: string): chalk.Chalk {
+function bgChalkFor(color: string): ChalkInstance {
   const bgKey = 'bg' + color.charAt(0).toUpperCase() + color.slice(1);
   return (chalk as any)[bgKey] ?? chalk.bgWhite;
 }
