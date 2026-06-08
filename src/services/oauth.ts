@@ -22,6 +22,21 @@ export interface DeviceCodeResponse {
   interval: number;
 }
 
+// GitHub's device-code endpoint returns either a DeviceCodeResponse or an error pair.
+interface DeviceCodeApiResponse extends Partial<DeviceCodeResponse> {
+  error?: string;
+  error_description?: string;
+}
+
+// GitHub's token endpoint returns either an access token or an error pair.
+interface TokenApiResponse {
+  access_token?: string;
+  token_type?: string;
+  scope?: string;
+  error?: string;
+  error_description?: string;
+}
+
 /**
  * Starts the GitHub Device Authorization Grant flow
  */
@@ -107,7 +122,7 @@ export async function requestDeviceCode(): Promise<DeviceCodeResponse> {
     throw new Error(`HTTP error ${response.status}: ${await response.text()}`);
   }
 
-  const data = await response.json() as any;
+  const data = await response.json() as DeviceCodeApiResponse;
 
   if (data.error) {
     throw new Error(`${data.error}: ${data.error_description || 'Unknown error'}`);
@@ -158,7 +173,7 @@ async function pollForToken(deviceCodeResponse: DeviceCodeResponse): Promise<str
         throw new Error(`HTTP error ${response.status}: ${errorText}`);
       }
 
-      const data = await response.json() as any;
+      const data = await response.json() as TokenApiResponse;
 
       if (process.env.GH_MANAGER_DEBUG) {
         console.log('📨 GitHub response:', JSON.stringify(data, null, 2));

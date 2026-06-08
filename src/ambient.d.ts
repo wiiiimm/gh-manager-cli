@@ -4,4 +4,11 @@
 declare module 'clipboardy' {
   export function write(text: string): Promise<void>;
   export function read(): Promise<string>;
+  // clipboardy ships as an ESM default export as well as named exports;
+  // declaring both lets `(clipboardy.default ?? clipboardy).write(...)` type-check.
+  const clipboardy: {
+    write(text: string): Promise<void>;
+    read(): Promise<string>;
+  };
+  export default clipboardy;
 }

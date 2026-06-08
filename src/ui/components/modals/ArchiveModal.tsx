@@ -66,7 +66,17 @@ export default function ArchiveModal({ repo, onArchive, onCancel }: ArchiveModal
   if (!repo) return null;
 
   const action = repo.isArchived ? 'Unarchive' : 'Archive';
-  const colorScheme = repo.isArchived ? 'green' : 'yellow';
+  const colorScheme: 'green' | 'yellow' = repo.isArchived ? 'green' : 'yellow';
+
+  // Pre-compute the styled confirm-button label with explicit chalk methods
+  // (avoids dynamic `chalk[...]` indexing that defeats type-checking).
+  const actionLabel = archiveFocus === 'confirm'
+    ? (colorScheme === 'green'
+        ? chalk.bgGreen.black.bold(` ${action} `)
+        : chalk.bgYellow.black.bold(` ${action} `))
+    : (colorScheme === 'green'
+        ? chalk.green.bold(action)
+        : chalk.yellow.bold(action));
 
   return (
     <Box 
@@ -111,12 +121,7 @@ export default function ArchiveModal({ repo, onArchive, onCancel }: ArchiveModal
               paddingY={1} 
               flexDirection="column"
             >
-              <Text>
-                {archiveFocus === 'confirm' ?
-                  (chalk as any)[`bg${colorScheme.charAt(0).toUpperCase() + colorScheme.slice(1)}`].black.bold(` ${action} `) :
-                  (chalk as any)[colorScheme].bold(action)
-                }
-              </Text>
+              <Text>{actionLabel}</Text>
             </Box>
             <Box 
               paddingX={2} 
