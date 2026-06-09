@@ -120,4 +120,32 @@ describe('useForkEnrichment', () => {
     ]);
     unmount();
   });
+
+  it('exposes enrichingForks: true while a batch is in flight, false once it completes', async () => {
+    let resolveBatch!: (v: any) => void;
+    enrichMock.mockImplementationOnce(() => new Promise(res => { resolveBatch = res; }));
+    const { lastFrame, unmount } = render(<Harness {...baseProps} items={[fork('f1')]} />);
+
+    await vi.waitFor(() => expect(lastFrame()).toBe('enriching'));
+    resolveBatch([{ id: 'f1', forkHistoryCount: 1, parentHistoryCount: 1 }]);
+    await vi.waitFor(() => expect(lastFrame()).toBe('idle'));
+    unmount();
+  });
+
+  it('does not merge results from a pass that was torn down mid-flight', async () => {
+    let resolveBatch!: (v: any) => void;
+    enrichMock.mockImplementationOnce(() => new Promise(res => { resolveBatch = res; }));
+    const setItems = vi.fn();
+    const { lastFrame, unmount } = render(
+      <Harness {...baseProps} items={[fork('f1')]} setItems={setItems} />,
+    );
+
+    await vi.waitFor(() => expect(lastFrame()).toBe('enriching'));
+    unmount(); // cleanup sets cancelled = true before the batch resolves
+
+    // The batch resolves after teardown — the cancelled pass must not setItems.
+    resolveBatch([{ id: 'f1', forkHistoryCount: 1, parentHistoryCount: 1 }]);
+    await new Promise(r => setTimeout(r, 0));
+    expect(setItems).not.toHaveBeenCalled();
+  });
 });

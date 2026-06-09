@@ -118,8 +118,12 @@ export function useForkEnrichment(params: {
     })();
 
     return () => { cancelled = true; setEnrichingForks(false); };
+    // `items` (the array identity) is intentionally omitted — only its *length*
+    // gates re-enrichment, so the effect doesn't re-run on every merge. `client`
+    // is included so a token change can never leave this querying as the old
+    // account (re-runs are idempotent via enrichmentDoneRef).
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [loading, loadingMore, hasNextPage, items.length, forkTracking]);
+  }, [loading, loadingMore, hasNextPage, items.length, forkTracking, client]);
 
   const resetEnrichment = () => { enrichmentDoneRef.current.clear(); };
 

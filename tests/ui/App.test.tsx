@@ -3,7 +3,7 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { render } from 'ink-testing-library';
 import App from '../../src/ui/App';
 import { getStoredToken, storeToken, getTokenFromEnv, clearStoredToken } from '../../src/config/config';
-import { makeClient, getViewerLogin } from '../../src/services/github';
+import { makeClient, getViewerLogin, setActiveApolloToken } from '../../src/services/github';
 
 // Mock package.json
 vi.mock('../../package.json', () => ({
@@ -87,6 +87,9 @@ describe('App', () => {
     
     expect(getTokenFromEnv).toHaveBeenCalled();
     expect(getStoredToken).toHaveBeenCalled();
+    // The active session token is declared to the GitHub service (null when no
+    // token is present) so stale ops can't act as a previous account (GMC-28).
+    expect(setActiveApolloToken).toHaveBeenCalledWith(null);
     unmount();
   });
 

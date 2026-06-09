@@ -205,7 +205,8 @@ export async function changeRepositoryVisibility(
       logger.error('Failed to change repository visibility', {
         repositoryId,
         visibility,
-        error: err.message
+        error: err.message,
+        stack: err.stack
       });
     }
     throw err;
@@ -246,7 +247,8 @@ export async function renameRepositoryById(
     logger.error('Failed to rename repository', {
       repositoryId,
       newName,
-      error: err.message
+      error: err.message,
+      stack: err.stack
     });
     throw error;
   }

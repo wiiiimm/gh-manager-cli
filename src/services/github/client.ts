@@ -190,6 +190,13 @@ async function buildApolloClient(token: string): Promise<ApolloClientBundle> {
         process.stderr.write(`Stack: ${err.stack}\n`);
       }
     }
-    throw new Error(`Apollo Client initialization failed: ${err.message}`);
+    // Preserve the original error as `cause` so the underlying stack isn't lost
+    // (the message is kept stable — callers/tests match on it). Set via
+    // Object.assign rather than the Error(message, { cause }) constructor, which
+    // isn't in the configured TS lib target.
+    throw Object.assign(
+      new Error(`Apollo Client initialization failed: ${err.message}`),
+      { cause: error },
+    );
   }
 }
