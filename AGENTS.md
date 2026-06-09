@@ -36,12 +36,17 @@ gh-manager-cli/
 │   │   ├── OrgSwitcher.tsx    # Organisation switcher
 │   │   ├── views/
 │   │   │   └── RepoList.tsx   # Repository list UI, key handling, infinite scroll
-│   │   ├── hooks/
-│   │   │   ├── useTheme.ts        # Colour-theme hook (GMC-22)
-│   │   │   └── useVirtualList.ts  # Windowing memo around the cursor (GMC-28)
+│   │   ├── hooks/            # RepoList logic extracted into focused hooks (GMC-28):
+│   │   │   ├── useTheme.ts          # Colour-theme hook (GMC-22)
+│   │   │   ├── useVirtualList.ts    # Windowing memo around the cursor
+│   │   │   ├── useListLayout.ts     # Terminal-width + list-height derivation
+│   │   │   ├── useForkEnrichment.ts # Batched fork ahead/behind enrichment effect (SWR-362)
+│   │   │   ├── useRefreshTick.ts    # Whole-minute tick for relative dates (SWR-377)
+│   │   │   └── useBulkSelect.ts     # Bulk Select mode + selection map + helpers
 │   │   └── components/
 │   │       ├── auth/          # Auth method selector, OAuth progress
-│   │       ├── repo/          # RepoRow, RepoListHeader, FilterInput
+│   │       ├── repo/          # RepoRow, RepoListHeader, FilterInput,
+│   │       │                  #   RepoListFooter (help footer), RepoListContent (list body)
 │   │       ├── modals/        # All action/confirmation modals + bulk modals
 │   │       └── common/        # Shared presentational bits (SlowSpinner, …)
 │   ├── services/
