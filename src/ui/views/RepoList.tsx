@@ -2,10 +2,15 @@ import React, { useEffect, useMemo, useState, useRef, useCallback } from 'react'
 import { Box, Text, useApp, useInput, useStdout, Spacer, Newline } from 'ink';
 import TextInput from 'ink-text-input';
 import chalk from 'chalk';
-import { makeClient, fetchViewerReposPageUnified, deleteRepositoryRest, archiveRepositoryById, unarchiveRepositoryById, changeRepositoryVisibility, syncForkWithUpstream, getRepositoryFromCache, purgeApolloCacheFiles, inspectCacheStatus, updateCacheAfterDelete, updateCacheAfterArchive, updateCacheAfterVisibilityChange, updateCacheWithRepository, checkOrganizationIsEnterprise, OwnerAffiliation, fetchViewerOrganizations, fetchRestRateLimits, renameRepositoryById, updateCacheAfterRename, getStarredRepositories, starRepository, unstarRepository, enrichForksWithAheadBehind, fetchRepositoryByOwnerAndName, createRepositoryRest, transferRepositoryRest } from '../../services/github';
+import { makeClient, fetchViewerReposPageUnified, deleteRepositoryRest, archiveRepositoryById, unarchiveRepositoryById, changeRepositoryVisibility, syncForkWithUpstream, getRepositoryFromCache, purgeApolloCacheFiles, inspectCacheStatus, updateCacheAfterDelete, updateCacheAfterArchive, updateCacheAfterVisibilityChange, updateCacheWithRepository, checkOrganizationIsEnterprise, OwnerAffiliation, fetchViewerOrganizations, fetchRestRateLimits, renameRepositoryById, updateCacheAfterRename, getStarredRepositories, starRepository, unstarRepository, fetchRepositoryByOwnerAndName, createRepositoryRest, transferRepositoryRest } from '../../services/github';
 import { getUIPrefs, storeUIPrefs, OwnerContext } from '../../config/config';
 import { type ThemeName, nextTheme, getTheme } from '../../config/themes';
 import { useTheme } from '../hooks/useTheme';
+import { useVirtualList } from '../hooks/useVirtualList';
+import { useListLayout } from '../hooks/useListLayout';
+import { useForkEnrichment } from '../hooks/useForkEnrichment';
+import { useRefreshTick } from '../hooks/useRefreshTick';
+import { useBulkSelect } from '../hooks/useBulkSelect';
 import { makeApolloKey, isFresh, markFetched } from '../../services/apolloMeta';
 import { fuzzySearch } from '../../lib/fuzzySearch';
 import type { RepoNode, RateLimitInfo, RestRateLimitInfo } from '../../types';
@@ -16,9 +21,9 @@ import { DeleteModal, ArchiveModal, SyncModal, InfoModal, LogoutModal, ViewFilte
 import type { ForkFilter } from '../components/modals';
 import type { BulkAction, BulkVisibilityTarget, BulkProgressState } from '../components/modals';
 import { UnstarModal } from '../components/modals/UnstarModal';
-import { RepoRow, FilterInput, RepoListHeader } from '../components/repo';
+import { RepoListHeader, RepoListFooter, RepoListContent } from '../components/repo';
 import { SlowSpinner } from '../components/common';
-import { truncate, formatDate, copyToClipboard, computeWindow, matchesVisibilityFilter, matchesForkFilter, type VisibilityFilter } from '../../lib/utils';
+import { truncate, formatDate, copyToClipboard, matchesVisibilityFilter, matchesForkFilter, type VisibilityFilter } from '../../lib/utils';
 import { trackOperation, bulkActionToOperation } from '../../lib/session';
 
 // Allow customizable repos per fetch via env var (1-100, default 30).
@@ -78,10 +83,6 @@ export default function RepoList({ token, maxVisibleRows, onLogout, viewerLogin,
     });
   }, []);
   
-  // Get terminal width for dynamic description truncation
-  const terminalWidth = stdout?.columns ?? 80;
-  const availableHeight = maxVisibleRows ?? 20;
-
   const [items, setItems] = useState<RepoNode[]>([]);
   const [cursor, setCursor] = useState(0);
   const [endCursor, setEndCursor] = useState<string | null>(null);
@@ -100,22 +101,9 @@ export default function RepoList({ token, maxVisibleRows, onLogout, viewerLogin,
   const [density, setDensity] = useState<0 | 1 | 2>(2);
   const [prefsLoaded, setPrefsLoaded] = useState(false);
 
-  // Refresh tick: a whole-minute integer counter. `formatDate` derives its
-  // relative "Updated …" label from the elapsed time since each repo's own
-  // `updatedAt`, so a row flips (e.g. "today" → "yesterday") at `updatedAt +
-  // k·24h` — its own time-of-day, not at midnight. A coarse day bucket would
-  // therefore leave most rows stale for hours (SWR-377). Ticking once per
-  // minute re-renders the (virtualised) visible rows within ~a minute of their
-  // true boundary. It never changes between keystrokes, so the per-keystroke
-  // memoisation from SWR-358 is preserved.
-  const [refreshTick, setRefreshTick] = useState(() => Math.floor(Date.now() / 60_000));
-  useEffect(() => {
-    const id = setInterval(() => {
-      const next = Math.floor(Date.now() / 60_000);
-      setRefreshTick(prev => (prev !== next ? next : prev));
-    }, 30_000);
-    return () => clearInterval(id);
-  }, []);
+  // Whole-minute tick that keeps relative "Updated …" labels current
+  // (SWR-377), extracted to useRefreshTick (GMC-28).
+  const refreshTick = useRefreshTick();
 
   // Theme state
   const [themeName, setThemeName] = useState<ThemeName>('default');
@@ -217,10 +205,13 @@ export default function RepoList({ token, maxVisibleRows, onLogout, viewerLogin,
   const [starring, setStarring] = useState(false);
   const [starError, setStarError] = useState<string | null>(null);
 
-  // Multi-select mode state
-  const [multiSelectMode, setMultiSelectMode] = useState(false);
-  // Selection stored as Map<id, RepoNode> so nodes persist across search/filter changes
-  const [selectedRepos, setSelectedRepos] = useState<Map<string, RepoNode>>(new Map());
+  // Bulk Select selection model (mode flag + selected nodes + helpers),
+  // extracted to useBulkSelect (GMC-28). The bulk operation flow stays below.
+  const {
+    multiSelectMode, setMultiSelectMode,
+    selectedRepos, setSelectedRepos,
+    enterMultiSelectMode, exitMultiSelectMode, toggleRepoSelection,
+  } = useBulkSelect();
   // Bulk operation flow state
   const [bulkAction, setBulkAction] = useState<BulkAction | null>(null);
   const [bulkVisibilityTarget, setBulkVisibilityTarget] = useState<BulkVisibilityTarget | null>(null);
@@ -250,9 +241,8 @@ export default function RepoList({ token, maxVisibleRows, onLogout, viewerLogin,
   const [openLinksMode, setOpenLinksMode] = useState(false);
   const [openLinksTarget, setOpenLinksTarget] = useState<RepoNode | null>(null);
 
-  // Fork enrichment (ahead/behind) state
-  const [enrichingForks, setEnrichingForks] = useState(false);
-  const enrichmentDoneRef = useRef<Set<string>>(new Set()); // ids already enriched
+  // Fork ahead/behind enrichment state + effect live in useForkEnrichment
+  // (GMC-28); the hook is invoked below, after forkTracking is declared.
 
   // Session-level cache of the viewer's organisations for the transfer destination
   // picker (single + bulk). The fetch is cheap, but caching it avoids a refetch on
@@ -579,30 +569,6 @@ export default function RepoList({ token, maxVisibleRows, onLogout, viewerLogin,
       setArchiveError('Failed to update archive state. Check permissions.');
       // Keep modal open on error
     }
-  }
-
-  // Multi-select helpers
-  function enterMultiSelectMode() {
-    setMultiSelectMode(true);
-  }
-
-  function exitMultiSelectMode(clearSelection = true) {
-    setMultiSelectMode(false);
-    if (clearSelection) {
-      setSelectedRepos(new Map());
-    }
-  }
-
-  function toggleRepoSelection(repo: RepoNode) {
-    setSelectedRepos(prev => {
-      const next = new Map(prev);
-      if (next.has(repo.id)) {
-        next.delete(repo.id);
-      } else {
-        next.set(repo.id, repo);
-      }
-      return next;
-    });
   }
 
   // Bulk operation execution
@@ -1103,96 +1069,16 @@ export default function RepoList({ token, maxVisibleRows, onLogout, viewerLogin,
   // Fork tracking toggle - default ON to show commits behind
   const [forkTracking, setForkTracking] = useState<boolean>(true);
 
-  // Fork ahead/behind enrichment: runs after the full list is loaded.
-  // Uses batched aliased GraphQL queries (5 forks/batch) to stay within per-query budget.
-  useEffect(() => {
-    // Only run when the owned list is fully loaded and we have forks to enrich
-    if (loading || loadingMore || hasNextPage || items.length === 0) return;
-    if (!forkTracking) return;
-
-    const unenriched = items.filter(r =>
-      r.isFork &&
-      r.parent?.nameWithOwner &&
-      !enrichmentDoneRef.current.has(r.id) &&
-      !(r.defaultBranchRef?.target?.history && r.parent?.defaultBranchRef?.target?.history)
-    );
-
-    if (unenriched.length === 0) return;
-    // No re-entrancy guard on `enrichingForks` here: React always runs the
-    // cleanup (setting `cancelled`) before re-running this effect, so two
-    // un-cancelled passes can never overlap. Gating on the UI flag was what
-    // left it stuck `true` after a torn-down pass.
-
-    let cancelled = false;
-    setEnrichingForks(true);
-
-    ;(async () => {
-      const BATCH_DELAY_MS = 200;
-
-      try {
-        const BATCH_SIZE = 5;
-        for (let i = 0; i < unenriched.length; i += BATCH_SIZE) {
-          if (cancelled) break;
-          const slice = unenriched.slice(i, i + BATCH_SIZE);
-          const batch = slice.map(r => ({
-            id: r.id,
-            parentNameWithOwner: r.parent!.nameWithOwner,
-          }));
-
-          const enriched = await enrichForksWithAheadBehind(client, batch);
-
-          if (cancelled) break;
-
-          // Mark every fork in the batch as processed — even ones that came
-          // back with null/missing counts — so a failed lookup isn't retried
-          // forever (the effect would otherwise re-fire on the next items
-          // change with these still "unenriched").
-          slice.forEach(r => enrichmentDoneRef.current.add(r.id));
-
-          // Merge history counts back into items
-          setItems(prev => prev.map(repo => {
-            const hit = enriched.find(e => e.id === repo.id);
-            if (!hit || hit.forkHistoryCount === null || hit.parentHistoryCount === null) return repo;
-
-            return {
-              ...repo,
-              defaultBranchRef: repo.defaultBranchRef ? {
-                ...repo.defaultBranchRef,
-                target: {
-                  ...(repo.defaultBranchRef.target || {}),
-                  history: { totalCount: hit.forkHistoryCount! },
-                },
-              } : { name: undefined, target: { history: { totalCount: hit.forkHistoryCount! } } },
-              parent: repo.parent ? {
-                ...repo.parent,
-                defaultBranchRef: {
-                  ...(repo.parent.defaultBranchRef || {}),
-                  target: {
-                    ...(repo.parent.defaultBranchRef?.target || {}),
-                    history: { totalCount: hit.parentHistoryCount! },
-                  },
-                },
-              } : repo.parent,
-            };
-          }));
-
-          // Small delay between batches to avoid rate-limit pressure
-          if (i + BATCH_SIZE < unenriched.length) {
-            await new Promise(resolve => setTimeout(resolve, BATCH_DELAY_MS));
-          }
-        }
-      } catch (err: unknown) {
-        logger.error('Fork enrichment failed', { error: err instanceof Error ? err.message : String(err) });
-      } finally {
-        // Only clear when this pass wasn't torn down; a cancelled pass has the
-        // flag reset by the cleanup below so it can never stick `true`.
-        if (!cancelled) setEnrichingForks(false);
-      }
-    })();
-
-    return () => { cancelled = true; setEnrichingForks(false); };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [loading, loadingMore, hasNextPage, items.length, forkTracking]);
+  // Fork ahead/behind enrichment (SWR-362), extracted to useForkEnrichment (GMC-28).
+  const { enrichingForks, resetEnrichment } = useForkEnrichment({
+    client,
+    items,
+    setItems,
+    loading,
+    loadingMore,
+    hasNextPage,
+    forkTracking,
+  });
 
   // Fetch a parent repo by nameWithOwner and display it in the Info modal (P key fallback)
   async function jumpToUpstreamRepo(parentNameWithOwner: string) {
@@ -1284,7 +1170,7 @@ export default function RepoList({ token, maxVisibleRows, onLogout, viewerLogin,
       // replaces items with un-enriched nodes — clear the enrichment tracker
       // so forks get their ahead/behind counts recomputed against the new data.
       if (reset || !after) {
-        enrichmentDoneRef.current.clear();
+        resetEnrichment();
       }
       setItems(prev => (reset || !after ? page.nodes : [...prev, ...page.nodes]));
       setEndCursor(page.endCursor);
@@ -1355,7 +1241,7 @@ export default function RepoList({ token, maxVisibleRows, onLogout, viewerLogin,
   useEffect(() => {
     const ui = getUIPrefs();
     if (ui.density !== undefined) setDensity(ui.density as 0 | 1 | 2);
-    if (ui.sortKey && ['updated','pushed','name','stars'].includes(ui.sortKey)) {
+    if (ui.sortKey && ['updated','pushed','name','stars','forks'].includes(ui.sortKey)) {
       setSortKey(ui.sortKey as SortKey);
     }
     if (ui.sortDir && (ui.sortDir === 'asc' || ui.sortDir === 'desc')) {
@@ -2273,20 +2159,14 @@ export default function RepoList({ token, maxVisibleRows, onLogout, viewerLogin,
     }
   }, [visibleItems]);
 
-  // Calculate fixed heights for layout sections and list area
-  const headerHeight = 2; // Header bar + margin
-  const footerHeight = 4; // Footer with border + margin (flexible height)
-  const containerPadding = 2; // Top and bottom padding inside container
-  const contentHeight = Math.max(1, availableHeight - headerHeight - footerHeight - containerPadding);
-  const listHeight = Math.max(1, contentHeight - (filterMode ? 2 : 0) - (multiSelectMode ? 2 : 0) - 2);
+  // Calculate fixed heights for layout sections and list area (extracted to useListLayout, GMC-28)
+  const { terminalWidth, availableHeight, containerPadding, contentHeight, listHeight } =
+    useListLayout(stdout?.columns, maxVisibleRows, filterMode, multiSelectMode);
 
   const spacingLines = density; // map density to spacer lines
 
-  // Virtualize list: compute window around cursor
-  const windowed = useMemo(
-    () => computeWindow(visibleItems, cursor, listHeight, spacingLines),
-    [visibleItems, cursor, listHeight, spacingLines],
-  );
+  // Virtualize list: compute window around cursor (extracted to useVirtualList, GMC-28)
+  const windowed = useVirtualList(visibleItems, cursor, listHeight, spacingLines);
 
   // Single pagination model (SWR-360): background fetch-all.
   // Owned repos and starred repos eagerly load the entire set in the background —
@@ -3204,133 +3084,45 @@ export default function RepoList({ token, maxVisibleRows, onLogout, viewerLogin,
           </Box>
         )}
 
-            {/* Repository list */}
-            <Box flexDirection="column" height={listHeight}>
-              {(filterMode && filter.trim().length > 0 && filter.trim().length < 3) ? (
-                <Box justifyContent="center" alignItems="center" flexGrow={1}>
-                  <Text color="gray" dimColor>Type at least 3 characters to search</Text>
-                </Box>
-              ) : (
-                visibleItems.slice(windowed.start, windowed.end).map((repo, i) => {
-                  const idx = windowed.start + i;
-                  return (
-                    <RepoRow
-                      key={repo.nameWithOwner}
-                      repo={repo}
-                      selected={filterMode ? false : idx === cursor}
-                      index={idx + 1}
-                      maxWidth={terminalWidth - 6}
-                      spacingLines={spacingLines}
-                      forkTracking={forkTracking}
-                      starsMode={starsMode}
-                      multiSelectMode={multiSelectMode}
-                      isChecked={selectedRepos.has(repo.id)}
-                      theme={theme}
-                      refreshTick={refreshTick}
-                    />
-                  );
-                })
-              )}
-              
-              {/* Background fetch-all progress indicator */}
-              {loadingMore && hasNextPage && !starsMode && (
-                <Box justifyContent="center" alignItems="center" marginTop={1}>
-                  <Box flexDirection="row">
-                    <Text>{chalk.cyan('Loading repositories')}</Text>
-                    <Box width={3} flexShrink={0} flexGrow={0}>
-                      <Text color="cyan">
-                        <SlowSpinner />
-                      </Text>
-                    </Box>
-                    <Text>
-                      {chalk.cyan(totalCount > 0 ? ` (${items.length}/${totalCount})` : ` (${items.length})`)}
-                    </Text>
-                  </Box>
-                </Box>
-              )}
-              {loadingMore && hasNextPage && starsMode && (
-                <Box justifyContent="center" alignItems="center" marginTop={1}>
-                  <Box flexDirection="row">
-                    <Text>{chalk.cyan('Loading more repositories')}</Text>
-                    <Box width={3} flexShrink={0} flexGrow={0}>
-                      <Text color="cyan">
-                        <SlowSpinner />
-                      </Text>
-                    </Box>
-                  </Box>
-                </Box>
-              )}
-
-              {/* Hint while background fetch-all is still loading during fuzzy search */}
-              {filterActive && hasNextPage && !starsMode && (
-                <Box justifyContent="center" alignItems="center" marginTop={1}>
-                  <Text color="yellow" dimColor>
-                    Still loading repos ({items.length}/{totalCount > 0 ? totalCount : '?'}) — fuzzy results may be incomplete
-                  </Text>
-                </Box>
-              )}
-
-              {!loading && visibleItems.length === 0 && !(filterActive && hasNextPage && !starsMode) && (
-                <Box justifyContent="center" alignItems="center" flexGrow={1}>
-                  <Text color="gray" dimColor>
-                    {filter ? 'No repositories match your search' : 'No repositories found'}
-                  </Text>
-                </Box>
-              )}
-            </Box>
+            {/* Repository list (extracted to RepoListContent, GMC-28) */}
+            <RepoListContent
+              visibleItems={visibleItems}
+              windowed={windowed}
+              cursor={cursor}
+              filterMode={filterMode}
+              filter={filter}
+              filterActive={filterActive}
+              terminalWidth={terminalWidth}
+              listHeight={listHeight}
+              spacingLines={spacingLines}
+              forkTracking={forkTracking}
+              starsMode={starsMode}
+              multiSelectMode={multiSelectMode}
+              selectedRepos={selectedRepos}
+              theme={theme}
+              refreshTick={refreshTick}
+              loading={loading}
+              loadingMore={loadingMore}
+              hasNextPage={hasNextPage}
+              totalCount={totalCount}
+              loadedCount={items.length}
+            />
           </>
         )}
       </Box>
 
-      {/* Help footer - 5 lines */}
-      <Box marginTop={1} paddingX={1} flexDirection="column">
-        {/* Line 1: Basic navigation */}
-        <Box width={terminalWidth} justifyContent="center">
-          <Text color={theme.muted} dimColor={modalOpen ? true : undefined}>
-            ↑↓ Navigate • Ctrl+G Top • G Bottom • ⏎/O Open • R Refresh
-          </Text>
-        </Box>
-        {/* Line 2: Search and filtering */}
-        <Box width={terminalWidth} justifyContent="center">
-          <Text color={theme.muted} dimColor={modalOpen ? true : undefined}>
-            / Search{!filterActive && ' • S Sort • D Direction'} • T Density • Shift+T Theme • V View Filters
-          </Text>
-        </Box>
-        {/* Line 3: Repository actions (stars toggle at start so it is never truncated) */}
-        <Box width={terminalWidth} justifyContent="center">
-          <Text color={theme.muted} dimColor={modalOpen ? true : undefined}>
-            {starsMode ?
-              'Shift+S My Repos • I Info • C Copy URL • L PRs/Issues • U Unstar Repository' :
-              `${ownerContext === 'personal' ? 'Shift+S Starred • ' : ''}I Info • C Copy URL • L PRs/Issues • Ctrl+S Un/Star • Ctrl+R Rename • Shift+M Transfer • Ctrl+A Un/Archive • Ctrl+V Change Visibility • Ctrl+F Sync Fork • P Jump to upstream`
-            }
-          </Text>
-        </Box>
-        {/* Line 4: System controls */}
-        <Box width={terminalWidth} justifyContent="center">
-          <Text color={theme.muted} dimColor={modalOpen ? true : undefined}>
-            K Cache Info • W Org Switch{!starsMode ? ' • Ctrl+N New Repo' : ''} • Del/Backspace Delete • Ctrl+L Logout • Q Quit
-          </Text>
-        </Box>
-        {/* Multi-select hint (shown when not in modal) */}
-        {!modalOpen && (
-          <Box width={terminalWidth} justifyContent="center">
-            <Text color={multiSelectMode ? 'cyan' : 'gray'} dimColor={!multiSelectMode}>
-              {multiSelectMode
-                ? (selectedRepos.size > 0
-                    ? `Space select • X unselect all • Ctrl+S star • Ctrl+A archive • Ctrl+V visibility${starsMode ? '' : ' • Shift+M transfer'} • Del delete • B/Esc exit (${selectedRepos.size} selected${hiddenSelectedCount > 0 ? `, ${hiddenSelectedCount} not shown in search` : ''})`
-                    : 'B/Esc exit bulk select • Space select (no selection)')
-                : 'B Bulk Select mode (star/archive/visibility/delete)'
-              }
-            </Text>
-          </Box>
-        )}
-        {/* Line 5: Sponsorship */}
-        <Box width={terminalWidth} justifyContent="center" marginTop={1}>
-          <Text color={theme.warning} dimColor={modalOpen ? true : undefined}>
-            💖 Sponsor on GitHub: github.com/sponsors/wiiiimm
-          </Text>
-        </Box>
-      </Box>
+      {/* Help footer - 5 lines (extracted to RepoListFooter, GMC-28) */}
+      <RepoListFooter
+        terminalWidth={terminalWidth}
+        theme={theme}
+        modalOpen={modalOpen}
+        filterActive={filterActive}
+        starsMode={starsMode}
+        ownerContext={ownerContext}
+        multiSelectMode={multiSelectMode}
+        selectedCount={selectedRepos.size}
+        hiddenSelectedCount={hiddenSelectedCount}
+      />
 
       {/* Debug panel */}
       {process.env.GH_MANAGER_DEBUG === '1' && (

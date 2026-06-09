@@ -29,12 +29,47 @@
 gh-manager-cli/
 ├── src/
 │   ├── index.tsx              # CLI entry, error boundaries, renders App
+│   ├── types.ts               # Shared TypeScript type definitions
+│   ├── ambient.d.ts           # Ambient module declarations
 │   ├── ui/
 │   │   ├── App.tsx            # Token bootstrap and routing
-│   │   └── RepoList.tsx       # Repository list UI, key handling, infinite scroll
-│   ├── github.ts              # Octokit GraphQL client and queries
-│   ├── config.ts              # Read/write config and token management
-│   └── types.ts               # TypeScript type definitions
+│   │   ├── OrgSwitcher.tsx    # Organisation switcher
+│   │   ├── views/
+│   │   │   └── RepoList.tsx   # Repository list UI, key handling, infinite scroll
+│   │   ├── hooks/            # RepoList logic extracted into focused hooks (GMC-28):
+│   │   │   ├── useTheme.ts          # Colour-theme hook (GMC-22)
+│   │   │   ├── useVirtualList.ts    # Windowing memo around the cursor
+│   │   │   ├── useListLayout.ts     # Terminal-width + list-height derivation
+│   │   │   ├── useForkEnrichment.ts # Batched fork ahead/behind enrichment effect (SWR-362)
+│   │   │   ├── useRefreshTick.ts    # Whole-minute tick for relative dates (SWR-377)
+│   │   │   └── useBulkSelect.ts     # Bulk Select mode + selection map + helpers
+│   │   └── components/
+│   │       ├── auth/          # Auth method selector, OAuth progress
+│   │       ├── repo/          # RepoRow, RepoListHeader, FilterInput,
+│   │       │                  #   RepoListFooter (help footer), RepoListContent (list body)
+│   │       ├── modals/        # All action/confirmation modals + bulk modals
+│   │       └── common/        # Shared presentational bits (SlowSpinner, …)
+│   ├── services/
+│   │   ├── github/            # GitHub API service, split by concern (GMC-28):
+│   │   │   ├── index.ts       #   barrel — preserves `services/github` imports
+│   │   │   ├── client.ts      #   Octokit + persisted Apollo client (singleton)
+│   │   │   ├── queries.ts     #   read queries + RepoNode normalisation
+│   │   │   ├── mutations.ts   #   star/archive/visibility/rename mutations
+│   │   │   ├── rest.ts        #   REST ops (delete, create, transfer, sync, rate limits)
+│   │   │   ├── cache.ts       #   Apollo cache reads/updates/eviction + inspection
+│   │   │   └── enrichment.ts  #   batched fork ahead/behind enrichment
+│   │   ├── apolloMeta.ts      # Apollo cache TTL/meta helpers
+│   │   └── oauth.ts           # OAuth device-flow implementation
+│   ├── config/
+│   │   ├── config.ts          # Read/write config and token management
+│   │   ├── constants.ts       # Shared constants
+│   │   └── themes.ts          # Colour-theme definitions (GMC-22)
+│   └── lib/
+│       ├── utils.ts           # truncate/formatDate/computeWindow/filters
+│       ├── fuzzySearch.ts     # Local fuzzy search over the cached set (SWR-361)
+│       ├── session.ts         # Session usage tracking
+│       └── logger.ts          # File logger
+├── tests/                     # Vitest + ink-testing-library, mirrors src/
 ├── dist/                      # Built output (gitignored)
 ├── package.json               # NPM package config with semantic-release
 ├── tsconfig.json              # TypeScript configuration
@@ -51,6 +86,13 @@ gh-manager-cli/
     └── scripts/
         └── normalize-pr-title.js    # PR title normalization logic
 ```
+
+> **`services/github` module map (GMC-28):** the service is a directory with a
+> barrel `index.ts`, so `import { … } from '../../services/github'` keeps
+> working. `makeApolloClient` and its singleton live only in `client.ts` so the
+> persisted Apollo instance stays a true singleton across modules. When adding a
+> GitHub call, place it by concern (query / mutation / rest / cache / enrichment)
+> rather than growing one file.
 
 ## Core Features
 

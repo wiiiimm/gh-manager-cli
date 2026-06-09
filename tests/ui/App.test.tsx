@@ -3,7 +3,7 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { render } from 'ink-testing-library';
 import App from '../../src/ui/App';
 import { getStoredToken, storeToken, getTokenFromEnv, clearStoredToken } from '../../src/config/config';
-import { makeClient, getViewerLogin } from '../../src/services/github';
+import { makeClient, getViewerLogin, setActiveApolloToken } from '../../src/services/github';
 
 // Mock package.json
 vi.mock('../../package.json', () => ({
@@ -26,6 +26,7 @@ vi.mock('../../src/config/config', () => ({
   storeToken: vi.fn(),
   getTokenFromEnv: vi.fn(),
   clearStoredToken: vi.fn(),
+  clearAllSettings: vi.fn(),
   getTokenSource: vi.fn(() => 'pat'),
   OwnerContext: {}
 }));
@@ -33,7 +34,8 @@ vi.mock('../../src/config/config', () => ({
 // Mock github module  
 vi.mock('../../src/services/github', () => ({
   makeClient: vi.fn(),
-  getViewerLogin: vi.fn()
+  getViewerLogin: vi.fn(),
+  setActiveApolloToken: vi.fn()
 }));
 
 // Mock oauth module
@@ -47,8 +49,9 @@ vi.mock('open', () => ({
   default: vi.fn()
 }));
 
-// Mock child components
-vi.mock('../../src/ui/RepoList', () => ({
+// Mock child components. App imports from './views/RepoList', so the mock must
+// target that path or it silently fails to intercept the real component.
+vi.mock('../../src/ui/views/RepoList', () => ({
   default: vi.fn(() => null)
 }));
 
@@ -86,6 +89,9 @@ describe('App', () => {
     
     expect(getTokenFromEnv).toHaveBeenCalled();
     expect(getStoredToken).toHaveBeenCalled();
+    // The active session token is declared to the GitHub service (null when no
+    // token is present) so stale ops can't act as a previous account (GMC-28).
+    expect(setActiveApolloToken).toHaveBeenCalledWith(null);
     unmount();
   });
 
