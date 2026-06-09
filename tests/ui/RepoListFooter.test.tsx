@@ -50,6 +50,14 @@ describe('RepoListFooter', () => {
     unmount();
   });
 
+  it('omits the Starred toggle when ownerContext is an organisation', () => {
+    const { lastFrame, unmount } = render(
+      <RepoListFooter {...baseProps} ownerContext={{ type: 'organization', login: 'my-org', name: 'My Org' }} />,
+    );
+    expect(lastFrame() || '').not.toContain('Shift+S Starred');
+    unmount();
+  });
+
   it('prompts to enter Bulk Select mode when not active', () => {
     const { lastFrame, unmount } = render(<RepoListFooter {...baseProps} />);
     expect(lastFrame() || '').toContain('B Bulk Select mode');

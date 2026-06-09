@@ -278,6 +278,7 @@ export async function syncForkWithUpstream(
       headers: {
         'Authorization': `token ${token}`,
         'Accept': 'application/vnd.github+json',
+        'Content-Type': 'application/json',
         'User-Agent': 'gh-manager-cli'
       },
       body: JSON.stringify({ branch })
