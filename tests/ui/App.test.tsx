@@ -26,6 +26,7 @@ vi.mock('../../src/config/config', () => ({
   storeToken: vi.fn(),
   getTokenFromEnv: vi.fn(),
   clearStoredToken: vi.fn(),
+  clearAllSettings: vi.fn(),
   getTokenSource: vi.fn(() => 'pat'),
   OwnerContext: {}
 }));
@@ -48,8 +49,9 @@ vi.mock('open', () => ({
   default: vi.fn()
 }));
 
-// Mock child components
-vi.mock('../../src/ui/RepoList', () => ({
+// Mock child components. App imports from './views/RepoList', so the mock must
+// target that path or it silently fails to intercept the real component.
+vi.mock('../../src/ui/views/RepoList', () => ({
   default: vi.fn(() => null)
 }));
 
