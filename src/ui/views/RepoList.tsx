@@ -2,12 +2,13 @@ import React, { useEffect, useMemo, useState, useRef, useCallback } from 'react'
 import { Box, Text, useApp, useInput, useStdout, Spacer, Newline } from 'ink';
 import TextInput from 'ink-text-input';
 import chalk from 'chalk';
-import { makeClient, fetchViewerReposPageUnified, deleteRepositoryRest, archiveRepositoryById, unarchiveRepositoryById, changeRepositoryVisibility, syncForkWithUpstream, getRepositoryFromCache, purgeApolloCacheFiles, inspectCacheStatus, updateCacheAfterDelete, updateCacheAfterArchive, updateCacheAfterVisibilityChange, updateCacheWithRepository, checkOrganizationIsEnterprise, OwnerAffiliation, fetchViewerOrganizations, fetchRestRateLimits, renameRepositoryById, updateCacheAfterRename, getStarredRepositories, starRepository, unstarRepository, enrichForksWithAheadBehind, fetchRepositoryByOwnerAndName, createRepositoryRest, transferRepositoryRest } from '../../services/github';
+import { makeClient, fetchViewerReposPageUnified, deleteRepositoryRest, archiveRepositoryById, unarchiveRepositoryById, changeRepositoryVisibility, syncForkWithUpstream, getRepositoryFromCache, purgeApolloCacheFiles, inspectCacheStatus, updateCacheAfterDelete, updateCacheAfterArchive, updateCacheAfterVisibilityChange, updateCacheWithRepository, checkOrganizationIsEnterprise, OwnerAffiliation, fetchViewerOrganizations, fetchRestRateLimits, renameRepositoryById, updateCacheAfterRename, getStarredRepositories, starRepository, unstarRepository, fetchRepositoryByOwnerAndName, createRepositoryRest, transferRepositoryRest } from '../../services/github';
 import { getUIPrefs, storeUIPrefs, OwnerContext } from '../../config/config';
 import { type ThemeName, nextTheme, getTheme } from '../../config/themes';
 import { useTheme } from '../hooks/useTheme';
 import { useVirtualList } from '../hooks/useVirtualList';
 import { useListLayout } from '../hooks/useListLayout';
+import { useForkEnrichment } from '../hooks/useForkEnrichment';
 import { makeApolloKey, isFresh, markFetched } from '../../services/apolloMeta';
 import { fuzzySearch } from '../../lib/fuzzySearch';
 import type { RepoNode, RateLimitInfo, RestRateLimitInfo } from '../../types';
@@ -243,9 +244,8 @@ export default function RepoList({ token, maxVisibleRows, onLogout, viewerLogin,
   const [openLinksMode, setOpenLinksMode] = useState(false);
   const [openLinksTarget, setOpenLinksTarget] = useState<RepoNode | null>(null);
 
-  // Fork enrichment (ahead/behind) state
-  const [enrichingForks, setEnrichingForks] = useState(false);
-  const enrichmentDoneRef = useRef<Set<string>>(new Set()); // ids already enriched
+  // Fork ahead/behind enrichment state + effect live in useForkEnrichment
+  // (GMC-28); the hook is invoked below, after forkTracking is declared.
 
   // Session-level cache of the viewer's organisations for the transfer destination
   // picker (single + bulk). The fetch is cheap, but caching it avoids a refetch on
@@ -1096,96 +1096,16 @@ export default function RepoList({ token, maxVisibleRows, onLogout, viewerLogin,
   // Fork tracking toggle - default ON to show commits behind
   const [forkTracking, setForkTracking] = useState<boolean>(true);
 
-  // Fork ahead/behind enrichment: runs after the full list is loaded.
-  // Uses batched aliased GraphQL queries (5 forks/batch) to stay within per-query budget.
-  useEffect(() => {
-    // Only run when the owned list is fully loaded and we have forks to enrich
-    if (loading || loadingMore || hasNextPage || items.length === 0) return;
-    if (!forkTracking) return;
-
-    const unenriched = items.filter(r =>
-      r.isFork &&
-      r.parent?.nameWithOwner &&
-      !enrichmentDoneRef.current.has(r.id) &&
-      !(r.defaultBranchRef?.target?.history && r.parent?.defaultBranchRef?.target?.history)
-    );
-
-    if (unenriched.length === 0) return;
-    // No re-entrancy guard on `enrichingForks` here: React always runs the
-    // cleanup (setting `cancelled`) before re-running this effect, so two
-    // un-cancelled passes can never overlap. Gating on the UI flag was what
-    // left it stuck `true` after a torn-down pass.
-
-    let cancelled = false;
-    setEnrichingForks(true);
-
-    ;(async () => {
-      const BATCH_DELAY_MS = 200;
-
-      try {
-        const BATCH_SIZE = 5;
-        for (let i = 0; i < unenriched.length; i += BATCH_SIZE) {
-          if (cancelled) break;
-          const slice = unenriched.slice(i, i + BATCH_SIZE);
-          const batch = slice.map(r => ({
-            id: r.id,
-            parentNameWithOwner: r.parent!.nameWithOwner,
-          }));
-
-          const enriched = await enrichForksWithAheadBehind(client, batch);
-
-          if (cancelled) break;
-
-          // Mark every fork in the batch as processed — even ones that came
-          // back with null/missing counts — so a failed lookup isn't retried
-          // forever (the effect would otherwise re-fire on the next items
-          // change with these still "unenriched").
-          slice.forEach(r => enrichmentDoneRef.current.add(r.id));
-
-          // Merge history counts back into items
-          setItems(prev => prev.map(repo => {
-            const hit = enriched.find(e => e.id === repo.id);
-            if (!hit || hit.forkHistoryCount === null || hit.parentHistoryCount === null) return repo;
-
-            return {
-              ...repo,
-              defaultBranchRef: repo.defaultBranchRef ? {
-                ...repo.defaultBranchRef,
-                target: {
-                  ...(repo.defaultBranchRef.target || {}),
-                  history: { totalCount: hit.forkHistoryCount! },
-                },
-              } : { name: undefined, target: { history: { totalCount: hit.forkHistoryCount! } } },
-              parent: repo.parent ? {
-                ...repo.parent,
-                defaultBranchRef: {
-                  ...(repo.parent.defaultBranchRef || {}),
-                  target: {
-                    ...(repo.parent.defaultBranchRef?.target || {}),
-                    history: { totalCount: hit.parentHistoryCount! },
-                  },
-                },
-              } : repo.parent,
-            };
-          }));
-
-          // Small delay between batches to avoid rate-limit pressure
-          if (i + BATCH_SIZE < unenriched.length) {
-            await new Promise(resolve => setTimeout(resolve, BATCH_DELAY_MS));
-          }
-        }
-      } catch (err: unknown) {
-        logger.error('Fork enrichment failed', { error: err instanceof Error ? err.message : String(err) });
-      } finally {
-        // Only clear when this pass wasn't torn down; a cancelled pass has the
-        // flag reset by the cleanup below so it can never stick `true`.
-        if (!cancelled) setEnrichingForks(false);
-      }
-    })();
-
-    return () => { cancelled = true; setEnrichingForks(false); };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [loading, loadingMore, hasNextPage, items.length, forkTracking]);
+  // Fork ahead/behind enrichment (SWR-362), extracted to useForkEnrichment (GMC-28).
+  const { enrichingForks, resetEnrichment } = useForkEnrichment({
+    client,
+    items,
+    setItems,
+    loading,
+    loadingMore,
+    hasNextPage,
+    forkTracking,
+  });
 
   // Fetch a parent repo by nameWithOwner and display it in the Info modal (P key fallback)
   async function jumpToUpstreamRepo(parentNameWithOwner: string) {
@@ -1277,7 +1197,7 @@ export default function RepoList({ token, maxVisibleRows, onLogout, viewerLogin,
       // replaces items with un-enriched nodes — clear the enrichment tracker
       // so forks get their ahead/behind counts recomputed against the new data.
       if (reset || !after) {
-        enrichmentDoneRef.current.clear();
+        resetEnrichment();
       }
       setItems(prev => (reset || !after ? page.nodes : [...prev, ...page.nodes]));
       setEndCursor(page.endCursor);
