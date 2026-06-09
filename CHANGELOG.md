@@ -1,3 +1,10 @@
+## [1.52.2](https://github.com/wiiiimm/gh-manager-cli/compare/v1.52.1...v1.52.2) (2026-06-09)
+
+
+### Bug Fixes
+
+* expose the 'forks' option in the Sort modal (GMC-42) ([#108](https://github.com/wiiiimm/gh-manager-cli/issues/108)) ([d135dac](https://github.com/wiiiimm/gh-manager-cli/commit/d135dac93ea363f8cb9b949993fb9f3740c1a0c7))
+
 ## [1.52.1](https://github.com/wiiiimm/gh-manager-cli/compare/v1.52.0...v1.52.1) (2026-06-09)
 
 
