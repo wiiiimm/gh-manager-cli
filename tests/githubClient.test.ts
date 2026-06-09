@@ -37,6 +37,11 @@ import { makeApolloClient } from '../src/services/github/client';
 
 describe('makeApolloClient — token-aware singleton (GMC-28)', () => {
   beforeEach(() => {
+    // Clear constructor call/instance records so assertions are independent of
+    // test order (mockClear keeps the implementations, only resets call data).
+    vi.mocked(ApolloClient).mockClear();
+    vi.mocked(CachePersistor).mockClear();
+    vi.mocked(fs.unlinkSync).mockClear();
     // Ensure the fetch-availability guard in makeApolloClient passes.
     if (typeof (globalThis as any).fetch === 'undefined') {
       (globalThis as any).fetch = vi.fn();

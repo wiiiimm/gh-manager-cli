@@ -387,10 +387,12 @@ describe('github', () => {
       );
     });
 
-    it('throws "Repository not found" when the node is missing', async () => {
+    it('throws "Repository not found" when the node is missing, without logging it as an error', async () => {
       const mockClient: any = vi.fn(async () => ({ node: null }));
       await expect(changeRepositoryVisibility(mockClient, 'R_1', 'PRIVATE', 'tok'))
         .rejects.toThrow('Repository not found');
+      // Expected caller condition — must not be logged as an operational error.
+      expect(logger.error).not.toHaveBeenCalled();
     });
 
     it('preserves the "Failed to change visibility" message on a non-ok REST response', async () => {

@@ -197,11 +197,17 @@ export async function changeRepositoryVisibility(
     return { nameWithOwner: repo.nameWithOwner };
   } catch (error: unknown) {
     const err = toError(error);
-    logger.error('Failed to change repository visibility', {
-      repositoryId,
-      visibility,
-      error: err.message
-    });
+    // 'Repository not found' is an expected caller condition (the node lookup
+    // returned nothing), not an operational failure — don't log it as an error.
+    // This preserves the pre-refactor behaviour, where that case threw without
+    // logging, while still logging genuine GraphQL/REST/network failures.
+    if (err.message !== 'Repository not found') {
+      logger.error('Failed to change repository visibility', {
+        repositoryId,
+        visibility,
+        error: err.message
+      });
+    }
     throw err;
   }
 }
