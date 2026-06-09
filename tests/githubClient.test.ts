@@ -148,4 +148,21 @@ describe('makeApolloClient — token-aware singleton (GMC-28)', () => {
     const recovered = await makeApolloClient('fail-token-B');
     expect(recovered.client).toBeTruthy();
   });
+
+  it('recovers with a different token after a failed build (Sonnet review)', async () => {
+    await makeApolloClient('recover-token-A');
+
+    vi.mocked(CachePersistor).mockImplementationOnce(function (this: any) {
+      this.restore = vi.fn().mockRejectedValue(new Error('restore boom'));
+      this.pause = vi.fn();
+      this.purge = vi.fn().mockResolvedValue(undefined);
+    });
+    await expect(makeApolloClient('recover-token-B'))
+      .rejects.toThrow(/Apollo Client initialization failed/);
+
+    // Instance was left null by the failed switch; a *different* token (e.g. the
+    // user enters yet another token) falls straight through to a fresh build.
+    const recovered = await makeApolloClient('recover-token-C');
+    expect(recovered.client).toBeTruthy();
+  });
 });

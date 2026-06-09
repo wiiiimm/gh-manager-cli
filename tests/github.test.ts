@@ -318,6 +318,15 @@ describe('github', () => {
       const all = captured.join('\n');
       expect(all).toMatch(/openPullRequests:\s*pullRequests\(states:\s*OPEN\)\s*\{\s*totalCount\s*\}/);
       expect(all).toMatch(/openIssues:\s*issues\(states:\s*OPEN\)\s*\{\s*totalCount\s*\}/);
+
+      // Personal (captured[0]) and org (captured[1]) Octokit queries must request
+      // the same fields — both viewerHasStarred and owner — so the fallback data
+      // shape doesn't differ by context (CodeRabbit, GMC-28).
+      const [personalQuery, orgQuery] = captured;
+      for (const q of [personalQuery, orgQuery]) {
+        expect(q).toContain('viewerHasStarred');
+        expect(q).toMatch(/owner\s*\{\s*__typename\s*login\s*\}/);
+      }
     });
 
     it('does NOT request per-repo commit history on the Octokit fallback (light bulk query, SWR-360)', async () => {

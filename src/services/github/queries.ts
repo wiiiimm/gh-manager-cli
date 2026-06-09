@@ -150,7 +150,7 @@ export async function checkOrganizationIsEnterprise(
     });
 
     return isEnterprise;
-  } catch (error) {
+  } catch (error: unknown) {
     // If the query fails, it's likely not an enterprise org
     return false;
   }
@@ -347,8 +347,13 @@ export async function fetchViewerReposPage(
             isArchived
             stargazerCount
             forkCount
+            viewerHasStarred
             openPullRequests: pullRequests(states: OPEN) { totalCount }
             openIssues: issues(states: OPEN) { totalCount }
+            owner {
+              __typename
+              login
+            }
             primaryLanguage {
               name
               color
