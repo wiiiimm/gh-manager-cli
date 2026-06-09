@@ -2,7 +2,7 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { Box, Text, useApp, useStdout, useInput } from 'ink';
 import TextInput from 'ink-text-input';
 import { getStoredToken, storeToken, getTokenFromEnv, clearStoredToken, clearAllSettings, OwnerContext, getTokenSource, TokenSource } from '../config/config';
-import { makeClient, getViewerLogin } from '../services/github';
+import { makeClient, getViewerLogin, setActiveApolloToken } from '../services/github';
 import { pollForAccessToken, requestDeviceCode, DeviceCodeResponse } from '../services/oauth';
 import RepoList from './views/RepoList';
 import { AuthMethodSelector, AuthMethod, OAuthProgress, OAuthStatus } from './components/auth';
@@ -50,6 +50,13 @@ export default function App({ initialOrgSlug, inlineToken, inlineTokenEphemeral 
       stdout.off?.('resize', onResize);
     };
   }, [stdout]);
+
+  // Declare the active session token to the GitHub service so a stale in-flight
+  // request from a previous account can't resurrect its Apollo client/cache
+  // under the new session (Cursor Bugbot — "stale token hijack", GMC-28).
+  useEffect(() => {
+    setActiveApolloToken(token);
+  }, [token]);
 
   useEffect(() => {
     const env = getTokenFromEnv();

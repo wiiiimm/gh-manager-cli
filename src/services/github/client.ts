@@ -29,18 +29,39 @@ let apolloClientInstance: ApolloClientBundle | null = null;
 let apolloClientToken: string | null = null;
 let apolloPersistor: CachePersistor<NormalizedCacheObject> | null = null;
 
-// Serializes (re)builds so concurrent callers cannot interleave teardown/build.
+// Serialises (re)builds so concurrent callers cannot interleave teardown/build.
 let apolloBuildQueue: Promise<unknown> = Promise.resolve();
 
+// The token of the active session, declared by App on every auth change. It is
+// authoritative over the token an individual caller passes: a stale in-flight
+// op from a previous account (carrying that account's token) must not be able
+// to tear down and rebuild the live client (Cursor Bugbot — "stale token
+// hijack"). Null before App has declared one (early bootstrap / tests), where
+// the caller's token is used directly.
+let activeToken: string | null = null;
+
+/**
+ * Declare the active session token. App calls this on login, token change, and
+ * logout (with `null`). It makes {@link makeApolloClient} ignore stale callers
+ * that carry a previous account's token, so a late in-flight request can't
+ * resurrect the old account's client/cache under the new session.
+ */
+export function setActiveApolloToken(token: string | null): void {
+  activeToken = token;
+}
+
 // Apollo Client with persisted cache (default for all queries).
-export async function makeApolloClient(token: string): Promise<ApolloClientBundle> {
+export async function makeApolloClient(callerToken: string): Promise<ApolloClientBundle> {
+  // The App-declared active token wins over whatever token the caller passes;
+  // fall back to the caller's token only before App has declared one.
+  const token = activeToken ?? callerToken;
   // Fast path: a matching instance is already built for this token.
   if (apolloClientInstance && apolloClientToken === token) {
     return apolloClientInstance;
   }
-  // Serialize (re)builds. makeApolloClient is async and a token change tears the
+  // Serialise (re)builds. makeApolloClient is async and a token change tears the
   // singleton down across awaits (pause → clearStore → purge); without
-  // serialization a second concurrent call with the new token could see no
+  // serialisation a second concurrent call with the new token could see no
   // instance, skip the teardown, and restore() from a not-yet-purged on-disk
   // cache — hydrating the new client with the previous account's repositories
   // (Cursor Bugbot). Chaining on a module-level promise runs rebuilds one at a

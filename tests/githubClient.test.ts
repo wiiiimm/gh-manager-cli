@@ -33,7 +33,7 @@ vi.mock('env-paths', () => ({
 import fs from 'fs';
 import { ApolloClient } from '@apollo/client/core/index.js';
 import { CachePersistor } from 'apollo3-cache-persist';
-import { makeApolloClient } from '../src/services/github/client';
+import { makeApolloClient, setActiveApolloToken } from '../src/services/github/client';
 
 describe('makeApolloClient — token-aware singleton (GMC-28)', () => {
   beforeEach(() => {
@@ -42,6 +42,9 @@ describe('makeApolloClient — token-aware singleton (GMC-28)', () => {
     vi.mocked(ApolloClient).mockClear();
     vi.mocked(CachePersistor).mockClear();
     vi.mocked(fs.unlinkSync).mockClear();
+    // Reset the active session token so the activeToken-override logic doesn't
+    // leak between tests (these cases drive makeApolloClient by caller token).
+    setActiveApolloToken(null);
     // Ensure the fetch-availability guard in makeApolloClient passes.
     if (typeof (globalThis as any).fetch === 'undefined') {
       (globalThis as any).fetch = vi.fn();
@@ -85,11 +88,11 @@ describe('makeApolloClient — token-aware singleton (GMC-28)', () => {
     expect(fs.unlinkSync).toHaveBeenCalledWith(expect.stringContaining('apollo-cache-meta.json'));
   });
 
-  it('serializes concurrent token-change calls so teardown/build cannot interleave (Cursor Bugbot)', async () => {
+  it('serialises concurrent token-change calls so teardown/build cannot interleave (Cursor Bugbot)', async () => {
     await makeApolloClient('race-token-A'); // establish a known current token
     const ctorBefore = vi.mocked(ApolloClient).mock.calls.length;
 
-    // Two concurrent callers with the *new* token. Without serialization the
+    // Two concurrent callers with the *new* token. Without serialisation the
     // second would skip teardown and build a second client off a stale cache.
     const [b1, b2] = await Promise.all([
       makeApolloClient('race-token-B'),
@@ -99,5 +102,41 @@ describe('makeApolloClient — token-aware singleton (GMC-28)', () => {
     expect(b1).toBe(b2); // both resolve to the single rebuilt instance
     // Exactly one new client constructed for the switch — no double build.
     expect(vi.mocked(ApolloClient).mock.calls.length).toBe(ctorBefore + 1);
+  });
+
+  it('ignores a stale caller token in favour of the active session token (Cursor Bugbot)', async () => {
+    // App has declared B as the active session token and the B client is live.
+    setActiveApolloToken('active-B');
+    const live = await makeApolloClient('active-B');
+    const ctorAfterBuild = vi.mocked(ApolloClient).mock.calls.length;
+
+    // A stale in-flight op from a previous account calls with the OLD token.
+    const stale = await makeApolloClient('stale-A');
+
+    // It is served the live B client — not a rebuilt A client.
+    expect(stale).toBe(live);
+    // No teardown/rebuild happened for the stale token.
+    expect(vi.mocked(ApolloClient).mock.calls.length).toBe(ctorAfterBuild);
+    expect((live.client as unknown as { clearStore: ReturnType<typeof vi.fn> }).clearStore).not.toHaveBeenCalled();
+  });
+
+  it('rejects when the rebuild fails after teardown, and a retry then succeeds (Sonnet review)', async () => {
+    // Establish a baseline client for one token.
+    await makeApolloClient('fail-token-A');
+
+    // Make the next build (a token change) fail during persistor.restore().
+    vi.mocked(CachePersistor).mockImplementationOnce(function (this: any) {
+      this.restore = vi.fn().mockRejectedValue(new Error('restore boom'));
+      this.pause = vi.fn();
+      this.purge = vi.fn().mockResolvedValue(undefined);
+    });
+
+    await expect(makeApolloClient('fail-token-B'))
+      .rejects.toThrow(/Apollo Client initialization failed: restore boom/);
+
+    // The failed switch tore down the old client and left no instance; a retry
+    // for the same token rebuilds cleanly off the default (resolving) persistor.
+    const recovered = await makeApolloClient('fail-token-B');
+    expect(recovered.client).toBeTruthy();
   });
 });

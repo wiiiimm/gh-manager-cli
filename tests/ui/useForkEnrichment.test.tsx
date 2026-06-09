@@ -81,6 +81,21 @@ describe('useForkEnrichment', () => {
     unmount();
   });
 
+  it('skips forks whose node already carries both history counts (no redundant fetch)', async () => {
+    // A fork that already has fork + parent history on its node data must be
+    // excluded by the data-level guard, without ever calling the enrichment API.
+    const forkWithHistory = {
+      id: 'f1',
+      isFork: true,
+      parent: { nameWithOwner: 'up/f1', defaultBranchRef: { target: { history: { totalCount: 5 } } } },
+      defaultBranchRef: { name: 'main', target: { history: { totalCount: 8 } } },
+    } as any;
+    const { unmount } = render(<Harness {...baseProps} items={[forkWithHistory]} />);
+    await new Promise(r => setTimeout(r, 0));
+    expect(enrichMock).not.toHaveBeenCalled();
+    unmount();
+  });
+
   it('does not re-enrich already-processed forks, but resetEnrichment re-enables them', async () => {
     let latest: Hook | null = null;
     const onHook = (h: Hook) => { latest = h; };

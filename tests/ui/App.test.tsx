@@ -33,7 +33,8 @@ vi.mock('../../src/config/config', () => ({
 // Mock github module  
 vi.mock('../../src/services/github', () => ({
   makeClient: vi.fn(),
-  getViewerLogin: vi.fn()
+  getViewerLogin: vi.fn(),
+  setActiveApolloToken: vi.fn()
 }));
 
 // Mock oauth module
