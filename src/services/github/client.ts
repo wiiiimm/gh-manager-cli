@@ -1,6 +1,6 @@
 import { graphql as makeGraphQL } from '@octokit/graphql';
 import { ApolloClient, InMemoryCache, HttpLink, gql, type NormalizedCacheObject } from '@apollo/client/core/index.js';
-import { persistCache } from 'apollo3-cache-persist';
+import { CachePersistor } from 'apollo3-cache-persist';
 import fs from 'fs';
 import path from 'path';
 import envPaths from 'env-paths';
@@ -23,9 +23,11 @@ export interface ApolloClientBundle {
   gql: typeof gql;
 }
 
-// Singleton Apollo client instance, keyed on the token it was built with.
+// Singleton Apollo client instance, keyed on the token it was built with. The
+// persistor is tracked so it can be paused/purged on a token change.
 let apolloClientInstance: ApolloClientBundle | null = null;
 let apolloClientToken: string | null = null;
+let apolloPersistor: CachePersistor<NormalizedCacheObject> | null = null;
 
 // Apollo Client with persisted cache (default for all queries)
 export async function makeApolloClient(token: string): Promise<ApolloClientBundle> {
@@ -37,19 +39,26 @@ export async function makeApolloClient(token: string): Promise<ApolloClientBundl
     return apolloClientInstance;
   }
   if (apolloClientInstance && apolloClientToken !== token) {
-    try { await apolloClientInstance.client.clearStore(); } catch {}
+    // Retire the previous account's client before building the new one. The
+    // order is deliberate (Cursor Bugbot):
+    //   1. pause() the old persistor first, so its debounced writer cannot
+    //      resurrect apollo-cache.json after we purge it (orphaned-write race).
+    //   2. clearStore() empties the in-memory cache.
+    //   3. purge() removes the persisted cache from disk, so the new client
+    //      restores from an empty file instead of the prior account's repos.
+    // Dropping the prior account's cache on a switch is intentional even if the
+    // new client then fails to build — one account's cached repositories must
+    // never be visible under another account's token.
+    const prevPersistor = apolloPersistor;
+    const prevClient = apolloClientInstance.client;
     apolloClientInstance = null;
     apolloClientToken = null;
-    // Clearing the in-memory store isn't enough: the rebuilt client re-hydrates
-    // from the persisted apollo-cache.json, so without this a cache-first read
-    // after logout → login would surface the previous account's repositories
-    // under the new token (Cursor Bugbot). Drop the on-disk cache + TTL meta so
-    // the new client starts empty. Inlined (rather than calling
-    // purgeApolloCacheFiles) to avoid a cache.ts → client.ts import cycle.
-    try {
-      const dataDir = envPaths('gh-manager-cli').data;
-      fs.unlinkSync(path.join(dataDir, 'apollo-cache.json'));
-    } catch {}
+    apolloPersistor = null;
+    try { prevPersistor?.pause(); } catch {}
+    try { await prevClient.clearStore(); } catch {}
+    try { await prevPersistor?.purge(); } catch {}
+    // The TTL meta file is managed separately (apolloMeta), so clear it too — a
+    // stale "fresh" marker could otherwise suppress refetches for the new account.
     try {
       const dataDir = envPaths('gh-manager-cli').data;
       fs.unlinkSync(path.join(dataDir, 'apollo-cache-meta.json'));
@@ -93,8 +102,12 @@ export async function makeApolloClient(token: string): Promise<ApolloClientBundl
         } catch {}
       }
     };
+    // Track the persistor (rather than the fire-and-forget persistCache helper)
+    // so a later token change can pause/purge it cleanly. restore() hydrates the
+    // new cache from disk — which is empty after a token-change purge above.
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    await persistCache({ cache, storage, debounce: 500, maxSize: 5 * 1024 * 1024 } as any);
+    const persistor = new CachePersistor<NormalizedCacheObject>({ cache, storage, debounce: 500, maxSize: 5 * 1024 * 1024 } as any);
+    await persistor.restore();
     const link = new HttpLink({
       uri: 'https://api.github.com/graphql',
       fetch: globalThis.fetch,
@@ -103,6 +116,7 @@ export async function makeApolloClient(token: string): Promise<ApolloClientBundl
     const client = new ApolloClient({ cache, link });
     apolloClientInstance = { client, gql };
     apolloClientToken = token;
+    apolloPersistor = persistor;
     return apolloClientInstance;
   } catch (error: unknown) {
     const err = toError(error);

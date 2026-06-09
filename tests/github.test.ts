@@ -60,7 +60,12 @@ vi.mock('@apollo/client/core/index.js', () => ({
 }));
 
 vi.mock('apollo3-cache-persist', () => ({
-  persistCache: vi.fn()
+  persistCache: vi.fn(),
+  CachePersistor: vi.fn(function (this: any) {
+    this.restore = vi.fn().mockResolvedValue(undefined);
+    this.pause = vi.fn();
+    this.purge = vi.fn().mockResolvedValue(undefined);
+  })
 }));
 
 vi.mock('fs');

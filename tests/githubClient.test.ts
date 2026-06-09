@@ -17,7 +17,14 @@ vi.mock('@apollo/client/core/index.js', () => ({
   gql: vi.fn((q: any) => q),
 }));
 
-vi.mock('apollo3-cache-persist', () => ({ persistCache: vi.fn().mockResolvedValue(undefined) }));
+// CachePersistor must be newable and expose restore/pause/purge spies.
+vi.mock('apollo3-cache-persist', () => ({
+  CachePersistor: vi.fn(function (this: any) {
+    this.restore = vi.fn().mockResolvedValue(undefined);
+    this.pause = vi.fn();
+    this.purge = vi.fn().mockResolvedValue(undefined);
+  }),
+}));
 vi.mock('fs');
 vi.mock('env-paths', () => ({
   default: vi.fn(() => ({ data: '/mock/data/dir', config: '/mock/config/dir' })),
@@ -25,6 +32,7 @@ vi.mock('env-paths', () => ({
 
 import fs from 'fs';
 import { ApolloClient } from '@apollo/client/core/index.js';
+import { CachePersistor } from 'apollo3-cache-persist';
 import { makeApolloClient } from '../src/services/github/client';
 
 describe('makeApolloClient — token-aware singleton (GMC-28)', () => {
@@ -53,15 +61,22 @@ describe('makeApolloClient — token-aware singleton (GMC-28)', () => {
     expect(ApolloClient).toHaveBeenCalledTimes(3);
   });
 
-  it('purges the persisted on-disk cache on a token change so the new client cannot rehydrate stale data (Cursor Bugbot)', async () => {
+  it('pauses + purges the old persistor and clears the TTL meta on a token change (Cursor Bugbot)', async () => {
     // Establish a known current token first (the module singleton leaks across
-    // tests in this file), then clear the spy so we only observe the switch.
+    // tests in this file); the persistor built for it is the one that must be
+    // retired on the next switch.
     await makeApolloClient('purge-token-A');
+    const instances = vi.mocked(CachePersistor).mock.instances as any[];
+    const oldPersistor = instances[instances.length - 1];
     vi.mocked(fs.unlinkSync).mockClear();
 
     await makeApolloClient('purge-token-B');
-    // Token change must delete both the cache file and its TTL meta.
-    expect(fs.unlinkSync).toHaveBeenCalledWith(expect.stringContaining('apollo-cache.json'));
+
+    // Pause must happen (stops orphaned debounced writes), then purge clears the
+    // persisted cache from disk so the new client restores empty.
+    expect(oldPersistor.pause).toHaveBeenCalled();
+    expect(oldPersistor.purge).toHaveBeenCalled();
+    // The separately-managed TTL meta file is removed too.
     expect(fs.unlinkSync).toHaveBeenCalledWith(expect.stringContaining('apollo-cache-meta.json'));
   });
 });
