@@ -10,6 +10,7 @@ import { useVirtualList } from '../hooks/useVirtualList';
 import { useListLayout } from '../hooks/useListLayout';
 import { useForkEnrichment } from '../hooks/useForkEnrichment';
 import { useRefreshTick } from '../hooks/useRefreshTick';
+import { useBulkSelect } from '../hooks/useBulkSelect';
 import { makeApolloKey, isFresh, markFetched } from '../../services/apolloMeta';
 import { fuzzySearch } from '../../lib/fuzzySearch';
 import type { RepoNode, RateLimitInfo, RestRateLimitInfo } from '../../types';
@@ -199,10 +200,13 @@ export default function RepoList({ token, maxVisibleRows, onLogout, viewerLogin,
   const [starring, setStarring] = useState(false);
   const [starError, setStarError] = useState<string | null>(null);
 
-  // Multi-select mode state
-  const [multiSelectMode, setMultiSelectMode] = useState(false);
-  // Selection stored as Map<id, RepoNode> so nodes persist across search/filter changes
-  const [selectedRepos, setSelectedRepos] = useState<Map<string, RepoNode>>(new Map());
+  // Bulk Select selection model (mode flag + selected nodes + helpers),
+  // extracted to useBulkSelect (GMC-28). The bulk operation flow stays below.
+  const {
+    multiSelectMode, setMultiSelectMode,
+    selectedRepos, setSelectedRepos,
+    enterMultiSelectMode, exitMultiSelectMode, toggleRepoSelection,
+  } = useBulkSelect();
   // Bulk operation flow state
   const [bulkAction, setBulkAction] = useState<BulkAction | null>(null);
   const [bulkVisibilityTarget, setBulkVisibilityTarget] = useState<BulkVisibilityTarget | null>(null);
@@ -560,30 +564,6 @@ export default function RepoList({ token, maxVisibleRows, onLogout, viewerLogin,
       setArchiveError('Failed to update archive state. Check permissions.');
       // Keep modal open on error
     }
-  }
-
-  // Multi-select helpers
-  function enterMultiSelectMode() {
-    setMultiSelectMode(true);
-  }
-
-  function exitMultiSelectMode(clearSelection = true) {
-    setMultiSelectMode(false);
-    if (clearSelection) {
-      setSelectedRepos(new Map());
-    }
-  }
-
-  function toggleRepoSelection(repo: RepoNode) {
-    setSelectedRepos(prev => {
-      const next = new Map(prev);
-      if (next.has(repo.id)) {
-        next.delete(repo.id);
-      } else {
-        next.set(repo.id, repo);
-      }
-      return next;
-    });
   }
 
   // Bulk operation execution
