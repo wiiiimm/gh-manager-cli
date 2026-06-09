@@ -20,7 +20,7 @@ export default function SortModal({
   theme: themeProp,
 }: SortModalProps) {
   const { theme, c } = useTheme(themeProp?.name ?? 'default');
-  const options: SortKey[] = ['updated', 'pushed', 'name', 'stars'];
+  const options: SortKey[] = ['updated', 'pushed', 'name', 'stars', 'forks'];
 
   const [selectedIndex, setSelectedIndex] = useState(0);
   const [focusedOption, setFocusedOption] = useState<SortKey | 'cancel'>('updated');
@@ -94,6 +94,7 @@ export default function SortModal({
       else if (upperInput === 'P') onSelect('pushed');
       else if (upperInput === 'N') onSelect('name');
       else if (upperInput === 'S') onSelect('stars');
+      else if (upperInput === 'F') onSelect('forks');
     }
   });
 
@@ -141,7 +142,7 @@ export default function SortModal({
 
       <Box marginTop={1}>
         <Text color={theme.muted} dimColor>
-          ↑↓/Enter • U/P/N/S • Esc
+          ↑↓/Enter • U/P/N/S/F • Esc
         </Text>
       </Box>
     </Box>
