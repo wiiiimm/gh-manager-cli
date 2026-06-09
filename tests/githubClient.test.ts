@@ -33,7 +33,7 @@ vi.mock('env-paths', () => ({
 import fs from 'fs';
 import { ApolloClient } from '@apollo/client/core/index.js';
 import { CachePersistor } from 'apollo3-cache-persist';
-import { makeApolloClient, setActiveApolloToken } from '../src/services/github/client';
+import { makeApolloClient, setActiveApolloToken, resolveActiveToken } from '../src/services/github/client';
 
 describe('makeApolloClient — token-aware singleton (GMC-28)', () => {
   beforeEach(() => {
@@ -118,6 +118,15 @@ describe('makeApolloClient — token-aware singleton (GMC-28)', () => {
     // No teardown/rebuild happened for the stale token.
     expect(vi.mocked(ApolloClient).mock.calls.length).toBe(ctorAfterBuild);
     expect((live.client as unknown as { clearStore: ReturnType<typeof vi.fn> }).clearStore).not.toHaveBeenCalled();
+  });
+
+  it('resolveActiveToken prefers the active session token, falling back to the caller token (Cursor Bugbot)', () => {
+    // No active token declared yet → caller's token is used (bootstrap/tests).
+    expect(resolveActiveToken('caller-A')).toBe('caller-A');
+    // Once App declares an active token, it wins over a stale caller token —
+    // this is what the Octokit fallback uses so it can't query the old account.
+    setActiveApolloToken('active-B');
+    expect(resolveActiveToken('stale-A')).toBe('active-B');
   });
 
   it('rejects when the rebuild fails after teardown, and a retry then succeeds (Sonnet review)', async () => {

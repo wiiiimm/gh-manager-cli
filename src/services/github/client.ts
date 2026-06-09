@@ -50,11 +50,21 @@ export function setActiveApolloToken(token: string | null): void {
   activeToken = token;
 }
 
+/**
+ * Resolve the token a request should actually use: the App-declared active
+ * session token when set, otherwise the caller's own token. Both the Apollo
+ * path ({@link makeApolloClient}) and the Octokit fallback must resolve through
+ * this so a stale caller can never query GitHub as a previous account.
+ */
+export function resolveActiveToken(callerToken: string): string {
+  return activeToken ?? callerToken;
+}
+
 // Apollo Client with persisted cache (default for all queries).
 export async function makeApolloClient(callerToken: string): Promise<ApolloClientBundle> {
   // The App-declared active token wins over whatever token the caller passes;
   // fall back to the caller's token only before App has declared one.
-  const token = activeToken ?? callerToken;
+  const token = resolveActiveToken(callerToken);
   // Fast path: a matching instance is already built for this token.
   if (apolloClientInstance && apolloClientToken === token) {
     return apolloClientInstance;

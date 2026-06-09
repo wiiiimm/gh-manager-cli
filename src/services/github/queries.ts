@@ -1,6 +1,6 @@
 import type { RepoNode, RateLimitInfo } from '../../types';
 import { logger } from '../../lib/logger';
-import { makeClient, makeApolloClient, toError } from './client';
+import { makeClient, makeApolloClient, resolveActiveToken, toError } from './client';
 
 // GraphQL response shapes for Octokit client calls — keeps `const res: any` out
 // of the response-handling paths without littering the call sites with generics.
@@ -559,7 +559,10 @@ export async function fetchViewerReposPageUnified(
 
   logger.warn('Falling back to Octokit client');
   if (debug) console.log('📡 Using Octokit fallback...');
-  const octo = makeClient(token);
+  // Resolve the active session token (not the caller's closure token) so a
+  // stale in-flight fallback can't query GitHub as a previous account after an
+  // account switch (Cursor Bugbot — "Octokit fallback ignores active token").
+  const octo = makeClient(resolveActiveToken(token));
   return fetchViewerReposPage(octo, first, after, orderBy, includeForkTracking, ownerAffiliations, organizationLogin);
 }
 
