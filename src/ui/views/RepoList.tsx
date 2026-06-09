@@ -21,7 +21,7 @@ import { DeleteModal, ArchiveModal, SyncModal, InfoModal, LogoutModal, ViewFilte
 import type { ForkFilter } from '../components/modals';
 import type { BulkAction, BulkVisibilityTarget, BulkProgressState } from '../components/modals';
 import { UnstarModal } from '../components/modals/UnstarModal';
-import { RepoRow, FilterInput, RepoListHeader, RepoListFooter } from '../components/repo';
+import { RepoListHeader, RepoListFooter, RepoListContent } from '../components/repo';
 import { SlowSpinner } from '../components/common';
 import { truncate, formatDate, copyToClipboard, matchesVisibilityFilter, matchesForkFilter, type VisibilityFilter } from '../../lib/utils';
 import { trackOperation, bulkActionToOperation } from '../../lib/session';
@@ -3079,79 +3079,29 @@ export default function RepoList({ token, maxVisibleRows, onLogout, viewerLogin,
           </Box>
         )}
 
-            {/* Repository list */}
-            <Box flexDirection="column" height={listHeight}>
-              {(filterMode && filter.trim().length > 0 && filter.trim().length < 3) ? (
-                <Box justifyContent="center" alignItems="center" flexGrow={1}>
-                  <Text color="gray" dimColor>Type at least 3 characters to search</Text>
-                </Box>
-              ) : (
-                visibleItems.slice(windowed.start, windowed.end).map((repo, i) => {
-                  const idx = windowed.start + i;
-                  return (
-                    <RepoRow
-                      key={repo.nameWithOwner}
-                      repo={repo}
-                      selected={filterMode ? false : idx === cursor}
-                      index={idx + 1}
-                      maxWidth={terminalWidth - 6}
-                      spacingLines={spacingLines}
-                      forkTracking={forkTracking}
-                      starsMode={starsMode}
-                      multiSelectMode={multiSelectMode}
-                      isChecked={selectedRepos.has(repo.id)}
-                      theme={theme}
-                      refreshTick={refreshTick}
-                    />
-                  );
-                })
-              )}
-              
-              {/* Background fetch-all progress indicator */}
-              {loadingMore && hasNextPage && !starsMode && (
-                <Box justifyContent="center" alignItems="center" marginTop={1}>
-                  <Box flexDirection="row">
-                    <Box width={3} flexShrink={0} flexGrow={0} marginRight={1}>
-                      <Text color="cyan">
-                        <SlowSpinner />
-                      </Text>
-                    </Box>
-                    <Text color="cyan">
-                      Loading repositories… {totalCount > 0 ? `(${items.length}/${totalCount})` : `(${items.length})`}
-                    </Text>
-                  </Box>
-                </Box>
-              )}
-              {loadingMore && hasNextPage && starsMode && (
-                <Box justifyContent="center" alignItems="center" marginTop={1}>
-                  <Box flexDirection="row">
-                    <Box width={3} flexShrink={0} flexGrow={0} marginRight={1}>
-                      <Text color="cyan">
-                        <SlowSpinner />
-                      </Text>
-                    </Box>
-                    <Text color="cyan">Loading more repositories...</Text>
-                  </Box>
-                </Box>
-              )}
-
-              {/* Hint while background fetch-all is still loading during fuzzy search */}
-              {filterActive && hasNextPage && !starsMode && (
-                <Box justifyContent="center" alignItems="center" marginTop={1}>
-                  <Text color="yellow" dimColor>
-                    Still loading repos ({items.length}/{totalCount > 0 ? totalCount : '?'}) — fuzzy results may be incomplete
-                  </Text>
-                </Box>
-              )}
-
-              {!loading && visibleItems.length === 0 && !(filterActive && hasNextPage && !starsMode) && (
-                <Box justifyContent="center" alignItems="center" flexGrow={1}>
-                  <Text color="gray" dimColor>
-                    {filter ? 'No repositories match your search' : 'No repositories found'}
-                  </Text>
-                </Box>
-              )}
-            </Box>
+            {/* Repository list (extracted to RepoListContent, GMC-28) */}
+            <RepoListContent
+              visibleItems={visibleItems}
+              windowed={windowed}
+              cursor={cursor}
+              filterMode={filterMode}
+              filter={filter}
+              filterActive={filterActive}
+              terminalWidth={terminalWidth}
+              listHeight={listHeight}
+              spacingLines={spacingLines}
+              forkTracking={forkTracking}
+              starsMode={starsMode}
+              multiSelectMode={multiSelectMode}
+              selectedRepos={selectedRepos}
+              theme={theme}
+              refreshTick={refreshTick}
+              loading={loading}
+              loadingMore={loadingMore}
+              hasNextPage={hasNextPage}
+              totalCount={totalCount}
+              loadedCount={items.length}
+            />
           </>
         )}
       </Box>
