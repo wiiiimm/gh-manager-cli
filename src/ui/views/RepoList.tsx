@@ -1241,7 +1241,7 @@ export default function RepoList({ token, maxVisibleRows, onLogout, viewerLogin,
   useEffect(() => {
     const ui = getUIPrefs();
     if (ui.density !== undefined) setDensity(ui.density as 0 | 1 | 2);
-    if (ui.sortKey && ['updated','pushed','name','stars'].includes(ui.sortKey)) {
+    if (ui.sortKey && ['updated','pushed','name','stars','forks'].includes(ui.sortKey)) {
       setSortKey(ui.sortKey as SortKey);
     }
     if (ui.sortDir && (ui.sortDir === 'asc' || ui.sortDir === 'desc')) {
