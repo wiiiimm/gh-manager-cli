@@ -209,7 +209,9 @@ export async function changeRepositoryVisibility(
         stack: err.stack
       });
     }
-    throw err;
+    // Re-throw the original value (consistent with the other mutations), not the
+    // toError-wrapped copy; they're the same Error in practice for octokit.
+    throw error;
   }
 }
 
