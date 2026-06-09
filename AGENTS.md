@@ -146,7 +146,7 @@ See the living roadmap in [TODOs.md](./TODOs.md) for the canonical, up-to-date l
 ## GitHub API Details
 
 - GraphQL query against `viewer.repositories` with `ownerAffiliations: OWNER` and `orderBy: UPDATED_AT DESC`.
-- Page size: 100 per request (default; configurable 1-100 via `REPOS_PER_FETCH`).
+- Page size: **30 per request** (default; configurable 1-100 via `REPOS_PER_FETCH`). Lowered from 100 in GMC-40 — a 100-repo first page with the inline open PR/issue counts (SWR-357) ran ~8-10s and intermittently tripped GitHub's gateway timeout (HTTP 502/504); 30 keeps the first page ~3s (with headroom for slower networks) and the rest still streams in via background fetch-all.
 - **Single pagination model — background fetch-all:** the first page renders immediately, then a background loop fetches every remaining page until `hasNextPage` is false, appending into the persisted cache. There is no scroll-position prefetch trigger for the owned/starred lists; the load is continuous and driven by the effect re-running as the list grows.
 - Because the full set is cached, **sorting is client-side** (`filteredAndSorted`) with no server refetch on sort change; archive/visibility (private) filtering is also client-side.
 - On each page fetch, also read `totalCount` to reflect newly created repos and to show background-load progress (`loaded/total`).
@@ -454,6 +454,32 @@ Every single commit MUST follow semantic format:
 - `ci:` for CI configuration changes
 - `chore:` for other changes that don't modify src or test files
 - `revert:` for reverting previous commits
+
+---
+
+## Cursor Cloud specific instructions
+
+Single-package Ink CLI — no local servers, databases, or Docker. All commands run from the repo root.
+
+### Standard commands
+
+See `package.json` scripts and the **Setup & Usage** / **Scripts** sections above:
+
+| Task | Command |
+|------|---------|
+| Install deps | `pnpm install` |
+| Build | `pnpm build` |
+| Typecheck (no ESLint in repo) | `pnpm typecheck` |
+| Test | `pnpm test` |
+| Dev (watch rebuild) | `pnpm dev` — run built output in another terminal with `pnpm start` |
+| Run | `pnpm start` or `node dist/index.js` |
+
+### Cloud VM gotchas
+
+- **`NO_COLOR=1` is set in the Cloud Agent environment**, which disables chalk ANSI output. Two `BulkReviewModal` tests assert highlight escape codes and fail without `FORCE_COLOR=1`. Run tests as: `FORCE_COLOR=1 pnpm test`.
+- **The CLI requires a real TTY** (Ink raw mode). Piping or backgrounding `node dist/index.js` fails with "Raw mode is not supported". Use a **tmux** session for interactive runs or smoke tests (see `test-app.sh` pattern, but prefer tmux over `&` in background).
+- **Live GitHub API** is optional for automated tests (Vitest mocks Octokit). For manual E2E, set `GITHUB_TOKEN` or `GH_TOKEN` with `repo` scope, or complete OAuth in the auth chooser.
+- **`pnpm install` may warn about ignored esbuild build scripts**; `pnpm build` still succeeds in practice.
 
 ---
 

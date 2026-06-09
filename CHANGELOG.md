@@ -1,3 +1,10 @@
+## [1.52.1](https://github.com/wiiiimm/gh-manager-cli/compare/v1.52.0...v1.52.1) (2026-06-09)
+
+
+### Bug Fixes
+
+* lower default page size to 30 to avoid GitHub gateway timeouts (GMC-40) ([#106](https://github.com/wiiiimm/gh-manager-cli/issues/106)) ([101c16c](https://github.com/wiiiimm/gh-manager-cli/commit/101c16cb30e4c3c3cc3de9aaa1efe74fc6d14e95))
+
 # [1.52.0](https://github.com/wiiiimm/gh-manager-cli/compare/v1.51.1...v1.52.0) (2026-06-08)
 
 
