@@ -2,6 +2,15 @@ import type { RestRateLimitInfo } from '../../types';
 import { logger } from '../../lib/logger';
 import { toError } from './client';
 
+// Token model (GMC-28): unlike makeApolloClient / the Octokit fallback, these
+// REST helpers intentionally use the caller's `token` directly and do NOT route
+// it through `resolveActiveToken`. The active-token guard exists to stop a stale
+// caller from rebuilding the *shared* Apollo singleton under a new session;
+// REST calls hold no shared state — each is a one-shot request whose token
+// correctly reflects the action that initiated it. Forcing a mutation
+// (delete/transfer/sync) onto the current active token would instead break a
+// legitimate in-flight action if the session changed mid-request.
+
 // Minimal shapes for the GitHub REST JSON bodies we parse. `Response.json()` is
 // typed as `Promise<unknown>` (undici), so these let us narrow without `any`.
 interface GitHubRestErrorBody {
