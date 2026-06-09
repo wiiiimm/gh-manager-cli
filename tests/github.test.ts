@@ -10,7 +10,7 @@ vi.mock('../src/lib/logger', () => ({
   }
 }));
 
-import { makeClient, getViewerLogin, fetchViewerOrganizations, normalizeRepoNode } from '../src/services/github';
+import { makeClient, getViewerLogin, fetchViewerOrganizations, normalizeRepoNode, changeRepositoryVisibility, deleteRepositoryRest, syncForkWithUpstream } from '../src/services/github';
 import { logger } from '../src/lib/logger';
 
 // Mock @octokit/graphql
@@ -60,7 +60,12 @@ vi.mock('@apollo/client/core/index.js', () => ({
 }));
 
 vi.mock('apollo3-cache-persist', () => ({
-  persistCache: vi.fn()
+  persistCache: vi.fn(),
+  CachePersistor: vi.fn(function (this: any) {
+    this.restore = vi.fn().mockResolvedValue(undefined);
+    this.pause = vi.fn();
+    this.purge = vi.fn().mockResolvedValue(undefined);
+  })
 }));
 
 vi.mock('fs');
@@ -313,6 +318,106 @@ describe('github', () => {
       const all = captured.join('\n');
       expect(all).toMatch(/openPullRequests:\s*pullRequests\(states:\s*OPEN\)\s*\{\s*totalCount\s*\}/);
       expect(all).toMatch(/openIssues:\s*issues\(states:\s*OPEN\)\s*\{\s*totalCount\s*\}/);
+
+      // Personal (captured[0]) and org (captured[1]) Octokit queries must request
+      // the same fields — both viewerHasStarred and owner — so the fallback data
+      // shape doesn't differ by context (CodeRabbit, GMC-28).
+      const [personalQuery, orgQuery] = captured;
+      for (const q of [personalQuery, orgQuery]) {
+        expect(q).toContain('viewerHasStarred');
+        expect(q).toMatch(/owner\s*\{\s*__typename\s*login\s*\}/);
+      }
+    });
+
+    it('does NOT request per-repo commit history on the Octokit fallback (light bulk query, SWR-360)', async () => {
+      // CodeRabbit (GMC-28): the fallback path must match the Apollo path and
+      // never fetch history.totalCount — even with includeForkTracking=true —
+      // or an Apollo failure can trigger high-cost queries and 502s.
+      const { fetchViewerReposPage } = await import('../src/services/github');
+      const captured: string[] = [];
+      const mockClient: any = vi.fn(async (query: string) => {
+        captured.push(query);
+        return {
+          rateLimit: { limit: 5000, remaining: 4999, resetAt: new Date().toISOString() },
+          viewer: { repositories: { nodes: [], pageInfo: { endCursor: null, hasNextPage: false }, totalCount: 0 } },
+          organization: { repositories: { nodes: [], pageInfo: { endCursor: null, hasNextPage: false }, totalCount: 0 } },
+        };
+      });
+
+      // includeForkTracking=true (the default) for both personal and org context
+      await fetchViewerReposPage(mockClient, 100, null, undefined, true, ['OWNER']);
+      await fetchViewerReposPage(mockClient, 100, null, undefined, true, ['OWNER'], 'my-org');
+
+      const all = captured.join('\n');
+      expect(all).not.toMatch(/history\(first:\s*0\)/);
+      expect(all).not.toContain('history');
+      // The lightweight fork-parent label is still requested so "Fork of X" shows.
+      expect(all).toMatch(/parent\s*\{\s*nameWithOwner\s*\}/);
+    });
+  });
+
+  describe('REST network error handling (GMC-28)', () => {
+    const origFetch = global.fetch;
+    afterEach(() => { global.fetch = origFetch; });
+
+    it('deleteRepositoryRest wraps transport errors instead of leaking them raw', async () => {
+      global.fetch = vi.fn().mockRejectedValue(new Error('socket hang up')) as any;
+      await expect(deleteRepositoryRest('tok', 'octocat', 'hello'))
+        .rejects.toThrow('Network error whilst deleting repository: socket hang up');
+      expect(logger.error).toHaveBeenCalledWith(
+        'Network error during repository deletion',
+        expect.objectContaining({ error: 'socket hang up' }),
+      );
+    });
+
+    it('syncForkWithUpstream wraps transport errors instead of leaking them raw', async () => {
+      global.fetch = vi.fn().mockRejectedValue(new Error('ECONNRESET')) as any;
+      await expect(syncForkWithUpstream('tok', 'octocat', 'hello', 'main'))
+        .rejects.toThrow('Network error whilst syncing fork: ECONNRESET');
+      expect(logger.error).toHaveBeenCalledWith(
+        'Network error during fork sync',
+        expect.objectContaining({ error: 'ECONNRESET' }),
+      );
+    });
+  });
+
+  describe('changeRepositoryVisibility error handling (GMC-28)', () => {
+    const origFetch = global.fetch;
+    afterEach(() => { global.fetch = origFetch; });
+
+    it('narrows, logs and rethrows when the GraphQL client throws', async () => {
+      const boom = new Error('graphql exploded');
+      const mockClient: any = vi.fn(async () => { throw boom; });
+      await expect(changeRepositoryVisibility(mockClient, 'R_1', 'PRIVATE', 'tok'))
+        .rejects.toThrow('graphql exploded');
+      expect(logger.error).toHaveBeenCalledWith(
+        'Failed to change repository visibility',
+        expect.objectContaining({ error: 'graphql exploded' }),
+      );
+    });
+
+    it('throws "Repository not found" when the node is missing, without logging it as an error', async () => {
+      const mockClient: any = vi.fn(async () => ({ node: null }));
+      await expect(changeRepositoryVisibility(mockClient, 'R_1', 'PRIVATE', 'tok'))
+        .rejects.toThrow('Repository not found');
+      // Expected caller condition — must not be logged as an operational error.
+      expect(logger.error).not.toHaveBeenCalled();
+    });
+
+    it('preserves the "Failed to change visibility" message on a non-ok REST response', async () => {
+      const mockClient: any = vi.fn(async () => ({ node: { nameWithOwner: 'octocat/hello' } }));
+      global.fetch = vi.fn().mockResolvedValue({
+        ok: false, status: 422, statusText: 'Unprocessable', text: async () => 'cannot change',
+      }) as any;
+      await expect(changeRepositoryVisibility(mockClient, 'R_1', 'PRIVATE', 'tok'))
+        .rejects.toThrow('Failed to change visibility: cannot change');
+    });
+
+    it('returns nameWithOwner on success', async () => {
+      const mockClient: any = vi.fn(async () => ({ node: { nameWithOwner: 'octocat/hello' } }));
+      global.fetch = vi.fn().mockResolvedValue({ ok: true, status: 200 }) as any;
+      const res = await changeRepositoryVisibility(mockClient, 'R_1', 'PRIVATE', 'tok');
+      expect(res).toEqual({ nameWithOwner: 'octocat/hello' });
     });
   });
 });

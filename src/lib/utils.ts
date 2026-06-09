@@ -116,6 +116,47 @@ export function computeWindow(
   return { start: Math.max(0, start - buffer), end: Math.min(total, end + buffer) };
 }
 
+/** Derived layout dimensions for the repository list view. */
+export interface ListLayout {
+  /** Terminal width in columns (falls back to 80 when unknown). */
+  terminalWidth: number;
+  /** Total height available to the view (falls back to 20 when unknown). */
+  availableHeight: number;
+  /** Padding reserved inside the bordered container (top + bottom). */
+  containerPadding: number;
+  /** Height of the content area between header and footer. */
+  contentHeight: number;
+  /** Height of the scrollable list body (content minus filter/bulk bars). */
+  listHeight: number;
+}
+
+/**
+ * Compute the fixed layout heights for the repository list view (GMC-28).
+ *
+ * Behaviour-preserving extraction of the inline math previously in
+ * `RepoList.tsx`. Header (2), footer (4) and container padding (2) are fixed;
+ * the filter bar and bulk-select bar each reserve 2 extra lines when active,
+ * plus a constant 2-line allowance. Both `contentHeight` and `listHeight` are
+ * clamped to a minimum of 1 so tiny terminals never produce a non-positive
+ * height.
+ */
+export function computeListLayout(input: {
+  columns?: number;
+  maxVisibleRows?: number;
+  filterMode: boolean;
+  multiSelectMode: boolean;
+}): ListLayout {
+  const { columns, maxVisibleRows, filterMode, multiSelectMode } = input;
+  const terminalWidth = columns ?? 80;
+  const availableHeight = maxVisibleRows ?? 20;
+  const headerHeight = 2; // Header bar + margin
+  const footerHeight = 4; // Footer with border + margin (flexible height)
+  const containerPadding = 2; // Top and bottom padding inside container
+  const contentHeight = Math.max(1, availableHeight - headerHeight - footerHeight - containerPadding);
+  const listHeight = Math.max(1, contentHeight - (filterMode ? 2 : 0) - (multiSelectMode ? 2 : 0) - 2);
+  return { terminalWidth, availableHeight, containerPadding, contentHeight, listHeight };
+}
+
 /**
  * Copies text to clipboard using multiple fallback strategies
  */
