@@ -79,4 +79,20 @@ describe('makeApolloClient — token-aware singleton (GMC-28)', () => {
     // The separately-managed TTL meta file is removed too.
     expect(fs.unlinkSync).toHaveBeenCalledWith(expect.stringContaining('apollo-cache-meta.json'));
   });
+
+  it('serializes concurrent token-change calls so teardown/build cannot interleave (Cursor Bugbot)', async () => {
+    await makeApolloClient('race-token-A'); // establish a known current token
+    const ctorBefore = vi.mocked(ApolloClient).mock.calls.length;
+
+    // Two concurrent callers with the *new* token. Without serialization the
+    // second would skip teardown and build a second client off a stale cache.
+    const [b1, b2] = await Promise.all([
+      makeApolloClient('race-token-B'),
+      makeApolloClient('race-token-B'),
+    ]);
+
+    expect(b1).toBe(b2); // both resolve to the single rebuilt instance
+    // Exactly one new client constructed for the switch — no double build.
+    expect(vi.mocked(ApolloClient).mock.calls.length).toBe(ctorBefore + 1);
+  });
 });

@@ -29,8 +29,36 @@ let apolloClientInstance: ApolloClientBundle | null = null;
 let apolloClientToken: string | null = null;
 let apolloPersistor: CachePersistor<NormalizedCacheObject> | null = null;
 
-// Apollo Client with persisted cache (default for all queries)
+// Serializes (re)builds so concurrent callers cannot interleave teardown/build.
+let apolloBuildQueue: Promise<unknown> = Promise.resolve();
+
+// Apollo Client with persisted cache (default for all queries).
 export async function makeApolloClient(token: string): Promise<ApolloClientBundle> {
+  // Fast path: a matching instance is already built for this token.
+  if (apolloClientInstance && apolloClientToken === token) {
+    return apolloClientInstance;
+  }
+  // Serialize (re)builds. makeApolloClient is async and a token change tears the
+  // singleton down across awaits (pause → clearStore → purge); without
+  // serialization a second concurrent call with the new token could see no
+  // instance, skip the teardown, and restore() from a not-yet-purged on-disk
+  // cache — hydrating the new client with the previous account's repositories
+  // (Cursor Bugbot). Chaining on a module-level promise runs rebuilds one at a
+  // time; a queued caller re-checks and reuses an instance its predecessor built.
+  const run = apolloBuildQueue.then(() => {
+    if (apolloClientInstance && apolloClientToken === token) {
+      return apolloClientInstance;
+    }
+    return buildApolloClient(token);
+  });
+  apolloBuildQueue = run.then(() => undefined, () => undefined);
+  return run;
+}
+
+// Tear down the previous account's client (on a token change) and build a fresh
+// one against `token`. Only ever invoked through makeApolloClient's serialized
+// queue, so teardown and build can never interleave with another rebuild.
+async function buildApolloClient(token: string): Promise<ApolloClientBundle> {
   // Reuse the cached instance only when the token is unchanged. On a token
   // change (e.g. logout → login with a different account) the existing client
   // carries stale auth headers and a stale cache scope, so tear it down and
