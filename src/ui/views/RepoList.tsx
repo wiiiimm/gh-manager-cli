@@ -21,7 +21,7 @@ import { DeleteModal, ArchiveModal, SyncModal, InfoModal, LogoutModal, ViewFilte
 import type { ForkFilter } from '../components/modals';
 import type { BulkAction, BulkVisibilityTarget, BulkProgressState } from '../components/modals';
 import { UnstarModal } from '../components/modals/UnstarModal';
-import { RepoRow, FilterInput, RepoListHeader } from '../components/repo';
+import { RepoRow, FilterInput, RepoListHeader, RepoListFooter } from '../components/repo';
 import { SlowSpinner } from '../components/common';
 import { truncate, formatDate, copyToClipboard, matchesVisibilityFilter, matchesForkFilter, type VisibilityFilter } from '../../lib/utils';
 import { trackOperation, bulkActionToOperation } from '../../lib/session';
@@ -3156,55 +3156,18 @@ export default function RepoList({ token, maxVisibleRows, onLogout, viewerLogin,
         )}
       </Box>
 
-      {/* Help footer - 5 lines */}
-      <Box marginTop={1} paddingX={1} flexDirection="column">
-        {/* Line 1: Basic navigation */}
-        <Box width={terminalWidth} justifyContent="center">
-          <Text color={theme.muted} dimColor={modalOpen ? true : undefined}>
-            ↑↓ Navigate • Ctrl+G Top • G Bottom • ⏎/O Open • R Refresh
-          </Text>
-        </Box>
-        {/* Line 2: Search and filtering */}
-        <Box width={terminalWidth} justifyContent="center">
-          <Text color={theme.muted} dimColor={modalOpen ? true : undefined}>
-            / Search{!filterActive && ' • S Sort • D Direction'} • T Density • Shift+T Theme • V View Filters
-          </Text>
-        </Box>
-        {/* Line 3: Repository actions (stars toggle at start so it is never truncated) */}
-        <Box width={terminalWidth} justifyContent="center">
-          <Text color={theme.muted} dimColor={modalOpen ? true : undefined}>
-            {starsMode ?
-              'Shift+S My Repos • I Info • C Copy URL • L PRs/Issues • U Unstar Repository' :
-              `${ownerContext === 'personal' ? 'Shift+S Starred • ' : ''}I Info • C Copy URL • L PRs/Issues • Ctrl+S Un/Star • Ctrl+R Rename • Shift+M Transfer • Ctrl+A Un/Archive • Ctrl+V Change Visibility • Ctrl+F Sync Fork • P Jump to upstream`
-            }
-          </Text>
-        </Box>
-        {/* Line 4: System controls */}
-        <Box width={terminalWidth} justifyContent="center">
-          <Text color={theme.muted} dimColor={modalOpen ? true : undefined}>
-            K Cache Info • W Org Switch{!starsMode ? ' • Ctrl+N New Repo' : ''} • Del/Backspace Delete • Ctrl+L Logout • Q Quit
-          </Text>
-        </Box>
-        {/* Multi-select hint (shown when not in modal) */}
-        {!modalOpen && (
-          <Box width={terminalWidth} justifyContent="center">
-            <Text color={multiSelectMode ? 'cyan' : 'gray'} dimColor={!multiSelectMode}>
-              {multiSelectMode
-                ? (selectedRepos.size > 0
-                    ? `Space select • X unselect all • Ctrl+S star • Ctrl+A archive • Ctrl+V visibility${starsMode ? '' : ' • Shift+M transfer'} • Del delete • B/Esc exit (${selectedRepos.size} selected${hiddenSelectedCount > 0 ? `, ${hiddenSelectedCount} not shown in search` : ''})`
-                    : 'B/Esc exit bulk select • Space select (no selection)')
-                : 'B Bulk Select mode (star/archive/visibility/delete)'
-              }
-            </Text>
-          </Box>
-        )}
-        {/* Line 5: Sponsorship */}
-        <Box width={terminalWidth} justifyContent="center" marginTop={1}>
-          <Text color={theme.warning} dimColor={modalOpen ? true : undefined}>
-            💖 Sponsor on GitHub: github.com/sponsors/wiiiimm
-          </Text>
-        </Box>
-      </Box>
+      {/* Help footer - 5 lines (extracted to RepoListFooter, GMC-28) */}
+      <RepoListFooter
+        terminalWidth={terminalWidth}
+        theme={theme}
+        modalOpen={modalOpen}
+        filterActive={filterActive}
+        starsMode={starsMode}
+        ownerContext={ownerContext}
+        multiSelectMode={multiSelectMode}
+        selectedCount={selectedRepos.size}
+        hiddenSelectedCount={hiddenSelectedCount}
+      />
 
       {/* Debug panel */}
       {process.env.GH_MANAGER_DEBUG === '1' && (
