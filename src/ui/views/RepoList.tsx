@@ -2426,14 +2426,14 @@ export default function RepoList({ token, maxVisibleRows, onLogout, viewerLogin,
             <Box flexDirection="column" alignItems="center">
               <Box flexDirection="column" alignItems="center">
                 <Box height={1} flexDirection="row">
+                  <Text>
+                    {chalk.cyan(refreshing ? 'Refreshing' : sortingLoading ? 'Applying sort' : 'Loading repositories')}
+                  </Text>
                   <Box width={3} flexShrink={0} flexGrow={0}>
                     <Text color="cyan">
                       <SlowSpinner />
                     </Text>
                   </Box>
-                  <Text color="cyan">
-                    {refreshing ? 'Refreshing...' : sortingLoading ? 'Applying sort...' : 'Loading repositories...'}
-                  </Text>
                 </Box>
                 <Box height={1} marginTop={1}>
                   <Text color="gray">
@@ -3236,13 +3236,14 @@ export default function RepoList({ token, maxVisibleRows, onLogout, viewerLogin,
               {loadingMore && hasNextPage && !starsMode && (
                 <Box justifyContent="center" alignItems="center" marginTop={1}>
                   <Box flexDirection="row">
-                    <Box width={3} flexShrink={0} flexGrow={0} marginRight={1}>
+                    <Text>{chalk.cyan('Loading repositories')}</Text>
+                    <Box width={3} flexShrink={0} flexGrow={0}>
                       <Text color="cyan">
                         <SlowSpinner />
                       </Text>
                     </Box>
-                    <Text color="cyan">
-                      Loading repositories… {totalCount > 0 ? `(${items.length}/${totalCount})` : `(${items.length})`}
+                    <Text>
+                      {chalk.cyan(totalCount > 0 ? ` (${items.length}/${totalCount})` : ` (${items.length})`)}
                     </Text>
                   </Box>
                 </Box>
@@ -3250,12 +3251,12 @@ export default function RepoList({ token, maxVisibleRows, onLogout, viewerLogin,
               {loadingMore && hasNextPage && starsMode && (
                 <Box justifyContent="center" alignItems="center" marginTop={1}>
                   <Box flexDirection="row">
-                    <Box width={3} flexShrink={0} flexGrow={0} marginRight={1}>
+                    <Text>{chalk.cyan('Loading more repositories')}</Text>
+                    <Box width={3} flexShrink={0} flexGrow={0}>
                       <Text color="cyan">
                         <SlowSpinner />
                       </Text>
                     </Box>
-                    <Text color="cyan">Loading more repositories...</Text>
                   </Box>
                 </Box>
               )}
