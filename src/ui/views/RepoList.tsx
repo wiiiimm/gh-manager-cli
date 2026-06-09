@@ -21,7 +21,7 @@ import { SlowSpinner } from '../components/common';
 import { truncate, formatDate, copyToClipboard, computeWindow, matchesVisibilityFilter, matchesForkFilter, type VisibilityFilter } from '../../lib/utils';
 import { trackOperation, bulkActionToOperation } from '../../lib/session';
 
-// Allow customizable repos per fetch via env var (1-50, default 15)
+// Allow customizable repos per fetch via env var (1-100, default 30).
 const getPageSize = () => {
   const envValue = process.env.REPOS_PER_FETCH;
   if (envValue) {
@@ -30,7 +30,12 @@ const getPageSize = () => {
       return parsed;
     }
   }
-  return 100; // Default — large pages for background fetch-all (GitHub max is 100)
+  // Default 30 (GMC-40). A 100-repo first page with the inline open PR/issue
+  // counts (SWR-357) runs ~8–10s and intermittently trips GitHub's gateway
+  // timeout (HTTP 502/504). 30 keeps the first page ~3s — with headroom for
+  // slower networks — and the rest still streams in via the background
+  // fetch-all loop. Raise via REPOS_PER_FETCH if desired.
+  return 30;
 };
 
 const PAGE_SIZE = getPageSize();

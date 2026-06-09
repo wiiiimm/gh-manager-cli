@@ -104,7 +104,7 @@ See the living roadmap in [TODOs.md](./TODOs.md) for the canonical, up-to-date l
 ## GitHub API Details
 
 - GraphQL query against `viewer.repositories` with `ownerAffiliations: OWNER` and `orderBy: UPDATED_AT DESC`.
-- Page size: 100 per request (default; configurable 1-100 via `REPOS_PER_FETCH`).
+- Page size: **30 per request** (default; configurable 1-100 via `REPOS_PER_FETCH`). Lowered from 100 in GMC-40 — a 100-repo first page with the inline open PR/issue counts (SWR-357) ran ~8-10s and intermittently tripped GitHub's gateway timeout (HTTP 502/504); 30 keeps the first page ~3s (with headroom for slower networks) and the rest still streams in via background fetch-all.
 - **Single pagination model — background fetch-all:** the first page renders immediately, then a background loop fetches every remaining page until `hasNextPage` is false, appending into the persisted cache. There is no scroll-position prefetch trigger for the owned/starred lists; the load is continuous and driven by the effect re-running as the list grows.
 - Because the full set is cached, **sorting is client-side** (`filteredAndSorted`) with no server refetch on sort change; archive/visibility (private) filtering is also client-side.
 - On each page fetch, also read `totalCount` to reflect newly created repos and to show background-load progress (`loaded/total`).
