@@ -44,7 +44,8 @@ gh-manager-cli/
 │   │   │   ├── useRefreshTick.ts    # Whole-minute tick for relative dates (SWR-377)
 │   │   │   ├── useBulkSelect.ts     # Bulk Select mode + selection map + helpers
 │   │   │   ├── useRepoData.ts       # Core data layer: list/starred state, fetchPage,
-│   │   │   │                        #   rate limits, PAGE_SIZE, initial context fetch (GMC-39)
+│   │   │   │                        #   rate limits, PAGE_SIZE, initial context fetch (GMC-39),
+│   │   │   │                        #   fetch-generation guard against stale pages (GMC-43)
 │   │   │   └── useRepoListInput.ts  # The whole keyboard dispatcher (useInput) (GMC-39)
 │   │   └── components/
 │   │       ├── auth/          # Auth method selector, OAuth progress
@@ -151,6 +152,7 @@ See the living roadmap in [TODOs.md](./TODOs.md) for the canonical, up-to-date l
 - GraphQL query against `viewer.repositories` with `ownerAffiliations: OWNER` and `orderBy: UPDATED_AT DESC`.
 - Page size: **30 per request** (default; configurable 1-100 via `REPOS_PER_FETCH`). Lowered from 100 in GMC-40 — a 100-repo first page with the inline open PR/issue counts (SWR-357) ran ~8-10s and intermittently tripped GitHub's gateway timeout (HTTP 502/504); 30 keeps the first page ~3s (with headroom for slower networks) and the rest still streams in via background fetch-all.
 - **Single pagination model — background fetch-all:** the first page renders immediately, then a background loop fetches every remaining page until `hasNextPage` is false, appending into the persisted cache. There is no scroll-position prefetch trigger for the owned/starred lists; the load is continuous and driven by the effect re-running as the list grows.
+- **Fetch-generation guard (GMC-43):** `useRepoData` keeps a generation counter per list (owned + starred). Every fresh load (org/scope switch, manual refresh, sort change) bumps it; a page request started under an older generation discards its response entirely — items, cursors, counts, error, and the loading-flag resets. The context-switch effect also drops `endCursor`/`hasNextPage` synchronously. Without this, an in-flight background page from the previous context appended foreign rows into the new list and overwrote the cursor, making the background loop walk two cursor chains at once (duplicated rows, loaded count > totalCount, garbled Ink render). Any new loader added to `useRepoData` must capture the generation before its `await` and check it before every state write.
 - Because the full set is cached, **sorting is client-side** (`filteredAndSorted`) with no server refetch on sort change; archive/visibility (private) filtering is also client-side.
 - On each page fetch, also read `totalCount` to reflect newly created repos and to show background-load progress (`loaded/total`).
 - Selected fields: name/nameWithOwner/description/visibility/isPrivate/isFork/isArchived/stargazerCount/forkCount/primaryLanguage/updatedAt/pushedAt/diskUsage, plus `parent { nameWithOwner }` and `defaultBranchRef { name }`.
