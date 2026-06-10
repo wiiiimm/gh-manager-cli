@@ -46,7 +46,7 @@ jobs:
       - name: Check for skip automation marker
         if: steps.bot-check.outputs.is_bot == 'false'
         id: skip-check
-        uses: actions/github-script@v7
+        uses: actions/github-script@v9
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           script: |
@@ -112,7 +112,7 @@ jobs:
       # Main title management logic
       - name: Process PR Title
         if: steps.bot-check.outputs.is_bot == 'false' && steps.skip-check.outputs.should_skip == 'false'
-        uses: actions/github-script@v7
+        uses: actions/github-script@v9
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           script: |
