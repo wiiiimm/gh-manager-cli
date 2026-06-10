@@ -63,7 +63,7 @@
     "apollo3-cache-persist": "^0.14.1",
     "chalk": "^5.6.0",
     "dotenv": "^17.2.1",
-    "env-paths": "^3.0.0",
+    "env-paths": "^4.0.0",
     "fuse.js": "^7.4.1",
     "graphql": "^16.11.0",
     "ink": "^6.2.3",
