@@ -1,3 +1,10 @@
+## [1.52.4](https://github.com/wiiiimm/gh-manager-cli/compare/v1.52.3...v1.52.4) (2026-06-10)
+
+
+### Bug Fixes
+
+* discard stale background fetch pages on org/scope switch (GMC-43) [semantic pr title] ([#112](https://github.com/wiiiimm/gh-manager-cli/issues/112)) ([3fd1c0a](https://github.com/wiiiimm/gh-manager-cli/commit/3fd1c0afaae07d7a2a217c7455848566203a3627))
+
 ## [1.52.3](https://github.com/wiiiimm/gh-manager-cli/compare/v1.52.2...v1.52.3) (2026-06-10)
 
 

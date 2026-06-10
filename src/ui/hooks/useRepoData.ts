@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import type React from 'react';
 import {
   makeClient,
@@ -120,11 +120,34 @@ export function useRepoData(params: RepoDataParams) {
   const [starredTotalCount, setStarredTotalCount] = useState<number>(0);
   const [starredLoading, setStarredLoading] = useState(false);
 
+  // Fetch-generation guards (GMC-43). Every fresh load (context switch, manual
+  // refresh, sort change) bumps the generation; a page request started under an
+  // older generation discards its response entirely instead of applying it.
+  // Without this, a background fetch-all page from the previous org/scope
+  // resolves after the switch, appends foreign rows into the new list, and
+  // overwrites endCursor/hasNextPage with the old context's pagination — so the
+  // background loop walks two cursor chains at once (duplicated/interleaved
+  // rows, loaded count exceeding totalCount).
+  const fetchGenRef = useRef(0);
+  const starredFetchGenRef = useRef(0);
+
+  // The context key of the latest render. The generation bump above lives in
+  // the context-change effect, which only runs AFTER the render committed by
+  // a context switch — a stale page resolving in that gap would still pass
+  // the generation check. This ref is updated during render itself, so a
+  // request started under another context is recognised as foreign even
+  // before the effect has run.
+  const contextKey = ownerContext !== 'personal' ? `org:${ownerContext.login}` : 'personal';
+  const contextKeyRef = useRef(contextKey);
+  contextKeyRef.current = contextKey;
+
   // Fetch starred repositories
   async function fetchStarredRepositories(after?: string | null, reset = false) {
+    const gen = reset || !after ? ++starredFetchGenRef.current : starredFetchGenRef.current;
     setStarredLoading(true);
     try {
       const page = await getStarredRepositories(client, PAGE_SIZE, after ?? undefined);
+      if (gen !== starredFetchGenRef.current || contextKey !== contextKeyRef.current) return; // superseded — discard
 
       setStarredItems(prev => (reset || !after ? page.nodes : [...prev, ...page.nodes]));
       setStarredEndCursor(page.endCursor ?? null);
@@ -138,6 +161,7 @@ export function useRepoData(params: RepoDataParams) {
 
       setStarredLoading(false);
     } catch (e: unknown) {
+      if (gen !== starredFetchGenRef.current || contextKey !== contextKeyRef.current) return; // superseded — discard
       setStarredLoading(false);
       setError((e instanceof Error ? e.message : null) || 'Failed to fetch starred repositories');
     }
@@ -159,6 +183,8 @@ export function useRepoData(params: RepoDataParams) {
       viewerLogin,
       ownerContext
     });
+
+    const gen = reset || !after ? ++fetchGenRef.current : fetchGenRef.current;
 
     if (isSortChange) {
       setSortingLoading(true);
@@ -190,6 +216,8 @@ export function useRepoData(params: RepoDataParams) {
         orgLogin
       );
 
+      if (gen !== fetchGenRef.current || contextKey !== contextKeyRef.current) return; // superseded — discard
+
       // A fresh list load (refresh, sort change, org switch, first page)
       // replaces items with un-enriched nodes — clear the enrichment tracker
       // so forks get their ahead/behind counts recomputed against the new data.
@@ -209,6 +237,7 @@ export function useRepoData(params: RepoDataParams) {
       // Check if organization is enterprise (first page only)
       if (!after && orgLogin) {
         checkOrganizationIsEnterprise(client, orgLogin).then(isEnt => {
+          if (gen !== fetchGenRef.current || contextKey !== contextKeyRef.current) return; // superseded — discard
           setIsEnterpriseOrg(isEnt);
         });
       }
@@ -251,12 +280,18 @@ export function useRepoData(params: RepoDataParams) {
         error: apiErr?.message,
         stack: apiErr?.stack,
       });
+      if (gen !== fetchGenRef.current || contextKey !== contextKeyRef.current) return; // superseded — discard
       setError('Failed to load repositories. Check network or token.');
     } finally {
-      setLoading(false);
-      setSortingLoading(false);
-      setRefreshing(false);
-      setLoadingMore(false);
+      // A discarded request must not clear the loading flags either: the
+      // superseding load owns them now, and clearing early re-opens the
+      // background-loop gate while that load is still in flight.
+      if (gen === fetchGenRef.current && contextKey === contextKeyRef.current) {
+        setLoading(false);
+        setSortingLoading(false);
+        setRefreshing(false);
+        setLoadingMore(false);
+      }
     }
   };
 
@@ -281,6 +316,19 @@ export function useRepoData(params: RepoDataParams) {
       });
       policy = isFresh(key) ? 'cache-first' : 'network-only';
     } catch {}
+
+    // Kill all in-flight page requests from the previous context (GMC-43):
+    // their responses are discarded by the generation guard, and dropping the
+    // stale pagination state here stops the background fetch-all loop from
+    // walking the old context's cursor chain before the fresh load lands.
+    fetchGenRef.current++;
+    starredFetchGenRef.current++;
+    setEndCursor(null);
+    setHasNextPage(false);
+    setLoadingMore(false);
+    setStarredEndCursor(null);
+    setStarredHasNextPage(false);
+    setStarredLoading(false);
 
     // Reset cursor when changing context
     onContextSwitch();
