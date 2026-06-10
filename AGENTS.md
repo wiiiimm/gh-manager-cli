@@ -35,14 +35,17 @@ gh-manager-cli/
 │   │   ├── App.tsx            # Token bootstrap and routing
 │   │   ├── OrgSwitcher.tsx    # Organisation switcher
 │   │   ├── views/
-│   │   │   └── RepoList.tsx   # Repository list UI, key handling, infinite scroll
-│   │   ├── hooks/            # RepoList logic extracted into focused hooks (GMC-28):
+│   │   │   └── RepoList.tsx   # Repository list view: filters/sort/modal state + render tree
+│   │   ├── hooks/            # RepoList logic extracted into focused hooks (GMC-28/GMC-39):
 │   │   │   ├── useTheme.ts          # Colour-theme hook (GMC-22)
 │   │   │   ├── useVirtualList.ts    # Windowing memo around the cursor
 │   │   │   ├── useListLayout.ts     # Terminal-width + list-height derivation
 │   │   │   ├── useForkEnrichment.ts # Batched fork ahead/behind enrichment effect (SWR-362)
 │   │   │   ├── useRefreshTick.ts    # Whole-minute tick for relative dates (SWR-377)
-│   │   │   └── useBulkSelect.ts     # Bulk Select mode + selection map + helpers
+│   │   │   ├── useBulkSelect.ts     # Bulk Select mode + selection map + helpers
+│   │   │   ├── useRepoData.ts       # Core data layer: list/starred state, fetchPage,
+│   │   │   │                        #   rate limits, PAGE_SIZE, initial context fetch (GMC-39)
+│   │   │   └── useRepoListInput.ts  # The whole keyboard dispatcher (useInput) (GMC-39)
 │   │   └── components/
 │   │       ├── auth/          # Auth method selector, OAuth progress
 │   │       ├── repo/          # RepoRow, RepoListHeader, FilterInput,

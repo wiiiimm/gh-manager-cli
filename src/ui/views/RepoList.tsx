@@ -1,17 +1,18 @@
 import React, { useEffect, useMemo, useState, useRef, useCallback } from 'react';
-import { Box, Text, useApp, useInput, useStdout, Spacer, Newline } from 'ink';
+import { Box, Text, useApp, useStdout, Spacer, Newline } from 'ink';
 import TextInput from 'ink-text-input';
 import chalk from 'chalk';
-import { makeClient, fetchViewerReposPageUnified, deleteRepositoryRest, archiveRepositoryById, unarchiveRepositoryById, changeRepositoryVisibility, syncForkWithUpstream, getRepositoryFromCache, purgeApolloCacheFiles, inspectCacheStatus, updateCacheAfterDelete, updateCacheAfterArchive, updateCacheAfterVisibilityChange, updateCacheWithRepository, checkOrganizationIsEnterprise, OwnerAffiliation, fetchViewerOrganizations, fetchRestRateLimits, renameRepositoryById, updateCacheAfterRename, getStarredRepositories, starRepository, unstarRepository, fetchRepositoryByOwnerAndName, createRepositoryRest, transferRepositoryRest } from '../../services/github';
+import { makeClient, deleteRepositoryRest, archiveRepositoryById, unarchiveRepositoryById, changeRepositoryVisibility, syncForkWithUpstream, purgeApolloCacheFiles, updateCacheAfterDelete, updateCacheAfterArchive, updateCacheAfterVisibilityChange, updateCacheWithRepository, checkOrganizationIsEnterprise, OwnerAffiliation, fetchViewerOrganizations, renameRepositoryById, updateCacheAfterRename, starRepository, unstarRepository, fetchRepositoryByOwnerAndName, createRepositoryRest, transferRepositoryRest } from '../../services/github';
 import { getUIPrefs, storeUIPrefs, OwnerContext } from '../../config/config';
-import { type ThemeName, nextTheme, getTheme } from '../../config/themes';
+import { type ThemeName } from '../../config/themes';
 import { useTheme } from '../hooks/useTheme';
 import { useVirtualList } from '../hooks/useVirtualList';
 import { useListLayout } from '../hooks/useListLayout';
 import { useForkEnrichment } from '../hooks/useForkEnrichment';
 import { useRefreshTick } from '../hooks/useRefreshTick';
 import { useBulkSelect } from '../hooks/useBulkSelect';
-import { makeApolloKey, isFresh, markFetched } from '../../services/apolloMeta';
+import { useRepoData, type SortKey } from '../hooks/useRepoData';
+import { useRepoListInput } from '../hooks/useRepoListInput';
 import { fuzzySearch } from '../../lib/fuzzySearch';
 import type { RepoNode, RateLimitInfo, RestRateLimitInfo } from '../../types';
 import { exec } from 'child_process';
@@ -26,24 +27,7 @@ import { SlowSpinner } from '../components/common';
 import { truncate, formatDate, copyToClipboard, matchesVisibilityFilter, matchesForkFilter, type VisibilityFilter } from '../../lib/utils';
 import { trackOperation, bulkActionToOperation } from '../../lib/session';
 
-// Allow customizable repos per fetch via env var (1-100, default 30).
-const getPageSize = () => {
-  const envValue = process.env.REPOS_PER_FETCH;
-  if (envValue) {
-    const parsed = parseInt(envValue, 10);
-    if (!isNaN(parsed) && parsed >= 1 && parsed <= 100) {
-      return parsed;
-    }
-  }
-  // Default 30 (GMC-40). A 100-repo first page with the inline open PR/issue
-  // counts (SWR-357) runs ~8–10s and intermittently trips GitHub's gateway
-  // timeout (HTTP 502/504). 30 keeps the first page ~3s — with headroom for
-  // slower networks — and the rest still streams in via the background
-  // fetch-all loop. Raise via REPOS_PER_FETCH if desired.
-  return 30;
-};
-
-const PAGE_SIZE = getPageSize();
+// REPOS_PER_FETCH page sizing lives in useRepoData (GMC-39).
 
 export default function RepoList({ token, maxVisibleRows, onLogout, viewerLogin, onOrgContextChange, initialOrgSlug }: { 
   token: string; 
@@ -83,20 +67,10 @@ export default function RepoList({ token, maxVisibleRows, onLogout, viewerLogin,
     });
   }, []);
   
-  const [items, setItems] = useState<RepoNode[]>([]);
+  // List/data state (items, paging, loading flags, rate limits, starred set)
+  // lives in useRepoData (GMC-39); the hook is invoked below, once the values
+  // it consumes (owner context, sort state, …) are declared.
   const [cursor, setCursor] = useState(0);
-  const [endCursor, setEndCursor] = useState<string | null>(null);
-  const [hasNextPage, setHasNextPage] = useState(false);
-  const [totalCount, setTotalCount] = useState<number>(0);
-  const [loading, setLoading] = useState(true);
-  const [sortingLoading, setSortingLoading] = useState(false); // New state for sort refresh
-  const [refreshing, setRefreshing] = useState(false); // Track if this is a manual refresh
-  const [loadingMore, setLoadingMore] = useState(false); // Track infinite scroll loading
-  const [error, setError] = useState<string | null>(null);
-  const [rateLimit, setRateLimit] = useState<RateLimitInfo | undefined>(undefined);
-  const [prevRateLimit, setPrevRateLimit] = useState<number | undefined>(undefined);
-  const [restRateLimit, setRestRateLimit] = useState<RestRateLimitInfo | undefined>(undefined);
-  const [prevRestRateLimit, setPrevRestRateLimit] = useState<number | undefined>(undefined);
   // Display density: 0 = compact (0 lines), 1 = cozy (1 line), 2 = comfy (2 lines)
   const [density, setDensity] = useState<0 | 1 | 2>(2);
   const [prefsLoaded, setPrefsLoaded] = useState(false);
@@ -185,14 +159,64 @@ export default function RepoList({ token, maxVisibleRows, onLogout, viewerLogin,
   const [sortMode, setSortMode] = useState(false);
   const [sortDirectionMode, setSortDirectionMode] = useState(false);
   
-  // Stars mode state
+  // Stars mode state (the starred list itself lives in useRepoData below)
   const [starsMode, setStarsMode] = useState(false);
-  const [starredItems, setStarredItems] = useState<RepoNode[]>([]);
-  const [starredEndCursor, setStarredEndCursor] = useState<string | null>(null);
-  const [starredHasNextPage, setStarredHasNextPage] = useState(false);
-  const [starredTotalCount, setStarredTotalCount] = useState<number>(0);
-  const [starredLoading, setStarredLoading] = useState(false);
-  
+
+  // Sorting state - only support GitHub API sortable fields (SortKey is
+  // shared from useRepoData)
+  const [sortKey, setSortKey] = useState<SortKey>('updated');
+  const [sortDir, setSortDir] = useState<'asc' | 'desc'>('desc');
+
+  // Fork tracking toggle - default ON to show commits behind
+  const [forkTracking, setForkTracking] = useState<boolean>(true);
+
+  // Breaks the useRepoData ↔ useForkEnrichment circular dependency: fetchPage
+  // (inside useRepoData) clears the enrichment tracker on fresh loads, but
+  // useForkEnrichment consumes useRepoData's items/setItems — so the reset
+  // function is threaded through this ref and assigned right after
+  // useForkEnrichment runs, below.
+  const resetEnrichmentRef = useRef<() => void>(() => {});
+
+  // Core repository data layer (list/starred state, paging, rate limits,
+  // fetchPage/fetchStarredRepositories, initial context fetch) — extracted to
+  // useRepoData (GMC-39).
+  const {
+    items, setItems,
+    endCursor,
+    hasNextPage,
+    totalCount, setTotalCount,
+    loading,
+    sortingLoading, setSortingLoading,
+    refreshing, setRefreshing,
+    loadingMore,
+    error, setError,
+    rateLimit,
+    prevRateLimit,
+    restRateLimit,
+    prevRestRateLimit,
+    starredItems, setStarredItems,
+    starredEndCursor, setStarredEndCursor,
+    starredHasNextPage, setStarredHasNextPage,
+    starredTotalCount, setStarredTotalCount,
+    starredLoading,
+    fetchPage,
+    fetchStarredRepositories,
+  } = useRepoData({
+    token,
+    viewerLogin,
+    client,
+    prefsLoaded,
+    ownerContext,
+    ownerAffiliations,
+    sortKey,
+    sortDir,
+    forkTracking,
+    resetEnrichmentRef,
+    setHasInternalRepos,
+    setIsEnterpriseOrg,
+    onContextSwitch: () => setCursor(0),
+  });
+
   // Unstar modal state
   const [unstarMode, setUnstarMode] = useState(false);
   const [unstarTarget, setUnstarTarget] = useState<RepoNode | null>(null);
@@ -352,30 +376,8 @@ export default function RepoList({ token, maxVisibleRows, onLogout, viewerLogin,
     setCopyUrlTarget(repo);
   }
   
-  // Single sync execution function to prevent duplicate operations
-  // Fetch starred repositories
-  async function fetchStarredRepositories(after?: string | null, reset = false) {
-    setStarredLoading(true);
-    try {
-      const page = await getStarredRepositories(client, PAGE_SIZE, after ?? undefined);
-      
-      setStarredItems(prev => (reset || !after ? page.nodes : [...prev, ...page.nodes]));
-      setStarredEndCursor(page.endCursor ?? null);
-      setStarredHasNextPage(page.hasNextPage);
-      setStarredTotalCount(page.totalCount);
-      
-      if (page.rateLimit) {
-        setRateLimit(page.rateLimit);
-        setPrevRateLimit(page.rateLimit.remaining);
-      }
-      
-      setStarredLoading(false);
-    } catch (e: unknown) {
-      setStarredLoading(false);
-      setError((e instanceof Error ? e.message : null) || 'Failed to fetch starred repositories');
-    }
-  }
-  
+  // fetchStarredRepositories lives in useRepoData (GMC-39).
+
   // Handle unstar action
   async function handleUnstar() {
     if (!unstarTarget || unstarring) return;
@@ -1061,13 +1063,7 @@ export default function RepoList({ token, maxVisibleRows, onLogout, viewerLogin,
   const [filter, setFilter] = useState('');
   const [filterMode, setFilterMode] = useState(false);
 
-  // Sorting state - only support GitHub API sortable fields
-  type SortKey = 'updated' | 'pushed' | 'name' | 'stars' | 'forks';
-  const [sortKey, setSortKey] = useState<SortKey>('updated');
-  const [sortDir, setSortDir] = useState<'asc' | 'desc'>('desc');
-  
-  // Fork tracking toggle - default ON to show commits behind
-  const [forkTracking, setForkTracking] = useState<boolean>(true);
+  // Sorting + fork-tracking state is declared above, before useRepoData (GMC-39).
 
   // Fork ahead/behind enrichment (SWR-362), extracted to useForkEnrichment (GMC-28).
   const { enrichingForks, resetEnrichment } = useForkEnrichment({
@@ -1079,6 +1075,9 @@ export default function RepoList({ token, maxVisibleRows, onLogout, viewerLogin,
     hasNextPage,
     forkTracking,
   });
+  // Wire the enrichment reset into useRepoData's fetchPage (see resetEnrichmentRef
+  // above). Assigned every render so the ref always holds the current closure.
+  resetEnrichmentRef.current = resetEnrichment;
 
   // Fetch a parent repo by nameWithOwner and display it in the Info modal (P key fallback)
   async function jumpToUpstreamRepo(parentNameWithOwner: string) {
@@ -1110,132 +1109,7 @@ export default function RepoList({ token, maxVisibleRows, onLogout, viewerLogin,
   // Fork filter - 'all' | 'forks' | 'non-forks' (client-side, no extra API calls).
   const [forkFilter, setForkFilter] = useState<ForkFilter>('all');
 
-  // Map our sort keys to GitHub's GraphQL field names
-  const sortFieldMap: Record<SortKey, string> = {
-    'updated': 'UPDATED_AT',
-    'pushed': 'PUSHED_AT',
-    'name': 'NAME',
-    'stars': 'STARGAZERS',
-    'forks': 'UPDATED_AT',  // forks sort is client-side; server falls back to UPDATED_AT
-  };
-
-  const fetchPage = async (
-    after?: string | null,
-    reset = false,
-    isSortChange = false,
-    overrideForkTracking?: boolean,
-    policy?: 'cache-first' | 'network-only'
-  ) => {
-    logger.info('fetchPage called', {
-      after,
-      reset,
-      isSortChange,
-      policy,
-      token: token ? 'present' : 'missing',
-      viewerLogin,
-      ownerContext
-    });
-    
-    if (isSortChange) {
-      setSortingLoading(true);
-    } else if (after && !reset) {
-      // This is infinite scroll loading more pages
-      setLoadingMore(true);
-    } else {
-      setLoading(true);
-    }
-    try {
-      const orderBy = {
-        field: sortFieldMap[sortKey],
-        direction: sortDir.toUpperCase()
-      };
-      
-      // Determine organization login if in org context
-      const orgLogin = ownerContext !== 'personal' ? ownerContext.login : undefined;
-
-      // Visibility is filtered entirely client-side (SWR-366), so we always
-      // fetch the complete set and never pass a privacy narrowing to the API.
-      const page = await fetchViewerReposPageUnified(
-        token,
-        PAGE_SIZE,
-        after ?? null,
-        orderBy,
-        overrideForkTracking ?? forkTracking,
-        policy ?? (after ? 'network-only' : 'cache-first'),
-        ownerAffiliations,
-        orgLogin
-      );
-      
-      // A fresh list load (refresh, sort change, org switch, first page)
-      // replaces items with un-enriched nodes — clear the enrichment tracker
-      // so forks get their ahead/behind counts recomputed against the new data.
-      if (reset || !after) {
-        resetEnrichment();
-      }
-      setItems(prev => (reset || !after ? page.nodes : [...prev, ...page.nodes]));
-      setEndCursor(page.endCursor);
-      setHasNextPage(page.hasNextPage);
-      setTotalCount(page.totalCount);
-      
-      // Check if any repos have internal visibility (enterprise feature)
-      if (page.nodes.some((repo: RepoNode) => repo.visibility === 'INTERNAL')) {
-        setHasInternalRepos(true);
-      }
-      
-      // Check if organization is enterprise (first page only)
-      if (!after && orgLogin) {
-        const client = makeClient(token);
-        checkOrganizationIsEnterprise(client, orgLogin).then(isEnt => {
-          setIsEnterpriseOrg(isEnt);
-        });
-      }
-      
-      // Mark fetched time for TTL tracking (first page only)
-      if (!after) {
-        try {
-          const key = makeApolloKey({
-            viewer: viewerLogin || 'unknown',
-            sortKey,
-            sortDir,
-            pageSize: PAGE_SIZE,
-            forkTracking: overrideForkTracking ?? forkTracking,
-            ownerContext: orgLogin ? `org:${orgLogin}` : 'personal',
-            affiliations: ownerAffiliations.join(',')
-          });
-          markFetched(key);
-        } catch {}
-      }
-      
-      // Track rate limit changes for delta display
-      if (page.rateLimit && rateLimit) {
-        setPrevRateLimit(rateLimit.remaining);
-      }
-      setRateLimit(page.rateLimit);
-      
-      // Fetch REST rate limits too
-      fetchRestRateLimits(token).then(restLimits => {
-        if (restLimits && restRateLimit) {
-          setPrevRestRateLimit(restRateLimit.core.remaining);
-        }
-        if (restLimits) {
-          setRestRateLimit(restLimits);
-        }
-      });
-      setError(null);
-    } catch (e: unknown) {
-      const apiErr = e instanceof Error ? e : null;
-      logger.error('Failed to fetch repositories in RepoList', {
-        error: apiErr?.message,
-        stack: apiErr?.stack,
-      });
-      setError('Failed to load repositories. Check network or token.');
-    } finally {
-      setLoading(false);
-      setSortingLoading(false);
-      setRefreshing(false);
-      setLoadingMore(false);
-    }
-  };
+  // fetchPage (and the sort-key → GraphQL field map) live in useRepoData (GMC-39).
 
   // Load UI preferences (density, sort key/dir, fork tracking, owner context, visibility filter) on mount
   useEffect(() => {
@@ -1295,33 +1169,7 @@ export default function RepoList({ token, maxVisibleRows, onLogout, viewerLogin,
     setPrefsLoaded(true);
   }, [onOrgContextChange]);
 
-  useEffect(() => {
-    if (!prefsLoaded) return;
-    // Choose Apollo fetch policy based on TTL freshness
-    let policy: 'cache-first' | 'network-only' = 'cache-first';
-    
-    // Determine organization login if in org context
-    const orgLogin = ownerContext !== 'personal' ? ownerContext.login : undefined;
-    try {
-      const key = makeApolloKey({
-        viewer: viewerLogin || 'unknown',
-        sortKey,
-        sortDir,
-        pageSize: PAGE_SIZE,
-        forkTracking,
-        ownerContext: orgLogin ? `org:${orgLogin}` : 'personal',
-        affiliations: ownerAffiliations.join(',')
-      });
-      policy = isFresh(key) ? 'cache-first' : 'network-only';
-    } catch {}
-    
-    // Reset cursor when changing context
-    setCursor(0);
-    
-    // Fetch repositories with the current context
-    fetchPage(null, true, false, undefined, policy);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [client, prefsLoaded, ownerContext, ownerAffiliations]);
+  // The initial fetch-on-context-change effect lives in useRepoData (GMC-39).
 
   // Visibility filter is applied entirely client-side over the full cached set
   // (SWR-366) — no server refetch is needed, so changing it never hits the API.
@@ -1329,706 +1177,8 @@ export default function RepoList({ token, maxVisibleRows, onLogout, viewerLogin,
   // Handle organization context switching
   // Organization context handler is defined above (function handleOrgContextChange)
   
-  useInput((input, key) => {
-    // Bulk progress: any key dismisses after completion
-    if (bulkProgressOpen && bulkProgress.done) {
-      setBulkProgressOpen(false);
-      setBulkProgress({ total: 0, completed: 0, failed: [], currentRepo: null, done: false });
-      // Now safe to clear the action/target the progress labels depended on.
-      setBulkAction(null);
-      setBulkVisibilityTarget(null);
-      setBulkFinalSelection(new Map());
-      return;
-    }
-
-    // Block all other input while bulk is in progress
-    if (bulkProgressOpen) return;
-
-    // Step 0: mixed-state intent picker (star/archive)
-    if (bulkIntentKind) {
-      return; // BulkIntentModal handles its own input
-    }
-
-    // Step 0: visibility target picker
-    if (bulkVisibilityOpen) {
-      return; // BulkVisibilityModal handles its own input
-    }
-
-    // Bulk review modal (Confirmation 1)
-    if (bulkReviewOpen) {
-      return; // BulkReviewModal handles its own input
-    }
-
-    // Bulk confirm modal (Confirmation 2)
-    if (bulkConfirmOpen) {
-      return; // BulkConfirmModal handles its own input
-    }
-
-    // Bulk delete verification-code modal (Confirmation 3, delete only)
-    if (bulkDeleteCodeOpen) {
-      return; // BulkDeleteCodeModal handles its own input
-    }
-
-    // Bulk transfer destination prompt (transfer only)
-    if (bulkTransferDestinationOpen) {
-      return; // BulkTransferDestinationModal handles its own input
-    }
-
-    // Bulk transfer verification-code modal (Confirmation 3, transfer only)
-    if (bulkTransferCodeOpen) {
-      return; // BulkTransferCodeModal handles its own input
-    }
-
-    // Handle input when in error state
-    if (error) {
-      // Quit on 'Q'
-      if (input && input.toUpperCase() === 'Q') {
-        try {
-          const seq = '\x1b[2J\x1b[3J\x1b[H';
-          if (stdout) stdout.write(seq);
-          else process.stdout.write(seq);
-        } catch {}
-        exit();
-        return;
-      }
-      // Retry on 'R'
-      if (input && input.toUpperCase() === 'R') {
-        setCursor(0);
-        setRefreshing(true);
-        setSortingLoading(true);
-        ;(async () => {
-          try { await purgeApolloCacheFiles(); } catch {}
-          fetchPage(null, true, true, undefined, 'network-only');
-        })();
-        return;
-      }
-      // Logout on Ctrl+L
-      if (key.ctrl && (input === 'l' || input === 'L')) {
-        if (onLogout) {
-          onLogout();
-        }
-        return;
-      }
-      return; // Ignore all other inputs in error state
-    }
-    
-    // When organization switcher is open, trap inputs for modal
-    if (orgSwitcherOpen) {
-      return; // OrgSwitcher component handles its own keyboard input
-    }
-    
-    // When in delete mode, trap inputs for modal
-    if (deleteMode) {
-      if (key.escape || (input && input.toUpperCase() === 'C')) {
-        cancelDeleteModal();
-        return;
-      }
-      // In final warning stage, support left/right focus and Y key
-      if (deleteConfirmStage) {
-        if (key.leftArrow) {
-          setConfirmFocus('delete');
-          return;
-        }
-        if (key.rightArrow) {
-          setConfirmFocus('cancel');
-          return;
-        }
-        // Let TextInput handle Enter key to avoid duplicate execution
-        if (input && input.toUpperCase() === 'Y') {
-          if (confirmFocus === 'delete') {
-            confirmDeleteNow();
-          } else {
-            cancelDeleteModal();
-          }
-          return;
-        }
-      }
-      // Let TextInput inside modal handle text and Enter for stage 1
-      return;
-    }
-
-    // When in archive mode, trap inputs for modal
-    if (archiveMode) {
-      if (key.escape || (input && input.toUpperCase() === 'C')) {
-        closeArchiveModal();
-        return;
-      }
-      if (key.leftArrow) {
-        setArchiveFocus('confirm');
-        return;
-      }
-      if (key.rightArrow) {
-        setArchiveFocus('cancel');
-        return;
-      }
-      // Only handle 'Y' key directly - Enter is handled by TextInput onSubmit
-      if (input && input.toUpperCase() === 'Y') {
-        if (archiveFocus === 'cancel') {
-          closeArchiveModal();
-          return;
-        }
-        executeArchive();
-        return;
-      }
-      // Trap everything else including Enter (TextInput will handle Enter via onSubmit)
-      return;
-    }
-
-    // When in unstar mode, trap inputs for modal
-    if (unstarMode) {
-      if (key.escape || (input && input.toUpperCase() === 'C')) {
-        closeUnstarModal();
-        return;
-      }
-      // Let the UnstarModal component handle other inputs
-      return;
-    }
-
-    // When in star mode, trap inputs for modal
-    if (starMode) {
-      if (key.escape || (input && input.toUpperCase() === 'C')) {
-        closeStarModal();
-        return;
-      }
-      // Let the StarModal component handle other inputs
-      return;
-    }
-
-    // When in sync mode, trap inputs for modal
-    if (syncMode) {
-      if (key.escape || (input && input.toUpperCase() === 'C')) {
-        closeSyncModal();
-        return;
-      }
-      if (key.leftArrow) {
-        setSyncFocus('confirm');
-        return;
-      }
-      if (key.rightArrow) {
-        setSyncFocus('cancel');
-        return;
-      }
-      // Handle Y key for sync confirmation
-      if (input && input.toUpperCase() === 'Y') {
-        if (syncFocus === 'cancel') {
-          closeSyncModal();
-        } else {
-          executeSync();
-        }
-        return;
-      }
-      // Trap everything else including Enter (TextInput will handle Enter via onSubmit)
-      return;
-    }
-
-    // When in logout mode, trap inputs for modal
-    if (logoutMode) {
-      if (key.escape || (input && input.toUpperCase() === 'C')) {
-        setLogoutMode(false);
-        setLogoutError(null);
-        setLogoutFocus('confirm');
-        return;
-      }
-      if (key.leftArrow) { setLogoutFocus('confirm'); return; }
-      if (key.rightArrow) { setLogoutFocus('cancel'); return; }
-      if (key.return || (input && input.toUpperCase() === 'Y')) {
-        if (logoutFocus === 'cancel') { setLogoutMode(false); return; }
-        try { onLogout && onLogout(); } catch (e: unknown) { setLogoutError((e instanceof Error ? e.message : null) || 'Failed to logout.'); }
-        return;
-      }
-      return;
-    }
-
-    // When in info mode, trap inputs (Esc or I to close)
-    if (infoMode) {
-      if (key.escape || (input && input.toUpperCase() === 'I')) {
-        setInfoMode(false);
-        setInfoRepo(null);
-        return;
-      }
-      return;
-    }
-
-    // When rename modal is open, trap inputs for modal
-    if (renameMode) {
-      return; // RenameModal component handles its own keyboard input
-    }
-
-    // When create repository modal is open, trap inputs for modal
-    if (createMode) {
-      return; // CreateRepoModal component handles its own keyboard input
-    }
-
-    // When transfer repository modal is open, trap inputs for modal
-    if (transferMode) {
-      return; // TransferModal component handles its own keyboard input
-    }
-
-    // When open-in-browser modal is open, trap inputs for modal
-    if (openInBrowserMode) {
-      return; // OpenInBrowserModal component handles its own keyboard input
-    }
-
-    // When open-PRs/issues modal is open, trap inputs for modal (SWR-357)
-    if (openLinksMode) {
-      return; // OpenPRsIssuesModal component handles its own keyboard input
-    }
-
-    // When copy URL modal is open, trap inputs for modal
-    if (copyUrlMode) {
-      return; // CopyUrlModal component handles its own keyboard input
-    }
-    
-    // When the consolidated view filters modal is open, trap inputs for modal
-    if (viewFiltersMode) {
-      return; // ViewFiltersModal component handles its own keyboard input
-    }
-    
-    // When change visibility modal is open, trap inputs for modal
-    if (changeVisibilityMode) {
-      return; // ChangeVisibilityModal component handles its own keyboard input
-    }
-    
-    // When sort modal is open, trap inputs for modal
-    if (sortMode) {
-      return; // SortModal component handles its own keyboard input
-    }
-    
-    // When sort direction modal is open, trap inputs for modal
-    if (sortDirectionMode) {
-      return; // SortDirectionModal component handles its own keyboard input
-    }
-
-    // When in filter mode, only handle input for the TextInput
-    if (filterMode) {
-      if (key.escape) {
-        // Clear search and return to normal listing
-        setFilterMode(false);
-        setFilter('');
-        setCursor(0); // Reset cursor to top
-        addDebugMessage('[ESC] Cleared search and returned to normal listing');
-        return;
-      }
-      // Down arrow in filter mode with results - exit filter mode and select first item
-      // Works for both fuzzy mode and stars mode filtering
-      if (key.downArrow && (filterActive || (starsMode && filter.trim().length > 0)) && visibleItems.length > 0) {
-        setFilterMode(false);
-        setCursor(0); // Select first item
-        addDebugMessage('[DOWN] Exited filter mode and selected first result');
-        return;
-      }
-      // Let TextInput handle characters; Enter will exit via onSubmit
-      return;
-    }
-
-    // ESC key while viewing fuzzy results or filtered stars - clear filter and return to normal listing
-    if (key.escape && (filterActive || (starsMode && filter.trim().length > 0))) {
-      setFilter('');
-      setCursor(0); // Reset cursor to top
-      addDebugMessage('[ESC] Cleared filter and returned to normal listing');
-      return;
-    }
-
-    // Multi-select (bulk) mode: B toggles, Esc exits
-    if (input && input.toUpperCase() === 'B' && !key.ctrl && !key.shift) {
-      if (multiSelectMode) {
-        exitMultiSelectMode(true);
-      } else {
-        enterMultiSelectMode();
-      }
-      return;
-    }
-
-    // Esc exits multi-select mode (if not in filter/search)
-    if (key.escape && multiSelectMode) {
-      exitMultiSelectMode(true);
-      return;
-    }
-
-    // Multi-select specific key handlers.
-    // In bulk mode the global action keys (Ctrl+S/A/V, Del) drive the bulk
-    // versions, navigation + Space still work, and every other trigger is
-    // disabled (we return at the end of this block).
-    if (multiSelectMode) {
-      // Navigation stays available
-      if (key.downArrow) { setCursor(c => Math.min(c + 1, visibleItems.length - 1)); return; }
-      if (key.upArrow) { setCursor(c => Math.max(c - 1, 0)); return; }
-      if (key.pageDown) { setCursor(c => Math.min(c + 10, visibleItems.length - 1)); return; }
-      if (key.pageUp) { setCursor(c => Math.max(c - 10, 0)); return; }
-      if (key.ctrl && (input === 'g' || input === 'G')) { setCursor(0); return; }
-      if (!key.ctrl && input && input.toUpperCase() === 'G') { setCursor(visibleItems.length - 1); return; }
-
-      // Space: toggle selection on cursor row
-      if (input === ' ') {
-        const repo = visibleItems[cursor];
-        if (repo) toggleRepoSelection(repo);
-        return;
-      }
-      // X: unselect all (clear current selection, stay in bulk mode)
-      if (!key.ctrl && input && input.toUpperCase() === 'X') {
-        setSelectedRepos(new Map());
-        return;
-      }
-
-      // Bulk action triggers — only when something is selected
-      if (selectedRepos.size > 0) {
-        // Ctrl+S: bulk star/unstar
-        if (key.ctrl && (input === 's' || input === 'S')) { startBulkStar(); return; }
-        // Ctrl+A: bulk archive/unarchive
-        if (key.ctrl && (input === 'a' || input === 'A')) { startBulkArchive(); return; }
-        // Ctrl+V: bulk visibility update
-        if (key.ctrl && (input === 'v' || input === 'V')) { startBulkVisibility(); return; }
-        // Shift+M: bulk transfer (move) to another owner
-        // Match the single-repo transfer binding (key.shift && 'M') for consistency
-        if (key.shift && input === 'M') { startBulkTransfer(); return; }
-        // Del/Backspace: bulk delete
-        if (key.delete || key.backspace) { startBulkDelete(); return; }
-      }
-
-      // Disable all other triggers while in bulk mode
-      return;
-    }
-
-    // Quit only on 'Q' (Esc is reserved for cancel/close in modals and filter)
-    if (input && input.toUpperCase() === 'Q') {
-      try {
-        const seq = '\x1b[2J\x1b[3J\x1b[H';
-        if (stdout) stdout.write(seq);
-        else process.stdout.write(seq);
-      } catch {}
-      exit();
-      return;
-    }
-    if (key.downArrow) setCursor(c => Math.min(c + 1, visibleItems.length - 1));
-    if (key.upArrow) setCursor(c => Math.max(c - 1, 0));
-    if (key.pageDown) setCursor(c => Math.min(c + 10, visibleItems.length - 1));
-    if (key.pageUp) setCursor(c => Math.max(c - 10, 0));
-    if (key.return && !multiSelectMode) {
-      // Open in browser (only when not in multi-select mode)
-      const repo = visibleItems[cursor];
-      if (repo) {
-        if (repo.isFork && repo.parent) {
-          setOpenInBrowserTarget(repo);
-          setOpenInBrowserMode(true);
-        } else {
-          openInBrowser(`https://github.com/${repo.nameWithOwner}`);
-        }
-      }
-    }
-    // Delete key: open delete modal (Del or Backspace) — only in single-select mode
-    if ((key.delete || key.backspace) && !multiSelectMode) {
-      const repo = visibleItems[cursor];
-      if (repo) {
-        setDeleteTarget(repo);
-        setDeleteMode(true);
-        setTypedCode('');
-        setDeleteError(null);
-        // Generate random 4-char uppercase code excluding 'C'
-        const letters = 'ABDEFGHIJKLMNOPQRSTUVWXYZ';
-        const code = Array.from({ length: 4 }, () => letters[Math.floor(Math.random() * letters.length)]).join('');
-        setDeleteCode(code);
-        setDeleteConfirmStage(false);
-        setConfirmFocus('delete');
-      }
-      return;
-    }
-    if (key.ctrl && (input === 'g' || input === 'G')) {
-      setCursor(0);
-      return;
-    }
-    if (!key.ctrl && input && input.toUpperCase() === 'G') {
-      setCursor(visibleItems.length - 1);
-      return;
-    }
-    if (input && input.toUpperCase() === 'R' && !key.ctrl) {
-      // Refresh - show loading screen (only if Ctrl is not pressed)
-      setCursor(0);
-      setRefreshing(true);
-      setSortingLoading(true); // Use same loading state for consistency
-      ;(async () => {
-        try { await purgeApolloCacheFiles(); } catch {}
-        fetchPage(null, true, true, undefined, 'network-only'); // force network after purge
-      })();
-    }
-    
-    // Organization switcher (W)
-    if (input && input.toUpperCase() === 'W') {
-      setOrgSwitcherOpen(true);
-      return;
-    }
-
-    // Archive/unarchive modal (Ctrl+A) — only in single-select mode
-    // In multi-select mode, Ctrl+A is intentionally a no-op
-    if (key.ctrl && (input === 'a' || input === 'A') && !multiSelectMode) {
-      const repo = visibleItems[cursor];
-      if (repo) {
-        setArchiveTarget(repo);
-        setArchiveMode(true);
-        setArchiveError(null);
-        setArchiving(false);
-        setArchiveFocus('confirm');
-      }
-      return;
-    }
-
-    // Change visibility modal (Ctrl+V)
-    if (key.ctrl && (input === 'v' || input === 'V')) {
-      const repo = visibleItems[cursor];
-      if (repo) {
-        setChangeVisibilityTarget(repo);
-        setChangeVisibilityMode(true);
-      }
-      return;
-    }
-
-    // Sync fork with upstream modal (Ctrl+F)
-    if (key.ctrl && (input === 'f' || input === 'F')) {
-      const repo = visibleItems[cursor];
-      if (repo && repo.isFork && repo.parent) {
-        // Only show sync option for forks that are behind
-        const hasCommitData = repo.defaultBranchRef && repo.parent.defaultBranchRef
-          && repo.parent.defaultBranchRef.target?.history && repo.defaultBranchRef.target?.history;
-        const commitsBehind = hasCommitData
-          ? ((repo.parent?.defaultBranchRef?.target?.history?.totalCount ?? 0) - (repo.defaultBranchRef?.target?.history?.totalCount ?? 0))
-          : 0;
-
-        setSyncTarget(repo);
-        setSyncMode(true);
-        setSyncError(null);
-        setSyncing(false);
-        setSyncFocus('confirm');
-      }
-      return;
-    }
-
-    // Logout modal (Ctrl+L)
-    if (key.ctrl && (input === 'l' || input === 'L')) {
-      setLogoutMode(true);
-      setLogoutError(null);
-      setLogoutFocus('confirm');
-      return;
-    }
-    
-    // Cache inspection (K)
-    if (input && input.toUpperCase() === 'K') {
-      (async () => {
-        try {
-          await inspectCacheStatus();
-        } catch (e: unknown) {
-          process.stderr.write(`❌ Failed to inspect cache: ${e instanceof Error ? e.message : String(e)}\n`);
-        }
-      })();
-      return;
-    }
-
-    // Start filter mode
-    if (input === '/') {
-      setFilterMode(true);
-      return;
-    }
-
-    // Hidden Info modal toggle (I)
-    if (input && input.toUpperCase() === 'I') {
-      const repo = visibleItems[cursor];
-      if (repo) {
-        // Try to get repo from cache first for instant display
-        (async () => {
-          const cachedRepo = await getRepositoryFromCache(token, repo.id);
-          if (cachedRepo) {
-            setInfoRepo(cachedRepo);
-          } else {
-            setInfoRepo(repo);
-          }
-        })();
-      }
-      setInfoMode(true);
-      return;
-    }
-
-    // Copy URL modal (C)
-    if (input && input.toUpperCase() === 'C') {
-      const repo = visibleItems[cursor];
-      if (repo) {
-        openCopyUrlModal(repo);
-      }
-      return;
-    }
-
-    // Rename modal (Ctrl+R)
-    if (key.ctrl && (input === 'r' || input === 'R')) {
-      const repo = visibleItems[cursor];
-      if (repo) {
-        setRenameMode(true);
-        setRenameTarget(repo);
-      }
-      return;
-    }
-
-    // Create repository modal (Ctrl+N) - not available in stars mode
-    if (key.ctrl && (input === 'n' || input === 'N')) {
-      if (!starsMode) {
-        setCreateMode(true);
-      }
-      return;
-    }
-
-    // Transfer repository modal (Shift+M for Move) - not available in stars mode
-    if (key.shift && input === 'M') {
-      if (!starsMode) {
-        const repo = visibleItems[cursor];
-        if (repo) {
-          setTransferTarget(repo);
-          setTransferMode(true);
-        }
-      }
-      return;
-    }
-
-    // Sort modal: show sort options (S key when not in stars mode).
-    // Disabled while a fuzzy search is active — results are ranked by match
-    // relevance, so sort controls are intentionally not offered (SWR-361).
-    if (input && input.toUpperCase() === 'S' && !key.shift && !key.ctrl && !filterActive) {
-      setSortMode(true);
-      return;
-    }
-    if (input && input.toUpperCase() === 'D' && !filterActive) {
-      setSortDirectionMode(true);
-      return;
-    }
-    
-    // Stars mode toggle (Shift+S) - only available in personal context
-    if (key.shift && input === 'S' && ownerContext === 'personal') {
-      const newStarsMode = !starsMode;
-      setStarsMode(newStarsMode);
-      setCursor(0);
-      
-      // Clear multi-select when switching modes
-      setSelectedRepos(new Map());
-      setMultiSelectMode(false);
-      
-      // Clear filter when toggling modes
-      setFilter('');
-      setFilterMode(false);
-
-      // Reset all view filters when switching scope (own ↔ starred)
-      clearViewFilters();
-
-      if (newStarsMode) {
-        // Entering stars mode - fetch starred repositories
-        fetchStarredRepositories(null, true);
-      }
-      return;
-    }
-    
-    // Unstar action (U key) - only in stars mode
-    if (input && input.toUpperCase() === 'U' && starsMode) {
-      const repo = visibleItems[cursor];
-      if (repo) {
-        setUnstarTarget(repo);
-        setUnstarMode(true);
-        setUnstarError(null);
-        setUnstarring(false);
-      }
-      return;
-    }
-    
-    // Star/unstar toggle (Ctrl+S) - only in normal mode
-    if (key.ctrl && (input === 's' || input === 'S') && !starsMode) {
-      const repo = visibleItems[cursor];
-      if (repo) {
-        setStarTarget(repo);
-        setStarMode(true);
-        setStarError(null);
-        setStarring(false);
-      }
-      return;
-    }
-
-    // Explicit open in browser (O) - shows chooser for forks
-    if (input && input.toUpperCase() === 'O') {
-      const repo = visibleItems[cursor];
-      if (repo) {
-        if (repo.isFork && repo.parent) {
-          setOpenInBrowserTarget(repo);
-          setOpenInBrowserMode(true);
-        } else {
-          openInBrowser(`https://github.com/${repo.nameWithOwner}`);
-        }
-      }
-      return;
-    }
-
-    // Open PRs / Issues chooser (L for "Links") — SWR-357.
-    // Plain L only; Ctrl+L is reserved for logout. The modal works fine even
-    // when the count fields are missing (older cache reads pre-SWR-357), so
-    // we don't gate on `openPullRequests` / `openIssues` being present.
-    if (input && input.toUpperCase() === 'L' && !key.ctrl) {
-      const repo = visibleItems[cursor];
-      if (repo) {
-        setOpenLinksTarget(repo);
-        setOpenLinksMode(true);
-      }
-      return;
-    }
-
-    // Jump to upstream (P) - move cursor if parent is in list, else fetch and show in Info modal
-    if (input && input.toUpperCase() === 'P') {
-      const repo = visibleItems[cursor];
-      if (repo && repo.isFork && repo.parent?.nameWithOwner) {
-        const parentName = repo.parent.nameWithOwner;
-        const parentIdx = visibleItems.findIndex(r => r.nameWithOwner === parentName);
-        if (parentIdx >= 0) {
-          // Parent is visible — move the cursor to it.
-          setCursor(parentIdx);
-        } else {
-          // Not visible. It may still be loaded (in items/starredItems) but
-          // hidden by a search/archive/visibility filter — prefer that cached
-          // copy and open it in Info, only fetching when it isn't loaded at all.
-          const cachedParent =
-            items.find(r => r.nameWithOwner === parentName) ||
-            starredItems.find(r => r.nameWithOwner === parentName);
-          if (cachedParent) {
-            setInfoRepo(cachedParent);
-            setInfoMode(true);
-          } else {
-            jumpToUpstreamRepo(parentName);
-          }
-        }
-      }
-      return;
-    }
-
-    // Cycle theme (Shift+T)
-    if (key.shift && input === 'T') {
-      const next = nextTheme(themeName);
-      setThemeName(next);
-      storeUIPrefs({ theme: next });
-      if (themeToastTimerRef.current) clearTimeout(themeToastTimerRef.current);
-      setThemeToast(`Theme: ${getTheme(next).label}`);
-      themeToastTimerRef.current = setTimeout(() => setThemeToast(null), 2500);
-      return;
-    }
-
-    // Toggle display density
-    if (input && input.toUpperCase() === 'T' && !key.shift) {
-      setDensity((d) => {
-        const next = (((d + 1) % 3) as 0 | 1 | 2);
-        storeUIPrefs({ density: next });
-        return next;
-      });
-      return;
-    }
-
-    // Fork tracking is now always on - removed toggle
-
-    // Open consolidated view filters modal (V)
-    // Available in both normal and stars mode; the modal hides the visibility
-    // group when starsMode is true so only archive + fork filters apply.
-    if (input && input.toUpperCase() === 'V') {
-      setViewFiltersMode(true);
-      return;
-    }
-  });
+  // The keyboard dispatcher lives in useRepoListInput (GMC-39); it is invoked
+  // below, after the derived values (visibleItems, modalOpen, …) it consumes.
 
   // (moved below visibleItems definition)
 
@@ -2208,6 +1358,46 @@ export default function RepoList({ token, maxVisibleRows, onLogout, viewerLogin,
 
   // Display metadata for the in-flight bulk action (label/colour/verbs).
   const bulkMeta = bulkAction ? bulkActionMeta(bulkAction, bulkVisibilityTarget ?? undefined) : null;
+
+  // Keyboard dispatcher — the whole useInput handler, extracted to
+  // useRepoListInput (GMC-39). The params object is rebuilt each render, so
+  // the handler sees current values exactly as the inline closure did. Must be
+  // called before the early returns below (rules of hooks).
+  useRepoListInput({
+    token, stdout, exit, onLogout, addDebugMessage,
+    items, starredItems, visibleItems, cursor, setCursor, error, ownerContext,
+    fetchPage, fetchStarredRepositories, setRefreshing, setSortingLoading,
+    filter, setFilter, filterMode, setFilterMode, filterActive, clearViewFilters,
+    starsMode, setStarsMode,
+    themeName, setThemeName, setThemeToast, themeToastTimerRef, setDensity,
+    multiSelectMode, setMultiSelectMode, selectedRepos, setSelectedRepos,
+    enterMultiSelectMode, exitMultiSelectMode, toggleRepoSelection,
+    startBulkArchive, startBulkDelete, startBulkStar, startBulkTransfer, startBulkVisibility,
+    bulkIntentKind, bulkVisibilityOpen, bulkReviewOpen, bulkConfirmOpen,
+    bulkDeleteCodeOpen, bulkTransferDestinationOpen, bulkTransferCodeOpen,
+    bulkProgressOpen, setBulkProgressOpen, bulkProgress, setBulkProgress,
+    setBulkAction, setBulkVisibilityTarget, setBulkFinalSelection,
+    deleteMode, setDeleteMode, setDeleteTarget, setDeleteCode, setTypedCode,
+    setDeleteError, deleteConfirmStage, setDeleteConfirmStage,
+    confirmFocus, setConfirmFocus, confirmDeleteNow, cancelDeleteModal,
+    archiveMode, setArchiveMode, setArchiveTarget, setArchiving, setArchiveError,
+    archiveFocus, setArchiveFocus, executeArchive, closeArchiveModal,
+    syncMode, setSyncMode, setSyncTarget, setSyncing, setSyncError,
+    syncFocus, setSyncFocus, executeSync, closeSyncModal,
+    starMode, setStarMode, setStarTarget, setStarring, setStarError, closeStarModal,
+    unstarMode, setUnstarMode, setUnstarTarget, setUnstarring, setUnstarError, closeUnstarModal,
+    changeVisibilityMode, setChangeVisibilityMode, setChangeVisibilityTarget,
+    renameMode, setRenameMode, setRenameTarget,
+    copyUrlMode, openCopyUrlModal,
+    transferMode, setTransferMode, setTransferTarget,
+    createMode, setCreateMode,
+    infoMode, setInfoMode, setInfoRepo, jumpToUpstreamRepo,
+    logoutMode, setLogoutMode, logoutFocus, setLogoutFocus, setLogoutError,
+    sortMode, setSortMode, sortDirectionMode, setSortDirectionMode,
+    viewFiltersMode, setViewFiltersMode, orgSwitcherOpen, setOrgSwitcherOpen,
+    openInBrowserMode, setOpenInBrowserMode, setOpenInBrowserTarget,
+    openLinksMode, setOpenLinksMode, setOpenLinksTarget, openInBrowser,
+  });
 
   // Memoize header to prevent re-renders - must be before any returns
   const headerBar = useMemo(() => (
