@@ -1,3 +1,10 @@
+## [1.52.5](https://github.com/wiiiimm/gh-manager-cli/compare/v1.52.4...v1.52.5) (2026-06-10)
+
+
+### Bug Fixes
+
+* set valid package-ecosystem in dependabot.yml (GMC-44) ([#115](https://github.com/wiiiimm/gh-manager-cli/issues/115)) ([28d059c](https://github.com/wiiiimm/gh-manager-cli/commit/28d059c3919659665a9f36da5aca81d55777d89a))
+
 ## [1.52.4](https://github.com/wiiiimm/gh-manager-cli/compare/v1.52.3...v1.52.4) (2026-06-10)
 
 
