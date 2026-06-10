@@ -254,6 +254,48 @@ describe('useRepoData fetch-generation guard (GMC-43)', () => {
     unmount();
   });
 
+  it('discards a page requested from a stale closure of the previous context', async () => {
+    let h!: Hook;
+    const d1 = deferred<any>();
+    fetchUnifiedMock.mockReturnValueOnce(d1.promise as any);
+    const { rerender, unmount } = render(<Harness onHook={x => { h = x; }} />);
+    await flush();
+    d1.resolve(page([repo('mine-1')], { hasNextPage: true, endCursor: 'me-c1', totalCount: 5 }));
+    await flush();
+
+    // Keep a closure bound to the personal context, then switch to the org.
+    const hPersonal = h;
+    const dFresh = deferred<any>();
+    fetchUnifiedMock.mockReturnValueOnce(dFresh.promise as any);
+    rerender(<Harness onHook={x => { h = x; }} ownerContext={stableOrgContext} />);
+    await flush();
+    expect(h.loading).toBe(true);
+
+    // A stale closure (e.g. the background loop firing in the gap before its
+    // deps refresh, or before the context effect has bumped the generation)
+    // requests the next page of the OLD context. Pagination calls don't bump
+    // the generation, so only the render-time context-key guard can identify
+    // this request as foreign.
+    const dStale = deferred<any>();
+    fetchUnifiedMock.mockReturnValueOnce(dStale.promise as any);
+    hPersonal.fetchPage('me-c1');
+    await flush();
+
+    dStale.resolve(page([repo('mine-2')], { hasNextPage: true, endCursor: 'me-c2', totalCount: 5 }));
+    await flush();
+    expect(h.items.map(i => i.nameWithOwner)).toEqual(['o/mine-1']); // foreign page not appended
+    expect(h.endCursor).toBeNull();
+    expect(h.hasNextPage).toBe(false);
+    expect(h.loading).toBe(true); // fresh load still in flight
+
+    dFresh.resolve(page([repo('org-1')], { totalCount: 1 }));
+    await flush();
+    expect(h.items.map(i => i.nameWithOwner)).toEqual(['o/org-1']);
+    expect(h.loading).toBe(false);
+    expect(h.loadingMore).toBe(false);
+    unmount();
+  });
+
   it('discards an in-flight background page when a manual refresh starts', async () => {
     let h!: Hook;
     const d1 = deferred<any>();

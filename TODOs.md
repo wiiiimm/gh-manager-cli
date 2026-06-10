@@ -365,9 +365,9 @@ Legend:
 
 ## Done
 
-- [x] Fix repo list corruption on org/scope switch mid background fetch-all (GMC-43)
+- [x] Fix repo list corruption on org/scope switch mid-background fetch-all (GMC-43)
   - `useRepoData` now keeps a fetch-generation counter per list (owned + starred); every fresh load (context switch, refresh, sort change) bumps it and in-flight page requests from an older generation discard their responses entirely
-  - Context switch also drops the stale `endCursor`/`hasNextPage` synchronously so the background loop can't keep walking the previous context's cursor chain
+  - Context switch also drops the stale `endCursor`/`hasNextPage` synchronously, so the background loop can't keep walking the previous context's cursor chain
 - [x] Fork view filter and consolidated View Filters modal (`V`) (SWR-379)
   - Added a third client-side view filter for fork status (All / Forks only / Non-forks only) operating purely over `RepoNode.isFork` — zero new GraphQL/REST calls
   - Consolidated the previous standalone `V` visibility and `A` archive modals into a single **View Filters** modal with three grouped sections (Visibility, Archive, Fork)
