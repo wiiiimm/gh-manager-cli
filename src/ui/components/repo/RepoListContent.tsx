@@ -1,5 +1,6 @@
 import React from 'react';
 import { Box, Text } from 'ink';
+import chalk from 'chalk';
 import type { RepoNode } from '../../../types';
 import type { Theme } from '../../../config/themes';
 import RepoRow from './RepoRow';
@@ -93,13 +94,14 @@ export default function RepoListContent({
       {loadingMore && hasNextPage && !starsMode && (
         <Box justifyContent="center" alignItems="center" marginTop={1}>
           <Box flexDirection="row">
-            <Box width={3} flexShrink={0} flexGrow={0} marginRight={1}>
+            <Text>{chalk.cyan('Loading repositories')}</Text>
+            <Box width={3} flexShrink={0} flexGrow={0}>
               <Text color="cyan">
                 <SlowSpinner />
               </Text>
             </Box>
-            <Text color="cyan">
-              Loading repositories… {totalCount > 0 ? `(${loadedCount}/${totalCount})` : `(${loadedCount})`}
+            <Text>
+              {chalk.cyan(totalCount > 0 ? ` (${loadedCount}/${totalCount})` : ` (${loadedCount})`)}
             </Text>
           </Box>
         </Box>
@@ -107,12 +109,12 @@ export default function RepoListContent({
       {loadingMore && hasNextPage && starsMode && (
         <Box justifyContent="center" alignItems="center" marginTop={1}>
           <Box flexDirection="row">
-            <Box width={3} flexShrink={0} flexGrow={0} marginRight={1}>
+            <Text>{chalk.cyan('Loading more repositories')}</Text>
+            <Box width={3} flexShrink={0} flexGrow={0}>
               <Text color="cyan">
                 <SlowSpinner />
               </Text>
             </Box>
-            <Text color="cyan">Loading more repositories...</Text>
           </Box>
         </Box>
       )}

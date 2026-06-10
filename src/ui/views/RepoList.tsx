@@ -2306,14 +2306,14 @@ export default function RepoList({ token, maxVisibleRows, onLogout, viewerLogin,
             <Box flexDirection="column" alignItems="center">
               <Box flexDirection="column" alignItems="center">
                 <Box height={1} flexDirection="row">
+                  <Text>
+                    {chalk.cyan(refreshing ? 'Refreshing' : sortingLoading ? 'Applying sort' : 'Loading repositories')}
+                  </Text>
                   <Box width={3} flexShrink={0} flexGrow={0}>
                     <Text color="cyan">
                       <SlowSpinner />
                     </Text>
                   </Box>
-                  <Text color="cyan">
-                    {refreshing ? 'Refreshing...' : sortingLoading ? 'Applying sort...' : 'Loading repositories...'}
-                  </Text>
                 </Box>
                 <Box height={1} marginTop={1}>
                   <Text color="gray">
