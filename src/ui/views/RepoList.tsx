@@ -2,7 +2,7 @@ import React, { useEffect, useMemo, useState, useRef, useCallback } from 'react'
 import { Box, Text, useApp, useInput, useStdout, Spacer, Newline } from 'ink';
 import TextInput from 'ink-text-input';
 import chalk from 'chalk';
-import { makeClient, fetchViewerReposPageUnified, deleteRepositoryRest, archiveRepositoryById, unarchiveRepositoryById, changeRepositoryVisibility, syncForkWithUpstream, getRepositoryFromCache, purgeApolloCacheFiles, inspectCacheStatus, updateCacheAfterDelete, updateCacheAfterArchive, updateCacheAfterVisibilityChange, updateCacheWithRepository, checkOrganizationIsEnterprise, OwnerAffiliation, fetchViewerOrganizations, fetchRestRateLimits, renameRepositoryById, updateCacheAfterRename, getStarredRepositories, starRepository, unstarRepository, fetchRepositoryByOwnerAndName, createRepositoryRest, transferRepositoryRest } from '../../services/github';
+import { makeClient, deleteRepositoryRest, archiveRepositoryById, unarchiveRepositoryById, changeRepositoryVisibility, syncForkWithUpstream, getRepositoryFromCache, purgeApolloCacheFiles, inspectCacheStatus, updateCacheAfterDelete, updateCacheAfterArchive, updateCacheAfterVisibilityChange, updateCacheWithRepository, checkOrganizationIsEnterprise, OwnerAffiliation, fetchViewerOrganizations, renameRepositoryById, updateCacheAfterRename, starRepository, unstarRepository, fetchRepositoryByOwnerAndName, createRepositoryRest, transferRepositoryRest } from '../../services/github';
 import { getUIPrefs, storeUIPrefs, OwnerContext } from '../../config/config';
 import { type ThemeName, nextTheme, getTheme } from '../../config/themes';
 import { useTheme } from '../hooks/useTheme';
@@ -11,7 +11,7 @@ import { useListLayout } from '../hooks/useListLayout';
 import { useForkEnrichment } from '../hooks/useForkEnrichment';
 import { useRefreshTick } from '../hooks/useRefreshTick';
 import { useBulkSelect } from '../hooks/useBulkSelect';
-import { makeApolloKey, isFresh, markFetched } from '../../services/apolloMeta';
+import { useRepoData, type SortKey } from '../hooks/useRepoData';
 import { fuzzySearch } from '../../lib/fuzzySearch';
 import type { RepoNode, RateLimitInfo, RestRateLimitInfo } from '../../types';
 import { exec } from 'child_process';
@@ -26,24 +26,7 @@ import { SlowSpinner } from '../components/common';
 import { truncate, formatDate, copyToClipboard, matchesVisibilityFilter, matchesForkFilter, type VisibilityFilter } from '../../lib/utils';
 import { trackOperation, bulkActionToOperation } from '../../lib/session';
 
-// Allow customizable repos per fetch via env var (1-100, default 30).
-const getPageSize = () => {
-  const envValue = process.env.REPOS_PER_FETCH;
-  if (envValue) {
-    const parsed = parseInt(envValue, 10);
-    if (!isNaN(parsed) && parsed >= 1 && parsed <= 100) {
-      return parsed;
-    }
-  }
-  // Default 30 (GMC-40). A 100-repo first page with the inline open PR/issue
-  // counts (SWR-357) runs ~8–10s and intermittently trips GitHub's gateway
-  // timeout (HTTP 502/504). 30 keeps the first page ~3s — with headroom for
-  // slower networks — and the rest still streams in via the background
-  // fetch-all loop. Raise via REPOS_PER_FETCH if desired.
-  return 30;
-};
-
-const PAGE_SIZE = getPageSize();
+// REPOS_PER_FETCH page sizing lives in useRepoData (GMC-39).
 
 export default function RepoList({ token, maxVisibleRows, onLogout, viewerLogin, onOrgContextChange, initialOrgSlug }: { 
   token: string; 
@@ -83,20 +66,10 @@ export default function RepoList({ token, maxVisibleRows, onLogout, viewerLogin,
     });
   }, []);
   
-  const [items, setItems] = useState<RepoNode[]>([]);
+  // List/data state (items, paging, loading flags, rate limits, starred set)
+  // lives in useRepoData (GMC-39); the hook is invoked below, once the values
+  // it consumes (owner context, sort state, …) are declared.
   const [cursor, setCursor] = useState(0);
-  const [endCursor, setEndCursor] = useState<string | null>(null);
-  const [hasNextPage, setHasNextPage] = useState(false);
-  const [totalCount, setTotalCount] = useState<number>(0);
-  const [loading, setLoading] = useState(true);
-  const [sortingLoading, setSortingLoading] = useState(false); // New state for sort refresh
-  const [refreshing, setRefreshing] = useState(false); // Track if this is a manual refresh
-  const [loadingMore, setLoadingMore] = useState(false); // Track infinite scroll loading
-  const [error, setError] = useState<string | null>(null);
-  const [rateLimit, setRateLimit] = useState<RateLimitInfo | undefined>(undefined);
-  const [prevRateLimit, setPrevRateLimit] = useState<number | undefined>(undefined);
-  const [restRateLimit, setRestRateLimit] = useState<RestRateLimitInfo | undefined>(undefined);
-  const [prevRestRateLimit, setPrevRestRateLimit] = useState<number | undefined>(undefined);
   // Display density: 0 = compact (0 lines), 1 = cozy (1 line), 2 = comfy (2 lines)
   const [density, setDensity] = useState<0 | 1 | 2>(2);
   const [prefsLoaded, setPrefsLoaded] = useState(false);
@@ -185,14 +158,64 @@ export default function RepoList({ token, maxVisibleRows, onLogout, viewerLogin,
   const [sortMode, setSortMode] = useState(false);
   const [sortDirectionMode, setSortDirectionMode] = useState(false);
   
-  // Stars mode state
+  // Stars mode state (the starred list itself lives in useRepoData below)
   const [starsMode, setStarsMode] = useState(false);
-  const [starredItems, setStarredItems] = useState<RepoNode[]>([]);
-  const [starredEndCursor, setStarredEndCursor] = useState<string | null>(null);
-  const [starredHasNextPage, setStarredHasNextPage] = useState(false);
-  const [starredTotalCount, setStarredTotalCount] = useState<number>(0);
-  const [starredLoading, setStarredLoading] = useState(false);
-  
+
+  // Sorting state - only support GitHub API sortable fields (SortKey is
+  // shared from useRepoData)
+  const [sortKey, setSortKey] = useState<SortKey>('updated');
+  const [sortDir, setSortDir] = useState<'asc' | 'desc'>('desc');
+
+  // Fork tracking toggle - default ON to show commits behind
+  const [forkTracking, setForkTracking] = useState<boolean>(true);
+
+  // Breaks the useRepoData ↔ useForkEnrichment circular dependency: fetchPage
+  // (inside useRepoData) clears the enrichment tracker on fresh loads, but
+  // useForkEnrichment consumes useRepoData's items/setItems — so the reset
+  // function is threaded through this ref and assigned right after
+  // useForkEnrichment runs, below.
+  const resetEnrichmentRef = useRef<() => void>(() => {});
+
+  // Core repository data layer (list/starred state, paging, rate limits,
+  // fetchPage/fetchStarredRepositories, initial context fetch) — extracted to
+  // useRepoData (GMC-39).
+  const {
+    items, setItems,
+    endCursor,
+    hasNextPage,
+    totalCount, setTotalCount,
+    loading,
+    sortingLoading, setSortingLoading,
+    refreshing, setRefreshing,
+    loadingMore,
+    error, setError,
+    rateLimit,
+    prevRateLimit,
+    restRateLimit,
+    prevRestRateLimit,
+    starredItems, setStarredItems,
+    starredEndCursor, setStarredEndCursor,
+    starredHasNextPage, setStarredHasNextPage,
+    starredTotalCount, setStarredTotalCount,
+    starredLoading,
+    fetchPage,
+    fetchStarredRepositories,
+  } = useRepoData({
+    token,
+    viewerLogin,
+    client,
+    prefsLoaded,
+    ownerContext,
+    ownerAffiliations,
+    sortKey,
+    sortDir,
+    forkTracking,
+    resetEnrichmentRef,
+    setHasInternalRepos,
+    setIsEnterpriseOrg,
+    onContextSwitch: () => setCursor(0),
+  });
+
   // Unstar modal state
   const [unstarMode, setUnstarMode] = useState(false);
   const [unstarTarget, setUnstarTarget] = useState<RepoNode | null>(null);
@@ -352,30 +375,8 @@ export default function RepoList({ token, maxVisibleRows, onLogout, viewerLogin,
     setCopyUrlTarget(repo);
   }
   
-  // Single sync execution function to prevent duplicate operations
-  // Fetch starred repositories
-  async function fetchStarredRepositories(after?: string | null, reset = false) {
-    setStarredLoading(true);
-    try {
-      const page = await getStarredRepositories(client, PAGE_SIZE, after ?? undefined);
-      
-      setStarredItems(prev => (reset || !after ? page.nodes : [...prev, ...page.nodes]));
-      setStarredEndCursor(page.endCursor ?? null);
-      setStarredHasNextPage(page.hasNextPage);
-      setStarredTotalCount(page.totalCount);
-      
-      if (page.rateLimit) {
-        setRateLimit(page.rateLimit);
-        setPrevRateLimit(page.rateLimit.remaining);
-      }
-      
-      setStarredLoading(false);
-    } catch (e: unknown) {
-      setStarredLoading(false);
-      setError((e instanceof Error ? e.message : null) || 'Failed to fetch starred repositories');
-    }
-  }
-  
+  // fetchStarredRepositories lives in useRepoData (GMC-39).
+
   // Handle unstar action
   async function handleUnstar() {
     if (!unstarTarget || unstarring) return;
@@ -1061,13 +1062,7 @@ export default function RepoList({ token, maxVisibleRows, onLogout, viewerLogin,
   const [filter, setFilter] = useState('');
   const [filterMode, setFilterMode] = useState(false);
 
-  // Sorting state - only support GitHub API sortable fields
-  type SortKey = 'updated' | 'pushed' | 'name' | 'stars' | 'forks';
-  const [sortKey, setSortKey] = useState<SortKey>('updated');
-  const [sortDir, setSortDir] = useState<'asc' | 'desc'>('desc');
-  
-  // Fork tracking toggle - default ON to show commits behind
-  const [forkTracking, setForkTracking] = useState<boolean>(true);
+  // Sorting + fork-tracking state is declared above, before useRepoData (GMC-39).
 
   // Fork ahead/behind enrichment (SWR-362), extracted to useForkEnrichment (GMC-28).
   const { enrichingForks, resetEnrichment } = useForkEnrichment({
@@ -1079,6 +1074,9 @@ export default function RepoList({ token, maxVisibleRows, onLogout, viewerLogin,
     hasNextPage,
     forkTracking,
   });
+  // Wire the enrichment reset into useRepoData's fetchPage (see resetEnrichmentRef
+  // above). Assigned every render so the ref always holds the current closure.
+  resetEnrichmentRef.current = resetEnrichment;
 
   // Fetch a parent repo by nameWithOwner and display it in the Info modal (P key fallback)
   async function jumpToUpstreamRepo(parentNameWithOwner: string) {
@@ -1110,132 +1108,7 @@ export default function RepoList({ token, maxVisibleRows, onLogout, viewerLogin,
   // Fork filter - 'all' | 'forks' | 'non-forks' (client-side, no extra API calls).
   const [forkFilter, setForkFilter] = useState<ForkFilter>('all');
 
-  // Map our sort keys to GitHub's GraphQL field names
-  const sortFieldMap: Record<SortKey, string> = {
-    'updated': 'UPDATED_AT',
-    'pushed': 'PUSHED_AT',
-    'name': 'NAME',
-    'stars': 'STARGAZERS',
-    'forks': 'UPDATED_AT',  // forks sort is client-side; server falls back to UPDATED_AT
-  };
-
-  const fetchPage = async (
-    after?: string | null,
-    reset = false,
-    isSortChange = false,
-    overrideForkTracking?: boolean,
-    policy?: 'cache-first' | 'network-only'
-  ) => {
-    logger.info('fetchPage called', {
-      after,
-      reset,
-      isSortChange,
-      policy,
-      token: token ? 'present' : 'missing',
-      viewerLogin,
-      ownerContext
-    });
-    
-    if (isSortChange) {
-      setSortingLoading(true);
-    } else if (after && !reset) {
-      // This is infinite scroll loading more pages
-      setLoadingMore(true);
-    } else {
-      setLoading(true);
-    }
-    try {
-      const orderBy = {
-        field: sortFieldMap[sortKey],
-        direction: sortDir.toUpperCase()
-      };
-      
-      // Determine organization login if in org context
-      const orgLogin = ownerContext !== 'personal' ? ownerContext.login : undefined;
-
-      // Visibility is filtered entirely client-side (SWR-366), so we always
-      // fetch the complete set and never pass a privacy narrowing to the API.
-      const page = await fetchViewerReposPageUnified(
-        token,
-        PAGE_SIZE,
-        after ?? null,
-        orderBy,
-        overrideForkTracking ?? forkTracking,
-        policy ?? (after ? 'network-only' : 'cache-first'),
-        ownerAffiliations,
-        orgLogin
-      );
-      
-      // A fresh list load (refresh, sort change, org switch, first page)
-      // replaces items with un-enriched nodes — clear the enrichment tracker
-      // so forks get their ahead/behind counts recomputed against the new data.
-      if (reset || !after) {
-        resetEnrichment();
-      }
-      setItems(prev => (reset || !after ? page.nodes : [...prev, ...page.nodes]));
-      setEndCursor(page.endCursor);
-      setHasNextPage(page.hasNextPage);
-      setTotalCount(page.totalCount);
-      
-      // Check if any repos have internal visibility (enterprise feature)
-      if (page.nodes.some((repo: RepoNode) => repo.visibility === 'INTERNAL')) {
-        setHasInternalRepos(true);
-      }
-      
-      // Check if organization is enterprise (first page only)
-      if (!after && orgLogin) {
-        const client = makeClient(token);
-        checkOrganizationIsEnterprise(client, orgLogin).then(isEnt => {
-          setIsEnterpriseOrg(isEnt);
-        });
-      }
-      
-      // Mark fetched time for TTL tracking (first page only)
-      if (!after) {
-        try {
-          const key = makeApolloKey({
-            viewer: viewerLogin || 'unknown',
-            sortKey,
-            sortDir,
-            pageSize: PAGE_SIZE,
-            forkTracking: overrideForkTracking ?? forkTracking,
-            ownerContext: orgLogin ? `org:${orgLogin}` : 'personal',
-            affiliations: ownerAffiliations.join(',')
-          });
-          markFetched(key);
-        } catch {}
-      }
-      
-      // Track rate limit changes for delta display
-      if (page.rateLimit && rateLimit) {
-        setPrevRateLimit(rateLimit.remaining);
-      }
-      setRateLimit(page.rateLimit);
-      
-      // Fetch REST rate limits too
-      fetchRestRateLimits(token).then(restLimits => {
-        if (restLimits && restRateLimit) {
-          setPrevRestRateLimit(restRateLimit.core.remaining);
-        }
-        if (restLimits) {
-          setRestRateLimit(restLimits);
-        }
-      });
-      setError(null);
-    } catch (e: unknown) {
-      const apiErr = e instanceof Error ? e : null;
-      logger.error('Failed to fetch repositories in RepoList', {
-        error: apiErr?.message,
-        stack: apiErr?.stack,
-      });
-      setError('Failed to load repositories. Check network or token.');
-    } finally {
-      setLoading(false);
-      setSortingLoading(false);
-      setRefreshing(false);
-      setLoadingMore(false);
-    }
-  };
+  // fetchPage (and the sort-key → GraphQL field map) live in useRepoData (GMC-39).
 
   // Load UI preferences (density, sort key/dir, fork tracking, owner context, visibility filter) on mount
   useEffect(() => {
@@ -1295,33 +1168,7 @@ export default function RepoList({ token, maxVisibleRows, onLogout, viewerLogin,
     setPrefsLoaded(true);
   }, [onOrgContextChange]);
 
-  useEffect(() => {
-    if (!prefsLoaded) return;
-    // Choose Apollo fetch policy based on TTL freshness
-    let policy: 'cache-first' | 'network-only' = 'cache-first';
-    
-    // Determine organization login if in org context
-    const orgLogin = ownerContext !== 'personal' ? ownerContext.login : undefined;
-    try {
-      const key = makeApolloKey({
-        viewer: viewerLogin || 'unknown',
-        sortKey,
-        sortDir,
-        pageSize: PAGE_SIZE,
-        forkTracking,
-        ownerContext: orgLogin ? `org:${orgLogin}` : 'personal',
-        affiliations: ownerAffiliations.join(',')
-      });
-      policy = isFresh(key) ? 'cache-first' : 'network-only';
-    } catch {}
-    
-    // Reset cursor when changing context
-    setCursor(0);
-    
-    // Fetch repositories with the current context
-    fetchPage(null, true, false, undefined, policy);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [client, prefsLoaded, ownerContext, ownerAffiliations]);
+  // The initial fetch-on-context-change effect lives in useRepoData (GMC-39).
 
   // Visibility filter is applied entirely client-side over the full cached set
   // (SWR-366) — no server refetch is needed, so changing it never hits the API.
