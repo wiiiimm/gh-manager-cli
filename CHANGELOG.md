@@ -1,3 +1,10 @@
+## [1.52.3](https://github.com/wiiiimm/gh-manager-cli/compare/v1.52.2...v1.52.3) (2026-06-10)
+
+
+### Bug Fixes
+
+* loading dots trail the label like "Loading..." (GMC-41) ([#109](https://github.com/wiiiimm/gh-manager-cli/issues/109)) ([ec38397](https://github.com/wiiiimm/gh-manager-cli/commit/ec38397652de2207778385550c07406977574797))
+
 ## [1.52.2](https://github.com/wiiiimm/gh-manager-cli/compare/v1.52.1...v1.52.2) (2026-06-09)
 
 
