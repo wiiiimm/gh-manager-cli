@@ -1,21 +1,24 @@
 # Installation
 
-There are several ways to install and run gh-manager-cli:
+The various ways to install and run gh-manager-cli, from package managers to standalone binaries.
 
-## NPX (Recommended - No Installation Required)
+## Homebrew (macOS/Linux)
 
-Run instantly without installing:
+```
+brew tap wiiiimm/tap
+brew install gh-manager-cli
+```
 
-```bash
-npx gh-manager-cli
+## NPX (Recommended — No Installation Required)
+
+```
+npx gh-manager-cli@latest
 ```
 
 ## NPM Global Install
 
-Install globally for persistent `gh-manager-cli` command:
-
-```bash
-npm install -g gh-manager-cli
+```
+npm install -g gh-manager-cli@latest
 gh-manager-cli
 ```
 
@@ -23,41 +26,41 @@ gh-manager-cli
 
 Download standalone executables from [GitHub Releases](https://github.com/wiiiimm/gh-manager-cli/releases):
 
-- **Linux**: `gh-manager-cli-linux-x64`
-- **macOS**: `gh-manager-cli-macos-x64` 
-- **Windows**: `gh-manager-cli-windows-x64.exe`
+- **Linux:** `gh-manager-cli-linux-x64`
+- **macOS:** `gh-manager-cli-macos-x64`
+- **Windows:** `gh-manager-cli-windows-x64.exe`
 
 Make the binary executable (Linux/macOS):
-```bash
+
+```
 chmod +x gh-manager-cli-*
 ./gh-manager-cli-*
 ```
 
 ## From Source
 
-Prerequisites:
-- Node.js 18+
-- pnpm
+**Prerequisites:** Node.js 18+, pnpm.
 
 Install and build:
 
-```bash
+```
 pnpm install
 pnpm build
 ```
 
 Run locally:
 
-```bash
+```
 node dist/index.js
 # Or add to PATH for dev
 pnpm link
 gh-manager-cli
 ```
 
-## Next Steps
+On first run, you'll be prompted to authenticate with GitHub (OAuth recommended). See [Token & Security](Token-and-Security.md).
 
-- [Token & Security](Token-and-Security.md) - Set up authentication
-- [Features](Features.md) - Explore available features
-- [Usage](Usage.md) - Learn how to use the CLI
+## Related Pages
 
+- [Usage](Usage.md)
+- [Features](Features.md)
+- [Token & Security](Token-and-Security.md)

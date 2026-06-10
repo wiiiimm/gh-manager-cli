@@ -1,143 +1,99 @@
 # Usage
 
-Launch the app, then use the keys below to navigate and interact with your repositories.
+Full reference for running gh-manager-cli, its keyboard controls, command-line flags, pagination behaviour, and the end-of-session summary.
+
+See also: [Features](Features.md) · [Token & Security](Token-and-Security.md) · [Troubleshooting](Troubleshooting.md)
 
 ## CLI Flags
 
-- `--org, -o <slug>`: Start in a specific organisation context (if accessible). If the slug isn’t an organisation you belong to, the flag is ignored and the app opens in your personal context.
-  - Examples: `gh-manager-cli --org acme`, `gh-manager-cli -o acme`, `npx gh-manager-cli --org=@acme`, `npx gh-manager-cli -o=@acme`
-  - Leading `@` is optional. Personal usernames are not supported by `--org`/`-o` (use default personal context).
-
-- `--token, -t <pat>`: Provide a Personal Access Token just for this run (not persisted).
-  - Examples: `gh-manager-cli --token ghp_XXX`, `gh-manager-cli -t=ghp_XXX`
-  - Precedence: CLI token > env (`GITHUB_TOKEN`/`GH_TOKEN`) > stored config.
-  - Security: Passing tokens on the command line can appear in shell history. Prefer env vars or the interactive prompt.
-
+- `--org, -o <slug>`: Start in a specific organisation context (if accessible). The flag is ignored if you don't have access or if the slug isn't an organisation.
+  - Examples: `gh-manager-cli --org acme`, `gh-manager-cli -o acme`, `npx gh-manager-cli@latest --org=@acme`, `npx gh-manager-cli@latest -o=@acme`
+  - Notes: A leading `@` is optional. Personal usernames are not supported by `--org`/`-o` (use the default personal context).
+- `--token, -t <pat>`: Use a Personal Access Token just for this run. Does not persist to config.
+  - Examples: `gh-manager-cli --token ghp_XXXX`, `gh-manager-cli -t=ghp_XXXX`
+  - Precedence: CLI token > `GITHUB_TOKEN`/`GH_TOKEN` env vars > stored config.
+  - Security: Supplying tokens on the command line may be captured in shell history. Prefer env vars or the interactive prompt when possible.
 - `--help, -h`: Show usage information and exit.
-
 - `--version, -v`: Print the current version and exit.
 
 ## Navigation & View Controls
 
-- **Top/Bottom**: `Ctrl+G` (top), `G` (bottom)
-- **Page Navigation**: ↑↓ Arrow keys, PageUp/PageDown
-- **Search**: `/` to enter fuzzy-search mode, start typing immediately (no minimum character count)
-  - Results update instantly on each keystroke — no network calls, typo-tolerant
-  - While the background fetch-all is still in progress, a hint will indicate results may be incomplete
-  - Down arrow: Start browsing search results
-  - Esc: Clear search and return to full repository list
-- **Sort**: `S` opens sort modal with options:
-  - Updated: When the repository was last modified
-  - Pushed: When code was last pushed
-  - Name: Alphabetical by repository name
-  - Stars: Number of stars
-- **Sort Direction**: `D` to toggle ascending/descending
-- **Display Density**: `T` to toggle compact/cozy/comfy
-- **Fork Status**: Always enabled - shows commits behind upstream for all forks
-- **Visibility Filter**: `V` opens modal (All, Public, Private/Internal for enterprise)
-- **Stars Mode**: `Shift+S` (personal account only) to view starred repositories
+- **Top/Bottom**: `Ctrl+G` (top), `G` (bottom).
+- **Page Navigation**: ↑↓ arrow keys, PageUp/PageDown.
+- **Search**: `/` to enter search mode — instant, typo-tolerant fuzzy search over the full cached set (no network calls). Matches as you type; searches name, owner, description, and language. Down arrow or Enter starts browsing results. Esc clears the search and returns to the full list.
+- **Sort**: `S` opens the sort modal (Updated, Pushed, Name, Stars).
+- **Sort Direction**: `D` opens the sort direction modal (ascending/descending).
+- **Display Density**: `T` toggles compact/cozy/comfy.
+- **Colour Theme**: `Shift+T` cycles themes (Default → Ocean → Forest → Monochrome); persists across restarts. Each theme defines its own selected-row highlight (a darker on-theme background) so the highlighted repository stays high-contrast.
+- **Fork Status**: always enabled — shows commits ahead and behind upstream once enrichment completes. Unrelated to the fork view filter.
+- **View Filters**: `V` opens the consolidated View Filters modal with three grouped sections — Visibility (All / Public / Private[/Internal for enterprise]), Archive (All / Unarchived / Archived), and Fork (All / Forks only / Non-forks only). Move between groups with ↑↓, change a group's value live with ←→ (radio-style), then Enter (or `Y`/Apply) to apply and close, Esc/`C` to cancel. The Visibility group is hidden in stars mode; Archive and Fork remain available. All three selections persist across restarts, and reset to All when you switch organisation or scope (own ↔ starred).
+- **Stars Mode**: `Shift+S` (personal account only) toggles between your own repos and your starred repos. The footer hint shows `Shift+S Starred` in normal mode and `Shift+S My Repos` in starred mode.
 
 ## Navigation & Account
 
-- **Open in browser**: Enter or `O`
-- **Refresh**: `R`
-- **Organization switcher**: `W` to switch between personal account and organizations
-- **Logout**: `Ctrl+L`
-- **Quit**: `Q`
+- **Open in browser**: Enter or `O` — non-forks open directly; forks show a chooser (This repository / Parent/upstream, Esc cancels).
+- **Open PRs / Issues**: `L` — chooser modal (Pull Requests / Issues) for the selected repo. Counts are shown inline on every row as `⇄ N PRs ◇ M issues`, colour-coded (muted at 0, default 1–9, amber 10–29, red 30+). Esc/C cancels.
+- **Jump to upstream**: `P` (on a fork) — moves the cursor to the parent if already loaded; otherwise fetches the parent and shows it in the Info modal.
+- **Refresh**: `R`.
+- **Organisation switcher**: `W`.
+- **Logout**: `Ctrl+L`.
+- **Quit**: `Q`.
 
 ## Repository Actions
 
-- **Create repository**: `Ctrl+N` to create a new repository in the current context (personal or organisation)
-  - Prompts for a name with the owner slug (`owner/`) shown in front
-  - `Tab` cycles visibility (Private/Public, plus Internal for enterprise organisations)
-  - Enter to create; GitHub errors (e.g. name already exists) are shown inline
-- **Repository info**: `I` to view detailed metadata (size, language, timestamps)
-- **Cache info**: `K` to inspect Apollo cache status
-- **Archive/Unarchive**: `Ctrl+A` with confirmation prompt
-- **Change visibility**: `Ctrl+V` to change repository visibility (Public/Private/Internal)
-- **Delete repository**: `Del` or `Backspace` (with two-step confirmation modal)
-  - Type confirmation code → confirm (Y/Enter)
-  - Cancel: press `C` or Esc
-- **Star/Unstar**: `Ctrl+S` to toggle star status for any repository
-- **Sync fork**: `Ctrl+F` (for forks only, shows commit status and handles conflicts)
-- **Rename repository**: `Ctrl+R` with inline validation
-- **Transfer repository**: `Shift+M` (Move) to transfer ownership to another user or organisation
-  - Prompts for the destination owner, then requires typing a randomly generated verification code (like delete), followed by a final confirmation before transferring
-  - GitHub errors (e.g. insufficient permissions) are shown inline
-  - Transferred repository is removed from the list
-- **Copy URL**: `C` to copy repository URL to clipboard (SSH/HTTPS options)
+- **Create repository**: `Ctrl+N` — new repo in the current context (personal or organisation). Prompts for a name with the owner slug (`owner/`) shown in front; `Tab` cycles visibility (Private/Public, plus Internal for enterprise organisations); Enter to create; GitHub errors (e.g. name already exists) shown inline.
+- **Repository info**: `I` — detailed metadata (size, language, timestamps).
+- **Cache info**: `K` — inspect Apollo cache status.
+- **Archive/Unarchive**: `Ctrl+A` with confirmation prompt.
+- **Change visibility**: `Ctrl+V` (Public/Private/Internal).
+- **Delete repository**: `Del` or `Backspace` (two-step confirmation modal; type the confirmation code → confirm with Y/Enter; cancel with `C` or Esc).
+- **Star/Unstar**: `Ctrl+S`.
+- **Sync fork**: `Ctrl+F` (for forks only; shows ahead/behind counts and handles conflicts).
+- **Rename repository**: `Ctrl+R` with inline validation.
+- **Transfer repository**: `Shift+M` (Move) to transfer ownership to another user or organisation. The destination picker lists the personal account + organisations the token can see; pick with ↑/↓ + Enter, press `M` (or select "Enter a different owner…") to switch to manual entry for owners the token can't list. Requires typing a randomly generated verification code (like delete), then a final confirmation. GitHub errors shown inline.
+- **Copy URL**: `C` to copy the repository URL to the clipboard (SSH/HTTPS options).
 
-## Bulk Select Mode (Bulk Operations)
+## Bulk Operations (Bulk Select mode)
 
-Bulk Select mode lets you select multiple repositories and run a bulk action (star/unstar, archive/unarchive, visibility change, transfer/move, or delete) against all of them at once. The actions reuse the same global shortcuts as single-repo mode; while in bulk select mode every other shortcut is disabled.
+- `B` enters/exits Bulk Select mode (exits and clears the selection). `Esc` also exits and clears.
+- Within bulk mode every other shortcut is disabled; only navigation + these work: `Space` toggles selection on the cursor row; `X` unselects all (stays in bulk mode); navigation (arrows, PageUp/Down, `Ctrl+G`, `G`) still works.
+- Bulk actions reuse the global shortcuts: `Ctrl+S` star/unstar, `Ctrl+A` archive/unarchive, `Ctrl+V` visibility, `Del`/`Backspace` delete, `Shift+M` transfer (move) to another owner/org. Each requires at least one selected repo.
+- Star and archive are toggles: if all selected share the same state, the opposite is applied directly; if the selection is mixed, an intent modal asks the explicit target. Visibility always shows a target picker (Public / Private / Internal — Internal only for enterprise orgs). Transfer opens a destination picker (personal account + visible orgs, plus a manual-entry fallback).
+- Selections persist across search, filter, and sort changes (stored as full node objects by id). They are cleared on org/scope switch and stars mode toggle.
+- **Confirmation flow**: review list with the ability to unselect (Space) → (transfer only) destination owner picker → count prompt → (delete and transfer only) a 4-character verification code → sequential execution with per-repo progress and a partial-failure summary at completion. The selection is cleared and bulk mode exits on completion; transferred repos are removed from the list.
 
-### Entering Bulk Select Mode
+## Modal UX Convention
 
-- **`B`** — toggle bulk select (bulk) mode on/off
-- **`Esc`** — exit bulk select mode (clears selection)
-
-### Selection Controls (inside bulk select mode)
-
-- **`Space`** — toggle selection on the highlighted repository
-- **`X`** — unselect all (clears selection without exiting bulk select mode)
-- Navigation (↑↓, PageUp/Down, `Ctrl+G`, `G`) still works
-
-### Bulk Action Shortcuts (require at least one selected repo)
-
-- **`Ctrl+S`** — bulk star/unstar
-- **`Ctrl+A`** — bulk archive/unarchive
-- **`Ctrl+V`** — bulk visibility update
-- **`Shift+M`** — bulk transfer (move) to another owner/org
-- **`Del`/`Backspace`** — bulk delete
-
-### Running a Bulk Action
-
-1. Enter bulk select mode with `B`
-2. Select repositories with `Space`
-3. Press the action shortcut above (e.g. `Ctrl+A` for archive)
-4. **Intent/target (only when needed, before review)**:
-   - Star and archive auto-detect a safe toggle. If the selection has a mixed state, an intent modal asks the explicit target (e.g. "Archive all" vs "Unarchive all").
-   - Visibility always prompts for the destination: Public / Private / Internal (Internal only for enterprise orgs).
-5. **Review list (Confirmation 1)**: A scrollable list of all selected repos appears.
-   - Use ↑↓ to navigate; `Space` to unselect individual entries before proceeding.
-6. **Destination owner (Transfer only)**: after review, transfer prompts for a destination owner (must differ from the current owner).
-7. **Count prompt (Confirmation 2)**: Confirms "About to {action} {N} repositories" (transfer also shows "to {owner}"). (Cancel/Proceed, Esc cancels.)
-8. **Delete and Transfer only (Confirmation 3)**: enter a 4-character verification code.
-9. Progress is shown per-repo; partial failures are reported at the end.
-10. On completion, selections are cleared and bulk select mode exits automatically. Transferred repos are removed from the current list.
-
-### Persistence
-
-Selections persist across search and filter changes — you can search for one set, select some repos, search for something else, select more, and all prior selections remain intact. Selections are cleared only when:
-
-- You exit bulk select mode (`B` or `Esc`)
-- You switch organisation/scope
-- You toggle Stars mode
-- The bulk operation completes
+- Left/Right: move focus between buttons (e.g. Delete, Cancel).
+- Enter: run the focused button's action.
+- `Y`: confirm.
+- `C`: cancel (Esc also cancels).
 
 ## General
 
-- **Esc**: Cancels modals, clears search, or returns to normal listing (does not quit)
-
-## Interface Elements
-
-- **Header**: Displays the current owner context (Personal Account or Organization name), active sort and direction, fork status tracking state, and active search/filter.
-- **Status Bar**: Shows loaded count vs total. A rate-limit line displays `remaining/limit` and the reset time; it turns yellow when remaining ≤ 10% of the limit.
+- Esc cancels modals, clears search, or returns to normal listing (it does not quit).
+- The header displays the current owner context (Personal Account or Organisation name), active sort and direction, fork status tracking state, and active search/filter.
+- The status bar shows the loaded count vs total. A rate-limit line displays `remaining/limit` and the reset time; it turns yellow when remaining ≤ 10% of the limit.
 
 ## Pagination Details
 
-- Uses GitHub GraphQL `viewer.repositories` with `ownerAffiliations: OWNER`, ordered by `UPDATED_AT DESC`.
-- Fetches 15 repos per page by default (configurable via `REPOS_PER_FETCH` environment variable, 1-50).
-- Updates `totalCount` each time and prefetches the next page when selection nears the end of loaded list.
+- Uses the GitHub GraphQL `viewer.repositories` query with `ownerAffiliations: OWNER`, ordered by `UPDATED_AT DESC`.
+- **Background fetch-all**: the first page renders immediately, then the remaining repositories load in the background until the whole account is cached locally. Filtering, sorting, and search then operate over the complete set, client-side and instant.
+- Fetches 100 repos per page by default (configurable via the `REPOS_PER_FETCH` environment variable, 1–100).
+- Reads `totalCount` from the first page and shows background-load progress (`loaded/total`) while filling. The list stays usable from the first page throughout; very large accounts simply take longer to finish loading.
 
-## Environment Variables
+## Session Summary
 
-- `REPOS_PER_FETCH`: Number of repositories to fetch per page (1-50, default: 15)
-- `GH_MANAGER_DEBUG=1`: Enables debug mode with performance metrics and detailed errors
-- `APOLLO_TTL_MS`: Custom cache TTL in milliseconds (default: 30 minutes)
+When you quit the app with `Q`, gh-manager-cli prints a short end-of-session report as distinct framed panels:
+
+- **📊 Session Summary** — session duration, total operations performed, and a per-operation breakdown (e.g. "2 repositories archived", "1 repository transferred"). If nothing was changed, it notes "No changes were made this session."
+- **⏱ Estimated time saved** — a rough, friendly estimate of how much time you saved versus performing those operations by hand on github.com (each operation type has a conservative manual-time weight, e.g. delete ≈ 45s, transfer ≈ 60s, star ≈ 6s). Shown only when at least one operation was performed.
+- **💚 Thank you** — a separate sponsorship/feedback panel.
+
+Both single-repo and bulk actions are counted. The summary is not shown when exiting via `Ctrl+C`.
 
 ## Related Pages
 
-- [Features](Features.md) - Detailed feature list
-- [Token & Security](Token-and-Security.md) - Authentication details
-- [Troubleshooting](Troubleshooting.md) - Common issues and solutions
+- [Features](Features.md)
+- [Token & Security](Token-and-Security.md)
+- [Troubleshooting](Troubleshooting.md)

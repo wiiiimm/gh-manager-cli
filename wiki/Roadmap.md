@@ -1,63 +1,28 @@
-# Roadmap
+# Roadmap & Feature Requests
 
-This page outlines the planned features and enhancements for gh-manager-cli. For the most up-to-date task board, see [TODOs.md](../TODOs.md).
+gh-manager-cli already covers the features its maintainer set out to build, so there's no longer a formal roadmap or task board. Development is now driven by what users ask for.
 
-## Recently Implemented
+## Have an idea?
 
-- ✅ **OAuth login flow** as alternative to Personal Access Token
-- ✅ **Density toggle** for row spacing (compact/cozy/comfy)
-- ✅ **Repo actions** (archive/unarchive, delete, change visibility) with confirmations
-- ✅ **Organization support** and switching (press `W`) with enterprise detection
-- ✅ **Enhanced server-side search** with improved UX and organization context
-- ✅ **Smart infinite scroll** with 80% prefetch trigger
-- ✅ **Modal-based sort and visibility filtering**
-- ✅ **GitHub Enterprise support** with Internal repository visibility
-- ✅ **Change repository visibility** (`Ctrl+V`)
-- ✅ **Server-side visibility filtering** for accurate pagination
-- ✅ **Sync fork with upstream** (`Ctrl+S`)
-- ✅ **Repository info modal** (`I` key)
-- ✅ **Cache inspection** (`K` key)
-- ✅ **Logout functionality** (`Ctrl+L`)
-- ✅ **Apollo Client caching** with persistent storage
-- ✅ **Rate limit monitoring** for GraphQL and REST APIs with delta tracking
-- ✅ **Repository renaming** (`Ctrl+R`) with inline validation and cache update
-- ✅ **Copy repository URL to clipboard** (`C` key) with SSH/HTTPS options
+**[Open a feature request](https://github.com/wiiiimm/gh-manager-cli/issues/new/choose)** on GitHub Issues. Bug reports are equally welcome. Feature requests are prioritised based on community interest — 👍 reactions on existing issues help.
 
-## In Progress
+- 💡 Feature requests & bugs → [GitHub Issues](https://github.com/wiiiimm/gh-manager-cli/issues)
+- 📜 What's already shipped → [CHANGELOG.md](../CHANGELOG.md)
 
-- 🔄 **Automated test suite**
-  - Test infrastructure setup (Vitest with TypeScript support)
-  - Added `pnpm test` script for running tests
-  - Unit tests for utilities and components
-  - Integration tests for key workflows
+## Ideas on the table
 
-## Coming Soon
+A few directions that may be explored if there's demand:
 
-- ⭐ **Stars mode** (Personal Account only)
-  - View repositories you've starred
-  - Available only when viewing Personal Account
-  - Unstar repositories directly from the list
-  - GraphQL query to fetch starred repositories
+- 🔮 Optional OS keychain storage via `keytar`
+- 🔮 Language filter and indicators
+- 🔮 Additional sort fields (created, size) and more CLI flags (`--sort`, `--filter`, `--page-size`)
+- 🔮 Extended repo metadata (license, topics, watchers)
+- 🔮 Config profiles (multiple GitHub account support)
 
-- 📋 **Bulk selection and actions**
-  - Multi-select mode with space to toggle selection
-  - Bulk operations (archive/unarchive, delete)
-  - Progress tracking and status reporting
-
-## Future Considerations
-
-- 🔮 **Language filter and indicators**
-- 🔮 **Extended CLI flags** (`--sort`, `--filter`, `--page-size` - partial implementation exists)
-- 🔮 **Extended repo metadata** (license, topics, issues count, watchers)
-- 🔮 **Repository actions** (clone, create repos from CLI)
-- 🔮 **Issue management** (view and create issues)
-- 🔮 **PR management** (list and review pull requests)
-- 🔮 **Themes** (customizable color schemes)
-- 🔮 **Config profiles** (multiple GitHub account support)
+If any of these would be useful to you, please open or upvote an issue so it can be prioritised.
 
 ## Related Pages
 
-- [Features](Features.md) - Current feature set
-- [Development](Development.md) - Development workflow and technical details
-- [Testing](Testing.md) - Testing documentation
-
+- [Features](Features.md) — current feature set
+- [Development](Development.md) — development workflow and technical details
+- [Testing](Testing.md) — testing documentation

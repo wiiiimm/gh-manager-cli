@@ -1,55 +1,45 @@
 # Features
 
-gh-manager-cli provides a comprehensive set of features for managing your GitHub repositories:
+A complete overview of what gh-manager-cli can do, grouped by area.
 
 ## Core Repository Management
 
-- **Token Authentication**: Secure PAT storage with validation and persistence
-- **Repository Listing**: Browse all your personal repositories with metadata (stars, forks, language, etc.)
-- **Live Pagination**: Infinite scroll with automatic page prefetching
-- **Interactive Sorting**: Modal-based sort selection (updated, pushed, name, stars) with direction toggle
-- **Fuzzy Search**: Instant typo-tolerant search over the full cached set — searches name, owner, description, and language with no network calls in the search path (powered by [fuse.js](https://www.fusejs.io/))
-- **Visibility Filtering**: Modal-based visibility filter (All, Public, Private/Internal for enterprise) with smart filtering
-- **Fork Status Tracking**: Always shows commits behind upstream for forked repositories
-- **Stars Mode**: View and manage starred repositories (personal account only)
-- **Repository Actions**:
-  - View detailed info (`I`) - Shows repository metadata, language, size, and timestamps
-  - Open in browser (Enter/`O`)
-  - Delete repository (`Del` or `Backspace`) with secure two-step confirmation
-  - Archive/unarchive repositories (`Ctrl+A`) with confirmation prompts
-  - Change repository visibility (`Ctrl+V`) - Switch between Public, Private, and Internal (enterprise only)
-  - Star/unstar repositories (`Ctrl+S`) - Toggle star status for any repository
-  - Sync forks with upstream (`Ctrl+F`) with automatic conflict detection
-  - Rename repository (`Ctrl+R`) with inline validation
-  - Copy repository URL to clipboard (`C`) with SSH/HTTPS options
+- **Authentication:** GitHub OAuth (recommended) or Personal Access Token with secure storage. (See [Token & Security](Token-and-Security.md).)
+- **Repository Listing:** browse all your personal repositories with metadata (stars, forks, language, etc.).
+- **Background Fetch-All:** loads your entire account in the background after the first page, so filtering/sorting/search are instant and complete.
+- **Interactive Sorting:** modal-based sort selection (updated, pushed, name, stars) with modal-based direction selection.
+- **Fuzzy Search:** instant typo-tolerant search over the full cached repository set — no network calls in the search path (powered by [fuse.js](https://www.fusejs.io/)).
+- **View Filters:** single `V` modal consolidating visibility, archive, and fork filters into three grouped sections — set any combination in one session (All / Public / Private[/Internal] · All / Unarchived / Archived · All / Forks only / Non-forks only). The fork filter runs entirely client-side over the cached set.
+- **Fork Ahead/Behind Tracking:** after the background fetch-all completes, forks are enriched with both ahead and behind commit counts in a separate lightweight pass (batched 5 at a time to avoid rate-limit issues).
+- **Stars Mode:** view and manage starred repositories (personal account only).
+- **Repository Actions:** view detailed info (`I`); open in browser (Enter/`O`, forks offer this repo or upstream); jump to PRs/Issues (`L`, with inline counts on every row); jump to upstream (`P`); create new repository (`Ctrl+N`); rename (`Ctrl+R`); transfer to another owner (`Shift+M`); copy URL (`C`, SSH/HTTPS); delete (`Del`/`Backspace`, two-step confirmation); archive/unarchive (`Ctrl+A`); change visibility (`Ctrl+V`); star/unstar (`Ctrl+S`); sync forks with upstream (`Ctrl+F`, ahead/behind counts and conflict detection).
+- **Bulk Operations** (`B` to enter Bulk Select mode): select multiple repos with `Space`, `X` unselects all; bulk actions reuse global shortcuts (`Ctrl+S` star/unstar, `Ctrl+A` archive/unarchive, `Ctrl+V` visibility, `Del` delete, `Shift+M` transfer); selections persist across search/filter/sort; confirmation flow with review → count prompt → verification code (delete/transfer); per-repo progress with partial-failure summary. (See [Usage](Usage.md) for the full flow.)
 
 ## User Interface & Experience
 
-- **Keyboard Navigation**: Full keyboard control (arrow keys, PageUp/Down, `Ctrl+G`/`G`)
-- **Display Density**: Toggle between compact/cozy/comfy spacing (`T`)
-- **Visual Indicators**: Fork status, private/internal/archived badges, language colors, visibility status
-- **Enterprise Support**: Full support for GitHub Enterprise with Internal repository visibility
-- **Organization Context**: Switch between personal and organization accounts with ENT badge for enterprise orgs
-- **Interactive Modals**: Sort selection, visibility filtering, organization switching, and visibility change dialogs
-- **Balanced Layout**: Repository items with spacing above and below for better visual hierarchy
-- **Loading States**: Contextual loading screens for sorting and refreshing operations
-- **Rate Limit Monitoring**: Live API usage display with visual warnings
-- **Improved Layout**: Balanced spacing above and below repository items for better visual hierarchy
+- **Keyboard Navigation:** full keyboard control (arrow keys, PageUp/Down, `Ctrl+G`/`G`).
+- **Display Density:** toggle compact/cozy/comfy spacing (`T`).
+- **Colour Themes:** four themes (Default, Ocean, Forest, Monochrome) cycled with `Shift+T`, persisted across restarts; theme-aware selected-row highlight tuned per theme for readable contrast.
+- **Visual Indicators:** fork status, private/internal/archived badges, language colours, visibility status.
+- **Enterprise Support:** full support for GitHub Enterprise with Internal repository visibility.
+- **Organisation Context:** switch between personal and organisation accounts with an ENT badge for enterprise orgs.
+- **Interactive Modals:** sort selection, visibility filtering, organisation switching, and visibility change dialogs.
+- **Loading States:** contextual loading screens for sorting and refreshing operations.
+- **Rate Limit Monitoring:** dual API rate limit display (GraphQL & REST) with real-time usage deltas and visual warnings.
 
 ## Technical Features
 
-- **Preference Persistence**: UI settings (sort, density, visibility filter, fork tracking) saved between sessions
-- **Server-side Filtering**: Visibility filtering performed at GitHub API level for accurate pagination
-- **Cross-platform**: Works on macOS, Linux, and Windows
-- **Secure Storage**: Token stored with proper file permissions (0600)
-- **Error Handling**: Graceful error recovery with retry mechanisms
-- **Performance**: Efficient GraphQL queries with virtualized rendering and server-side filtering
-- **Apollo Cache**: Built-in caching to reduce API calls and improve performance
+- **Preference Persistence:** UI settings (sort, density, visibility/archive/fork filters, fork commit tracking, colour theme) saved between sessions.
+- **Client-side Filtering & Sorting:** once the account is cached via background fetch-all, visibility/archive/fork filtering and all sorting run locally over the complete set — instant, with no server refetch.
+- **Cross-platform:** works on macOS, Linux, and Windows.
+- **Secure Storage:** token stored with proper file permissions (0600).
+- **Error Handling:** graceful error recovery with retry mechanisms.
+- **Performance:** light bulk GraphQL queries, virtualised rendering, and React.memo-optimised rows for instant keyboard navigation.
+- **Comprehensive Logging:** structured JSON logging with automatic rotation and configurable verbosity. (See [Logging](Logging.md).)
 
 ## Related Pages
 
-- [Usage](Usage.md) - How to use these features
-- [Token & Security](Token-and-Security.md) - Authentication details
-- [Development](Development.md) - Technical implementation details
-- [Roadmap](Roadmap.md) - Upcoming features
-
+- [Installation](Installation.md)
+- [Usage](Usage.md)
+- [Token & Security](Token-and-Security.md)
+- [Logging](Logging.md)
