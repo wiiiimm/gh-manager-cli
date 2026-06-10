@@ -67,7 +67,8 @@ gh-manager-cli
 - `dist/` - Built output (gitignored)
 - `.github/` - GitHub Actions workflows
 - `AGENTS.md` - Project architecture and development guide
-- `TODOs.md` - Project roadmap and task tracking
+- `wiki/` - User and developer documentation
+- `CHANGELOG.md` - Generated release history (shipped features)
 
 ## Making Changes
 
@@ -116,10 +117,9 @@ refactor: extract GitHub API client to separate module
 ### Before Submitting
 
 1. **Test thoroughly** - Ensure your changes work across different terminals
-2. **Update documentation** - Update AGENTS.md if changing architecture
-3. **Check TODOs.md** - Mark relevant items as complete
-4. **Follow code standards** - Ensure TypeScript strict mode compliance
-5. **Test terminal compatibility** - Verify in multiple terminal apps
+2. **Update documentation** - Update AGENTS.md if changing architecture, and the relevant `wiki/` pages for user-facing changes
+3. **Follow code standards** - Ensure TypeScript strict mode compliance
+4. **Test terminal compatibility** - Verify in multiple terminal apps
 
 ### Pull Request Process
 
@@ -177,14 +177,14 @@ Currently, the project relies primarily on manual testing. Automated testing con
 
 - **AGENTS.md** - For architectural changes or new development patterns
 - **README.md** - For user-facing changes or installation updates
-- **TODOs.md** - Mark completed items, add new planned features
+- **wiki/** - For detailed feature, usage, and development documentation
 - **CONTRIBUTING.md** - For process or guideline changes
 
 ### Documentation Standards
 
-- Keep README concise, point to detailed docs
+- Keep README concise, point to the detailed docs in `wiki/`
 - Use AGENTS.md for comprehensive technical documentation
-- Maintain TODOs.md as the single source of truth for roadmap
+- Track shipped work via `CHANGELOG.md`; planned work is driven by [GitHub Issues](https://github.com/wiiiimm/gh-manager-cli/issues)
 - Include code examples where helpful
 
 ## Issue Guidelines
@@ -220,8 +220,7 @@ Include:
 - [ ] Commit messages follow conventional format
 - [ ] Code follows TypeScript strict mode
 - [ ] Changes tested in multiple terminals
-- [ ] Documentation updated if needed
-- [ ] TODOs.md updated if applicable
+- [ ] Documentation updated if needed (AGENTS.md / `wiki/`)
 - [ ] No merge conflicts
 
 ### Review Process
@@ -263,8 +262,8 @@ Releases are automated via semantic-release:
 ### Getting Help
 
 - Check [AGENTS.md](./AGENTS.md) for technical details
-- Review [TODOs.md](./TODOs.md) for planned work
-- Open an issue for questions or discussions
+- Browse the [wiki](./wiki/README.md) for feature, usage, and development docs
+- Open an issue for questions, discussions, or feature requests
 - Review existing issues and pull requests
 
 ## Recognition
