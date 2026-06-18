@@ -233,7 +233,7 @@ Bulk actions reuse the same global shortcuts as single-repo mode and require at 
 ## Setup & Usage
 
 Prereqs:
-- Node.js >= 18
+- Node.js >= 20
 - pnpm
 
 Install deps and build:
