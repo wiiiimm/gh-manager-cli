@@ -134,10 +134,10 @@ jobs:
         run: pnpm run build
 
       - name: Install pkg globally
-        run: npm install -g pkg
+        run: npm install -g @yao-pkg/pkg
 
       - name: Create binary
-        run: pkg dist/index.js --targets node18-${{ matrix.platform }}-${{ matrix.arch }} --output gh-manager-cli-${{ matrix.platform }}-${{ matrix.arch }}${{ matrix.ext }}
+        run: pkg dist/index.js --targets node20-${{ matrix.platform }}-${{ matrix.arch }} --output gh-manager-cli-${{ matrix.platform }}-${{ matrix.arch }}${{ matrix.ext }}
 
       - name: Upload build artifacts
         uses: actions/upload-artifact@v4
