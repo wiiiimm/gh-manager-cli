@@ -1,3 +1,10 @@
+## [1.53.1](https://github.com/wiiiimm/gh-manager-cli/compare/v1.53.0...v1.53.1) (2026-08-13)
+
+
+### Bug Fixes
+
+* package standalone binaries against node22 (GMC-52) [semantic pr title] ([#152](https://github.com/wiiiimm/gh-manager-cli/issues/152)) ([a6be217](https://github.com/wiiiimm/gh-manager-cli/commit/a6be21738cd11ab4cd0b70cf51aaa4ca664991a6))
+
 # [1.53.0](https://github.com/wiiiimm/gh-manager-cli/compare/v1.52.5...v1.53.0) (2026-08-13)
 
 
