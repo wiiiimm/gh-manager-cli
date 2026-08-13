@@ -128,10 +128,11 @@ describe('RepoListFooter', () => {
     });
 
     it('switches to a compact wording that still fits one row when narrow', () => {
+      // Normal full line is 63 chars (needs ≤61 usable cols); bulk full is 53.
       const normal = collapsedFooterHint(false, 60);
-      const bulk = collapsedFooterHint(true, 60);
+      const bulk = collapsedFooterHint(true, 50);
       expect(normal.length).toBeLessThanOrEqual(58);
-      expect(bulk.length).toBeLessThanOrEqual(58);
+      expect(bulk.length).toBeLessThanOrEqual(48);
       expect(normal).toContain('H More keys');
       expect(bulk).toContain('H More keys');
       expect(normal).not.toContain('Navigate');
