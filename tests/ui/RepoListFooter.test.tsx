@@ -1,7 +1,7 @@
 import React from 'react';
 import { describe, it, expect } from 'vitest';
 import { render } from 'ink-testing-library';
-import RepoListFooter from '../../src/ui/components/repo/RepoListFooter';
+import RepoListFooter, { collapsedFooterHint } from '../../src/ui/components/repo/RepoListFooter';
 import { getTheme } from '../../src/config/themes';
 import type { OwnerContext } from '../../src/config/config';
 
@@ -105,6 +105,37 @@ describe('RepoListFooter', () => {
       expect(out).not.toContain('Q Quit');
       expect(out).not.toContain('Ctrl+S star');
       unmount();
+    });
+
+    it('stays on one rendered hint line at ≤60 columns (no wrap)', () => {
+      const { lastFrame, unmount } = render(
+        <RepoListFooter {...baseProps} terminalWidth={60} footerCollapsed={true} />,
+      );
+      const lines = (lastFrame() || '').split('\n').filter((l) => l.trim().length > 0);
+      expect(lines).toHaveLength(1);
+      expect(lines[0]).toContain('H More keys');
+      expect(collapsedFooterHint(false, 60).length).toBeLessThanOrEqual(58);
+      unmount();
+    });
+
+    it('uses the full collapsed wording when the terminal is wide enough', () => {
+      expect(collapsedFooterHint(false, 120)).toBe(
+        '↑↓ Navigate • / Search • ⏎ Open • B Bulk • H More keys • Q Quit',
+      );
+      expect(collapsedFooterHint(true, 120)).toBe(
+        '↑↓ Navigate • Space Select • B/Esc Exit • H More keys',
+      );
+    });
+
+    it('switches to a compact wording that still fits one row when narrow', () => {
+      const normal = collapsedFooterHint(false, 60);
+      const bulk = collapsedFooterHint(true, 60);
+      expect(normal.length).toBeLessThanOrEqual(58);
+      expect(bulk.length).toBeLessThanOrEqual(58);
+      expect(normal).toContain('H More keys');
+      expect(bulk).toContain('H More keys');
+      expect(normal).not.toContain('Navigate');
+      expect(bulk).not.toContain('Navigate');
     });
   });
 

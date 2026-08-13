@@ -2,6 +2,7 @@ import React from 'react';
 import { Box, Text } from 'ink';
 import type { Theme } from '../../../config/themes';
 import type { OwnerContext } from '../../../config/config';
+import { truncate } from '../../../lib/utils';
 
 export interface RepoListFooterProps {
   terminalWidth: number;
@@ -19,6 +20,26 @@ export interface RepoListFooterProps {
   hiddenSelectedCount: number;
   /** When true, render a single hint line (GMC-50). */
   footerCollapsed: boolean;
+}
+
+/**
+ * Collapsed footer hint that always fits one terminal row (GMC-50).
+ *
+ * `computeListLayout` reserves a single hint line when collapsed, so wrapping
+ * on narrow terminals would make the list overestimate available height.
+ * Prefer the full wording when it fits; otherwise a compact variant; always
+ * hard-truncate to the usable width (`terminalWidth` minus `paddingX={1}`).
+ */
+export function collapsedFooterHint(multiSelectMode: boolean, terminalWidth: number): string {
+  const full = multiSelectMode
+    ? '↑↓ Navigate • Space Select • B/Esc Exit • H More keys'
+    : '↑↓ Navigate • / Search • ⏎ Open • B Bulk • H More keys • Q Quit';
+  const compact = multiSelectMode
+    ? '↑↓ • Space • B/Esc Exit • H More keys'
+    : '↑↓ • / • ⏎ • B Bulk • H More keys • Q';
+  const maxLen = Math.max(1, terminalWidth - 2);
+  const preferred = full.length <= maxLen ? full : compact;
+  return truncate(preferred, maxLen);
 }
 
 /**
@@ -43,9 +64,7 @@ export default function RepoListFooter({
   const hintDim = modalOpen ? true : undefined;
 
   if (footerCollapsed) {
-    const collapsedLine = multiSelectMode
-      ? '↑↓ Navigate • Space Select • B/Esc Exit • H More keys'
-      : '↑↓ Navigate • / Search • ⏎ Open • B Bulk • H More keys • Q Quit';
+    const collapsedLine = collapsedFooterHint(multiSelectMode, terminalWidth);
     return (
       <Box marginTop={1} paddingX={1} flexDirection="column">
         <Box
@@ -57,6 +76,7 @@ export default function RepoListFooter({
             color={multiSelectMode ? 'black' : hintColor}
             bold={multiSelectMode || undefined}
             dimColor={hintDim}
+            wrap="truncate"
           >
             {collapsedLine}
           </Text>
