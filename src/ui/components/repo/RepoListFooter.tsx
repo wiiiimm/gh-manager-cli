@@ -64,13 +64,18 @@ export default function RepoListFooter({
           K Cache Info • W Org Switch{!starsMode ? ' • Ctrl+N New Repo' : ''} • Del/Backspace Delete • Ctrl+L Logout • Q Quit
         </Text>
       </Box>
-      {/* Multi-select hint (shown when not in modal). Inactive uses the same
-          theme.muted / dim-only-when-modal styling as the lines above (GMC-51);
-          active uses theme.primary so the emphasis stays on-theme. */}
+      {/* Multi-select hint (shown when not in modal). Inactive matches the
+          other reminder lines (theme.muted). Active inverts theme.primary
+          onto the whole row so Bulk Select reads as "on" (GMC-51). */}
       {!modalOpen && (
-        <Box width={terminalWidth} justifyContent="center">
+        <Box
+          width={terminalWidth}
+          justifyContent="center"
+          backgroundColor={multiSelectMode ? theme.primary : undefined}
+        >
           <Text
-            color={multiSelectMode ? theme.primary : theme.muted}
+            color={multiSelectMode ? 'black' : theme.muted}
+            bold={multiSelectMode || undefined}
             dimColor={modalOpen ? true : undefined}
           >
             {multiSelectMode

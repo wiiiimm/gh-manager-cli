@@ -98,13 +98,16 @@ describe('RepoListFooter', () => {
     unmount();
   });
 
-  it('emphasises the active Bulk Select hint with the theme primary colour', () => {
+  it('inverts the active Bulk Select row onto the theme primary colour (GMC-51)', () => {
     const { lastFrame, unmount } = render(
       <RepoListFooter {...baseProps} theme={getTheme('forest')} multiSelectMode={true} />,
     );
-    const bulkLine = (lastFrame() || '').split('\n').find(l => l.includes('B/Esc exit bulk select')) || '';
-    // Forest primary is 'green' (32), not the old hardcoded cyan (36).
-    expect(bulkLine).toMatch(/\x1b\[32m/);
+    const out = lastFrame() || '';
+    const bulkLine = out.split('\n').find(l => l.includes('B/Esc exit bulk select')) || '';
+    // Forest primary is green: background 42 + black foreground 30.
+    // Must not keep the old hardcoded cyan (36) text-only treatment.
+    expect(bulkLine).toMatch(/\x1b\[42m/);
+    expect(bulkLine).toMatch(/\x1b\[30m/);
     expect(bulkLine).not.toMatch(/\x1b\[36m/);
     unmount();
   });
