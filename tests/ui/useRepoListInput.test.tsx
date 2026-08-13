@@ -13,6 +13,11 @@ vi.mock('../../src/lib/logger', () => ({
   logger: { info: vi.fn(), error: vi.fn(), warn: vi.fn(), debug: vi.fn() },
 }));
 
+vi.mock('../../src/config/config', async () => {
+  const actual = await vi.importActual<typeof import('../../src/config/config')>('../../src/config/config');
+  return { ...actual, storeUIPrefs: vi.fn() };
+});
+
 vi.mock('../../src/services/github', () => ({
   getRepositoryFromCache: vi.fn().mockResolvedValue(null),
   inspectCacheStatus: vi.fn().mockResolvedValue(undefined),
@@ -20,6 +25,7 @@ vi.mock('../../src/services/github', () => ({
 }));
 
 import { useRepoListInput, type RepoListInputParams } from '../../src/ui/hooks/useRepoListInput';
+import { storeUIPrefs } from '../../src/config/config';
 
 const repo = (slug: string, over: Record<string, unknown> = {}) => ({
   id: `R_${slug}`,
@@ -63,6 +69,8 @@ function makeParams(overrides: Partial<RepoListInputParams> = {}): RepoListInput
     setThemeToast: vi.fn(),
     themeToastTimerRef: { current: null },
     setDensity: vi.fn(),
+    footerCollapsed: true,
+    setFooterCollapsed: vi.fn(),
     multiSelectMode: false,
     setMultiSelectMode: vi.fn(),
     selectedRepos: new Map(),
@@ -185,6 +193,7 @@ describe('useRepoListInput', () => {
     const mockUseInput = (ink as any).useInput;
     mockUseInput.mockReset();
     mockUseInput.mockImplementation((cb: any) => { handler = cb; });
+    vi.mocked(storeUIPrefs).mockClear();
   });
 
   const press = (input: string, key: Record<string, boolean> = {}) => handler(input, key);
@@ -298,6 +307,50 @@ describe('useRepoListInput', () => {
     );
     press('x', {});
     expect(setBulkProgressOpen).toHaveBeenCalledWith(false);
+    unmount();
+  });
+
+  it('H toggles the footer collapse and persists the preference (GMC-50)', () => {
+    const setFooterCollapsed = vi.fn();
+    const { unmount } = render(
+      <Harness params={makeParams({ footerCollapsed: true, setFooterCollapsed })} />,
+    );
+    press('h', {});
+    expect(setFooterCollapsed).toHaveBeenCalledWith(false);
+    expect(storeUIPrefs).toHaveBeenCalledWith({ footerCollapsed: false });
+    unmount();
+  });
+
+  it('H still toggles the footer while in Bulk Select mode', () => {
+    const setFooterCollapsed = vi.fn();
+    const { unmount } = render(
+      <Harness params={makeParams({ multiSelectMode: true, footerCollapsed: false, setFooterCollapsed })} />,
+    );
+    press('h', {});
+    expect(setFooterCollapsed).toHaveBeenCalledWith(true);
+    expect(storeUIPrefs).toHaveBeenCalledWith({ footerCollapsed: true });
+    unmount();
+  });
+
+  it('ignores H while a modal is open', () => {
+    const setFooterCollapsed = vi.fn();
+    const { unmount } = render(
+      <Harness params={makeParams({ deleteMode: true, setFooterCollapsed })} />,
+    );
+    press('h', {});
+    expect(setFooterCollapsed).not.toHaveBeenCalled();
+    expect(storeUIPrefs).not.toHaveBeenCalled();
+    unmount();
+  });
+
+  it('ignores H while the search input owns keyboard input', () => {
+    const setFooterCollapsed = vi.fn();
+    const { unmount } = render(
+      <Harness params={makeParams({ filterMode: true, setFooterCollapsed })} />,
+    );
+    press('h', {});
+    expect(setFooterCollapsed).not.toHaveBeenCalled();
+    expect(storeUIPrefs).not.toHaveBeenCalled();
     unmount();
   });
 });

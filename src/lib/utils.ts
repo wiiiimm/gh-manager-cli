@@ -134,23 +134,26 @@ export interface ListLayout {
  * Compute the fixed layout heights for the repository list view (GMC-28).
  *
  * Behaviour-preserving extraction of the inline math previously in
- * `RepoList.tsx`. Header (2), footer (4) and container padding (2) are fixed;
- * the filter bar and bulk-select bar each reserve 2 extra lines when active,
- * plus a constant 2-line allowance. Both `contentHeight` and `listHeight` are
- * clamped to a minimum of 1 so tiny terminals never produce a non-positive
- * height.
+ * `RepoList.tsx`. Header (2) and container padding (2) are fixed. The footer
+ * reserves 4 lines when expanded and 2 when collapsed (GMC-50: one hint line
+ * plus a top margin). The filter bar and bulk-select bar each reserve 2 extra
+ * lines when active, plus a constant 2-line allowance. Both `contentHeight`
+ * and `listHeight` are clamped to a minimum of 1 so tiny terminals never
+ * produce a non-positive height.
  */
 export function computeListLayout(input: {
   columns?: number;
   maxVisibleRows?: number;
   filterMode: boolean;
   multiSelectMode: boolean;
+  /** One-line help footer (GMC-50). Defaults to expanded (legacy height). */
+  footerCollapsed?: boolean;
 }): ListLayout {
-  const { columns, maxVisibleRows, filterMode, multiSelectMode } = input;
+  const { columns, maxVisibleRows, filterMode, multiSelectMode, footerCollapsed = false } = input;
   const terminalWidth = columns ?? 80;
   const availableHeight = maxVisibleRows ?? 20;
   const headerHeight = 2; // Header bar + margin
-  const footerHeight = 4; // Footer with border + margin (flexible height)
+  const footerHeight = footerCollapsed ? 2 : 4; // Collapsed: margin + 1 hint line
   const containerPadding = 2; // Top and bottom padding inside container
   const contentHeight = Math.max(1, availableHeight - headerHeight - footerHeight - containerPadding);
   const listHeight = Math.max(1, contentHeight - (filterMode ? 2 : 0) - (multiSelectMode ? 2 : 0) - 2);

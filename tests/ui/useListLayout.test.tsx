@@ -12,15 +12,17 @@ function Harness({
   maxVisibleRows,
   filterMode,
   multiSelectMode,
+  footerCollapsed,
   sink,
 }: {
   columns?: number;
   maxVisibleRows?: number;
   filterMode: boolean;
   multiSelectMode: boolean;
+  footerCollapsed?: boolean;
   sink: ListLayout[];
 }) {
-  const layout = useListLayout(columns, maxVisibleRows, filterMode, multiSelectMode);
+  const layout = useListLayout(columns, maxVisibleRows, filterMode, multiSelectMode, footerCollapsed);
   sink.push(layout);
   return <Text>{`${layout.terminalWidth}x${layout.listHeight}`}</Text>;
 }
@@ -58,5 +60,27 @@ describe('useListLayout', () => {
     const after = sink[sink.length - 1];
     expect(after).not.toBe(before);
     expect(after.listHeight).toBe(before.listHeight - 2);
+  });
+
+  it('recomputes a taller list when the footer collapses (GMC-50)', () => {
+    const sink: ListLayout[] = [];
+    const { rerender, unmount } = render(
+      <Harness columns={100} maxVisibleRows={30} filterMode={false} multiSelectMode={false} sink={sink} />,
+    );
+    const expanded = sink[sink.length - 1];
+    rerender(
+      <Harness
+        columns={100}
+        maxVisibleRows={30}
+        filterMode={false}
+        multiSelectMode={false}
+        footerCollapsed={true}
+        sink={sink}
+      />,
+    );
+    const collapsed = sink[sink.length - 1];
+    expect(collapsed).not.toBe(expanded);
+    expect(collapsed.listHeight).toBe(expanded.listHeight + 2);
+    unmount();
   });
 });

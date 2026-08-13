@@ -28,6 +28,7 @@ See also: [Features](Features.md) · [Token & Security](Token-and-Security.md) �
 - **Fork Status**: always enabled — shows commits ahead and behind upstream once enrichment completes. Unrelated to the fork view filter.
 - **View Filters**: `V` opens the consolidated View Filters modal with three grouped sections — Visibility (All / Public / Private[/Internal for enterprise]), Archive (All / Unarchived / Archived), and Fork (All / Forks only / Non-forks only). Move between groups with ↑↓, change a group's value live with ←→ (radio-style), then Enter (or `Y`/Apply) to apply and close, Esc/`C` to cancel. The Visibility group is hidden in stars mode; Archive and Fork remain available. All three selections persist across restarts, and reset to All when you switch organisation or scope (own ↔ starred).
 - **Stars Mode**: `Shift+S` (personal account only) toggles between your own repos and your starred repos. The footer hint shows `Shift+S Starred` in normal mode and `Shift+S My Repos` in starred mode.
+- **Help footer**: `H` toggles the key-reminder footer between a single line of important shortcuts (including `H More keys`) and the full set. Collapsed is the default so more repositories fit on screen; the preference persists across restarts. Works in Bulk Select mode too.
 
 ## Navigation & Account
 
@@ -56,7 +57,7 @@ See also: [Features](Features.md) · [Token & Security](Token-and-Security.md) �
 ## Bulk Operations (Bulk Select mode)
 
 - `B` enters/exits Bulk Select mode (exits and clears the selection). `Esc` also exits and clears.
-- Within bulk mode every other shortcut is disabled; only navigation + these work: `Space` toggles selection on the cursor row; `X` unselects all (stays in bulk mode); navigation (arrows, PageUp/Down, `Ctrl+G`, `G`) still works.
+- Within bulk mode every other shortcut is disabled; only navigation + these work: `Space` toggles selection on the cursor row; `X` unselects all (stays in bulk mode); navigation (arrows, PageUp/Down, `Ctrl+G`, `G`) still works; `H` still toggles the help footer.
 - Bulk actions reuse the global shortcuts: `Ctrl+S` star/unstar, `Ctrl+A` archive/unarchive, `Ctrl+V` visibility, `Del`/`Backspace` delete, `Shift+M` transfer (move) to another owner/org. Each requires at least one selected repo.
 - Star and archive are toggles: if all selected share the same state, the opposite is applied directly; if the selection is mixed, an intent modal asks the explicit target. Visibility always shows a target picker (Public / Private / Internal — Internal only for enterprise orgs). Transfer opens a destination picker (personal account + visible orgs, plus a manual-entry fallback).
 - Selections persist across search, filter, and sort changes (stored as full node objects by id). They are cleared on org/scope switch and stars mode toggle.

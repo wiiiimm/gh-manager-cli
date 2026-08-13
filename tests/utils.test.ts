@@ -339,4 +339,17 @@ describe('computeListLayout', () => {
     expect(layout.contentHeight).toBe(1); // max(1, 5 - 8)
     expect(layout.listHeight).toBe(1); // max(1, 1 - 2 - 2 - 2)
   });
+
+  it('grows listHeight when the footer is collapsed (GMC-50)', () => {
+    const expanded = computeListLayout({ maxVisibleRows: 40, filterMode: false, multiSelectMode: false });
+    const collapsed = computeListLayout({
+      maxVisibleRows: 40,
+      filterMode: false,
+      multiSelectMode: false,
+      footerCollapsed: true,
+    });
+    // Collapsed footer reserves 2 lines instead of 4, so the list gains 2 rows.
+    expect(collapsed.listHeight).toBe(expanded.listHeight + 2);
+    expect(collapsed.contentHeight).toBe(expanded.contentHeight + 2);
+  });
 });

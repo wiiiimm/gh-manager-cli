@@ -1,7 +1,8 @@
 import React from 'react';
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { render } from 'ink-testing-library';
-import RepoListFooter from '../../src/ui/components/repo/RepoListFooter';
+import chalk from 'chalk';
+import RepoListFooter, { collapsedFooterHint } from '../../src/ui/components/repo/RepoListFooter';
 import { getTheme } from '../../src/config/themes';
 import type { OwnerContext } from '../../src/config/config';
 
@@ -17,9 +18,23 @@ const baseProps = {
   multiSelectMode: false,
   selectedCount: 0,
   hiddenSelectedCount: 0,
+  footerCollapsed: false,
 };
 
 describe('RepoListFooter', () => {
+  let prevChalkLevel: number;
+
+  beforeEach(() => {
+    // Force ANSI so colour assertions cannot pass vacuously when NO_COLOR is set
+    // or stdout is not a TTY (GMC-51 / CodeRabbit).
+    prevChalkLevel = chalk.level;
+    chalk.level = 1;
+  });
+
+  afterEach(() => {
+    chalk.level = prevChalkLevel;
+  });
+
   it('renders the core navigation, search and sponsor hint lines', () => {
     const { lastFrame, unmount } = render(<RepoListFooter {...baseProps} />);
     const out = lastFrame() || '';
@@ -69,6 +84,114 @@ describe('RepoListFooter', () => {
       <RepoListFooter {...baseProps} multiSelectMode={true} selectedCount={2} hiddenSelectedCount={1} />,
     );
     expect(lastFrame() || '').toContain('(2 selected, 1 not shown in search)');
+    unmount();
+  });
+
+  it('shows the collapse toggle on the first expanded hint line', () => {
+    const { lastFrame, unmount } = render(<RepoListFooter {...baseProps} />);
+    expect(lastFrame() || '').toContain('H Fewer keys');
+    unmount();
+  });
+
+  describe('collapsed (GMC-50)', () => {
+    it('renders a single hint line that includes the toggle key', () => {
+      const { lastFrame, unmount } = render(<RepoListFooter {...baseProps} footerCollapsed={true} />);
+      const out = lastFrame() || '';
+      expect(out).toContain('↑↓ Navigate');
+      expect(out).toContain('/ Search');
+      expect(out).toContain('H More keys');
+      expect(out).toContain('Q Quit');
+      expect(out).not.toContain('S Sort • D Direction');
+      expect(out).not.toContain('H Fewer keys');
+      expect(out).not.toContain('github.com/sponsors/wiiiimm');
+      expect(out).not.toContain('B Bulk Select mode');
+      unmount();
+    });
+
+    it('shows bulk-relevant keys (not the full action dump) in Bulk Select mode', () => {
+      const { lastFrame, unmount } = render(
+        <RepoListFooter {...baseProps} footerCollapsed={true} multiSelectMode={true} selectedCount={2} />,
+      );
+      const out = lastFrame() || '';
+      expect(out).toContain('Space Select');
+      expect(out).toContain('B/Esc Exit');
+      expect(out).toContain('H More keys');
+      expect(out).not.toContain('Q Quit');
+      expect(out).not.toContain('Ctrl+S star');
+      unmount();
+    });
+
+    it('stays on one rendered hint line at ≤60 columns (no wrap)', () => {
+      const { lastFrame, unmount } = render(
+        <RepoListFooter {...baseProps} terminalWidth={60} footerCollapsed={true} />,
+      );
+      const lines = (lastFrame() || '').split('\n').filter((l) => l.trim().length > 0);
+      expect(lines).toHaveLength(1);
+      expect(lines[0]).toContain('H More keys');
+      expect(collapsedFooterHint(false, 60).length).toBeLessThanOrEqual(58);
+      unmount();
+    });
+
+    it('uses the full collapsed wording when the terminal is wide enough', () => {
+      expect(collapsedFooterHint(false, 120)).toBe(
+        '↑↓ Navigate • / Search • ⏎ Open • B Bulk • H More keys • Q Quit',
+      );
+      expect(collapsedFooterHint(true, 120)).toBe(
+        '↑↓ Navigate • Space Select • B/Esc Exit • H More keys',
+      );
+    });
+
+    it('switches to a compact wording that still fits one row when narrow', () => {
+      // Normal full line is 63 chars (needs ≤61 usable cols); bulk full is 53.
+      const normal = collapsedFooterHint(false, 60);
+      const bulk = collapsedFooterHint(true, 50);
+      expect(normal.length).toBeLessThanOrEqual(58);
+      expect(bulk.length).toBeLessThanOrEqual(48);
+      expect(normal).toContain('H More keys');
+      expect(bulk).toContain('H More keys');
+      expect(normal).not.toContain('Navigate');
+      expect(bulk).not.toContain('Navigate');
+    });
+  });
+
+  it('styles the inactive Bulk Select hint like the other reminder lines (GMC-51)', () => {
+    const { lastFrame, unmount } = render(<RepoListFooter {...baseProps} />);
+    const out = lastFrame() || '';
+    const lineOf = (needle: string) => out.split('\n').find(l => l.includes(needle)) || '';
+    const navLine = lineOf('↑↓ Navigate');
+    const bulkLine = lineOf('B Bulk Select mode');
+    // Must not apply Ink dim (SGR 2) — that was what made this row look darker.
+    expect(bulkLine).not.toMatch(/\x1b\[2m/);
+    const colour = (line: string) => line.match(/\x1b\[[0-9;]*m/)?.[0];
+    const bulkColour = colour(bulkLine);
+    const navColour = colour(navLine);
+    expect(bulkColour).toBeDefined();
+    expect(navColour).toBeDefined();
+    expect(bulkColour).toBe(navColour);
+    unmount();
+  });
+
+  it('uses the theme mute colour (not hardcoded gray) on Ocean (GMC-51)', () => {
+    const { lastFrame, unmount } = render(
+      <RepoListFooter {...baseProps} theme={getTheme('ocean')} />,
+    );
+    const bulkLine = (lastFrame() || '').split('\n').find(l => l.includes('B Bulk Select mode')) || '';
+    // Ocean muted is 'blue' (34); the old hardcoded gray was 90.
+    expect(bulkLine).toMatch(/\x1b\[34m/);
+    expect(bulkLine).not.toMatch(/\x1b\[90m/);
+    expect(bulkLine).not.toMatch(/\x1b\[2m/);
+    unmount();
+  });
+
+  it('inverts the active Bulk Select row onto the theme primary colour (GMC-51)', () => {
+    const { lastFrame, unmount } = render(
+      <RepoListFooter {...baseProps} theme={getTheme('forest')} multiSelectMode={true} />,
+    );
+    const bulkLine = (lastFrame() || '').split('\n').find(l => l.includes('B/Esc exit bulk select')) || '';
+    // Forest primary is green: background 42 + black foreground 30.
+    expect(bulkLine).toMatch(/\x1b\[42m/);
+    expect(bulkLine).toMatch(/\x1b\[30m/);
+    expect(bulkLine).not.toMatch(/\x1b\[36m/);
     unmount();
   });
 });

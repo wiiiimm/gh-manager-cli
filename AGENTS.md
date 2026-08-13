@@ -39,7 +39,7 @@ gh-manager-cli/
 │   │   ├── hooks/            # RepoList logic extracted into focused hooks (GMC-28/GMC-39):
 │   │   │   ├── useTheme.ts          # Colour-theme hook (GMC-22)
 │   │   │   ├── useVirtualList.ts    # Windowing memo around the cursor
-│   │   │   ├── useListLayout.ts     # Terminal-width + list-height derivation
+│   │   │   ├── useListLayout.ts     # Terminal-width + list-height derivation (footer collapse GMC-50)
 │   │   │   ├── useForkEnrichment.ts # Batched fork ahead/behind enrichment effect (SWR-362)
 │   │   │   ├── useRefreshTick.ts    # Whole-minute tick for relative dates (SWR-377)
 │   │   │   ├── useBulkSelect.ts     # Bulk Select mode + selection map + helpers
@@ -120,7 +120,7 @@ gh-manager-cli/
 - Repository actions: delete, archive/unarchive, change visibility, sync forks
 - Organization and Enterprise GitHub support
 - Modal-based UI for sorting, filtering, and actions
-- Persistent UI preferences (sort, density, visibility filter, fork tracking, colour theme)
+- Persistent UI preferences (sort, density, visibility filter, fork tracking, colour theme, footer collapse)
 - Real-time rate limit monitoring for GraphQL and REST APIs
 
 ### Planned Enhancements
@@ -190,6 +190,7 @@ The project has no formal roadmap or task board — feature work is driven by us
 - `Shift+S`: toggle between own repos and starred repos (personal context only)
   - Footer hint shows `Shift+S Starred` in normal mode and `Shift+S My Repos` in starred mode; hidden in org context
 - `R`: refresh list (purges cache)
+- `H`: toggle the help footer between a single line of important keys (including `H More keys`) and the full reminder set; persists across restarts. Default is collapsed so the list has more room.
 - `Q`: quit (Esc cancels an open modal or exits search mode; does not quit)
 
 ### Bulk Select Mode
@@ -207,6 +208,7 @@ The project has no formal roadmap or task board — feature work is driven by us
 - `Shift+M`: bulk transfer (move) the selected repos to another owner/org
 - `Del` / `Backspace`: bulk delete the selected repos
 - Navigation (arrows, PageUp/Down, `Ctrl+G`, `G`) still works
+- `H`: toggle the help footer (same as outside bulk mode)
 
 Bulk actions reuse the same global shortcuts as single-repo mode and require at least one selected repo. There is no separate action-picker modal.
 
