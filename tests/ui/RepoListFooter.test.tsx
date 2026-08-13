@@ -71,4 +71,41 @@ describe('RepoListFooter', () => {
     expect(lastFrame() || '').toContain('(2 selected, 1 not shown in search)');
     unmount();
   });
+
+  it('styles the inactive Bulk Select hint like the other reminder lines (GMC-51)', () => {
+    const { lastFrame, unmount } = render(<RepoListFooter {...baseProps} />);
+    const out = lastFrame() || '';
+    const lineOf = (needle: string) => out.split('\n').find(l => l.includes(needle)) || '';
+    const navLine = lineOf('↑↓ Navigate');
+    const bulkLine = lineOf('B Bulk Select mode');
+    // Must not apply Ink dim (SGR 2) — that was what made this row look darker.
+    expect(bulkLine).not.toMatch(/\x1b\[2m/);
+    // Same colour open sequence as the navigation hint (theme.muted).
+    const colour = (line: string) => line.match(/\x1b\[[0-9;]*m/)?.[0];
+    expect(colour(bulkLine)).toBe(colour(navLine));
+    unmount();
+  });
+
+  it('uses the theme mute colour (not hardcoded gray) on Ocean (GMC-51)', () => {
+    const { lastFrame, unmount } = render(
+      <RepoListFooter {...baseProps} theme={getTheme('ocean')} />,
+    );
+    const bulkLine = (lastFrame() || '').split('\n').find(l => l.includes('B Bulk Select mode')) || '';
+    // Ocean muted is 'blue' (34); the old hardcoded gray was 90.
+    expect(bulkLine).toMatch(/\x1b\[34m/);
+    expect(bulkLine).not.toMatch(/\x1b\[90m/);
+    expect(bulkLine).not.toMatch(/\x1b\[2m/);
+    unmount();
+  });
+
+  it('emphasises the active Bulk Select hint with the theme primary colour', () => {
+    const { lastFrame, unmount } = render(
+      <RepoListFooter {...baseProps} theme={getTheme('forest')} multiSelectMode={true} />,
+    );
+    const bulkLine = (lastFrame() || '').split('\n').find(l => l.includes('B/Esc exit bulk select')) || '';
+    // Forest primary is 'green' (32), not the old hardcoded cyan (36).
+    expect(bulkLine).toMatch(/\x1b\[32m/);
+    expect(bulkLine).not.toMatch(/\x1b\[36m/);
+    unmount();
+  });
 });

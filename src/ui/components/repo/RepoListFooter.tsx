@@ -64,10 +64,15 @@ export default function RepoListFooter({
           K Cache Info • W Org Switch{!starsMode ? ' • Ctrl+N New Repo' : ''} • Del/Backspace Delete • Ctrl+L Logout • Q Quit
         </Text>
       </Box>
-      {/* Multi-select hint (shown when not in modal) */}
+      {/* Multi-select hint (shown when not in modal). Inactive uses the same
+          theme.muted / dim-only-when-modal styling as the lines above (GMC-51);
+          active uses theme.primary so the emphasis stays on-theme. */}
       {!modalOpen && (
         <Box width={terminalWidth} justifyContent="center">
-          <Text color={multiSelectMode ? 'cyan' : 'gray'} dimColor={!multiSelectMode}>
+          <Text
+            color={multiSelectMode ? theme.primary : theme.muted}
+            dimColor={modalOpen ? true : undefined}
+          >
             {multiSelectMode
               ? (selectedCount > 0
                   ? `Space select • X unselect all • Ctrl+S star • Ctrl+A archive • Ctrl+V visibility${starsMode ? '' : ' • Shift+M transfer'} • Del delete • B/Esc exit (${selectedCount} selected${hiddenSelectedCount > 0 ? `, ${hiddenSelectedCount} not shown in search` : ''})`
