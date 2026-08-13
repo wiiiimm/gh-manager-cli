@@ -1,3 +1,10 @@
+# [1.53.0](https://github.com/wiiiimm/gh-manager-cli/compare/v1.52.5...v1.53.0) (2026-08-13)
+
+
+### Features
+
+* toggle footer key reminders and invert bulk-select hint (GMC-50, GMC-51) ([#151](https://github.com/wiiiimm/gh-manager-cli/issues/151)) ([fe96ed4](https://github.com/wiiiimm/gh-manager-cli/commit/fe96ed49147cb531487ba570b2644e237827c03a)), closes [hi#value](https://github.com/hi/issues/value) [#150](https://github.com/wiiiimm/gh-manager-cli/issues/150)
+
 ## [1.52.5](https://github.com/wiiiimm/gh-manager-cli/compare/v1.52.4...v1.52.5) (2026-06-10)
 
 
