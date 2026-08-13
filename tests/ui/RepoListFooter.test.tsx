@@ -1,6 +1,7 @@
 import React from 'react';
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { render } from 'ink-testing-library';
+import chalk from 'chalk';
 import RepoListFooter, { collapsedFooterHint } from '../../src/ui/components/repo/RepoListFooter';
 import { getTheme } from '../../src/config/themes';
 import type { OwnerContext } from '../../src/config/config';
@@ -21,6 +22,19 @@ const baseProps = {
 };
 
 describe('RepoListFooter', () => {
+  let prevChalkLevel: number;
+
+  beforeEach(() => {
+    // Force ANSI so colour assertions cannot pass vacuously when NO_COLOR is set
+    // or stdout is not a TTY (GMC-51 / CodeRabbit).
+    prevChalkLevel = chalk.level;
+    chalk.level = 1;
+  });
+
+  afterEach(() => {
+    chalk.level = prevChalkLevel;
+  });
+
   it('renders the core navigation, search and sponsor hint lines', () => {
     const { lastFrame, unmount } = render(<RepoListFooter {...baseProps} />);
     const out = lastFrame() || '';
@@ -149,7 +163,11 @@ describe('RepoListFooter', () => {
     // Must not apply Ink dim (SGR 2) — that was what made this row look darker.
     expect(bulkLine).not.toMatch(/\x1b\[2m/);
     const colour = (line: string) => line.match(/\x1b\[[0-9;]*m/)?.[0];
-    expect(colour(bulkLine)).toBe(colour(navLine));
+    const bulkColour = colour(bulkLine);
+    const navColour = colour(navLine);
+    expect(bulkColour).toBeDefined();
+    expect(navColour).toBeDefined();
+    expect(bulkColour).toBe(navColour);
     unmount();
   });
 

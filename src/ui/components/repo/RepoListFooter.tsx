@@ -1,9 +1,18 @@
 import React from 'react';
 import { Box, Text } from 'ink';
-import chalk from 'chalk';
+import chalk, { type ChalkInstance } from 'chalk';
 import type { Theme } from '../../../config/themes';
 import type { OwnerContext } from '../../../config/config';
 import { truncate } from '../../../lib/utils';
+
+function chalkFor(color: string): ChalkInstance {
+  return (chalk as unknown as Record<string, ChalkInstance | undefined>)[color] ?? chalk.white;
+}
+
+function styleHint(text: string, color: string, dim?: boolean): string {
+  const paint = dim ? chalkFor(color).dim : chalkFor(color);
+  return paint(text);
+}
 
 /** Invert onto the Bulk Select row: black/bold text; Box supplies the full-width primary background. */
 function invertBulkHint(text: string, dim?: boolean): string {
@@ -79,12 +88,10 @@ export default function RepoListFooter({
           justifyContent="center"
           backgroundColor={multiSelectMode ? theme.primary : undefined}
         >
-          <Text
-            color={multiSelectMode ? undefined : hintColor}
-            dimColor={multiSelectMode ? undefined : hintDim}
-            wrap="truncate"
-          >
-            {multiSelectMode ? invertBulkHint(collapsedLine, hintDim) : collapsedLine}
+          <Text wrap="truncate">
+            {multiSelectMode
+              ? invertBulkHint(collapsedLine, hintDim)
+              : styleHint(collapsedLine, hintColor, hintDim)}
           </Text>
         </Box>
       </Box>
@@ -95,29 +102,32 @@ export default function RepoListFooter({
     <Box marginTop={1} paddingX={1} flexDirection="column">
       {/* Line 1: Basic navigation + collapse toggle (kept on line 1 so it is never truncated) */}
       <Box width={terminalWidth} justifyContent="center">
-        <Text color={hintColor} dimColor={hintDim}>
-          ↑↓ Navigate • Ctrl+G Top • G Bottom • ⏎/O Open • R Refresh • H Fewer keys
+        <Text>
+          {styleHint('↑↓ Navigate • Ctrl+G Top • G Bottom • ⏎/O Open • R Refresh • H Fewer keys', hintColor, hintDim)}
         </Text>
       </Box>
       {/* Line 2: Search and filtering */}
       <Box width={terminalWidth} justifyContent="center">
-        <Text color={hintColor} dimColor={hintDim}>
-          / Search{!filterActive && ' • S Sort • D Direction'} • T Density • Shift+T Theme • V View Filters
+        <Text>
+          {styleHint(`/ Search${!filterActive ? ' • S Sort • D Direction' : ''} • T Density • Shift+T Theme • V View Filters`, hintColor, hintDim)}
         </Text>
       </Box>
       {/* Line 3: Repository actions (stars toggle at start so it is never truncated) */}
       <Box width={terminalWidth} justifyContent="center">
-        <Text color={hintColor} dimColor={hintDim}>
-          {starsMode ?
-            'Shift+S My Repos • I Info • C Copy URL • L PRs/Issues • U Unstar Repository' :
-            `${ownerContext === 'personal' ? 'Shift+S Starred • ' : ''}I Info • C Copy URL • L PRs/Issues • Ctrl+S Un/Star • Ctrl+R Rename • Shift+M Transfer • Ctrl+A Un/Archive • Ctrl+V Change Visibility • Ctrl+F Sync Fork • P Jump to upstream`
-          }
+        <Text>
+          {styleHint(
+            starsMode
+              ? 'Shift+S My Repos • I Info • C Copy URL • L PRs/Issues • U Unstar Repository'
+              : `${ownerContext === 'personal' ? 'Shift+S Starred • ' : ''}I Info • C Copy URL • L PRs/Issues • Ctrl+S Un/Star • Ctrl+R Rename • Shift+M Transfer • Ctrl+A Un/Archive • Ctrl+V Change Visibility • Ctrl+F Sync Fork • P Jump to upstream`,
+            hintColor,
+            hintDim,
+          )}
         </Text>
       </Box>
       {/* Line 4: System controls */}
       <Box width={terminalWidth} justifyContent="center">
-        <Text color={hintColor} dimColor={hintDim}>
-          K Cache Info • W Org Switch{!starsMode ? ' • Ctrl+N New Repo' : ''} • Del/Backspace Delete • Ctrl+L Logout • Q Quit
+        <Text>
+          {styleHint(`K Cache Info • W Org Switch${!starsMode ? ' • Ctrl+N New Repo' : ''} • Del/Backspace Delete • Ctrl+L Logout • Q Quit`, hintColor, hintDim)}
         </Text>
       </Box>
       {/* Multi-select hint (shown when not in modal). Inactive matches the
@@ -129,25 +139,21 @@ export default function RepoListFooter({
           justifyContent="center"
           backgroundColor={multiSelectMode ? theme.primary : undefined}
         >
-          <Text
-            color={multiSelectMode ? undefined : hintColor}
-            dimColor={multiSelectMode ? undefined : hintDim}
-          >
+          <Text>
             {multiSelectMode
               ? invertBulkHint(
                   selectedCount > 0
                     ? `Space select • X unselect all • Ctrl+S star • Ctrl+A archive • Ctrl+V visibility${starsMode ? '' : ' • Shift+M transfer'} • Del delete • B/Esc exit (${selectedCount} selected${hiddenSelectedCount > 0 ? `, ${hiddenSelectedCount} not shown in search` : ''})`
                     : 'B/Esc exit bulk select • Space select (no selection)',
                 )
-              : 'B Bulk Select mode (star/archive/visibility/delete)'
-            }
+              : styleHint('B Bulk Select mode (star/archive/visibility/delete)', hintColor)}
           </Text>
         </Box>
       )}
       {/* Line 5: Sponsorship */}
       <Box width={terminalWidth} justifyContent="center" marginTop={1}>
-        <Text color={theme.warning} dimColor={hintDim}>
-          💖 Sponsor on GitHub: github.com/sponsors/wiiiimm
+        <Text>
+          {styleHint('💖 Sponsor on GitHub: github.com/sponsors/wiiiimm', theme.warning, hintDim)}
         </Text>
       </Box>
     </Box>
