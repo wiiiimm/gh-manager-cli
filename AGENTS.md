@@ -280,7 +280,7 @@ First run prompts for a PAT if not provided via env vars. The token is validated
 - `package.json` defines `bin: { "gh-manager-cli": "dist/index.js" }`.
 - For local dev: `pnpm link` exposes `gh-manager-cli` on PATH.
 - For publish: `npm publish` (after setting version and adding README).
-- **Standalone binaries:** `pnpm build:binaries` uses `@yao-pkg/pkg` (the maintained fork of the archived `vercel/pkg`) and emits `node20-*` targets. The CLI itself runs on Node >=20 (`engines.node`), but the `@yao-pkg/pkg` packager requires **Node >=22** to run, so the `build:binaries` script and the release workflow's binary job must run on Node 22+. End users running the CLI are unaffected.
+- **Standalone binaries:** `pnpm build:binaries` uses `@yao-pkg/pkg` (the maintained fork of the archived `vercel/pkg`) and emits `node22-*` targets. The CLI itself runs on Node >=20 (`engines.node`); the packager and its prebuilt bases are Node 22 (pkg-fetch v3.6 no longer ships `node20-*-win-x64`). End users of the npm CLI are unaffected.
 
 ## Development Workflow
 
