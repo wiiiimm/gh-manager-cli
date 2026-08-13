@@ -339,6 +339,18 @@ describe('useRepoListInput', () => {
     );
     press('h', {});
     expect(setFooterCollapsed).not.toHaveBeenCalled();
+    expect(storeUIPrefs).not.toHaveBeenCalled();
+    unmount();
+  });
+
+  it('ignores H while the search input owns keyboard input', () => {
+    const setFooterCollapsed = vi.fn();
+    const { unmount } = render(
+      <Harness params={makeParams({ filterMode: true, setFooterCollapsed })} />,
+    );
+    press('h', {});
+    expect(setFooterCollapsed).not.toHaveBeenCalled();
+    expect(storeUIPrefs).not.toHaveBeenCalled();
     unmount();
   });
 });

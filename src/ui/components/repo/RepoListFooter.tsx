@@ -1,8 +1,15 @@
 import React from 'react';
 import { Box, Text } from 'ink';
+import chalk from 'chalk';
 import type { Theme } from '../../../config/themes';
 import type { OwnerContext } from '../../../config/config';
 import { truncate } from '../../../lib/utils';
+
+/** Invert onto the Bulk Select row: black/bold text; Box supplies the full-width primary background. */
+function invertBulkHint(text: string, dim?: boolean): string {
+  const paint = dim ? chalk.black.bold.dim : chalk.black.bold;
+  return paint(text);
+}
 
 export interface RepoListFooterProps {
   terminalWidth: number;
@@ -73,12 +80,11 @@ export default function RepoListFooter({
           backgroundColor={multiSelectMode ? theme.primary : undefined}
         >
           <Text
-            color={multiSelectMode ? 'black' : hintColor}
-            bold={multiSelectMode || undefined}
-            dimColor={hintDim}
+            color={multiSelectMode ? undefined : hintColor}
+            dimColor={multiSelectMode ? undefined : hintDim}
             wrap="truncate"
           >
-            {collapsedLine}
+            {multiSelectMode ? invertBulkHint(collapsedLine, hintDim) : collapsedLine}
           </Text>
         </Box>
       </Box>
@@ -124,14 +130,15 @@ export default function RepoListFooter({
           backgroundColor={multiSelectMode ? theme.primary : undefined}
         >
           <Text
-            color={multiSelectMode ? 'black' : hintColor}
-            bold={multiSelectMode || undefined}
-            dimColor={hintDim}
+            color={multiSelectMode ? undefined : hintColor}
+            dimColor={multiSelectMode ? undefined : hintDim}
           >
             {multiSelectMode
-              ? (selectedCount > 0
-                  ? `Space select • X unselect all • Ctrl+S star • Ctrl+A archive • Ctrl+V visibility${starsMode ? '' : ' • Shift+M transfer'} • Del delete • B/Esc exit (${selectedCount} selected${hiddenSelectedCount > 0 ? `, ${hiddenSelectedCount} not shown in search` : ''})`
-                  : 'B/Esc exit bulk select • Space select (no selection)')
+              ? invertBulkHint(
+                  selectedCount > 0
+                    ? `Space select • X unselect all • Ctrl+S star • Ctrl+A archive • Ctrl+V visibility${starsMode ? '' : ' • Shift+M transfer'} • Del delete • B/Esc exit (${selectedCount} selected${hiddenSelectedCount > 0 ? `, ${hiddenSelectedCount} not shown in search` : ''})`
+                    : 'B/Esc exit bulk select • Space select (no selection)',
+                )
               : 'B Bulk Select mode (star/archive/visibility/delete)'
             }
           </Text>
