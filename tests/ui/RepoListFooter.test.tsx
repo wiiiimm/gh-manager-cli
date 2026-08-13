@@ -17,6 +17,7 @@ const baseProps = {
   multiSelectMode: false,
   selectedCount: 0,
   hiddenSelectedCount: 0,
+  footerCollapsed: false,
 };
 
 describe('RepoListFooter', () => {
@@ -69,6 +70,64 @@ describe('RepoListFooter', () => {
       <RepoListFooter {...baseProps} multiSelectMode={true} selectedCount={2} hiddenSelectedCount={1} />,
     );
     expect(lastFrame() || '').toContain('(2 selected, 1 not shown in search)');
+    unmount();
+  });
+
+  it('shows the collapse toggle on the first expanded hint line', () => {
+    const { lastFrame, unmount } = render(<RepoListFooter {...baseProps} />);
+    expect(lastFrame() || '').toContain('H Fewer keys');
+    unmount();
+  });
+
+  describe('collapsed (GMC-50)', () => {
+    it('renders a single hint line that includes the toggle key', () => {
+      const { lastFrame, unmount } = render(<RepoListFooter {...baseProps} footerCollapsed={true} />);
+      const out = lastFrame() || '';
+      expect(out).toContain('↑↓ Navigate');
+      expect(out).toContain('/ Search');
+      expect(out).toContain('H More keys');
+      expect(out).toContain('Q Quit');
+      expect(out).not.toContain('S Sort • D Direction');
+      expect(out).not.toContain('H Fewer keys');
+      expect(out).not.toContain('github.com/sponsors/wiiiimm');
+      expect(out).not.toContain('B Bulk Select mode');
+      unmount();
+    });
+
+    it('shows bulk-relevant keys (not the full action dump) in Bulk Select mode', () => {
+      const { lastFrame, unmount } = render(
+        <RepoListFooter {...baseProps} footerCollapsed={true} multiSelectMode={true} selectedCount={2} />,
+      );
+      const out = lastFrame() || '';
+      expect(out).toContain('Space Select');
+      expect(out).toContain('B/Esc Exit');
+      expect(out).toContain('H More keys');
+      expect(out).not.toContain('Q Quit');
+      expect(out).not.toContain('Ctrl+S star');
+      unmount();
+    });
+  });
+
+  it('styles the inactive Bulk Select hint like the other reminder lines (GMC-51)', () => {
+    const { lastFrame, unmount } = render(<RepoListFooter {...baseProps} />);
+    const out = lastFrame() || '';
+    const lineOf = (needle: string) => out.split('\n').find(l => l.includes(needle)) || '';
+    const navLine = lineOf('↑↓ Navigate');
+    const bulkLine = lineOf('B Bulk Select mode');
+    expect(bulkLine).not.toMatch(/\x1b\[2m/);
+    const colour = (line: string) => line.match(/\x1b\[[0-9;]*m/)?.[0];
+    expect(colour(bulkLine)).toBe(colour(navLine));
+    unmount();
+  });
+
+  it('inverts the active Bulk Select row onto the theme primary colour (GMC-51)', () => {
+    const { lastFrame, unmount } = render(
+      <RepoListFooter {...baseProps} theme={getTheme('forest')} multiSelectMode={true} />,
+    );
+    const bulkLine = (lastFrame() || '').split('\n').find(l => l.includes('B/Esc exit bulk select')) || '';
+    expect(bulkLine).toMatch(/\x1b\[42m/);
+    expect(bulkLine).toMatch(/\x1b\[30m/);
+    expect(bulkLine).not.toMatch(/\x1b\[36m/);
     unmount();
   });
 });

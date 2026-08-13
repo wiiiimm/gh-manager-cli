@@ -63,6 +63,10 @@ export interface RepoListInputParams {
   themeToastTimerRef: React.MutableRefObject<NodeJS.Timeout | null>;
   setDensity: Dispatch<0 | 1 | 2>;
 
+  // Footer key-reminder collapse (GMC-50)
+  footerCollapsed: boolean;
+  setFooterCollapsed: Dispatch<boolean>;
+
   // Bulk select mode
   multiSelectMode: boolean;
   setMultiSelectMode: Dispatch<boolean>;
@@ -199,6 +203,7 @@ export function useRepoListInput(p: RepoListInputParams) {
     filter, setFilter, filterMode, setFilterMode, filterActive, clearViewFilters,
     starsMode, setStarsMode,
     themeName, setThemeName, setThemeToast, themeToastTimerRef, setDensity,
+    footerCollapsed, setFooterCollapsed,
     multiSelectMode, setMultiSelectMode, selectedRepos, setSelectedRepos,
     enterMultiSelectMode, exitMultiSelectMode, toggleRepoSelection,
     startBulkArchive, startBulkDelete, startBulkStar, startBulkTransfer, startBulkVisibility,
@@ -541,6 +546,16 @@ export function useRepoListInput(p: RepoListInputParams) {
     // Esc exits multi-select mode (if not in filter/search)
     if (key.escape && multiSelectMode) {
       exitMultiSelectMode(true);
+      return;
+    }
+
+    // Toggle collapsed/expanded footer hints (GMC-50). Available in both
+    // normal and Bulk Select modes; ignored while a modal or search input
+    // owns the keyboard (those paths return earlier).
+    if (input && input.toUpperCase() === 'H' && !key.ctrl) {
+      const next = !footerCollapsed;
+      setFooterCollapsed(next);
+      storeUIPrefs({ footerCollapsed: next });
       return;
     }
 

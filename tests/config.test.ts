@@ -355,6 +355,37 @@ describe('config', () => {
       const prefs = getUIPrefs();
       expect(prefs.forkFilter).toBe('non-forks');
     });
+
+    it('persists footerCollapsed alongside other UI prefs (GMC-50)', () => {
+      vi.mocked(fs.readFileSync).mockReturnValue(JSON.stringify({
+        token: 'token',
+        ui: { theme: 'ocean', density: 1 }
+      }));
+
+      storeUIPrefs({ footerCollapsed: false });
+
+      expect(fs.writeFileSync).toHaveBeenCalledWith(
+        expect.any(String),
+        JSON.stringify({
+          token: 'token',
+          ui: {
+            theme: 'ocean',
+            density: 1,
+            footerCollapsed: false,
+          }
+        }, null, 2),
+        'utf8'
+      );
+    });
+
+    it('restores footerCollapsed from saved UI prefs on read', () => {
+      vi.mocked(fs.readFileSync).mockReturnValue(JSON.stringify({
+        ui: { footerCollapsed: false }
+      }));
+
+      const prefs = getUIPrefs();
+      expect(prefs.footerCollapsed).toBe(false);
+    });
   });
 
   describe('getTokenSource', () => {

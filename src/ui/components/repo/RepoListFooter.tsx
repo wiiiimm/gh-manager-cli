@@ -17,12 +17,15 @@ export interface RepoListFooterProps {
   selectedCount: number;
   /** Selected repos not visible under the current search. */
   hiddenSelectedCount: number;
+  /** When true, render a single hint line (GMC-50). */
+  footerCollapsed: boolean;
 }
 
 /**
  * The static help footer beneath the repository list (GMC-28): keyboard-hint
  * lines, the Bulk Select hint, and the sponsorship line. Purely presentational —
- * extracted verbatim from RepoList.
+ * extracted verbatim from RepoList. GMC-50 adds a collapsed one-line form so
+ * the list can reclaim the extra hint rows.
  */
 export default function RepoListFooter({
   terminalWidth,
@@ -34,24 +37,51 @@ export default function RepoListFooter({
   multiSelectMode,
   selectedCount,
   hiddenSelectedCount,
+  footerCollapsed,
 }: RepoListFooterProps) {
+  const hintColor = theme.muted;
+  const hintDim = modalOpen ? true : undefined;
+
+  if (footerCollapsed) {
+    const collapsedLine = multiSelectMode
+      ? '↑↓ Navigate • Space Select • B/Esc Exit • H More keys'
+      : '↑↓ Navigate • / Search • ⏎ Open • B Bulk • H More keys • Q Quit';
+    return (
+      <Box marginTop={1} paddingX={1} flexDirection="column">
+        <Box
+          width={terminalWidth}
+          justifyContent="center"
+          backgroundColor={multiSelectMode ? theme.primary : undefined}
+        >
+          <Text
+            color={multiSelectMode ? 'black' : hintColor}
+            bold={multiSelectMode || undefined}
+            dimColor={hintDim}
+          >
+            {collapsedLine}
+          </Text>
+        </Box>
+      </Box>
+    );
+  }
+
   return (
     <Box marginTop={1} paddingX={1} flexDirection="column">
-      {/* Line 1: Basic navigation */}
+      {/* Line 1: Basic navigation + collapse toggle (kept on line 1 so it is never truncated) */}
       <Box width={terminalWidth} justifyContent="center">
-        <Text color={theme.muted} dimColor={modalOpen ? true : undefined}>
-          ↑↓ Navigate • Ctrl+G Top • G Bottom • ⏎/O Open • R Refresh
+        <Text color={hintColor} dimColor={hintDim}>
+          ↑↓ Navigate • Ctrl+G Top • G Bottom • ⏎/O Open • R Refresh • H Fewer keys
         </Text>
       </Box>
       {/* Line 2: Search and filtering */}
       <Box width={terminalWidth} justifyContent="center">
-        <Text color={theme.muted} dimColor={modalOpen ? true : undefined}>
+        <Text color={hintColor} dimColor={hintDim}>
           / Search{!filterActive && ' • S Sort • D Direction'} • T Density • Shift+T Theme • V View Filters
         </Text>
       </Box>
       {/* Line 3: Repository actions (stars toggle at start so it is never truncated) */}
       <Box width={terminalWidth} justifyContent="center">
-        <Text color={theme.muted} dimColor={modalOpen ? true : undefined}>
+        <Text color={hintColor} dimColor={hintDim}>
           {starsMode ?
             'Shift+S My Repos • I Info • C Copy URL • L PRs/Issues • U Unstar Repository' :
             `${ownerContext === 'personal' ? 'Shift+S Starred • ' : ''}I Info • C Copy URL • L PRs/Issues • Ctrl+S Un/Star • Ctrl+R Rename • Shift+M Transfer • Ctrl+A Un/Archive • Ctrl+V Change Visibility • Ctrl+F Sync Fork • P Jump to upstream`
@@ -60,14 +90,24 @@ export default function RepoListFooter({
       </Box>
       {/* Line 4: System controls */}
       <Box width={terminalWidth} justifyContent="center">
-        <Text color={theme.muted} dimColor={modalOpen ? true : undefined}>
+        <Text color={hintColor} dimColor={hintDim}>
           K Cache Info • W Org Switch{!starsMode ? ' • Ctrl+N New Repo' : ''} • Del/Backspace Delete • Ctrl+L Logout • Q Quit
         </Text>
       </Box>
-      {/* Multi-select hint (shown when not in modal) */}
+      {/* Multi-select hint (shown when not in modal). Inactive matches the
+          other reminder lines (theme.muted). Active inverts theme.primary
+          onto the whole row so Bulk Select reads as "on" (GMC-51). */}
       {!modalOpen && (
-        <Box width={terminalWidth} justifyContent="center">
-          <Text color={multiSelectMode ? 'cyan' : 'gray'} dimColor={!multiSelectMode}>
+        <Box
+          width={terminalWidth}
+          justifyContent="center"
+          backgroundColor={multiSelectMode ? theme.primary : undefined}
+        >
+          <Text
+            color={multiSelectMode ? 'black' : hintColor}
+            bold={multiSelectMode || undefined}
+            dimColor={hintDim}
+          >
             {multiSelectMode
               ? (selectedCount > 0
                   ? `Space select • X unselect all • Ctrl+S star • Ctrl+A archive • Ctrl+V visibility${starsMode ? '' : ' • Shift+M transfer'} • Del delete • B/Esc exit (${selectedCount} selected${hiddenSelectedCount > 0 ? `, ${hiddenSelectedCount} not shown in search` : ''})`
@@ -79,7 +119,7 @@ export default function RepoListFooter({
       )}
       {/* Line 5: Sponsorship */}
       <Box width={terminalWidth} justifyContent="center" marginTop={1}>
-        <Text color={theme.warning} dimColor={modalOpen ? true : undefined}>
+        <Text color={theme.warning} dimColor={hintDim}>
           💖 Sponsor on GitHub: github.com/sponsors/wiiiimm
         </Text>
       </Box>

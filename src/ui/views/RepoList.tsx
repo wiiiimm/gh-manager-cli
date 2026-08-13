@@ -82,6 +82,8 @@ export default function RepoList({ token, maxVisibleRows, onLogout, viewerLogin,
   // Theme state
   const [themeName, setThemeName] = useState<ThemeName>('default');
   const [themeToast, setThemeToast] = useState<string | null>(null);
+  // Help footer starts collapsed so the list has more vertical room (GMC-50).
+  const [footerCollapsed, setFooterCollapsed] = useState(true);
   const themeToastTimerRef = useRef<NodeJS.Timeout | null>(null);
   const { theme, c: tc } = useTheme(themeName);
   
@@ -1143,6 +1145,11 @@ export default function RepoList({ token, maxVisibleRows, onLogout, viewerLogin,
     if (ui.theme && ['default', 'ocean', 'forest', 'monochrome'].includes(ui.theme)) {
       setThemeName(ui.theme);
     }
+
+    // Load footer collapse (GMC-50). Default is collapsed when unset.
+    if (typeof ui.footerCollapsed === 'boolean') {
+      setFooterCollapsed(ui.footerCollapsed);
+    }
     
     // Load organization context
     if (ui.ownerContext) {
@@ -1311,7 +1318,7 @@ export default function RepoList({ token, maxVisibleRows, onLogout, viewerLogin,
 
   // Calculate fixed heights for layout sections and list area (extracted to useListLayout, GMC-28)
   const { terminalWidth, availableHeight, containerPadding, contentHeight, listHeight } =
-    useListLayout(stdout?.columns, maxVisibleRows, filterMode, multiSelectMode);
+    useListLayout(stdout?.columns, maxVisibleRows, filterMode, multiSelectMode, footerCollapsed);
 
   const spacingLines = density; // map density to spacer lines
 
@@ -1370,6 +1377,7 @@ export default function RepoList({ token, maxVisibleRows, onLogout, viewerLogin,
     filter, setFilter, filterMode, setFilterMode, filterActive, clearViewFilters,
     starsMode, setStarsMode,
     themeName, setThemeName, setThemeToast, themeToastTimerRef, setDensity,
+    footerCollapsed, setFooterCollapsed,
     multiSelectMode, setMultiSelectMode, selectedRepos, setSelectedRepos,
     enterMultiSelectMode, exitMultiSelectMode, toggleRepoSelection,
     startBulkArchive, startBulkDelete, startBulkStar, startBulkTransfer, startBulkVisibility,
@@ -2301,7 +2309,7 @@ export default function RepoList({ token, maxVisibleRows, onLogout, viewerLogin,
         )}
       </Box>
 
-      {/* Help footer - 5 lines (extracted to RepoListFooter, GMC-28) */}
+      {/* Help footer (extracted to RepoListFooter, GMC-28; collapse toggle GMC-50) */}
       <RepoListFooter
         terminalWidth={terminalWidth}
         theme={theme}
@@ -2312,6 +2320,7 @@ export default function RepoList({ token, maxVisibleRows, onLogout, viewerLogin,
         multiSelectMode={multiSelectMode}
         selectedCount={selectedRepos.size}
         hiddenSelectedCount={hiddenSelectedCount}
+        footerCollapsed={footerCollapsed}
       />
 
       {/* Debug panel */}

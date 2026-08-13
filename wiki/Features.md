@@ -20,6 +20,7 @@ A complete overview of what gh-manager-cli can do, grouped by area.
 - **Keyboard Navigation:** full keyboard control (arrow keys, PageUp/Down, `Ctrl+G`/`G`).
 - **Display Density:** toggle compact/cozy/comfy spacing (`T`).
 - **Colour Themes:** four themes (Default, Ocean, Forest, Monochrome) cycled with `Shift+T`, persisted across restarts; theme-aware selected-row highlight tuned per theme for readable contrast.
+- **Collapsible key hints:** `H` collapses the help footer to one line of important shortcuts (including the toggle itself) so more repositories fit on screen; expands back to the full reminder set. Persists across restarts.
 - **Visual Indicators:** fork status, private/internal/archived badges, language colours, visibility status.
 - **Enterprise Support:** full support for GitHub Enterprise with Internal repository visibility.
 - **Organisation Context:** switch between personal and organisation accounts with an ENT badge for enterprise orgs.
@@ -29,7 +30,7 @@ A complete overview of what gh-manager-cli can do, grouped by area.
 
 ## Technical Features
 
-- **Preference Persistence:** UI settings (sort, density, visibility/archive/fork filters, fork commit tracking, colour theme) saved between sessions.
+- **Preference Persistence:** UI settings (sort, density, visibility/archive/fork filters, fork commit tracking, colour theme, footer collapse) saved between sessions.
 - **Client-side Filtering & Sorting:** once the account is cached via background fetch-all, visibility/archive/fork filtering and all sorting run locally over the complete set — instant, with no server refetch.
 - **Cross-platform:** works on macOS, Linux, and Windows.
 - **Secure Storage:** token stored with proper file permissions (0600).

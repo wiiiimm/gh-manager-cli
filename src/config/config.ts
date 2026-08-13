@@ -18,6 +18,8 @@ interface UIPrefs {
   archiveFilter?: 'all' | 'unarchived' | 'archived';
   forkFilter?: 'all' | 'forks' | 'non-forks';
   theme?: ThemeName;
+  /** When true, the help footer shows a single hint line (GMC-50). */
+  footerCollapsed?: boolean;
 }
 
 export type TokenSource = 'pat' | 'oauth';

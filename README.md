@@ -68,7 +68,7 @@ Full docs live in the [wiki](wiki/README.md):
 - **Repository actions** — info, open, rename, transfer, copy URL, delete, archive, change visibility, star, sync fork
 - **Bulk Select mode** (`B`) — star, archive, change visibility, delete, and transfer many repos at once
 - **Organisation & Enterprise support** — switch contexts (`W`), Internal visibility, ENT badge
-- **Fork ahead/behind tracking**, **colour themes** (`Shift+T`), **display density** (`T`), and **rate-limit monitoring**
+- **Fork ahead/behind tracking**, **colour themes** (`Shift+T`), **display density** (`T`), **collapsible key hints** (`H`), and **rate-limit monitoring**
 
 See the [Features](wiki/Features.md) and [Usage & Controls](wiki/Usage.md) pages for the full list and every keybinding.
 
