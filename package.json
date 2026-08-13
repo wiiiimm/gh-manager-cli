@@ -41,7 +41,7 @@
   "type": "module",
   "scripts": {
     "build": "tsup",
-    "build:binaries": "npm run build && pkg dist/index.js --targets node20-linux-x64,node20-macos-x64,node20-windows-x64 --out-path ./binaries",
+    "build:binaries": "pnpm run build && pnpm exec pkg dist/index.js --targets node22-linux-x64,node22-macos-x64,node22-windows-x64 --out-path ./binaries",
     "dev": "tsup --watch",
     "start": "node dist/index.js",
     "start:debug": "GH_MANAGER_DEBUG=1 node dist/index.js",
