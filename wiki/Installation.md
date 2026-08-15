@@ -39,7 +39,7 @@ chmod +x gh-manager-cli-*
 
 ## From Source
 
-**Prerequisites:** Node.js 18+, pnpm.
+**Prerequisites:** Node.js 22+, pnpm.
 
 Install and build:
 
