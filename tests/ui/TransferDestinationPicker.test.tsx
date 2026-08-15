@@ -31,6 +31,16 @@ const orgs = (): OrganizationNode[] => [
   { id: 'o2', login: 'globex', name: 'Globex Corp', avatarUrl: '' },
 ];
 
+const flush = () => new Promise<void>(r => setTimeout(r, 0));
+
+/** Ink 7 can take an extra tick under parallel load for the auto-manual fallback. */
+async function flushUntil(predicate: () => boolean, attempts = 20): Promise<void> {
+  for (let i = 0; i < attempts; i++) {
+    if (predicate()) return;
+    await flush();
+  }
+}
+
 describe('TransferDestinationPicker', () => {
   let mockUseInput: Mock;
 
@@ -236,8 +246,7 @@ describe('TransferDestinationPicker', () => {
       />,
     );
 
-    await new Promise(r => setTimeout(r, 0));
-    await new Promise(r => setTimeout(r, 0));
+    await flushUntil(() => (lastFrame() || '').includes('Destination owner'));
 
     const out = lastFrame() || '';
     expect(out).toContain("Couldn't load organisations");
@@ -261,8 +270,7 @@ describe('TransferDestinationPicker', () => {
       />,
     );
 
-    await new Promise(r => setTimeout(r, 0));
-    await new Promise(r => setTimeout(r, 0));
+    await flushUntil(() => (lastFrame() || '').includes('Destination owner'));
 
     expect(lastFrame() || '').toContain('Destination owner');
 
