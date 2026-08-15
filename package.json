@@ -55,7 +55,7 @@
     "assets:png": "bash scripts/convert-svg-to-png.sh"
   },
   "engines": {
-    "node": ">=22"
+    "node": ">=22.12.0"
   },
   "dependencies": {
     "@apollo/client": "^3.14.0",

@@ -33,7 +33,7 @@ This project adheres to a code of conduct adapted from the [Contributor Covenant
 
 ### Prerequisites
 
-- Node.js 18 or higher
+- Node.js 22.12 or higher
 - pnpm (recommended) or npm
 - Git
 
