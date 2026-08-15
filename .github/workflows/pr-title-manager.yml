@@ -107,7 +107,7 @@ jobs:
       # Checkout to access shared scripts
       - name: Checkout repository
         if: steps.bot-check.outputs.is_bot == 'false' && steps.skip-check.outputs.should_skip == 'false'
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
       
       # Main title management logic
       - name: Process PR Title

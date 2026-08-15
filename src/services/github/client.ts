@@ -125,9 +125,9 @@ async function buildApolloClient(token: string): Promise<ApolloClientBundle> {
   }
 
   try {
-    // Node 18+ has native fetch, ensure it's available
+    // Native fetch shipped in Node 18; this package requires Node 22.12+.
     if (typeof globalThis.fetch === 'undefined') {
-      throw new Error('Fetch API not available. Node 18+ is required.');
+      throw new Error('Fetch API not available. Node 22.12+ is required.');
     }
 
     const cache = new InMemoryCache();

@@ -40,8 +40,8 @@ describe('standalone binary packaging (GMC-52)', () => {
     expect(releaseWorkflow).not.toMatch(/--targets node20-/);
   });
 
-  it('keeps CLI engines on Node 20 while binaries require Node 22', () => {
-    expect(pkg.engines?.node).toBe('>=20');
+  it('requires Node 22.12+ for the CLI and binaries', () => {
+    expect(pkg.engines?.node).toBe('>=22.12.0');
     expect(releaseWorkflow).toMatch(/node-version:\s*'22'/);
   });
 });

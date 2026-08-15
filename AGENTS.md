@@ -235,7 +235,7 @@ Bulk actions reuse the same global shortcuts as single-repo mode and require at 
 ## Setup & Usage
 
 Prereqs:
-- Node.js >= 20
+- Node.js >= 22.12.0
 - pnpm
 
 Install deps and build:
@@ -280,7 +280,7 @@ First run prompts for a PAT if not provided via env vars. The token is validated
 - `package.json` defines `bin: { "gh-manager-cli": "dist/index.js" }`.
 - For local dev: `pnpm link` exposes `gh-manager-cli` on PATH.
 - For publish: `npm publish` (after setting version and adding README).
-- **Standalone binaries:** `pnpm build:binaries` uses `@yao-pkg/pkg@6.20.0` (the maintained fork of the archived `vercel/pkg`) and emits `node22-*` targets. The CLI itself runs on Node >=20 (`engines.node`). Building binaries requires **Node.js 22 or later**: `@yao-pkg/pkg@6.20.0` / pkg-fetch v3.6 no longer ships `node20-*-win-x64`, so the script and the release workflow's binary job must run on Node 22+. End users of the npm CLI are unaffected.
+- **Standalone binaries:** `pnpm build:binaries` uses `@yao-pkg/pkg@6.20.0` (the maintained fork of the archived `vercel/pkg`) and emits `node22-*` targets. The CLI itself requires Node >=22.12.0 (`engines.node`) because Ink 7 and Vite 8 do. Building binaries also requires **Node.js 22.12 or later**: `@yao-pkg/pkg@6.20.0` / pkg-fetch v3.6 no longer ships `node20-*-win-x64`, so the script and the release workflow's binary job must run on Node 22+.
 
 ## Development Workflow
 
