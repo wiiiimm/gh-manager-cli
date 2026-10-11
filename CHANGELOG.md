@@ -1,3 +1,12 @@
+## [1.53.2](https://github.com/stealth-factory/gh-manager-cli/compare/v1.53.1...v1.53.2) (2026-10-11)
+
+
+### Bug Fixes
+
+* **ci:** publish npm packages with OIDC (GMC-55) ([#172](https://github.com/stealth-factory/gh-manager-cli/issues/172)) ([06e07ef](https://github.com/stealth-factory/gh-manager-cli/commit/06e07efcf3217f73dc27591fba2301f7e5dd242d))
+* migrate npm publication to stealth-factory (GMC-54) ([#164](https://github.com/stealth-factory/gh-manager-cli/issues/164)) ([4538e45](https://github.com/stealth-factory/gh-manager-cli/commit/4538e453ee20fa1aac8e1d8f6f8a35d033ee38ee))
+* restore unscoped npm publication (GMC-56) ([#174](https://github.com/stealth-factory/gh-manager-cli/issues/174)) ([2127b10](https://github.com/stealth-factory/gh-manager-cli/commit/2127b10e0efc0d05ead26a33a722457163d19aad))
+
 ## [1.53.1](https://github.com/wiiiimm/gh-manager-cli/compare/v1.53.0...v1.53.1) (2026-08-13)
 
 
