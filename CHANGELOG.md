@@ -1,3 +1,10 @@
+## [1.53.3](https://github.com/stealth-factory/gh-manager-cli/compare/v1.53.2...v1.53.3) (2026-10-11)
+
+
+### Bug Fixes
+
+* **ci:** complete release assets before publishing (GMC-57) ([#175](https://github.com/stealth-factory/gh-manager-cli/issues/175)) ([04a9fc1](https://github.com/stealth-factory/gh-manager-cli/commit/04a9fc1e7457154f969f0903daa6dfdd741b4b2d))
+
 ## [1.53.2](https://github.com/stealth-factory/gh-manager-cli/compare/v1.53.1...v1.53.2) (2026-10-11)
 
 
