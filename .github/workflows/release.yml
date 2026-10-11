@@ -19,7 +19,7 @@ jobs:
       pull-requests: write
       issues: write
       packages: write
-      id-token: write # npm trusted publishing for both npmjs packages
+      id-token: write # npm trusted publishing for gh-manager-cli
     steps:
       - name: Checkout code
         uses: actions/checkout@v7
@@ -45,7 +45,7 @@ jobs:
           export NPM_CONFIG_USERCONFIG="$RUNNER_TEMP/npm-oidc.npmrc"
           printf 'registry=https://registry.npmjs.org/\n' > "$NPM_CONFIG_USERCONFIG"
           echo "NPM_CONFIG_USERCONFIG=$NPM_CONFIG_USERCONFIG" >> "$GITHUB_ENV"
-          # Node 22's bundled npm is too old for the compatibility launcher's OIDC publish.
+          # Use an npm version that supports OIDC trusted publishing.
           npm install --global npm@11.19.0
           test "$(npm --version)" = "11.19.0"
 
@@ -291,7 +291,7 @@ jobs:
           fi
 
           # Override the archive's publish registry and restore the checkout on exit.
-          jq '.publishConfig.registry = "https://npm.pkg.github.com"' "$PACKAGE_BACKUP" > package.json
+          jq '.name = "@stealth-factory/gh-manager-cli" | .publishConfig.registry = "https://npm.pkg.github.com"' "$PACKAGE_BACKUP" > package.json
           TARBALL=$(npm pack --json --ignore-scripts | node -e "let data=''; process.stdin.on('data', chunk => data += chunk); process.stdin.on('end', () => console.log(JSON.parse(data)[0].filename));")
           npm publish "$TARBALL" --registry=https://npm.pkg.github.com
           rm -f "$TARBALL"

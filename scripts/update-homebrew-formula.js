@@ -12,7 +12,7 @@ export function updateHomebrewFormula(file, version, sha256) {
     throw new Error('Could not find the gh-manager-cli npm tarball URL and checksum in the formula');
   }
   const updated = original
-    .replace(urlPattern, `  url "https://registry.npmjs.org/@stealth-factory/gh-manager-cli/-/gh-manager-cli-${version}.tgz"`)
+    .replace(urlPattern, `  url "https://registry.npmjs.org/gh-manager-cli/-/gh-manager-cli-${version}.tgz"`)
     .replace(shaPattern, `  sha256 "${sha256}"`)
     .replace(/^\s*version "[^"\n]+"$/m, `  version "${version}"`)
     .replace('https://github.com/wiiiimm/gh-manager-cli', 'https://github.com/stealth-factory/gh-manager-cli');

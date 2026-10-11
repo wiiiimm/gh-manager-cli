@@ -254,10 +254,10 @@ Releases are automated via semantic-release:
 2. GitHub Actions runs semantic-release
 3. Version calculated from conventional commits
 4. CHANGELOG.md generated automatically
-5. `@stealth-factory/gh-manager-cli` published publicly, followed by the same-version `gh-manager-cli` compatibility launcher
+5. `gh-manager-cli` published publicly on npm using OIDC
 6. GitHub release created with notes and binaries; GitHub Packages and `stealth-factory/homebrew-tap` updated
 
-See [Release Process](docs/RELEASE_PROCESS.md) and [npm Scope Migration](docs/NPM_SCOPE_MIGRATION.md).
+See [Release Process](docs/RELEASE_PROCESS.md) and [npm Package Name and Ownership](docs/NPM_SCOPE_MIGRATION.md).
 
 ### Getting Help
 

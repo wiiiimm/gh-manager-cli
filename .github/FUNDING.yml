@@ -16,7 +16,7 @@ custom:
 # Additional supported platforms (uncomment and configure as needed):
 # patreon: your-patreon-username              # Subscription-based funding
 # open_collective: your-project-name          # Transparent funding for open source
-# tidelift: npm/@stealth-factory/gh-manager-cli # Enterprise open source funding
+# tidelift: npm/gh-manager-cli # Enterprise open source funding
 # community_bridge: your-project-name        # Linux Foundation funding platform
 # liberapay: your-liberapay-username         # European recurring donations
 # issuehunt: your-issuehunt-username         # Funding for specific GitHub issues

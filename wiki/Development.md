@@ -40,7 +40,7 @@ Actions:
 2. Calculate the new version.
 3. Update `package.json` and `CHANGELOG.md`.
 4. Create a git tag.
-5. Publish `@stealth-factory/gh-manager-cli` publicly on npm, then the same-version unscoped compatibility launcher.
+5. Publish `gh-manager-cli` publicly on npm using OIDC.
 6. Commit changes as `chore(release): X.Y.Z`.
 
 ### Phase 2: Binary Building & Distribution
@@ -51,13 +51,13 @@ Triggers on `chore(release):` commits. Actions:
 2. Create a GitHub release with the changelog.
 3. Upload binaries to the release.
 4. Publish `@stealth-factory/gh-manager-cli` to GitHub Packages.
-5. Update the formula in `stealth-factory/homebrew-tap` from the published scoped npm tarball.
+5. Update the formula in `stealth-factory/homebrew-tap` from the published unscoped npm tarball.
 
 ### Release Configuration and Migration
 
 Release versions are calculated by semantic-release; do not run `npm version` or manually edit `CHANGELOG.md`. Use the **Release Pipeline** workflow's manual trigger when a retry is needed, and inspect each job's result.
 
-See [Release Process](../docs/RELEASE_PROCESS.md), [npm Scope Migration](../docs/NPM_SCOPE_MIGRATION.md), and [Homebrew](../docs/HOMEBREW.md) for publishing permissions, compatibility launcher recovery, and tap updates.
+See [Release Process](../docs/RELEASE_PROCESS.md), [npm Package Name and Ownership](../docs/NPM_SCOPE_MIGRATION.md), and [Homebrew](../docs/HOMEBREW.md) for publishing permissions, package naming, and tap updates.
 
 ## Environment Variables
 

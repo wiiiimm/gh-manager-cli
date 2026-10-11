@@ -59,7 +59,7 @@ if (args[0] === 'install') {
   writeFileSync(join(bin, 'curl'), `#!/usr/bin/env node
 import fs from 'node:fs';
 const args = process.argv.slice(2);
-if (args[0] !== '-fsSL' || !args[1].includes('/@stealth-factory/gh-manager-cli/-/gh-manager-cli-1.54.0.tgz')) process.exit(99);
+if (args[0] !== '-fsSL' || args[1] !== 'https://registry.npmjs.org/gh-manager-cli/-/gh-manager-cli-1.54.0.tgz') process.exit(99);
 fs.writeFileSync(args[3], 'published archive');
 `, { mode: 0o755 });
   writeFileSync(join(bin, 'git'), `#!/usr/bin/env node
@@ -128,11 +128,11 @@ describe('deployment workflow (GMC-54)', () => {
     expect(readFileSync(join(f.directory, 'npm-calls.jsonl'), 'utf8').trim().split('\n')).toHaveLength(1);
   });
 
-  it('updates the transferred tap from the scoped archive and pushes the formula', () => {
+  it('updates the transferred tap from the unscoped archive and pushes the formula', () => {
     const f = fixture();
     expect(f.run('Update Homebrew Tap').status).toBe(0);
     const formula = readFileSync(join(f.directory, 'tap-repo/Formula/gh-manager-cli.rb'), 'utf8');
-    expect(formula).toContain('/@stealth-factory/gh-manager-cli/-/gh-manager-cli-1.54.0.tgz');
+    expect(formula).toContain('/gh-manager-cli/-/gh-manager-cli-1.54.0.tgz');
     expect(formula).toContain(createHash('sha256').update('published archive').digest('hex'));
     const calls = readFileSync(join(f.directory, 'git-calls.jsonl'), 'utf8');
     expect(calls).toContain('@github.com/stealth-factory/homebrew-tap.git');

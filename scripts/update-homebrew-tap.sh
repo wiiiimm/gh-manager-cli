@@ -9,7 +9,7 @@ REPO_DIR=$(dirname "$SCRIPT_DIR")
 TAP_DIR="${1:-$REPO_DIR/homebrew-tap}"
 
 # Get the latest version from npm
-VERSION="${2:-$(npm view @stealth-factory/gh-manager-cli version --registry=https://registry.npmjs.org)}"
+VERSION="${2:-$(npm view gh-manager-cli version --registry=https://registry.npmjs.org)}"
 echo "Latest npm version: $VERSION"
 
 # Calculate SHA256
@@ -28,7 +28,7 @@ FORMULA="$TAP_DIR/Formula/gh-manager-cli.rb"
 
 echo "Updating formula at $FORMULA..."
 
-# Accepts both the previous unscoped URL and the new scoped URL.
+# Accepts both existing unscoped and scoped URLs.
 node "$SCRIPT_DIR/update-homebrew-formula.js" "$FORMULA" "$VERSION" "$SHA256"
 
 echo "Formula updated!"

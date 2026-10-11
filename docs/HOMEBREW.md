@@ -16,8 +16,8 @@ The explicit repository URL lets Homebrew use the `stealth-factory/tap` alias. F
 
 After npm publication and the binary release, `.github/workflows/release.yml` updates `Formula/gh-manager-cli.rb` in `stealth-factory/homebrew-tap`.
 
-- Download the published `@stealth-factory/gh-manager-cli` tarball and calculate its SHA256.
-- Replace either the previous unscoped URL or an existing scoped URL with the new scoped tarball URL.
+- Download the published `gh-manager-cli` tarball and calculate its SHA256.
+- Replace either the previous unscoped URL or an existing scoped URL with the unscoped tarball URL.
 - Update the checksum and the GitHub homepage.
 - Commit and push using `GH_TOKEN`, which needs write access to the transferred tap.
 
@@ -27,7 +27,7 @@ Do not hash a locally packed tarball: the checksum must match the exact archive 
 
 ## Manual Tap Update
 
-From the CLI repository root, after the scoped version has been published:
+From the CLI repository root, after the unscoped version has been published:
 
 ```bash
 git clone https://github.com/stealth-factory/homebrew-tap.git homebrew-tap
@@ -37,7 +37,7 @@ bash scripts/update-homebrew-tap.sh
 For an existing checkout or a specific published version:
 
 ```bash
-VERSION=$(npm view @stealth-factory/gh-manager-cli version --registry=https://registry.npmjs.org)
+VERSION=$(npm view gh-manager-cli version --registry=https://registry.npmjs.org)
 bash scripts/update-homebrew-tap.sh /path/to/homebrew-tap "$VERSION"
 ```
 
@@ -55,10 +55,10 @@ To inspect the checksum and download URL only:
 bash scripts/brew-sha.sh "$VERSION"
 ```
 
-Scoped archive URLs have this shape:
+The npm archive URL has this shape:
 
 ```text
-https://registry.npmjs.org/@stealth-factory/gh-manager-cli/-/gh-manager-cli-X.Y.Z.tgz
+https://registry.npmjs.org/gh-manager-cli/-/gh-manager-cli-X.Y.Z.tgz
 ```
 
 For an optional future homebrew-core submission, see [HOMEBREW_SUBMISSION.md](HOMEBREW_SUBMISSION.md). For the npm migration and credentials, see [NPM_SCOPE_MIGRATION.md](NPM_SCOPE_MIGRATION.md).
