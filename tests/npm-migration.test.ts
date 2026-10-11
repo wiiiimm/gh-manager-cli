@@ -2,7 +2,8 @@ import { copyFileSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSy
 import { execFileSync } from 'node:child_process';
 import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
-import { fileURLToPath } from 'node:url';
+import { createRequire } from 'node:module';
+import { fileURLToPath, pathToFileURL } from 'node:url';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { createLegacyPackage, prepare, publish } from '../scripts/release-legacy-package.js';
 
@@ -43,10 +44,21 @@ describe('npm scope migration (GMC-54)', () => {
   it('publishes publicly under Stealth Factory and retains the executable name', () => {
     expect(canonical.name).toBe(scopedName);
     expect(canonical.bin).toEqual({ 'gh-manager-cli': 'dist/index.js' });
-    expect(canonical.publishConfig).toEqual({ access: 'public', registry: 'https://registry.npmjs.org' });
+    expect(canonical.publishConfig).toEqual({ access: 'public', registry: 'https://registry.npmjs.org/' });
     expect(canonical.repository.url).toBe('https://github.com/stealth-factory/gh-manager-cli.git');
     expect(canonical.release.plugins.indexOf('./scripts/release-legacy-package.js'))
       .toBe(canonical.release.plugins.indexOf('@semantic-release/npm') + 1);
+  });
+
+  it('uses the exact official registry URL recognised by the installed npm plugin for OIDC', async () => {
+    const require = createRequire(import.meta.url);
+    const pluginRequire = createRequire(require.resolve('semantic-release'));
+    const pluginRoot = dirname(pluginRequire.resolve('@semantic-release/npm'));
+    const { OFFICIAL_REGISTRY } = await import(pathToFileURL(join(pluginRoot, 'lib/definitions/constants.js')).href) as { OFFICIAL_REGISTRY: string };
+    expect(canonical.publishConfig.registry).toBe(OFFICIAL_REGISTRY);
+    const directory = createLegacyPackage(fixture(), '1.54.0');
+    const legacy = JSON.parse(readFileSync(join(directory, 'package.json'), 'utf8')) as PackageMetadata;
+    expect(legacy.publishConfig.registry).toBe(OFFICIAL_REGISTRY);
   });
 
   it('prepares a same-version public launcher with an exact scoped dependency', () => {
@@ -98,7 +110,7 @@ describe('npm scope migration (GMC-54)', () => {
     publishCommand.mockReturnValue({ status: 0 });
     const result = publish({}, context);
     expect(publishCommand).toHaveBeenCalledWith(expect.stringMatching(/^npm(?:\.cmd)?$/), [
-      'publish', '--access', 'public', '--registry', 'https://registry.npmjs.org', '--tag', 'latest',
+      'publish', '--access', 'public', '--registry', 'https://registry.npmjs.org/', '--tag', 'latest',
     ], { cwd: join(cwd, '.release', 'legacy'), stdio: 'inherit' });
     expect(result.url).toBe('https://www.npmjs.com/package/gh-manager-cli/v/1.54.0');
   });

@@ -18,8 +18,8 @@ See [Installation](../wiki/Installation.md) for switching global npm and Homebre
 ## Before the First Scoped Release
 
 1. Confirm the release account can publish public packages in the existing `stealth-factory` npm organisation.
-2. Ensure the publishing credential can update both `@stealth-factory/gh-manager-cli` and the existing `gh-manager-cli`. A token restricted to the old package cannot create the new scoped package.
-3. Check GitHub Actions secrets after the repository transfer: npm publication uses `NPM_TOKEN`; release commits and tap writes use `GH_TOKEN`.
+2. If the scoped package does not exist yet, bootstrap it with an interactive npm publication, then configure npm trusted publishers on both package identities. Follow [npm Trusted Publishing](NPM_TRUSTED_PUBLISHING.md) for exact fields and bootstrap commands.
+3. Check GitHub Actions secrets after the repository transfer: release commits and tap writes use `GH_TOKEN`; npmjs publication uses OIDC and requires no `NPM_TOKEN`.
 4. Verify GitHub Packages permissions for the new organisation and the tap token's access to `stealth-factory/homebrew-tap`.
 5. Run the automated checks and inspect both packed artifacts.
 6. Merge with a release-triggering conventional title, including the Linear issue ID, such as `fix: migrate npm publication to stealth-factory (GMC-54)`.
@@ -60,10 +60,13 @@ Once the artifact and publishing account are checked, publish only the missing c
 npm publish ./.release/legacy --access public --registry=https://registry.npmjs.org
 ```
 
+This local recovery command requires interactive npm authentication (`npm login --registry=https://registry.npmjs.org`) and any required 2FA. CI's OIDC credential is not available in a local shell. Do not add an npm publishing secret back to the workflow for recovery.
+
 If that unscoped version already exists, inspect it before proceeding; npm versions cannot be overwritten. Do not unpublish the original package, and do not deprecate all unscoped versions while the short command is supported.
 
 ## References
 
 - [npm scoped public packages](https://docs.npmjs.com/creating-and-publishing-scoped-public-packages/)
 - [npm package transfer limitations](https://docs.npmjs.com/transferring-a-package-from-a-user-account-to-another-user-account/)
+- [npm Trusted Publishing](NPM_TRUSTED_PUBLISHING.md)
 - [Release Process](RELEASE_PROCESS.md)

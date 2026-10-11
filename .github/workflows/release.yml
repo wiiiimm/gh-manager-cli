@@ -19,6 +19,7 @@ jobs:
       pull-requests: write
       issues: write
       packages: write
+      id-token: write # npm trusted publishing for both npmjs packages
     steps:
       - name: Checkout code
         uses: actions/checkout@v7
@@ -31,11 +32,22 @@ jobs:
         with:
           node-version: '22'
           registry-url: 'https://registry.npmjs.org'
+          package-manager-cache: false
 
       - name: Setup pnpm
         uses: pnpm/action-setup@v6
         with:
           version: 8
+
+      - name: Setup npm trusted publishing
+        run: |
+          # Use a token-free config instead of setup-node's NODE_AUTH_TOKEN placeholder.
+          export NPM_CONFIG_USERCONFIG="$RUNNER_TEMP/npm-oidc.npmrc"
+          printf 'registry=https://registry.npmjs.org/\n' > "$NPM_CONFIG_USERCONFIG"
+          echo "NPM_CONFIG_USERCONFIG=$NPM_CONFIG_USERCONFIG" >> "$GITHUB_ENV"
+          # Node 22's bundled npm is too old for the compatibility launcher's OIDC publish.
+          npm install --global npm@11.19.0
+          test "$(npm --version)" = "11.19.0"
 
       - name: Install dependencies
         run: pnpm install --no-frozen-lockfile
@@ -43,19 +55,11 @@ jobs:
       - name: Build application
         run: pnpm run build
 
-      - name: Configure npm authentication
-        env:
-          NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
-        run: |
-          echo "//registry.npmjs.org/:_authToken=${NPM_TOKEN}" > ~/.npmrc
-
       - name: Run semantic-release
         id: semantic
         env:
           GITHUB_TOKEN: ${{ secrets.GH_TOKEN || secrets.GITHUB_TOKEN }}
           GH_TOKEN: ${{ secrets.GH_TOKEN || secrets.GITHUB_TOKEN }}
-          NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
         run: |
           # Run semantic-release to handle versioning and changelog
           npx semantic-release

@@ -3,7 +3,7 @@ import { join, resolve } from 'node:path';
 import { spawnSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 
-const registry = 'https://registry.npmjs.org';
+const registry = 'https://registry.npmjs.org/';
 const scopedName = '@stealth-factory/gh-manager-cli';
 
 // Also used by the recovery command: pnpm legacy:prepare.

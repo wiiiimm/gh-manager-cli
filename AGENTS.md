@@ -10,6 +10,7 @@
 - Executable and application config/cache/log paths: `gh-manager-cli`.
 - `scripts/release-legacy-package.js` publishes an unscoped `gh-manager-cli` compatibility launcher after the canonical package, with an exact dependency on the same version. Keep this semantic-release plugin after `@semantic-release/npm` so `npx gh-manager-cli` remains supported.
 - Downstream release/publication jobs check out the triggering `github.sha` to match the binary build. Missing tap credentials and rejected formula pushes must fail the job, rather than report a successful deployment.
+- npmjs releases use OIDC trusted publishing (`id-token: write`) for both package identities, with a token-free npm config and npm 11.19.0. Do not add `NPM_TOKEN` or `NODE_AUTH_TOKEN` to this job. Each package needs its own npm trusted publisher for `stealth-factory/gh-manager-cli`, workflow `release.yml`. GitHub Packages still uses its separate `GITHUB_TOKEN` authentication.
 
 ### Current Status: Active Development
 - ✅ Core repository listing functionality
@@ -360,7 +361,7 @@ Every change should trace back to a Linear issue. To guarantee GitHub ↔ Linear
 3. **Version Calculation:** Based on commit types (feat = minor, fix = patch)
 4. **CHANGELOG.md:** Generated automatically from commits
 5. **GitHub Release:** Created with release notes
-6. **NPM Publishing:** If configured with NPM_TOKEN
+6. **NPM Publishing:** OIDC trusted publishing, configured separately for both npm packages (see [Release Process](./docs/RELEASE_PROCESS.md))
 
 ## Known Issues & Solutions
 
