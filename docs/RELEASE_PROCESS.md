@@ -43,6 +43,8 @@ The release metadata commit triggers the second phase:
 
 The npmjs publish configuration stays intact while the GitHub Packages step uses an explicit registry and temporary authentication configuration. Homebrew uses the published npmjs archive, rather than a local `npm pack` checksum.
 
+Downstream release and publication jobs check out the triggering commit (`github.sha`), matching the binary build. They do not read a newer version from `main` while a release is running. A missing tap token or rejected formula push fails the deployment job; a retry with no formula changes succeeds without another commit.
+
 `GH_TOKEN` must permit the release commit to trigger another workflow run. A push authenticated with the default `GITHUB_TOKEN` does not trigger another push workflow; that fallback alone is insufficient for phase 2.
 
 ## Credentials After the Repository Transfer

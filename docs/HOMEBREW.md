@@ -21,6 +21,8 @@ After npm publication and the binary release, `.github/workflows/release.yml` up
 - Update the checksum and the GitHub homepage.
 - Commit and push using `GH_TOKEN`, which needs write access to the transferred tap.
 
+A missing `GH_TOKEN` or a rejected push fails the job. If the formula already matches the release, the job succeeds without another commit or push.
+
 Do not hash a locally packed tarball: the checksum must match the exact archive served by npm. The download script fails on HTTP errors, so a missing release cannot become a bogus checksum.
 
 ## Manual Tap Update

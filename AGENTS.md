@@ -9,6 +9,7 @@
 - Homebrew tap: `stealth-factory/homebrew-tap`, installed as `stealth-factory/tap` with its explicit repository URL.
 - Executable and application config/cache/log paths: `gh-manager-cli`.
 - `scripts/release-legacy-package.js` publishes an unscoped `gh-manager-cli` compatibility launcher after the canonical package, with an exact dependency on the same version. Keep this semantic-release plugin after `@semantic-release/npm` so `npx gh-manager-cli` remains supported.
+- Downstream release/publication jobs check out the triggering `github.sha` to match the binary build. Missing tap credentials and rejected formula pushes must fail the job, rather than report a successful deployment.
 
 ### Current Status: Active Development
 - ✅ Core repository listing functionality

@@ -157,7 +157,7 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v7
         with:
-          ref: main
+          ref: ${{ github.sha }}
 
       - name: Download all build artifacts
         uses: actions/download-artifact@v8
@@ -240,7 +240,7 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v7
         with:
-          ref: main
+          ref: ${{ github.sha }}
 
       - name: Setup Node.js
         uses: actions/setup-node@v7
@@ -297,10 +297,10 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GH_TOKEN }}
           VERSION: ${{ steps.get_version.outputs.version }}
         run: |
-          # Check if GH_TOKEN is available
+          # The cross-repository tap update requires GH_TOKEN.
           if [ -z "$GITHUB_TOKEN" ]; then
-            echo "::warning::Homebrew tap update skipped: GH_TOKEN secret not configured"
-            exit 0
+            echo "::error::Homebrew tap update requires GH_TOKEN with write access to stealth-factory/homebrew-tap"
+            exit 1
           fi
           
           echo "Updating Homebrew tap for version ${VERSION}..."
@@ -321,5 +321,9 @@ jobs:
           # Commit and push
           cd tap-repo
           git add Formula/gh-manager-cli.rb
-          git commit -m "chore: update gh-manager-cli to ${VERSION}" || echo "::notice::No changes to commit"
-          git push origin main || echo "::warning::Failed to push Homebrew formula update"
+          if git diff --cached --quiet; then
+            echo "::notice::Homebrew formula already matches version ${VERSION}"
+          else
+            git commit -m "chore: update gh-manager-cli to ${VERSION}"
+            git push origin main
+          fi
