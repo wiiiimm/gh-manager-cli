@@ -8,7 +8,7 @@ This page provides information for developers who want to contribute to or modif
 - **API:** `@octokit/graphql`, Apollo Client
 - **Config paths:** `env-paths`
 - **Language:** TypeScript
-- **Build:** `tsup` (CJS output with shebang)
+- **Build:** `tsup` (ESM output with shebang)
 
 ## Scripts
 
@@ -40,7 +40,7 @@ Actions:
 2. Calculate the new version.
 3. Update `package.json` and `CHANGELOG.md`.
 4. Create a git tag.
-5. Publish to NPM.
+5. Publish `@stealth-factory/gh-manager-cli` publicly on npm, then the same-version unscoped compatibility launcher.
 6. Commit changes as `chore(release): X.Y.Z`.
 
 ### Phase 2: Binary Building & Distribution
@@ -50,22 +50,18 @@ Triggers on `chore(release):` commits. Actions:
 1. Build binaries for Linux, macOS, and Windows.
 2. Create a GitHub release with the changelog.
 3. Upload binaries to the release.
-4. Publish to GitHub Packages.
-5. Update the Homebrew formula.
+4. Publish `@stealth-factory/gh-manager-cli` to GitHub Packages.
+5. Update the formula in `stealth-factory/homebrew-tap` from the published scoped npm tarball.
 
-### Manual Release
+### Release Configuration and Migration
 
-```bash
-# Update version in package.json
-npm version patch  # or minor/major
-git push origin main
-```
+Release versions are calculated by semantic-release; do not run `npm version` or manually edit `CHANGELOG.md`. Use the **Release Pipeline** workflow's manual trigger when a retry is needed, and inspect each job's result.
 
-Both NPM and Homebrew are automatically updated within minutes of any version change.
+See [Release Process](../docs/RELEASE_PROCESS.md), [npm Scope Migration](../docs/NPM_SCOPE_MIGRATION.md), and [Homebrew](../docs/HOMEBREW.md) for publishing permissions, compatibility launcher recovery, and tap updates.
 
 ## Environment Variables
 
-- `REPOS_PER_FETCH`: repositories to fetch per page (1-100, default: 100)
+- `REPOS_PER_FETCH`: repositories to fetch per page (1-100, default: 30)
 - `GH_MANAGER_DEBUG=1`: enables debug mode with performance metrics, detailed errors, and console logging
 - `GH_TOKEN`: GitHub Personal Access Token (alternative to OAuth)
 - `NO_COLOR`: disable coloured output in terminal
@@ -85,7 +81,7 @@ See [Apollo Cache (Performance)](Apollo-Cache.md) for caching-related variables 
   - `repo/` — RepoRow (memoised with React.memo), FilterInput, RepoListHeader
   - `auth/` — AuthMethodSelector, OAuthProgress
   - `common/` — SlowSpinner and shared UI elements
-- `src/services/` — `github.ts` (GraphQL client and queries), `oauth.ts` (device-flow auth), `apolloMeta.ts` (Apollo cache management)
+- `src/services/` — `github/` (client, queries, mutations, REST operations, cache, and enrichment), `oauth.ts` (device-flow auth), `apolloMeta.ts` (Apollo cache management)
 - `src/config/` — `config.ts` (token read/write and UI preferences), `constants.ts`, `themes.ts` (colour themes)
 - `src/lib/` — `logger.ts` (structured logging with rotation), `utils.ts` (truncate, formatDate), `session.ts` (usage tracking + summary), `fuzzySearch.ts` (fuse.js search)
 - `viewlogs.sh` — utility script for viewing logs

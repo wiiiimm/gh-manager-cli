@@ -2,18 +2,20 @@
 
 # gh-manager-cli
 
-[![npm version](https://img.shields.io/npm/v/gh-manager-cli.svg)](https://www.npmjs.com/package/gh-manager-cli)
-[![GitHub release](https://img.shields.io/github/release/wiiiimm/gh-manager-cli.svg)](https://github.com/wiiiimm/gh-manager-cli/releases)
+[![npm version](https://img.shields.io/npm/v/@stealth-factory/gh-manager-cli.svg)](https://www.npmjs.com/package/@stealth-factory/gh-manager-cli)
+[![GitHub release](https://img.shields.io/github/release/stealth-factory/gh-manager-cli.svg)](https://github.com/stealth-factory/gh-manager-cli/releases)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
-[![Node.js Version](https://img.shields.io/node/v/gh-manager-cli.svg)](https://nodejs.org)
-[![GitHub Stars](https://img.shields.io/github/stars/wiiiimm/gh-manager-cli.svg)](https://github.com/wiiiimm/gh-manager-cli/stargazers)
+[![Node.js Version](https://img.shields.io/node/v/@stealth-factory/gh-manager-cli.svg)](https://nodejs.org)
+[![GitHub Stars](https://img.shields.io/github/stars/stealth-factory/gh-manager-cli.svg)](https://github.com/stealth-factory/gh-manager-cli/stargazers)
 [![GitHub Sponsors](https://img.shields.io/badge/Sponsor-%E2%9D%A4-pink)](https://github.com/sponsors/wiiiimm)
 [![Context Engineered with Claude Opus 4.1](https://img.shields.io/badge/Context%20Engineered%20with-Claude%20Opus%204.1-blue)](https://www.anthropic.com)
 [![Context Engineered with Codex GPT-5](https://img.shields.io/badge/Context%20Engineered%20with-Codex%20GPT--5-green)](https://openai.com)
 
 Interactive terminal app to browse and manage your GitHub repositories. Built with Ink (React for CLIs) and the GitHub GraphQL API.
 
-🌐 **Website:** [gh-manager-cli.dev](https://gh-manager-cli.dev) · 📦 **npm:** [gh-manager-cli](https://www.npmjs.com/package/gh-manager-cli) · 📜 **Changelog:** [CHANGELOG.md](./CHANGELOG.md)
+Maintained by [Stealth Factory](https://github.com/stealth-factory). The npm package is `@stealth-factory/gh-manager-cli`; the installed command is `gh-manager-cli`.
+
+🌐 **Website:** [gh-manager-cli.dev](https://gh-manager-cli.dev) · 📦 **npm:** [@stealth-factory/gh-manager-cli](https://www.npmjs.com/package/@stealth-factory/gh-manager-cli) · 📜 **Changelog:** [CHANGELOG.md](./CHANGELOG.md)
 
 ## 🧹 Clean Up Your GitHub Account in Minutes
 
@@ -34,8 +36,10 @@ Interactive terminal app to browse and manage your GitHub repositories. Built wi
 
 ```bash
 # Run with npx (no install)
-npx gh-manager-cli@latest
+npx @stealth-factory/gh-manager-cli@latest
 ```
+
+The original `npx gh-manager-cli@latest` command is supported through a compatibility launcher published alongside the scoped package. See [Installation](wiki/Installation.md) for migration instructions.
 
 On first run, you'll be prompted to authenticate with GitHub (OAuth recommended). See [Token & Security](wiki/Token-and-Security.md).
 
@@ -76,19 +80,20 @@ See the [Features](wiki/Features.md) and [Usage & Controls](wiki/Usage.md) pages
 
 ```bash
 # Homebrew (macOS/Linux)
-brew tap wiiiimm/tap && brew install gh-manager-cli
+brew tap stealth-factory/tap https://github.com/stealth-factory/homebrew-tap && brew install stealth-factory/tap/gh-manager-cli
 
 # npm global install
-npm install -g gh-manager-cli@latest
+npm install -g @stealth-factory/gh-manager-cli@latest
+gh-manager-cli
 ```
 
 Pre-built binaries (no Node.js required) and build-from-source instructions are on the [Installation](wiki/Installation.md) page.
 
 ## Contributing & Feature Requests
 
-Got an idea or hit a bug? **[Open an issue](https://github.com/wiiiimm/gh-manager-cli/issues/new/choose)** — feature requests and bug reports are very welcome.
+Got an idea or hit a bug? **[Open an issue](https://github.com/stealth-factory/gh-manager-cli/issues/new/choose)** — feature requests and bug reports are very welcome.
 
-- 💡 **Feature requests / bugs** → [GitHub Issues](https://github.com/wiiiimm/gh-manager-cli/issues)
+- 💡 **Feature requests / bugs** → [GitHub Issues](https://github.com/stealth-factory/gh-manager-cli/issues)
 - 📜 **What's shipped recently** → [CHANGELOG.md](./CHANGELOG.md)
 - 🛠️ **Want to contribute code?** → [CONTRIBUTING.md](./CONTRIBUTING.md) and the [Development](wiki/Development.md) guide
 

@@ -4,9 +4,9 @@ gh-manager-cli already covers the features its maintainer set out to build, so t
 
 ## Have an idea?
 
-**[Open a feature request](https://github.com/wiiiimm/gh-manager-cli/issues/new/choose)** on GitHub Issues. Bug reports are equally welcome. Feature requests are prioritised based on community interest — 👍 reactions on existing issues help.
+**[Open a feature request](https://github.com/stealth-factory/gh-manager-cli/issues/new/choose)** on GitHub Issues. Bug reports are equally welcome. Feature requests are prioritised based on community interest — 👍 reactions on existing issues help.
 
-- 💡 Feature requests & bugs → [GitHub Issues](https://github.com/wiiiimm/gh-manager-cli/issues)
+- 💡 Feature requests & bugs → [GitHub Issues](https://github.com/stealth-factory/gh-manager-cli/issues)
 - 📜 What's already shipped → [CHANGELOG.md](../CHANGELOG.md)
 
 ## Ideas on the table

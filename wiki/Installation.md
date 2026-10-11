@@ -2,29 +2,62 @@
 
 The various ways to install and run gh-manager-cli, from package managers to standalone binaries.
 
+The canonical npm package is `@stealth-factory/gh-manager-cli`, maintained by Stealth Factory. The executable remains `gh-manager-cli`.
+
 ## Homebrew (macOS/Linux)
 
 ```
-brew tap wiiiimm/tap
-brew install gh-manager-cli
+brew tap stealth-factory/tap https://github.com/stealth-factory/homebrew-tap
+brew install stealth-factory/tap/gh-manager-cli
 ```
+
+The tap is hosted at [stealth-factory/homebrew-tap](https://github.com/stealth-factory/homebrew-tap); use the explicit URL to keep the familiar `tap` alias for this repository.
+
+If you previously installed from `wiiiimm/tap`, switch with:
+
+```bash
+brew uninstall gh-manager-cli
+brew untap wiiiimm/tap
+brew tap stealth-factory/tap https://github.com/stealth-factory/homebrew-tap
+brew install stealth-factory/tap/gh-manager-cli
+```
+
+Your saved authentication, preferences, and cache use the same application paths after reinstalling.
 
 ## NPX (Recommended — No Installation Required)
 
 ```
+npx @stealth-factory/gh-manager-cli@latest
+```
+
+The original short command remains supported:
+
+```bash
 npx gh-manager-cli@latest
 ```
+
+New releases publish `gh-manager-cli` as a small compatibility launcher with an exact dependency on the same version of `@stealth-factory/gh-manager-cli`. Older unscoped versions remain available. npm does not automatically redirect package names.
 
 ## NPM Global Install
 
 ```
-npm install -g gh-manager-cli@latest
+npm install -g @stealth-factory/gh-manager-cli@latest
 gh-manager-cli
 ```
 
+To switch an existing global installation to the scoped package:
+
+```bash
+npm uninstall -g gh-manager-cli
+npm install -g @stealth-factory/gh-manager-cli@latest
+gh-manager-cli
+```
+
+Both packages expose the same executable, so use one global installation at a time.
+
 ## Pre-built Binaries (No Node.js Required)
 
-Download standalone executables from [GitHub Releases](https://github.com/wiiiimm/gh-manager-cli/releases):
+Download standalone executables from [GitHub Releases](https://github.com/stealth-factory/gh-manager-cli/releases):
 
 - **Linux:** `gh-manager-cli-linux-x64`
 - **macOS:** `gh-manager-cli-macos-x64`
@@ -44,6 +77,8 @@ chmod +x gh-manager-cli-*
 Install and build:
 
 ```
+git clone https://github.com/stealth-factory/gh-manager-cli.git
+cd gh-manager-cli
 pnpm install
 pnpm build
 ```

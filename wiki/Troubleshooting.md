@@ -17,7 +17,7 @@ This page provides solutions for common issues you might encounter when using gh
 - **Solution**:
   - Check file permissions on config directory
   - Ensure the app has write access to your user config directory
-  - Try providing token via environment variable: `GITHUB_TOKEN=your_token npx gh-manager-cli`
+  - Try providing token via environment variable: `GITHUB_TOKEN=your_token npx @stealth-factory/gh-manager-cli`
 
 ### Organization Access Issues
 - **Symptom**: Cannot see or access organization repositories
@@ -39,24 +39,24 @@ This page provides solutions for common issues you might encounter when using gh
 ### High API Usage
 - **Symptom**: Rate limit decreases rapidly during normal usage
 - **Solution**:
-  - Enable debug mode to monitor cache performance: `GH_MANAGER_DEBUG=1 npx gh-manager-cli`
+  - Enable debug mode to monitor cache performance: `GH_MANAGER_DEBUG=1 npx @stealth-factory/gh-manager-cli`
   - Disable fork tracking (`F` key) to reduce API calls
   - Avoid frequent sorting changes which create new cache entries
-  - Increase cache TTL: `APOLLO_TTL_MS=3600000 npx gh-manager-cli` (1 hour)
+  - Increase cache TTL: `APOLLO_TTL_MS=3600000 npx @stealth-factory/gh-manager-cli` (1 hour)
 
 ## Performance Issues
 
 ### Slow Loading
 - **Symptom**: Repository list takes a long time to load
 - **Solution**:
-  - Reduce page size: `REPOS_PER_FETCH=10 npx gh-manager-cli`
+  - Reduce page size: `REPOS_PER_FETCH=10 npx @stealth-factory/gh-manager-cli`
   - Check network connection
   - Verify Apollo cache is working with `Ctrl+I`
 
 ### High Memory Usage
 - **Symptom**: App becomes sluggish with large repository lists
 - **Solution**:
-  - Reduce page size: `REPOS_PER_FETCH=10 npx gh-manager-cli`
+  - Reduce page size: `REPOS_PER_FETCH=10 npx @stealth-factory/gh-manager-cli`
   - Clear cache files from your config directory
   - Restart the application
 
@@ -115,7 +115,7 @@ This page provides solutions for common issues you might encounter when using gh
 For advanced troubleshooting, run with debug mode enabled:
 
 ```bash
-GH_MANAGER_DEBUG=1 npx gh-manager-cli
+GH_MANAGER_DEBUG=1 npx @stealth-factory/gh-manager-cli
 ```
 
 This provides:
