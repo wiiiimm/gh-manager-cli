@@ -42,7 +42,12 @@ import fs from 'node:fs';
 const args = process.argv.slice(2);
 fs.appendFileSync('npm-calls.jsonl', JSON.stringify(args) + '\\n');
 if (args[0] === 'view') process.exit(process.env.MOCK_PACKAGE_EXISTS === '1' ? 0 : 1);
-if (args[0] === 'pack') {
+if (args[0] === 'install') {
+  fs.copyFileSync(process.env.NPM_CONFIG_USERCONFIG, 'npm-install-config');
+  process.exit(process.env.MOCK_NPM_INSTALL_FAILURE === '1' ? 8 : 0);
+} else if (args[0] === '--version') {
+  console.log(process.env.MOCK_NPM_VERSION || '11.19.0');
+} else if (args[0] === 'pack') {
   fs.writeFileSync('archive.tgz', 'packed archive');
   console.log(JSON.stringify([{ filename: 'archive.tgz' }]));
 } else if (args[0] === 'publish') {
@@ -75,8 +80,12 @@ else if (args[0] === 'push' && process.env.MOCK_PUSH_FAILURE === '1') process.ex
     NODE_AUTH_TOKEN: 'offline-package-token',
     GITHUB_TOKEN: 'offline-tap-token',
     VERSION: '1.54.0',
+    RUNNER_TEMP: directory,
+    GITHUB_ENV: join(directory, 'github-env'),
+    NPM_CONFIG_USERCONFIG: join(directory, 'setup-node.npmrc'),
     ...overrides,
   };
+  writeFileSync(env.NPM_CONFIG_USERCONFIG, '//registry.npmjs.org/:_authToken=${NODE_AUTH_TOKEN}\n');
   return {
     directory,
     original,
@@ -148,5 +157,42 @@ describe('deployment workflow (GMC-54)', () => {
     const calls = readFileSync(join(f.directory, 'git-calls.jsonl'), 'utf8');
     expect(calls).not.toContain('["commit"');
     expect(calls).not.toContain('["push"');
+  });
+});
+
+describe('npm OIDC release workflow (GMC-55)', () => {
+  it('grants OIDC permission and removes stored npm credentials from the npmjs job', () => {
+    const npmjsJob = workflow.split('\n  build:')[0];
+    expect(npmjsJob).toContain('      id-token: write');
+    expect(npmjsJob).toContain('          package-manager-cache: false');
+    expect(npmjsJob).not.toContain('secrets.NPM_TOKEN');
+    expect(npmjsJob).not.toMatch(/^\s+(NPM_TOKEN|NODE_AUTH_TOKEN):/m);
+    // GitHub authentication remains available for release commits and the separate registry.
+    expect(npmjsJob).toContain('GH_TOKEN: ${{ secrets.GH_TOKEN || secrets.GITHUB_TOKEN }}');
+    expect(workflow).toContain('NODE_AUTH_TOKEN: ${{ secrets.GITHUB_TOKEN }}');
+  });
+
+  it('replaces setup-node authentication with a token-free config before installing a compatible npm', () => {
+    const f = fixture();
+    expect(f.run('Setup npm trusted publishing').status).toBe(0);
+    const config = join(f.directory, 'npm-oidc.npmrc');
+    expect(readFileSync(config, 'utf8')).toBe('registry=https://registry.npmjs.org/\n');
+    // The installer already uses the clean config; later steps inherit it via GITHUB_ENV.
+    expect(readFileSync(join(f.directory, 'npm-install-config'), 'utf8')).not.toContain('_authToken');
+    expect(readFileSync(join(f.directory, 'github-env'), 'utf8')).toBe(`NPM_CONFIG_USERCONFIG=${config}\n`);
+    const calls = readFileSync(join(f.directory, 'npm-calls.jsonl'), 'utf8').trim().split('\n').map(line => JSON.parse(line) as string[]);
+    expect(calls).toEqual([['install', '--global', 'npm@11.19.0'], ['--version']]);
+    expect(workflow.indexOf('- name: Setup npm trusted publishing')).toBeLessThan(workflow.indexOf('- name: Install dependencies'));
+  });
+
+  it('stops the release setup if the compatible npm installation fails', () => {
+    const f = fixture({ MOCK_NPM_INSTALL_FAILURE: '1' });
+    expect(f.run('Setup npm trusted publishing').status).toBe(8);
+    expect(readFileSync(join(f.directory, 'npm-calls.jsonl'), 'utf8')).not.toContain('--version');
+  });
+
+  it('rejects an unexpected npm version instead of attempting an unsupported publish', () => {
+    const f = fixture({ MOCK_NPM_VERSION: '10.9.3' });
+    expect(f.run('Setup npm trusted publishing').status).toBe(1);
   });
 });

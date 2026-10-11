@@ -28,6 +28,8 @@ On a non-release commit pushed to `main`, semantic-release:
 
 The local `scripts/release-legacy-package.js` plugin follows `@semantic-release/npm` in the plugin list. Its launcher imports the scoped package in the same process, retaining CLI arguments and exit behaviour, and depends on that exact version. It performs no runtime package installation.
 
+Both npmjs publications use OIDC trusted publishing with `id-token: write`, a token-free npm configuration, and npm 11.19.0. No stored npm publishing secret is used. Each package needs its own npm-side trusted publisher for `stealth-factory/gh-manager-cli`, workflow `release.yml`; see [npm Trusted Publishing](NPM_TRUSTED_PUBLISHING.md) for setup and first-package bootstrap.
+
 Do not manually bump the version or edit `CHANGELOG.md`. `feat:` triggers a minor release; `fix:` and `perf:` trigger patch releases; a breaking-change marker triggers a major release. Documentation and maintenance commits alone do not normally trigger publication.
 
 The two npm publications are sequential, not atomic. If the scoped publication succeeds and the compatibility publication fails, the previous short-command version remains available; repair it using the migration guide.
@@ -49,10 +51,10 @@ Downstream release and publication jobs check out the triggering commit (`github
 
 ## Credentials After the Repository Transfer
 
-- `NPM_TOKEN`: must permit public publication under the `stealth-factory` organisation and updates to the original unscoped `gh-manager-cli` package.
+- npmjs: configure OIDC trusted publishers on both `@stealth-factory/gh-manager-cli` and `gh-manager-cli`. The workflow does not use `NPM_TOKEN`.
 - `GH_TOKEN`: must allow repository/tag/release writes for `stealth-factory/gh-manager-cli` and formula pushes to `stealth-factory/homebrew-tap`.
 - `GITHUB_TOKEN`: the `publish-extras` job requests `packages: write` for publishing under the new GitHub organisation. Check the organisation's package creation policy.
-- If using npm trusted publishing, update the configured GitHub owner/repository to `stealth-factory/gh-manager-cli` and authorise both npm packages. The current workflow uses `NPM_TOKEN`; an OIDC migration needs corresponding workflow configuration.
+- Organisation-level GitHub secrets are supported. A repository secret with the same name overrides the organisation secret; retain only the intended `GH_TOKEN` configuration.
 
 See [npm Scope Migration](NPM_SCOPE_MIGRATION.md) for first publication and verification.
 
