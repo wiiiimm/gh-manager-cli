@@ -14,7 +14,7 @@ echo "Fetching: $URL" >&2
 TMPFILE=$(mktemp -t gh-manager-cli.XXXXXX.tgz)
 trap 'rm -f "$TMPFILE"' EXIT
 
-if ! curl -fsSL "$URL" -o "$TMPFILE"; then
+if ! curl --retry 24 --retry-delay 15 --retry-max-time 360 --retry-all-errors -fsSL "$URL" -o "$TMPFILE"; then
   echo "Error: Failed to download tarball from $URL" >&2
   rm -f "$TMPFILE"
   exit 1

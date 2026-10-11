@@ -59,8 +59,9 @@ if (args[0] === 'install') {
   writeFileSync(join(bin, 'curl'), `#!/usr/bin/env node
 import fs from 'node:fs';
 const args = process.argv.slice(2);
-if (args[0] !== '-fsSL' || args[1] !== 'https://registry.npmjs.org/gh-manager-cli/-/gh-manager-cli-1.54.0.tgz') process.exit(99);
-fs.writeFileSync(args[3], 'published archive');
+if (args.slice(0, 8).join(' ') !== '--retry 24 --retry-delay 15 --retry-max-time 360 --retry-all-errors -fsSL' || args[8] !== 'https://registry.npmjs.org/gh-manager-cli/-/gh-manager-cli-1.54.0.tgz') process.exit(99);
+if (process.env.MOCK_HTTP_ERROR === '1') process.exit(22);
+fs.writeFileSync(args[10], 'published archive');
 `, { mode: 0o755 });
   writeFileSync(join(bin, 'git'), `#!/usr/bin/env node
 import fs from 'node:fs';
@@ -149,6 +150,12 @@ describe('deployment workflow (GMC-54)', () => {
     const result = f.run('Update Homebrew Tap');
     expect(result.status).toBe(1);
     expect(result.stdout).toContain('::error::Homebrew tap update requires GH_TOKEN');
+  });
+
+  it('stops before cloning the tap when the npm archive remains unavailable', () => {
+    const f = fixture({ MOCK_HTTP_ERROR: '1' });
+    expect(f.run('Update Homebrew Tap').status).not.toBe(0);
+    expect(existsSync(join(f.directory, 'git-calls.jsonl'))).toBe(false);
   });
 
   it('allows a retry with no formula changes without committing or pushing', () => {

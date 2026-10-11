@@ -57,7 +57,7 @@ describe('Homebrew scope migration (GMC-54)', () => {
     mkdirSync(bin);
     // Offline curl stub: checks the requested URL/HTTP-failure flag, then writes
     // bytes to the download path. A missing archive simulates curl's HTTP exit.
-    writeFileSync(join(bin, 'curl'), '#!/bin/bash\n[[ "$1" == "-fsSL" ]] || exit 99\n[[ "$2" == "https://registry.npmjs.org/gh-manager-cli/-/gh-manager-cli-1.54.0.tgz" ]] || exit 98\nif [[ "${MOCK_HTTP_ERROR:-}" == "1" ]]; then exit 22; fi\nprintf "published archive" > "$4"\n', { mode: 0o755 });
+    writeFileSync(join(bin, 'curl'), '#!/bin/bash\n[[ "$1 $2 $3 $4 $5 $6 $7 $8" == "--retry 24 --retry-delay 15 --retry-max-time 360 --retry-all-errors -fsSL" ]] || exit 99\n[[ "$9" == "https://registry.npmjs.org/gh-manager-cli/-/gh-manager-cli-1.54.0.tgz" ]] || exit 98\nif [[ "${MOCK_HTTP_ERROR:-}" == "1" ]]; then exit 22; fi\nprintf "published archive" > "${11}"\n', { mode: 0o755 });
     const env = { ...process.env, PATH: `${bin}:${process.env.PATH}`, TMPDIR: directory };
     const args = [join(root, 'scripts/brew-sha.sh'), '1.54.0'];
     const success = spawnSync('bash', args, { env, encoding: 'utf8' });
