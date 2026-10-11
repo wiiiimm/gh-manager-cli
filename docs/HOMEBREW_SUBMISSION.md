@@ -6,17 +6,17 @@ If proposing the formula to homebrew-core in future, follow Homebrew's current [
 
 ## Prepare the Formula
 
-Use a stable, published version of `@stealth-factory/gh-manager-cli`:
+Use a stable, published version of `gh-manager-cli`:
 
 ```bash
-VERSION=$(npm view @stealth-factory/gh-manager-cli version --registry=https://registry.npmjs.org)
+VERSION=$(npm view gh-manager-cli version --registry=https://registry.npmjs.org)
 bash scripts/brew-sha.sh "$VERSION"
 ```
 
 Start from `Formula/gh-manager-cli.rb` in `stealth-factory/homebrew-tap`, with:
 
 - Homepage: `https://github.com/stealth-factory/gh-manager-cli`.
-- Source: the scoped npm tarball URL printed by `brew-sha.sh`.
+- Source: the unscoped npm tarball URL printed by `brew-sha.sh`.
 - SHA256: the checksum of that published tarball.
 - Executable: `gh-manager-cli`.
 - Test: `gh-manager-cli --version`, which does not require authentication or network access.
@@ -37,10 +37,10 @@ Keep third-party formula changes in the tap or homebrew-core checkout, rather th
 Only after acceptance into homebrew-core, use its bump flow:
 
 ```bash
-VERSION=$(npm view @stealth-factory/gh-manager-cli version --registry=https://registry.npmjs.org)
+VERSION=$(npm view gh-manager-cli version --registry=https://registry.npmjs.org)
 SHA256=$(bash scripts/brew-sha.sh "$VERSION" | awk '/^sha256:/ {print $2}')
 brew bump-formula-pr \
-  --url="https://registry.npmjs.org/@stealth-factory/gh-manager-cli/-/gh-manager-cli-${VERSION}.tgz" \
+  --url="https://registry.npmjs.org/gh-manager-cli/-/gh-manager-cli-${VERSION}.tgz" \
   --sha256="$SHA256" \
   gh-manager-cli
 ```

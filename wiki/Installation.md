@@ -2,7 +2,7 @@
 
 The various ways to install and run gh-manager-cli, from package managers to standalone binaries.
 
-The canonical npm package is `@stealth-factory/gh-manager-cli`, maintained by Stealth Factory. The executable remains `gh-manager-cli`.
+The canonical npm package is `gh-manager-cli`, maintained by Stealth Factory. The executable remains `gh-manager-cli`.
 
 ## Homebrew (macOS/Linux)
 
@@ -27,33 +27,27 @@ Your saved authentication, preferences, and cache use the same application paths
 ## NPX (Recommended — No Installation Required)
 
 ```
-npx @stealth-factory/gh-manager-cli@latest
-```
-
-The original short command remains supported:
-
-```bash
 npx gh-manager-cli@latest
 ```
 
-New releases publish `gh-manager-cli` as a small compatibility launcher with an exact dependency on the same version of `@stealth-factory/gh-manager-cli`. Older unscoped versions remain available. npm does not automatically redirect package names.
+The unscoped package contains the application directly.
 
 ## NPM Global Install
 
 ```
-npm install -g @stealth-factory/gh-manager-cli@latest
+npm install -g gh-manager-cli@latest
 gh-manager-cli
 ```
 
-To switch an existing global installation to the scoped package:
+If you installed the scoped package during the migration, switch back with:
 
 ```bash
-npm uninstall -g gh-manager-cli
-npm install -g @stealth-factory/gh-manager-cli@latest
+npm uninstall -g @stealth-factory/gh-manager-cli
+npm install -g gh-manager-cli@latest
 gh-manager-cli
 ```
 
-Both packages expose the same executable, so use one global installation at a time.
+The previously published scoped version remains available, but new npm releases use `gh-manager-cli`.
 
 ## Pre-built Binaries (No Node.js Required)
 

@@ -8,7 +8,7 @@ else
   VERSION=$(node -e "console.log(require('./package.json').version)")
 fi
 
-URL="https://registry.npmjs.org/@stealth-factory/gh-manager-cli/-/gh-manager-cli-${VERSION}.tgz"
+URL="https://registry.npmjs.org/gh-manager-cli/-/gh-manager-cli-${VERSION}.tgz"
 
 echo "Fetching: $URL" >&2
 TMPFILE=$(mktemp -t gh-manager-cli.XXXXXX.tgz)

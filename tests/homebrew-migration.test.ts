@@ -26,7 +26,7 @@ describe('Homebrew scope migration (GMC-54)', () => {
     const { formula } = fixture(prefix);
     updateHomebrewFormula(formula, '1.54.0', checksum);
     const output = readFileSync(formula, 'utf8');
-    expect(output).toContain('https://registry.npmjs.org/@stealth-factory/gh-manager-cli/-/gh-manager-cli-1.54.0.tgz');
+    expect(output).toContain('https://registry.npmjs.org/gh-manager-cli/-/gh-manager-cli-1.54.0.tgz');
     expect(output).toContain(`sha256 "${checksum}"`);
     expect(output).toContain('homepage "https://github.com/stealth-factory/gh-manager-cli"');
     expect(output).not.toContain('1.53.1');
@@ -51,13 +51,13 @@ describe('Homebrew scope migration (GMC-54)', () => {
     expect(readFileSync(formula, 'utf8')).toBe(unexpectedSource);
   });
 
-  it('hashes the downloaded scoped archive and fails on HTTP errors', () => {
+  it('hashes the downloaded unscoped archive and fails on HTTP errors', () => {
     const { directory } = fixture();
     const bin = join(directory, 'bin');
     mkdirSync(bin);
     // Offline curl stub: checks the requested URL/HTTP-failure flag, then writes
     // bytes to the download path. A missing archive simulates curl's HTTP exit.
-    writeFileSync(join(bin, 'curl'), '#!/bin/bash\n[[ "$1" == "-fsSL" ]] || exit 99\n[[ "$2" == "https://registry.npmjs.org/@stealth-factory/gh-manager-cli/-/gh-manager-cli-1.54.0.tgz" ]] || exit 98\nif [[ "${MOCK_HTTP_ERROR:-}" == "1" ]]; then exit 22; fi\nprintf "published archive" > "$4"\n', { mode: 0o755 });
+    writeFileSync(join(bin, 'curl'), '#!/bin/bash\n[[ "$1" == "-fsSL" ]] || exit 99\n[[ "$2" == "https://registry.npmjs.org/gh-manager-cli/-/gh-manager-cli-1.54.0.tgz" ]] || exit 98\nif [[ "${MOCK_HTTP_ERROR:-}" == "1" ]]; then exit 22; fi\nprintf "published archive" > "$4"\n', { mode: 0o755 });
     const env = { ...process.env, PATH: `${bin}:${process.env.PATH}`, TMPDIR: directory };
     const args = [join(root, 'scripts/brew-sha.sh'), '1.54.0'];
     const success = spawnSync('bash', args, { env, encoding: 'utf8' });

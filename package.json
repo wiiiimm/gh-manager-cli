@@ -1,5 +1,5 @@
 {
-  "name": "@stealth-factory/gh-manager-cli",
+  "name": "gh-manager-cli",
   "version": "1.53.1",
   "private": false,
   "description": "TUI terminal app to manage GitHub repos. Clean up your account in 5 minutes. Archive, delete, rename repos with keyboard shortcuts. Alternative to clicking through github.com",
@@ -52,8 +52,7 @@
     "test:watch": "vitest",
     "test:coverage": "vitest run --coverage",
     "brew:sha": "bash scripts/brew-sha.sh",
-    "assets:png": "bash scripts/convert-svg-to-png.sh",
-    "legacy:prepare": "node scripts/release-legacy-package.js"
+    "assets:png": "bash scripts/convert-svg-to-png.sh"
   },
   "engines": {
     "node": ">=22.12.0"
@@ -104,7 +103,6 @@
       "@semantic-release/release-notes-generator",
       "@semantic-release/changelog",
       "@semantic-release/npm",
-      "./scripts/release-legacy-package.js",
       [
         "@semantic-release/git",
         {

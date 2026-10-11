@@ -7,7 +7,7 @@ See also: [Features](Features.md) Â· [Token & Security](Token-and-Security.md) Â
 ## CLI Flags
 
 - `--org, -o <slug>`: Start in a specific organisation context (if accessible). The flag is ignored if you don't have access or if the slug isn't an organisation.
-  - Examples: `gh-manager-cli --org acme`, `gh-manager-cli -o acme`, `npx @stealth-factory/gh-manager-cli@latest --org=@acme`, `npx @stealth-factory/gh-manager-cli@latest -o=@acme`
+  - Examples: `gh-manager-cli --org acme`, `gh-manager-cli -o acme`, `npx gh-manager-cli@latest --org=@acme`, `npx gh-manager-cli@latest -o=@acme`
   - Notes: A leading `@` is optional. Personal usernames are not supported by `--org`/`-o` (use the default personal context).
 - `--token, -t <pat>`: Use a Personal Access Token just for this run. Does not persist to config.
   - Examples: `gh-manager-cli --token ghp_XXXX`, `gh-manager-cli -t=ghp_XXXX`

@@ -4,13 +4,13 @@
 
 **gh-manager-cli** is an interactive CLI tool built with Ink (React for terminals) that helps users manage GitHub repositories. This project provides a terminal-based UI for browsing, searching, and managing personal GitHub repos with real-time API integration.
 
-- Canonical npm package: `@stealth-factory/gh-manager-cli` (public).
+- Canonical npm package: `gh-manager-cli` (public).
 - GitHub repository: `stealth-factory/gh-manager-cli`.
 - Homebrew tap: `stealth-factory/homebrew-tap`, installed as `stealth-factory/tap` with its explicit repository URL.
 - Executable and application config/cache/log paths: `gh-manager-cli`.
-- `scripts/release-legacy-package.js` publishes an unscoped `gh-manager-cli` compatibility launcher after the canonical package, with an exact dependency on the same version. Keep this semantic-release plugin after `@semantic-release/npm` so `npx gh-manager-cli` remains supported.
+- npmjs publishes the application directly as `gh-manager-cli`. GitHub Packages uses `@stealth-factory/gh-manager-cli`; the publish step temporarily changes the manifest name and registry, then restores both.
 - Downstream release/publication jobs check out the triggering `github.sha` to match the binary build. Missing tap credentials and rejected formula pushes must fail the job, rather than report a successful deployment.
-- npmjs releases use OIDC trusted publishing (`id-token: write`) for both package identities, with a token-free npm config and npm 11.19.0. Do not add `NPM_TOKEN` or `NODE_AUTH_TOKEN` to this job. Each package needs its own npm trusted publisher for `stealth-factory/gh-manager-cli`, workflow `release.yml`. GitHub Packages still uses its separate `GITHUB_TOKEN` authentication.
+- npmjs releases use OIDC trusted publishing (`id-token: write`) for the unscoped package, with a token-free npm config and npm 11.19.0. Do not add `NPM_TOKEN` or `NODE_AUTH_TOKEN` to this job. The npm package needs a trusted publisher for `stealth-factory/gh-manager-cli`, workflow `release.yml`. GitHub Packages still uses its separate `GITHUB_TOKEN` authentication.
 
 ### Current Status: Active Development
 - ✅ Core repository listing functionality
@@ -287,7 +287,7 @@ First run prompts for a PAT if not provided via env vars. The token is validated
 
 - `package.json` defines `bin: { "gh-manager-cli": "dist/index.js" }`.
 - For local dev: `pnpm link` exposes `gh-manager-cli` on PATH.
-- For publish: semantic-release publishes `@stealth-factory/gh-manager-cli` publicly, then the unscoped compatibility launcher. Do not manually bump versions. See [scope migration](./docs/NPM_SCOPE_MIGRATION.md) and [release process](./docs/RELEASE_PROCESS.md).
+- For publish: semantic-release publishes the application publicly as `gh-manager-cli`. Do not manually bump versions. See [scope migration](./docs/NPM_SCOPE_MIGRATION.md) and [release process](./docs/RELEASE_PROCESS.md).
 - **Standalone binaries:** `pnpm build:binaries` uses `@yao-pkg/pkg@6.20.0` (the maintained fork of the archived `vercel/pkg`) and emits `node22-*` targets. The CLI itself requires Node >=22.12.0 (`engines.node`) because Ink 7 and Vite 8 do. Building binaries also requires **Node.js 22.12 or later**: `@yao-pkg/pkg@6.20.0` / pkg-fetch v3.6 no longer ships `node20-*-win-x64`, so the script and the release workflow's binary job must run on Node 22+.
 
 ## Development Workflow
