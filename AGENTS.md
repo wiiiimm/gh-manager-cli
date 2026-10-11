@@ -9,6 +9,7 @@
 - Homebrew tap: `stealth-factory/homebrew-tap`, installed as `stealth-factory/tap` with its explicit repository URL.
 - Executable and application config/cache/log paths: `gh-manager-cli`.
 - npmjs publishes the application directly as `gh-manager-cli`. GitHub Packages uses `@stealth-factory/gh-manager-cli`; the publish step temporarily changes the manifest name and registry, then restores both.
+- GitHub releases are created as drafts, receive all three binaries, and publish only after asset verification. Upload failures must fail the job. Existing published immutable releases are verified without modifying assets. Homebrew downloads retry for npm propagation and fail before tap mutation if the archive remains unavailable.
 - Downstream release/publication jobs check out the triggering `github.sha` to match the binary build. Missing tap credentials and rejected formula pushes must fail the job, rather than report a successful deployment.
 - npmjs releases use OIDC trusted publishing (`id-token: write`) for the unscoped package, with a token-free npm config and npm 11.19.0. Do not add `NPM_TOKEN` or `NODE_AUTH_TOKEN` to this job. The npm package needs a trusted publisher for `stealth-factory/gh-manager-cli`, workflow `release.yml`. GitHub Packages still uses its separate `GITHUB_TOKEN` authentication.
 

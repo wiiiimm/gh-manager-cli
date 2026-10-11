@@ -215,7 +215,8 @@ jobs:
             gh release create v${VERSION} \
               --title "v${VERSION}" \
               --notes-file release_notes.md \
-              --verify-tag
+              --verify-tag \
+              --draft
           fi
 
       - name: Upload binaries to release
@@ -223,14 +224,41 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GH_TOKEN || secrets.GITHUB_TOKEN }}
           VERSION: ${{ steps.get_version.outputs.version }}
         run: |
-          # Upload each binary
-          for file in binaries/*/*; do
-            if [ -f "$file" ]; then
-              filename=$(basename "$file")
-              echo "Uploading $filename..."
-              gh release upload v${VERSION} "$file" --clobber || echo "::warning::Failed to upload $filename"
+          # Published releases may be immutable. A retry must not alter them.
+          if [ "$(gh release view "v${VERSION}" --json isDraft --jq .isDraft)" = "false" ]; then
+            echo "Release is already published; checking its assets in the next step"
+            exit 0
+          fi
+          files=(
+            binaries/gh-manager-cli-linux-x64/gh-manager-cli-linux-x64
+            binaries/gh-manager-cli-macos-x64/gh-manager-cli-macos-x64
+            binaries/gh-manager-cli-windows-x64/gh-manager-cli-windows-x64.exe
+          )
+          for file in "${files[@]}"; do
+            if [ ! -s "$file" ]; then
+              echo "::error::Missing or empty release binary: $file"
+              exit 1
             fi
           done
+          gh release upload "v${VERSION}" "${files[@]}" --clobber
+
+      - name: Publish GitHub Release
+        env:
+          GITHUB_TOKEN: ${{ secrets.GH_TOKEN || secrets.GITHUB_TOKEN }}
+          VERSION: ${{ steps.get_version.outputs.version }}
+        run: |
+          release=$(gh release view "v${VERSION}" --json isDraft,assets)
+          for name in gh-manager-cli-linux-x64 gh-manager-cli-macos-x64 gh-manager-cli-windows-x64.exe; do
+            if ! jq -e --arg name "$name" 'any(.assets[]; .name == $name and .size > 0)' <<< "$release" >/dev/null; then
+              echo "::error::Release is missing binary asset: $name"
+              exit 1
+            fi
+          done
+          if [ "$(jq -r .isDraft <<< "$release")" = "true" ]; then
+            gh release edit "v${VERSION}" --draft=false
+          else
+            echo "Release is already published with all binary assets"
+          fi
 
   # Publish to other registries and update Homebrew
   publish-extras:
@@ -301,6 +329,7 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GH_TOKEN }}
           VERSION: ${{ steps.get_version.outputs.version }}
         run: |
+          set -o pipefail
           # The cross-repository tap update requires GH_TOKEN.
           if [ -z "$GITHUB_TOKEN" ]; then
             echo "::error::Homebrew tap update requires GH_TOKEN with write access to stealth-factory/homebrew-tap"

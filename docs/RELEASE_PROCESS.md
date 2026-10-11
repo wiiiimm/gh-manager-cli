@@ -32,13 +32,13 @@ Do not manually bump the version or edit `CHANGELOG.md`. `feat:` triggers a mino
 The release metadata commit triggers the second phase:
 
 1. Build Linux, macOS, and Windows binaries using the pinned `@yao-pkg/pkg` and `node22` targets.
-2. Create the GitHub release from the generated changelog and upload binaries.
+2. Create a draft GitHub release from the generated changelog, upload all three binaries, verify the assets, then publish the complete release.
 3. Build the application and publish the scoped package to GitHub Packages.
 4. Download the unscoped tarball from the public npm registry, hash it, and update `Formula/gh-manager-cli.rb` in `stealth-factory/homebrew-tap`.
 
 The GitHub Packages step temporarily changes the manifest name to `@stealth-factory/gh-manager-cli` and its registry to GitHub Packages, then restores the unscoped npmjs manifest even on failure. It uses a separate authentication configuration. Homebrew uses the published npmjs archive, rather than a local `npm pack` checksum.
 
-Downstream release and publication jobs check out the triggering commit (`github.sha`), matching the binary build. They do not read a newer version from `main` while a release is running. A missing tap token or rejected formula push fails the deployment job; a retry with no formula changes succeeds without another commit.
+Downstream release and publication jobs check out the triggering commit (`github.sha`), matching the binary build. They do not read a newer version from `main` while a release is running. A missing tap token or rejected formula push fails the deployment job; a retry with no formula changes succeeds without another commit. Homebrew retries npm downloads for up to six minutes while the public registry propagates a newly published version.
 
 `GH_TOKEN` must permit the release commit to trigger another workflow run. A push authenticated with the default `GITHUB_TOKEN` does not trigger another push workflow; that fallback alone is insufficient for phase 2.
 
@@ -55,7 +55,7 @@ See [npm Package Name and Ownership](NPM_SCOPE_MIGRATION.md) for migration histo
 
 Use GitHub Actions → **Release Pipeline** → **Run workflow**. Semantic-release still requires releasable commits; a manual trigger does not force a version bump.
 
-For an interrupted second phase, retry the failed workflow and inspect the job conditions.
+For an interrupted second phase, retry the failed workflow and inspect the job conditions. Upload failures leave a draft for recovery. An already published release is checked for all three non-empty binary assets and is not modified; a published immutable release with missing assets requires a new patch release.
 
 Do not run `npm version` to force a release. For tap repair, use [HOMEBREW.md](HOMEBREW.md).
 
