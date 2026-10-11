@@ -1,10 +1,12 @@
 # gh-manager-cli
 
-[![npm version](https://img.shields.io/npm/v/gh-manager-cli.svg)](https://www.npmjs.com/package/gh-manager-cli)
-[![GitHub release](https://img.shields.io/github/release/wiiiimm/gh-manager-cli.svg)](https://github.com/wiiiimm/gh-manager-cli/releases)
+Maintained by [Stealth Factory](https://github.com/stealth-factory). Published on npm as `@stealth-factory/gh-manager-cli`; the executable remains `gh-manager-cli`.
+
+[![npm version](https://img.shields.io/npm/v/@stealth-factory/gh-manager-cli.svg)](https://www.npmjs.com/package/@stealth-factory/gh-manager-cli)
+[![GitHub release](https://img.shields.io/github/release/stealth-factory/gh-manager-cli.svg)](https://github.com/stealth-factory/gh-manager-cli/releases)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
-[![Node.js Version](https://img.shields.io/node/v/gh-manager-cli.svg)](https://nodejs.org)
-[![GitHub Stars](https://img.shields.io/github/stars/wiiiimm/gh-manager-cli.svg)](https://github.com/wiiiimm/gh-manager-cli/stargazers)
+[![Node.js Version](https://img.shields.io/node/v/@stealth-factory/gh-manager-cli.svg)](https://nodejs.org)
+[![GitHub Stars](https://img.shields.io/github/stars/stealth-factory/gh-manager-cli.svg)](https://github.com/stealth-factory/gh-manager-cli/stargazers)
 
 Interactive terminal app to browse and manage your GitHub repositories. Built with Ink (React for CLIs) and the GitHub GraphQL API.
 
@@ -33,7 +35,7 @@ This is the documentation wiki. For the project overview, see the [main README](
 
 ```bash
 # Run with npx (no install)
-npx gh-manager-cli@latest
+npx @stealth-factory/gh-manager-cli@latest
 ```
 
 On first run, you'll be prompted to authenticate with GitHub (OAuth recommended). See [Token & Security](Token-and-Security.md).

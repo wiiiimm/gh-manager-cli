@@ -4,6 +4,12 @@
 
 **gh-manager-cli** is an interactive CLI tool built with Ink (React for terminals) that helps users manage GitHub repositories. This project provides a terminal-based UI for browsing, searching, and managing personal GitHub repos with real-time API integration.
 
+- Canonical npm package: `@stealth-factory/gh-manager-cli` (public).
+- GitHub repository: `stealth-factory/gh-manager-cli`.
+- Homebrew tap: `stealth-factory/homebrew-tap`, installed as `stealth-factory/tap` with its explicit repository URL.
+- Executable and application config/cache/log paths: `gh-manager-cli`.
+- `scripts/release-legacy-package.js` publishes an unscoped `gh-manager-cli` compatibility launcher after the canonical package, with an exact dependency on the same version. Keep this semantic-release plugin after `@semantic-release/npm` so `npx gh-manager-cli` remains supported.
+
 ### Current Status: Active Development
 - ✅ Core repository listing functionality
 - ✅ GitHub GraphQL API integration with Apollo Client caching
@@ -77,7 +83,7 @@ gh-manager-cli/
 ├── dist/                      # Built output (gitignored)
 ├── package.json               # NPM package config with semantic-release
 ├── tsconfig.json              # TypeScript configuration
-├── tsup.config.ts             # Build configuration (shebang-preserved CJS)
+├── tsup.config.ts             # Build configuration (shebang-preserved ESM)
 ├── CHANGELOG.md               # Generated changelog (semantic-release)
 ├── README.md                  # User documentation
 ├── LICENSE                    # MIT License
@@ -85,7 +91,7 @@ gh-manager-cli/
 ├── .gitignore                 # Git ignore patterns
 └── .github/
     ├── workflows/
-    │   ├── automated-release.yml    # Semantic release on main push
+    │   ├── release.yml    # Semantic release on main push
     │   └── pr-title-manager.yml     # PR title automation
     └── scripts/
         └── normalize-pr-title.js    # PR title normalization logic
@@ -124,7 +130,7 @@ gh-manager-cli/
 - Real-time rate limit monitoring for GraphQL and REST APIs
 
 ### Planned Enhancements
-The project has no formal roadmap or task board — feature work is driven by user requests on [GitHub Issues](https://github.com/wiiiimm/gh-manager-cli/issues). See the [wiki Roadmap & Feature Requests](./wiki/Roadmap.md) page for ideas under consideration, and [CHANGELOG.md](./CHANGELOG.md) for what's already shipped. Ideas occasionally explored:
+The project has no formal roadmap or task board — feature work is driven by user requests on [GitHub Issues](https://github.com/stealth-factory/gh-manager-cli/issues). See the [wiki Roadmap & Feature Requests](./wiki/Roadmap.md) page for ideas under consideration, and [CHANGELOG.md](./CHANGELOG.md) for what's already shipped. Ideas occasionally explored:
 - Optional OS keychain support (via `keytar`)
 - Language filter and indicators
 - Additional sort fields and CLI flags
@@ -279,7 +285,7 @@ First run prompts for a PAT if not provided via env vars. The token is validated
 
 - `package.json` defines `bin: { "gh-manager-cli": "dist/index.js" }`.
 - For local dev: `pnpm link` exposes `gh-manager-cli` on PATH.
-- For publish: `npm publish` (after setting version and adding README).
+- For publish: semantic-release publishes `@stealth-factory/gh-manager-cli` publicly, then the unscoped compatibility launcher. Do not manually bump versions. See [scope migration](./docs/NPM_SCOPE_MIGRATION.md) and [release process](./docs/RELEASE_PROCESS.md).
 - **Standalone binaries:** `pnpm build:binaries` uses `@yao-pkg/pkg@6.20.0` (the maintained fork of the archived `vercel/pkg`) and emits `node22-*` targets. The CLI itself requires Node >=22.12.0 (`engines.node`) because Ink 7 and Vite 8 do. Building binaries also requires **Node.js 22.12 or later**: `@yao-pkg/pkg@6.20.0` / pkg-fetch v3.6 no longer ships `node20-*-win-x64`, so the script and the release workflow's binary job must run on Node 22+.
 
 ## Development Workflow
@@ -289,7 +295,7 @@ First run prompts for a PAT if not provided via env vars. The token is validated
 - **Automation:** semantic-release handles version bumping and git tags
 - **Release process:** Automated via GitHub Actions on main branch push
 - **Change tracking:** All releases documented in [CHANGELOG.md](./CHANGELOG.md)
-- **Do NOT manually edit [CHANGELOG.md](./CHANGELOG.md):** it is generated automatically by the semantic-release GitHub Actions workflow (`.github/workflows/automated-release.yml`) from conventional commit messages on `main`. Manual edits cause merge conflicts and are overwritten on the next release. To influence the changelog, write a well-formed conventional commit / PR title instead. When a feature branch conflicts with `main` on CHANGELOG.md, resolve by taking `main`'s version.
+- **Do NOT manually edit [CHANGELOG.md](./CHANGELOG.md):** it is generated automatically by the semantic-release GitHub Actions workflow (`.github/workflows/release.yml`) from conventional commit messages on `main`. Manual edits cause merge conflicts and are overwritten on the next release. To influence the changelog, write a well-formed conventional commit / PR title instead. When a feature branch conflicts with `main` on CHANGELOG.md, resolve by taking `main`'s version.
 
 ### Code Standards
 - **TypeScript:** Strict mode with comprehensive type definitions
@@ -403,7 +409,7 @@ serve a stale row. Both currently include the Bulk Select props
 8. Create PR (title will be auto-formatted)
 
 ### Task Tracking
-- There is no `TODOs.md`; planned work is tracked via [GitHub Issues](https://github.com/wiiiimm/gh-manager-cli/issues) and shipped work via [CHANGELOG.md](./CHANGELOG.md) (generated by semantic-release).
+- There is no `TODOs.md`; planned work is tracked via [GitHub Issues](https://github.com/stealth-factory/gh-manager-cli/issues) and shipped work via [CHANGELOG.md](./CHANGELOG.md) (generated by semantic-release).
 - User-facing documentation lives in `wiki/`; keep the README concise and point to the relevant wiki pages.
 - The README's “Contributing & Feature Requests” section directs users to open issues for ideas and bugs.
 

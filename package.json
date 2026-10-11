@@ -1,5 +1,5 @@
 {
-  "name": "gh-manager-cli",
+  "name": "@stealth-factory/gh-manager-cli",
   "version": "1.53.1",
   "private": false,
   "description": "TUI terminal app to manage GitHub repos. Clean up your account in 5 minutes. Archive, delete, rename repos with keyboard shortcuts. Alternative to clicking through github.com",
@@ -52,7 +52,8 @@
     "test:watch": "vitest",
     "test:coverage": "vitest run --coverage",
     "brew:sha": "bash scripts/brew-sha.sh",
-    "assets:png": "bash scripts/convert-svg-to-png.sh"
+    "assets:png": "bash scripts/convert-svg-to-png.sh",
+    "legacy:prepare": "node scripts/release-legacy-package.js"
   },
   "engines": {
     "node": ">=22.12.0"
@@ -88,10 +89,10 @@
   },
   "repository": {
     "type": "git",
-    "url": "https://github.com/wiiiimm/gh-manager-cli.git"
+    "url": "https://github.com/stealth-factory/gh-manager-cli.git"
   },
   "bugs": {
-    "url": "https://github.com/wiiiimm/gh-manager-cli/issues"
+    "url": "https://github.com/stealth-factory/gh-manager-cli/issues"
   },
   "homepage": "https://gh-manager-cli.dev",
   "release": {
@@ -103,6 +104,7 @@
       "@semantic-release/release-notes-generator",
       "@semantic-release/changelog",
       "@semantic-release/npm",
+      "./scripts/release-legacy-package.js",
       [
         "@semantic-release/git",
         {
@@ -114,5 +116,9 @@
         }
       ]
     ]
+  },
+  "publishConfig": {
+    "access": "public",
+    "registry": "https://registry.npmjs.org"
   }
 }

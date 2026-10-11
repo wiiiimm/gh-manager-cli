@@ -174,7 +174,7 @@ export function formatSupportMessage(): string {
     '',
     '       💖 Sponsor on GitHub:  https://github.com/sponsors/wiiiimm',
     '       🚀 Visit my site:      https://wiiiimm.codes',
-    '       💬 Leave feedback:     https://github.com/wiiiimm/gh-manager-cli',
+    '       💬 Leave feedback:     https://github.com/stealth-factory/gh-manager-cli',
     '',
     '     Your support keeps this project alive! 🙏',
     '',

@@ -8,12 +8,13 @@ else
   VERSION=$(node -e "console.log(require('./package.json').version)")
 fi
 
-URL="https://registry.npmjs.org/gh-manager-cli/-/gh-manager-cli-${VERSION}.tgz"
+URL="https://registry.npmjs.org/@stealth-factory/gh-manager-cli/-/gh-manager-cli-${VERSION}.tgz"
 
 echo "Fetching: $URL" >&2
 TMPFILE=$(mktemp -t gh-manager-cli.XXXXXX.tgz)
+trap 'rm -f "$TMPFILE"' EXIT
 
-if ! curl -sSL "$URL" -o "$TMPFILE"; then
+if ! curl -fsSL "$URL" -o "$TMPFILE"; then
   echo "Error: Failed to download tarball from $URL" >&2
   rm -f "$TMPFILE"
   exit 1
@@ -32,6 +33,4 @@ fi
 echo "sha256: $SHA"
 echo "version: $VERSION"
 echo "url: $URL"
-
-rm -f "$TMPFILE"
 

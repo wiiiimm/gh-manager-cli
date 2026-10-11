@@ -233,6 +233,9 @@ jobs:
     needs: create-release
     if: ${{ startsWith(github.event.head_commit.message, 'chore(release):') }}
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
     steps:
       - name: Checkout code
         uses: actions/checkout@v7
@@ -243,6 +246,17 @@ jobs:
         uses: actions/setup-node@v7
         with:
           node-version: '22'
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v6
+        with:
+          version: 8
+
+      - name: Install dependencies
+        run: pnpm install --no-frozen-lockfile
+
+      - name: Build application
+        run: pnpm run build
 
       - name: Get version from package.json
         id: get_version
@@ -258,27 +272,25 @@ jobs:
         run: |
           echo "Publishing version ${VERSION} to GitHub Packages..."
           
-          # Create .npmrc for GitHub Packages
-          echo "@wiiiimm:registry=https://npm.pkg.github.com" >> .npmrc
-          echo "//npm.pkg.github.com/:_authToken=${NODE_AUTH_TOKEN}" >> .npmrc
-          
+          NPM_CONFIG_USERCONFIG=$(mktemp)
+          PACKAGE_BACKUP=$(mktemp)
+          cp package.json "$PACKAGE_BACKUP"
+          export NPM_CONFIG_USERCONFIG
+          trap 'cp "$PACKAGE_BACKUP" package.json; rm -f "$PACKAGE_BACKUP" "$NPM_CONFIG_USERCONFIG"' EXIT
+          echo "@stealth-factory:registry=https://npm.pkg.github.com" > "$NPM_CONFIG_USERCONFIG"
+          echo "//npm.pkg.github.com/:_authToken=${NODE_AUTH_TOKEN}" >> "$NPM_CONFIG_USERCONFIG"
+
           # Check if this version already exists in GitHub Packages
-          if npm view @wiiiimm/gh-manager-cli@${VERSION} --registry=https://npm.pkg.github.com 2>/dev/null; then
+          if npm view @stealth-factory/gh-manager-cli@${VERSION} --registry=https://npm.pkg.github.com 2>/dev/null; then
             echo "::notice::Version ${VERSION} already exists in GitHub Packages, skipping publish"
             exit 0
           fi
-          
-          # Backup original package.json
-          cp package.json package-original.json
-          
-          # Modify package.json for GitHub Packages
-          jq '.name = "@wiiiimm/gh-manager-cli" | .publishConfig = {"registry": "https://npm.pkg.github.com"}' package-original.json > package.json
-          
-          # Publish to GitHub Packages
-          npm publish --registry=https://npm.pkg.github.com || echo "::warning::Failed to publish to GitHub Packages"
-          
-          # Restore original package.json
-          mv package-original.json package.json
+
+          # Override the archive's publish registry and restore the checkout on exit.
+          jq '.publishConfig.registry = "https://npm.pkg.github.com"' "$PACKAGE_BACKUP" > package.json
+          TARBALL=$(npm pack --json --ignore-scripts | node -e "let data=''; process.stdin.on('data', chunk => data += chunk); process.stdin.on('end', () => console.log(JSON.parse(data)[0].filename));")
+          npm publish "$TARBALL" --registry=https://npm.pkg.github.com
+          rm -f "$TARBALL"
 
       - name: Update Homebrew Tap
         env:
@@ -293,31 +305,21 @@ jobs:
           
           echo "Updating Homebrew tap for version ${VERSION}..."
           
-          # Create npm tarball locally
-          npm pack
-          TARBALL="gh-manager-cli-${VERSION}.tgz"
-          
-          # Calculate SHA256 of the tarball
-          if [[ "$OSTYPE" == "darwin"* ]]; then
-            SHA256=$(shasum -a 256 "$TARBALL" | cut -d' ' -f1)
-          else
-            SHA256=$(sha256sum "$TARBALL" | cut -d' ' -f1)
-          fi
+          # Hash the exact public registry tarball that Homebrew will download.
+          SHA256=$(bash scripts/brew-sha.sh "$VERSION" | awk '/^sha256:/ {print $2}')
           echo "SHA256: $SHA256"
-          
+
           # Clone the tap repository with authentication
           git config --global user.name "github-actions[bot]"
           git config --global user.email "github-actions[bot]@users.noreply.github.com"
-          git clone https://x-access-token:${GITHUB_TOKEN}@github.com/wiiiimm/homebrew-tap.git tap-repo
+          git clone https://x-access-token:${GITHUB_TOKEN}@github.com/stealth-factory/homebrew-tap.git tap-repo
           
           # Update the formula
           FORMULA="tap-repo/Formula/gh-manager-cli.rb"
-          sed -i.bak -E "s|url \"https://registry.npmjs.org/gh-manager-cli/-/gh-manager-cli-[0-9.]+\.tgz\"|url \"https://registry.npmjs.org/gh-manager-cli/-/gh-manager-cli-${VERSION}.tgz\"|" "$FORMULA"
-          sed -i.bak -E "s|sha256 \"[a-f0-9]{64}\"|sha256 \"${SHA256}\"|" "$FORMULA"
-          rm -f "$FORMULA.bak"
-          
+          node scripts/update-homebrew-formula.js "$FORMULA" "$VERSION" "$SHA256"
+
           # Commit and push
           cd tap-repo
           git add Formula/gh-manager-cli.rb
-          git commit -m "Update gh-manager-cli to ${VERSION}" || echo "::notice::No changes to commit"
+          git commit -m "chore: update gh-manager-cli to ${VERSION}" || echo "::notice::No changes to commit"
           git push origin main || echo "::warning::Failed to push Homebrew formula update"

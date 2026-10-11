@@ -21,7 +21,7 @@ This project adheres to a code of conduct adapted from the [Contributor Covenant
 
 ## Getting Started
 
-1. Fork the repository on GitHub
+1. Fork [stealth-factory/gh-manager-cli](https://github.com/stealth-factory/gh-manager-cli) on GitHub
 2. Clone your fork locally
 3. Set up the development environment
 4. Create a branch for your changes
@@ -74,11 +74,11 @@ gh-manager-cli
 
 ### Branch Naming
 
-Use descriptive branch names:
-- `feat/add-repository-actions` - New features
-- `fix/sorting-bug` - Bug fixes  
-- `docs/update-readme` - Documentation changes
-- `refactor/github-client` - Code refactoring
+Include the Linear issue ID in branch names and PR titles (create an issue first if needed):
+- `feat/gmc-123-add-repository-actions` - New features
+- `fix/gmc-123-sorting-bug` - Bug fixes
+- `docs/gmc-123-update-readme` - Documentation changes
+- `refactor/gmc-123-github-client` - Code refactoring
 
 ### Commit Message Format
 
@@ -166,10 +166,7 @@ refactor: extract GitHub API client to separate module
 
 ### Automated Testing
 
-Currently, the project relies primarily on manual testing. Automated testing contributions are welcome:
-- Unit tests for utility functions
-- Integration tests for GitHub API
-- Snapshot tests for UI components (where feasible)
+Every feature or bug fix requires automated coverage in the same change. Run `FORCE_COLOR=1 pnpm test`, `pnpm typecheck`, and `pnpm build` before submitting. Vitest and ink-testing-library cover utility functions, mocked GitHub API operations, and UI behaviour. See [AGENTS.md](AGENTS.md) for input and async modal test conventions.
 
 ## Documentation
 
@@ -184,7 +181,7 @@ Currently, the project relies primarily on manual testing. Automated testing con
 
 - Keep README concise, point to the detailed docs in `wiki/`
 - Use AGENTS.md for comprehensive technical documentation
-- Track shipped work via `CHANGELOG.md`; planned work is driven by [GitHub Issues](https://github.com/wiiiimm/gh-manager-cli/issues)
+- Track shipped work via `CHANGELOG.md`; planned work is driven by [GitHub Issues](https://github.com/stealth-factory/gh-manager-cli/issues)
 - Include code examples where helpful
 
 ## Issue Guidelines
@@ -257,7 +254,10 @@ Releases are automated via semantic-release:
 2. GitHub Actions runs semantic-release
 3. Version calculated from conventional commits
 4. CHANGELOG.md generated automatically
-5. GitHub release created with notes
+5. `@stealth-factory/gh-manager-cli` published publicly, followed by the same-version `gh-manager-cli` compatibility launcher
+6. GitHub release created with notes and binaries; GitHub Packages and `stealth-factory/homebrew-tap` updated
+
+See [Release Process](docs/RELEASE_PROCESS.md) and [npm Scope Migration](docs/NPM_SCOPE_MIGRATION.md).
 
 ### Getting Help
 

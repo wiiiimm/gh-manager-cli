@@ -102,6 +102,7 @@ describe('formatSupportMessage', () => {
     const out = s.formatSupportMessage();
     expect(out).toContain('Thank you for using gh-manager-cli');
     expect(out).toContain('https://github.com/sponsors/wiiiimm');
+    expect(out).toContain('https://github.com/stealth-factory/gh-manager-cli');
     expect(out).toContain('Your support keeps this project alive');
   });
 

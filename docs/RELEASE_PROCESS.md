@@ -1,188 +1,78 @@
-# Release Process Documentation
+# Release Process
 
-## Overview
-The gh-manager-cli project uses a **single optimized workflow** for all releases to minimize complexity and avoid skipped workflow runs.
+Releases come from [stealth-factory/gh-manager-cli](https://github.com/stealth-factory/gh-manager-cli), using `.github/workflows/release.yml` and the semantic-release configuration in `package.json`.
 
-## Architecture: Two-Phase Workflow Approach
+## Published Packages and Commands
 
-```
-┌─────────────────────────────────────────────────────────────┐
-│                         Main Branch                          │
-├─────────────────────────────────────────────────────────────┤
-│                                                               │
-│  Phase 1: Version Creation (Non-release commits)             │
-│  ─────────────────────────────────────────────────           │
-│  [Feature/Fix Commit] ──► [release.yml workflow]             │
-│                              │                               │
-│                              ▼                               │
-│                    ┌──────────────────┐                      │
-│                    │ Semantic Release │                      │
-│                    │ - Analyze commits│                      │
-│                    │ - Bump version   │                      │
-│                    │ - Update CHANGELOG│                     │
-│                    │ - Create git tag │                      │
-│                    │ - NPM Publish    │                      │
-│                    │ - Commit changes │                      │
-│                    └────────┬─────────┘                      │
-│                             │                                │
-│                             ▼                                │
-│                    Creates "chore(release):" commit          │
-│                                                               │
-│  Phase 2: Binary Building (Release commits)                  │
-│  ───────────────────────────────────────────                 │
-│  [chore(release): commit] ──► [release.yml workflow]         │
-│                                   │                          │
-│                                   ▼                          │
-│                          ┌────────────────┐                  │
-│                          │ Build Binaries │                  │
-│                          │ (Linux/Mac/Win)│                  │
-│                          └────────┬───────┘                  │
-│                                   │                          │
-│                          ┌────────▼───────────┐              │
-│                          │ Create GitHub      │              │
-│                          │ Release & Upload   │              │
-│                          │ Binaries           │              │
-│                          └────────┬───────────┘              │
-│                                   │                          │
-│                          ┌────────▼───────────┐              │
-│                          │ Publish to GitHub  │              │
-│                          │ Packages & Update  │              │
-│                          │ Homebrew Formula   │              │
-│                          └────────────────────┘              │
-└─────────────────────────────────────────────────────────────┘
-```
+| Destination | Package or repository | User command |
+|---|---|---|
+| npm (canonical) | `@stealth-factory/gh-manager-cli` | `npx @stealth-factory/gh-manager-cli@latest` |
+| npm (compatibility) | `gh-manager-cli` | `npx gh-manager-cli@latest` |
+| GitHub Packages | `@stealth-factory/gh-manager-cli` | Requires GitHub registry configuration |
+| Homebrew | `stealth-factory/homebrew-tap` | `brew install stealth-factory/tap/gh-manager-cli` |
+| Standalone binaries | GitHub Releases | Platform-specific `gh-manager-cli-*` executable |
 
-## Why Two-Phase Workflow?
+The executable remains `gh-manager-cli`. Configuration, preferences, cache, and log paths retain the application name, regardless of npm scope.
 
-### Benefits
-1. **Correct Version in Binaries**: Build happens after version is committed
-2. **Avoids Immutable Release Issues**: GitHub release created after binaries are ready
-3. **Clear Separation**: Version creation vs binary building
-4. **Atomic Operations**: Each phase completes independently
+## Phase 1: Version and npm Publication
 
-### How It Works
-- **Phase 1**: Runs on feature/fix commits to create version and publish to npm
-- **Phase 2**: Runs on `chore(release):` commits to build binaries and create GitHub release
-- This ensures binaries contain the correct version number
+On a non-release commit pushed to `main`, semantic-release:
 
-## Release Triggers
+1. Analyses conventional commits since the last release.
+2. Calculates the release version.
+3. Updates `package.json` and the generated `CHANGELOG.md`.
+4. Prepares the compatibility package in `.release/legacy`.
+5. Commits the release metadata as `chore(release): X.Y.Z` and creates a tag.
+6. Publishes `@stealth-factory/gh-manager-cli` publicly on npm.
+7. Publishes the same-version `gh-manager-cli` compatibility launcher.
 
-The workflow runs on every push to main and determines if a release is needed based on:
+The local `scripts/release-legacy-package.js` plugin follows `@semantic-release/npm` in the plugin list. Its launcher imports the scoped package in the same process, retaining CLI arguments and exit behaviour, and depends on that exact version. It performs no runtime package installation.
 
-### Semantic Commit Format
-```
-<type>(<scope>): <subject>
+Do not manually bump the version or edit `CHANGELOG.md`. `feat:` triggers a minor release; `fix:` and `perf:` trigger patch releases; a breaking-change marker triggers a major release. Documentation and maintenance commits alone do not normally trigger publication.
 
-<body>
+The two npm publications are sequential, not atomic. If the scoped publication succeeds and the compatibility publication fails, the previous short-command version remains available; repair it using the migration guide.
 
-<footer>
-```
+## Phase 2: Binaries, GitHub Packages, and Homebrew
 
-### Release-Triggering Commit Types
-- `feat:` - New feature (minor version bump)
-- `fix:` - Bug fix (patch version bump)
-- `perf:` - Performance improvement (patch version bump)
-- `BREAKING CHANGE:` - Breaking change (major version bump)
+The release metadata commit triggers the second phase:
 
-### Non-Release Commit Types
-- `chore:` - Maintenance tasks
-- `docs:` - Documentation only
-- `style:` - Code style changes
-- `refactor:` - Code refactoring
-- `test:` - Test changes
-- `ci:` - CI/CD changes
+1. Build Linux, macOS, and Windows binaries using the pinned `@yao-pkg/pkg` and `node22` targets.
+2. Create the GitHub release from the generated changelog and upload binaries.
+3. Build the application and publish the scoped package to GitHub Packages.
+4. Download the scoped tarball from the public npm registry, hash it, and update `Formula/gh-manager-cli.rb` in `stealth-factory/homebrew-tap`.
 
-## Release Flow
+The npmjs publish configuration stays intact while the GitHub Packages step uses an explicit registry and temporary authentication configuration. Homebrew uses the published npmjs archive, rather than a local `npm pack` checksum.
 
-### Phase 1: Version Creation
-1. **Developer Action**: Push feature/fix to main
-2. **Workflow Triggers**: `release.yml` starts
-3. **Semantic Release Job**: (if NOT `chore(release):`)
-   - Analyzes all commits since last release
-   - Determines version bump (major/minor/patch)
-   - Updates package.json and CHANGELOG.md
-   - Creates git tag
-   - Publishes to NPM
-   - Commits changes as `chore(release): X.Y.Z`
+`GH_TOKEN` must permit the release commit to trigger another workflow run. A push authenticated with the default `GITHUB_TOKEN` does not trigger another push workflow; that fallback alone is insufficient for phase 2.
 
-### Phase 2: Binary Building
-1. **Automatic Trigger**: `chore(release):` commit from Phase 1
-2. **Workflow Triggers**: `release.yml` starts again
-3. **Build Jobs**: (if `chore(release):`)
-   - Build binaries for Linux, macOS, Windows
-   - Uses committed version from package.json
-4. **Create Release Job**:
-   - Creates GitHub Release with changelog
-   - Uploads binaries to release
-5. **Publish Extras Job**:
-   - Publishes to GitHub Packages
-   - Updates Homebrew formula
+## Credentials After the Repository Transfer
 
-## Version Numbering
+- `NPM_TOKEN`: must permit public publication under the `stealth-factory` organisation and updates to the original unscoped `gh-manager-cli` package.
+- `GH_TOKEN`: must allow repository/tag/release writes for `stealth-factory/gh-manager-cli` and formula pushes to `stealth-factory/homebrew-tap`.
+- `GITHUB_TOKEN`: the `publish-extras` job requests `packages: write` for publishing under the new GitHub organisation. Check the organisation's package creation policy.
+- If using npm trusted publishing, update the configured GitHub owner/repository to `stealth-factory/gh-manager-cli` and authorise both npm packages. The current workflow uses `NPM_TOKEN`; an OIDC migration needs corresponding workflow configuration.
 
-Uses [Semantic Versioning](https://semver.org/): `MAJOR.MINOR.PATCH`
+See [npm Scope Migration](NPM_SCOPE_MIGRATION.md) for first publication and verification.
 
-- **MAJOR**: Breaking changes
-- **MINOR**: New features (backward compatible)
-- **PATCH**: Bug fixes
+## Manual Trigger and Recovery
 
-## Configuration Files
+Use GitHub Actions → **Release Pipeline** → **Run workflow**. Semantic-release still requires releasable commits; a manual trigger does not force a version bump.
 
-### `package.json` (release config)
-```json
-{
-  "release": {
-    "branches": ["main"],
-    "plugins": [
-      "@semantic-release/commit-analyzer",
-      "@semantic-release/release-notes-generator",
-      "@semantic-release/changelog",
-      "@semantic-release/npm",
-      ["@semantic-release/git", {
-        "assets": ["CHANGELOG.md", "package.json"],
-        "message": "chore(release): ${nextRelease.version}\n\n${nextRelease.notes}"
-      }]
-    ]
-  }
-}
-```
-Note: `@semantic-release/github` is NOT included to avoid immutable release issues.
+For an interrupted second phase, retry the failed workflow and inspect the job conditions.
 
-### Workflow: `.github/workflows/release.yml`
-- Single workflow handling all release logic
-- Uses job-level conditions to avoid skipped runs
-- Outputs clear success/failure status
+Do not run `npm version` to force a release. For a compatibility-package-only failure, use the recovery steps in [NPM_SCOPE_MIGRATION.md](NPM_SCOPE_MIGRATION.md). For tap repair, use [HOMEBREW.md](HOMEBREW.md).
 
-## Manual Release
+## Validation
 
-If needed, you can trigger a release manually:
+Before merging release changes:
+
 ```bash
-npm run release
+FORCE_COLOR=1 pnpm test
+pnpm typecheck
+pnpm build
+npm pack --dry-run
+pnpm legacy:prepare
+npm pack ./.release/legacy --dry-run
 ```
 
-This runs semantic-release locally (requires proper tokens).
-
-## Troubleshooting
-
-### Release Not Triggering
-- Check commit message format
-- Ensure commits follow semantic conventions
-- Verify no `chore(release):` prefix
-
-### Version Not Bumping Correctly
-- Review commit types since last release
-- Check for `BREAKING CHANGE:` in commit body
-- Verify `.releaserc.json` configuration
-
-## Deleted Workflows
-
-The following redundant workflows were removed:
-1. `automated-release.yml` - Replaced by single workflow
-2. `release-on-version-change.yml` - Never performed useful work
-
-## Best Practices
-
-1. **Use Semantic Commits**: Always follow the commit format
-2. **PR Titles Matter**: When squash-merging, PR title becomes commit message
-3. **Breaking Changes**: Document in commit body with `BREAKING CHANGE:`
-4. **Direct Commits**: Okay for quick fixes, workflow handles both cases
+A passing local check proves the artifacts can be prepared; confirm registry versions, GitHub release assets, and the tap formula separately after publication.
